@@ -18,10 +18,9 @@ pandas
 
 # Async Support
 asyncio-throttle
-
 seaborn
 # Optional: GPU Support (uncomment if using GPU)
-# onnxruntime-gpu
+onnxruntime-gpu
 
 # Development and Debugging
 tqdm
