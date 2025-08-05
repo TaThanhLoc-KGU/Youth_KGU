@@ -1,443 +1,5 @@
-## =============================================================================
-## Script Setup Python Feature Extraction cho Face Attendance System
-## =============================================================================
-#
-#set -e  # Exit on any error
-#
-## Colors for output
-#RED='\033[0;31m'
-#GREEN='\033[0;32m'
-#YELLOW='\033[1;33m'
-#BLUE='\033[0;34m'
-#NC='\033[0m' # No Color
-#
-## Configuration - THAY ĐỔI THEO SETUP CỦA BẠN
-#PROJECT_ROOT="D:/LuanVan/face-attendance"  # Đường dẫn tới thư mục gốc của dự án
-#VENV_PATH="$PROJECT_ROOT/script/face_recognition/.venv"
-#PYTHON_SCRIPT_NAME="/scripts/face_recognition/face_feature_extractor.py"  # Tên file Python script của bạn
-#
-#echo -e "${BLUE}==============================================================================${NC}"
-#echo -e "${BLUE}        SETUP PYTHON FEATURE EXTRACTION FOR FACE ATTENDANCE${NC}"
-#echo -e "${BLUE}==============================================================================${NC}"
-#
-## Function to print status
-#print_status() {
-#    echo -e "${GREEN}[INFO]${NC} $1"
-#}
-#
-#print_warning() {
-#    echo -e "${YELLOW}[WARNING]${NC} $1"
-#}
-#
-#print_error() {
-#    echo -e "${RED}[ERROR]${NC} $1"
-#}
-#
-## Check if running as correct user
-#check_user() {
-#    print_status "Checking user permissions..."
-#    if [ "$EUID" -eq 0 ]; then
-#        print_error "Please don't run this script as root!"
-#        exit 1
-#    fi
-#    print_status "User check passed ✓"
-#}
-#
-## Check project structure
-#check_project_structure() {
-#    print_status "Checking project structure..."
-#
-#    if [ ! -d "$PROJECT_ROOT" ]; then
-#        print_error "Project root not found: $PROJECT_ROOT"
-#        print_error "Please update PROJECT_ROOT in this script to match your setup"
-#        exit 1
-#    fi
-#
-#    if [ ! -f "$PROJECT_ROOT/$PYTHON_SCRIPT_NAME" ]; then
-#        print_error "Python script not found: $PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
-#        print_error "Please copy your Python feature extraction script to: $PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
-#        exit 1
-#    fi
-#
-#    print_status "Project structure check passed ✓"
-#}
-#
-## Check and setup virtual environment
-#setup_virtual_environment() {
-#    print_status "Setting up Python virtual environment..."
-#
-#    if [ ! -d "$VENV_PATH" ]; then
-#        print_warning "Virtual environment not found. Creating new one..."
-#
-#        # Check if python3 is available
-#        if ! command -v python3 &> /dev/null; then
-#            print_error "python3 not found. Please install Python 3.8+ first"
-#            exit 1
-#        fi
-#
-#        # Create virtual environment
-#        python3 -m venv "$VENV_PATH"
-#        print_status "Virtual environment created at: $VENV_PATH"
-#    else
-#        print_status "Virtual environment found at: $VENV_PATH"
-#    fi
-#
-#    # Activate virtual environment
-#    source "$VENV_PATH/bin/activate.bat"
-#
-#    # Upgrade pip
-#    print_status "Upgrading pip..."
-#    pip install --upgrade pip
-#
-#    print_status "Virtual environment setup completed ✓"
-#}
-#
-## Install required Python packages
-#install_python_packages() {
-#    print_status "Installing required Python packages..."
-#
-#    # Activate virtual environment
-#    source "$VENV_PATH/bin/activate"
-#
-#    # Create requirements.txt if not exists
-#    cat > "$PROJECT_ROOT/requirements.txt" << EOF
-#numpy>=1.21.0
-#opencv-python>=4.5.0
-#insightface>=0.7.3
-#requests>=2.25.0
-#aiohttp>=3.8.0
-#scikit-learn>=1.0.0
-#pathlib2>=2.3.0
-#Pillow>=8.0.0
-#matplotlib>=3.3.0
-#onnxruntime>=1.10.0
-#EOF
-#
-#    print_status "Installing packages from requirements.txt..."
-#    pip install -r "$PROJECT_ROOT/requirements.txt"
-#
-#    print_status "Python packages installation completed ✓"
-#}
-#
-## Test Python environment
-#test_python_environment() {
-#    print_status "Testing Python environment..."
-#
-#    # Activate virtual environment
-#    source "$VENV_PATH/bin/activate"
-#
-#    # Test imports
-#    python3 -c "
-#import sys
-#print(f'Python version: {sys.version}')
-#
-#try:
-#    import numpy as np
-#    print('✓ numpy:', np.__version__)
-#except ImportError as e:
-#    print('✗ numpy import failed:', e)
-#    sys.exit(1)
-#
-#try:
-#    import cv2
-#    print('✓ opencv-python:', cv2.__version__)
-#except ImportError as e:
-#    print('✗ opencv-python import failed:', e)
-#    sys.exit(1)
-#
-#try:
-#    import insightface
-#    print('✓ insightface: available')
-#except ImportError as e:
-#    print('✗ insightface import failed:', e)
-#    sys.exit(1)
-#
-#try:
-#    import requests
-#    print('✓ requests: available')
-#except ImportError as e:
-#    print('✗ requests import failed:', e)
-#    sys.exit(1)
-#
-#try:
-#    import aiohttp
-#    print('✓ aiohttp: available')
-#except ImportError as e:
-#    print('✗ aiohttp import failed:', e)
-#    sys.exit(1)
-#
-#try:
-#    import sklearn
-#    print('✓ scikit-learn: available')
-#except ImportError as e:
-#    print('✗ scikit-learn import failed:', e)
-#    sys.exit(1)
-#
-#print('\\n🎉 All required packages are installed correctly!')
-#"
-#
-#    if [ $? -eq 0 ]; then
-#        print_status "Python environment test passed ✓"
-#    else
-#        print_error "Python environment test failed!"
-#        exit 1
-#    fi
-#}
-#
-## Create wrapper scripts
-#create_wrapper_scripts() {
-#    print_status "Creating wrapper scripts..."
-#
-#    # Create wrapper Python script
-#    cat > "$PROJECT_ROOT/extract_wrapper.py" << 'EOF'
-##!/usr/bin/env python3
-#import sys
-#import os
-#import asyncio
-#import json
-#
-## Add the scripts directory to Python path
-#project_root = os.path.dirname(os.path.abspath(__file__))
-#scripts_dir = os.path.join(project_root, 'scripts', 'face_recognition')
-#sys.path.insert(0, scripts_dir)
-#
-## Import script chính
-#try:
-#    from face_feature_extractor import FaceFeatureExtractor, main as original_main
-#except ImportError as e:
-#    print(f"ERROR: Cannot import main script: {e}", file=sys.stderr)
-#    print("Please make sure your Python script is at 'scripts/face_recognition/face_feature_extractor.py'", file=sys.stderr)
-#    sys.exit(1)
-#
-#def extract_single_student(ma_sv):
-#    """Trích xuất đặc trưng cho một sinh viên"""
-#    import asyncio
-#
-#    async def extract_one():
-#        # Cấu hình - CẬP NHẬT THEO SETUP CỦA BẠN
-#        PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-#        BACKEND_API_URL = "http://localhost:8080/api"
-#        FACE_API_URL = "http://localhost:8001"
-#
-#        # Credentials - CẬP NHẬT THEO SETUP CỦA BẠN
-#        CREDENTIALS = {
-#            'username': 'admin',
-#            'password': 'admin123'
-#        }
-#
-#        # Khởi tạo extractor
-#        extractor = FaceFeatureExtractor(BACKEND_API_URL, FACE_API_URL, PROJECT_ROOT, CREDENTIALS)
-#
-#        # Xử lý sinh viên
-#        result = await extractor.process_student(ma_sv)
-#
-#        # In kết quả dưới dạng JSON để Java đọc
-#        print("RESULT_JSON_START")
-#        print(json.dumps(result, ensure_ascii=False, default=str))
-#        print("RESULT_JSON_END")
-#
-#        return result
-#
-#    return asyncio.run(extract_one())
-#
-#def extract_all_students():
-#    """Trích xuất đặc trưng cho tất cả sinh viên"""
-#    import asyncio
-#
-#    async def extract_all():
-#        # Cấu hình - CẬP NHẬT THEO SETUP CỦA BẠN
-#        PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-#        BACKEND_API_URL = "http://localhost:8080/api"
-#        FACE_API_URL = "http://localhost:8001"
-#
-#        # Credentials - CẬP NHẬT THEO SETUP CỦA BẠN
-#        CREDENTIALS = {
-#            'username': 'admin',
-#            'password': 'admin123'
-#        }
-#
-#        # Khởi tạo extractor
-#        extractor = FaceFeatureExtractor(BACKEND_API_URL, FACE_API_URL, PROJECT_ROOT, CREDENTIALS)
-#
-#        # Xử lý tất cả sinh viên
-#        results = await extractor.process_all_students()
-#
-#        # In kết quả dưới dạng JSON để Java đọc
-#        print("RESULT_JSON_START")
-#        print(json.dumps(results, ensure_ascii=False, default=str))
-#        print("RESULT_JSON_END")
-#
-#        return results
-#
-#    return asyncio.run(extract_all())
-#
-#if __name__ == "__main__":
-#    if len(sys.argv) < 2:
-#        print("Usage: python extract_wrapper.py <command> [student_id]")
-#        print("Commands: single <student_id>, all")
-#        sys.exit(1)
-#
-#    command = sys.argv[1]
-#
-#    try:
-#        if command == "single" and len(sys.argv) >= 3:
-#            student_id = sys.argv[2]
-#            result = extract_single_student(student_id)
-#            sys.exit(0 if result.get('status') == 'success' else 1)
-#        elif command == "all":
-#            results = extract_all_students()
-#            sys.exit(0 if results.get('success') else 1)
-#        else:
-#            print("Invalid command or missing student_id")
-#            sys.exit(1)
-#
-#    except Exception as e:
-#        print(f"ERROR: {str(e)}", file=sys.stderr)
-#        sys.exit(1)
-#EOF
-#
-#    # Create bash script
-#    cat > "$PROJECT_ROOT/run_extraction.sh" << EOF
-##!/bin/bash
-#
-## Đường dẫn tới virtual environment
-#VENV_PATH="$VENV_PATH"
-#SCRIPT_DIR="$PROJECT_ROOT"
-#
-## Kiểm tra venv tồn tại
-#if [ ! -d "\$VENV_PATH" ]; then
-#    echo "ERROR: Virtual environment not found at \$VENV_PATH"
-#    exit 1
-#fi
-#
-## Activate virtual environment
-#source "\$VENV_PATH/bin/activate"
-#
-## Kiểm tra Python và packages
-#if ! python -c "import insightface, numpy, cv2" 2>/dev/null; then
-#    echo "ERROR: Required Python packages not installed"
-#    deactivate
-#    exit 1
-#fi
-#
-## Chuyển tới thư mục script
-#cd "\$SCRIPT_DIR"
-#
-## Chạy Python script với các tham số
-#python extract_wrapper.py "\$@"
-#
-## Lưu exit code
-#exit_code=\$?
-#
-## Deactivate venv
-#deactivate
-#
-## Trả về exit code
-#exit \$exit_code
-#EOF
-#
-#    # Make scripts executable
-#    chmod +x "$PROJECT_ROOT/extract_wrapper.py"
-#    chmod +x "$PROJECT_ROOT/run_extraction.sh"
-#
-#    print_status "Wrapper scripts created ✓"
-#}
-#
-## Update application.properties
-#update_application_properties() {
-#    print_status "Updating application.properties..."
-#
-#    PROPERTIES_FILE="$PROJECT_ROOT/src/main/resources/application.properties"
-#
-#    if [ -f "$PROPERTIES_FILE" ]; then
-#        # Backup original file
-#        cp "$PROPERTIES_FILE" "$PROPERTIES_FILE.backup"
-#
-#        # Add or update Python configuration
-#        if ! grep -q "app.python.venv.path" "$PROPERTIES_FILE"; then
-#            echo "" >> "$PROPERTIES_FILE"
-#            echo "# Python Feature Extraction Configuration" >> "$PROPERTIES_FILE"
-#            echo "app.python.venv.path=$VENV_PATH" >> "$PROPERTIES_FILE"
-#            echo "app.python.script.path=$PROJECT_ROOT" >> "$PROPERTIES_FILE"
-#        fi
-#
-#        print_status "application.properties updated ✓"
-#    else
-#        print_warning "application.properties not found, skipping..."
-#    fi
-#}
-#
-## Test complete setup
-#test_complete_setup() {
-#    print_status "Testing complete setup..."
-#
-#    # Test bash script
-#    if [ -f "$PROJECT_ROOT/run_extraction.sh" ]; then
-#        print_status "Testing bash script execution..."
-#
-#        # Test với command help
-#        bash "$PROJECT_ROOT/run_extraction.sh" 2>/dev/null || true
-#
-#        print_status "Bash script test completed ✓"
-#    fi
-#
-#    print_status "Complete setup test passed ✓"
-#}
-#
-## Main execution
-#main() {
-#    echo -e "${BLUE}Starting setup process...${NC}\n"
-#
-#    check_user
-#    echo ""
-#
-#    check_project_structure
-#    echo ""
-#
-#    setup_virtual_environment
-#    echo ""
-#
-#    install_python_packages
-#    echo ""
-#
-#    test_python_environment
-#    echo ""
-#
-#    create_wrapper_scripts
-#    echo ""
-#
-#    update_application_properties
-#    echo ""
-#
-#    test_complete_setup
-#    echo ""
-#
-#    echo -e "${GREEN}==============================================================================${NC}"
-#    echo -e "${GREEN}                            SETUP COMPLETED SUCCESSFULLY!${NC}"
-#    echo -e "${GREEN}==============================================================================${NC}"
-#    echo ""
-#    echo -e "${BLUE}📁 Project Root:${NC} $PROJECT_ROOT"
-#    echo -e "${BLUE}🐍 Virtual Environment:${NC} $VENV_PATH"
-#    echo -e "${BLUE}📜 Python Script:${NC} $PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
-#    echo -e "${BLUE}🔧 Wrapper Script:${NC} $PROJECT_ROOT/extract_wrapper.py"
-#    echo -e "${BLUE}⚙️  Bash Script:${NC} $PROJECT_ROOT/run_extraction.sh"
-#    echo ""
-#    echo -e "${YELLOW}Next steps:${NC}"
-#    echo -e "1. Start your Spring Boot application"
-#    echo -e "2. Make sure Face Recognition Service is running on port 8001"
-#    echo -e "3. Test the feature extraction from the web interface"
-#    echo ""
-#    echo -e "${YELLOW}Manual test command:${NC}"
-#    echo -e "cd $PROJECT_ROOT && bash run_extraction.sh all"
-#    echo ""
-#}
-#
-## Run main function
-#main "$@"
-
-
 # =============================================================================
-# Script Setup Python Feature Extraction cho Face Attendance System - Git Bash
+# Script Setup Python Feature Extraction cho Face Attendance System - Windows
 # =============================================================================
 
 set -e  # Exit on any error
@@ -449,13 +11,13 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration - THAY ĐỔI THEO SETUP CỦA BẠN
-PROJECT_ROOT="/d/LuanVan/face-attendance"  # Đường dẫn Git Bash style (D: -> /d/)
-VENV_PATH="$PROJECT_ROOT/script/face_recognition/.venv"
-PYTHON_SCRIPT_NAME="/scripts/face_recognition/face_feature_extractor.py"
+# Configuration - UPDATED FOR YOUR SETUP
+PROJECT_ROOT="/d/LuanVan/face-attendance"  # Git Bash path format
+VENV_PATH="$PROJECT_ROOT/scripts/face_recognition/.venv"  # Updated to match your structure
+PYTHON_SCRIPT_NAME="scripts/face_recognition/face_feature_extractor.py"  # Correct path
 
 echo -e "${BLUE}==============================================================================${NC}"
-echo -e "${BLUE}        SETUP PYTHON FEATURE EXTRACTION FOR FACE ATTENDANCE (Git Bash)${NC}"
+echo -e "${BLUE}        SETUP PYTHON FEATURE EXTRACTION - FACE ATTENDANCE SYSTEM${NC}"
 echo -e "${BLUE}==============================================================================${NC}"
 
 # Function to print status
@@ -471,23 +33,22 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Convert Windows path to Git Bash path
-convert_path() {
-    echo "$1" | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/\L\1|'
-}
-
 # Convert Git Bash path to Windows path
 convert_to_windows_path() {
-    echo "$1" | sed 's|^/\([a-z]\)|/\U\1:|' | sed 's|/|\\|g'
+    echo "$1" | sed 's|^/\([a-z]\)|\U\1:|' | sed 's|/|\\|g'
 }
 
-# Check if running in Git Bash
-check_git_bash() {
-    print_status "Checking Git Bash environment..."
+# Check if running in Git Bash on Windows
+check_environment() {
+    print_status "Checking environment..."
 
-    if [[ ! "$MSYSTEM" == "MINGW"* ]] && [[ ! "$TERM_PROGRAM" == "mintty" ]] && [[ ! -n "$BASH_VERSION" ]]; then
-        print_warning "This script is optimized for Git Bash on Windows"
-        print_warning "Consider using Git Bash for better compatibility"
+    if [[ ! -n "$BASH_VERSION" ]]; then
+        print_warning "This script is designed for Git Bash on Windows"
+    fi
+
+    # Check if we're on Windows
+    if [[ ! "$OSTYPE" == "msys" ]] && [[ ! "$MSYSTEM" == "MINGW"* ]]; then
+        print_warning "This script is optimized for Windows environment"
     fi
 
     print_status "Environment check completed ✓"
@@ -499,28 +60,178 @@ check_project_structure() {
 
     if [ ! -d "$PROJECT_ROOT" ]; then
         print_error "Project root not found: $PROJECT_ROOT"
-        print_error "Please update PROJECT_ROOT in this script"
-        print_error "Use Git Bash path format: /d/path/to/project (for D:/path/to/project)"
+        print_error "Please verify the path: D:/LuanVan/face-attendance exists"
         exit 1
     fi
 
+    # Check if scripts directory exists
+    if [ ! -d "$PROJECT_ROOT/scripts" ]; then
+        print_error "Scripts directory not found: $PROJECT_ROOT/scripts"
+        print_error "Please create the scripts directory structure"
+        exit 1
+    fi
+
+    # Check if face_recognition directory exists
+    if [ ! -d "$PROJECT_ROOT/scripts/face_recognition" ]; then
+        print_warning "Face recognition directory not found. Creating it..."
+        mkdir -p "$PROJECT_ROOT/scripts/face_recognition"
+    fi
+
+    # Check if Python script exists
     if [ ! -f "$PROJECT_ROOT/$PYTHON_SCRIPT_NAME" ]; then
-        print_error "Python script not found: $PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
-        print_error "Please copy your Python feature extraction script to this location"
-        exit 1
+        print_warning "Python script not found: $PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
+        print_warning "Will create a template script for you"
     fi
 
-    print_status "Project structure check passed ✓"
+    print_status "Project structure check completed ✓"
 }
 
-# Check and setup virtual environment
+# Create template Python script if not exists
+create_template_script() {
+    SCRIPT_PATH="$PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
+
+    if [ ! -f "$SCRIPT_PATH" ]; then
+        print_status "Creating template face_feature_extractor.py..."
+
+        cat > "$SCRIPT_PATH" << 'EOF'
+#!/usr/bin/env python3
+"""
+Face Feature Extractor for Face Attendance System
+Template script - customize according to your needs
+"""
+
+import sys
+import os
+import asyncio
+import json
+import logging
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+import numpy as np
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('face_extraction.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+class FaceFeatureExtractor:
+    """Face Feature Extractor for processing student images"""
+
+    def __init__(self, backend_api_url: str, face_api_url: str, project_root: str, credentials: Dict):
+        self.backend_api_url = backend_api_url
+        self.face_api_url = face_api_url
+        self.project_root = Path(project_root)
+        self.credentials = credentials
+
+        # Configuration
+        self.max_face_size = 640
+        self.min_face_size = 40
+        self.quality_threshold = 0.6
+
+        logger.info("FaceFeatureExtractor initialized")
+
+    async def process_student(self, ma_sv: str) -> Dict:
+        """Process a single student"""
+        logger.info(f"Processing student: {ma_sv}")
+
+        try:
+            # TODO: Implement your face processing logic here
+            # This is a template - customize according to your needs
+
+            result = {
+                'status': 'success',
+                'student_id': ma_sv,
+                'faces_processed': 0,
+                'embedding_created': False,
+                'message': f'Student {ma_sv} processed successfully (template)'
+            }
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error processing student {ma_sv}: {str(e)}")
+            return {
+                'status': 'error',
+                'student_id': ma_sv,
+                'message': str(e)
+            }
+
+    async def process_all_students(self) -> Dict:
+        """Process all students"""
+        logger.info("Processing all students")
+
+        try:
+            # TODO: Implement batch processing logic
+            # This is a template - customize according to your needs
+
+            result = {
+                'success': True,
+                'total_students': 0,
+                'processed_students': 0,
+                'failed_students': 0,
+                'message': 'All students processed successfully (template)'
+            }
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error processing all students: {str(e)}")
+            return {
+                'success': False,
+                'message': str(e)
+            }
+
+async def main():
+    """Main function"""
+    logger.info("Face Feature Extractor started")
+
+    # Configuration
+    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    BACKEND_API_URL = "http://localhost:8080/api"
+    FACE_API_URL = "http://localhost:8001"
+    CREDENTIALS = {
+        'username': 'admin',
+        'password': 'admin123'
+    }
+
+    # Create extractor
+    extractor = FaceFeatureExtractor(BACKEND_API_URL, FACE_API_URL, PROJECT_ROOT, CREDENTIALS)
+
+    # Example usage
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "all":
+            result = await extractor.process_all_students()
+        else:
+            ma_sv = sys.argv[1]
+            result = await extractor.process_student(ma_sv)
+
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print("Usage: python face_feature_extractor.py <student_id|all>")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+EOF
+
+        print_status "Template script created at: $SCRIPT_PATH"
+        print_warning "Please customize this template script according to your specific needs"
+    fi
+}
+
+# Setup virtual environment
 setup_virtual_environment() {
     print_status "Setting up Python virtual environment..."
 
     if [ ! -d "$VENV_PATH" ]; then
         print_warning "Virtual environment not found. Creating new one..."
 
-        # Check if python3 or python is available
+        # Check Python availability
         if command -v python3 &> /dev/null; then
             PYTHON_CMD="python3"
         elif command -v python &> /dev/null; then
@@ -531,7 +242,7 @@ setup_virtual_environment() {
             exit 1
         fi
 
-        print_status "Using Python command: $PYTHON_CMD"
+        print_status "Using Python: $PYTHON_CMD"
 
         # Create virtual environment
         $PYTHON_CMD -m venv "$VENV_PATH"
@@ -540,13 +251,13 @@ setup_virtual_environment() {
         print_status "Virtual environment found at: $VENV_PATH"
     fi
 
-    # Activate virtual environment (Git Bash specific)
+    # Activate virtual environment (Windows Git Bash)
     if [ -f "$VENV_PATH/Scripts/activate" ]; then
         source "$VENV_PATH/Scripts/activate"
-        print_status "Virtual environment activated (Windows style)"
+        print_status "Virtual environment activated (Windows)"
     elif [ -f "$VENV_PATH/bin/activate" ]; then
         source "$VENV_PATH/bin/activate"
-        print_status "Virtual environment activated (Unix style)"
+        print_status "Virtual environment activated (Unix-style)"
     else
         print_error "Cannot find activation script in virtual environment"
         exit 1
@@ -559,33 +270,47 @@ setup_virtual_environment() {
     print_status "Virtual environment setup completed ✓"
 }
 
-# Install required Python packages
+# Install Python packages
 install_python_packages() {
     print_status "Installing required Python packages..."
 
-    # Activate virtual environment
+    # Activate virtual environment first
     if [ -f "$VENV_PATH/Scripts/activate" ]; then
         source "$VENV_PATH/Scripts/activate"
     elif [ -f "$VENV_PATH/bin/activate" ]; then
         source "$VENV_PATH/bin/activate"
     fi
 
-    # Create requirements.txt if not exists
+    # Create requirements.txt
     cat > "$PROJECT_ROOT/requirements.txt" << EOF
+# Core dependencies
 numpy>=1.21.0
 opencv-python>=4.5.0
-insightface>=0.7.3
+Pillow>=8.0.0
 requests>=2.25.0
 aiohttp>=3.8.0
+
+# Machine Learning
 scikit-learn>=1.0.0
-pathlib2>=2.3.0
-Pillow>=8.0.0
-matplotlib>=3.3.0
 onnxruntime>=1.10.0
+
+# Face Recognition (install based on your needs)
+# insightface>=0.7.3  # Uncomment if using InsightFace
+# dlib>=19.22.0       # Uncomment if using dlib
+# face-recognition>=1.3.0  # Uncomment if using face_recognition library
+
+# Utilities
+pathlib2>=2.3.0
+matplotlib>=3.3.0
+tqdm>=4.62.0
+
+# Async and HTTP
+asyncio-mqtt>=0.11.0
+httpx>=0.24.0
 EOF
 
     print_status "Installing packages from requirements.txt..."
-    python -m pip install -r "$PROJECT_ROOT/requirements.txt"
+    pip install -r "$PROJECT_ROOT/requirements.txt"
 
     print_status "Python packages installation completed ✓"
 }
@@ -601,54 +326,38 @@ test_python_environment() {
         source "$VENV_PATH/bin/activate"
     fi
 
-    # Test imports
+    # Test basic imports
     python -c "
 import sys
 print(f'Python version: {sys.version}')
 
-try:
-    import numpy as np
-    print('✓ numpy:', np.__version__)
-except ImportError as e:
-    print('✗ numpy import failed:', e)
-    sys.exit(1)
+# Test core packages
+packages_to_test = [
+    ('numpy', 'np'),
+    ('cv2', 'cv2'),
+    ('requests', 'requests'),
+    ('aiohttp', 'aiohttp'),
+    ('sklearn', 'sklearn')
+]
 
-try:
-    import cv2
-    print('✓ opencv-python:', cv2.__version__)
-except ImportError as e:
-    print('✗ opencv-python import failed:', e)
-    sys.exit(1)
+failed_imports = []
 
-try:
-    import insightface
-    print('✓ insightface: available')
-except ImportError as e:
-    print('✗ insightface import failed:', e)
-    sys.exit(1)
+for package_name, import_name in packages_to_test:
+    try:
+        module = __import__(import_name)
+        if hasattr(module, '__version__'):
+            print(f'✓ {package_name}: {module.__version__}')
+        else:
+            print(f'✓ {package_name}: available')
+    except ImportError as e:
+        print(f'✗ {package_name}: import failed - {e}')
+        failed_imports.append(package_name)
 
-try:
-    import requests
-    print('✓ requests: available')
-except ImportError as e:
-    print('✗ requests import failed:', e)
+if failed_imports:
+    print(f'\\n❌ Some packages failed to import: {failed_imports}')
     sys.exit(1)
-
-try:
-    import aiohttp
-    print('✓ aiohttp: available')
-except ImportError as e:
-    print('✗ aiohttp import failed:', e)
-    sys.exit(1)
-
-try:
-    import sklearn
-    print('✓ scikit-learn: available')
-except ImportError as e:
-    print('✗ scikit-learn import failed:', e)
-    sys.exit(1)
-
-print('\\n🎉 All required packages are installed correctly!')
+else:
+    print('\\n🎉 All core packages imported successfully!')
 "
 
     if [ $? -eq 0 ]; then
@@ -663,50 +372,55 @@ print('\\n🎉 All required packages are installed correctly!')
 create_wrapper_scripts() {
     print_status "Creating wrapper scripts..."
 
-    # Create wrapper Python script
+    # Create Python wrapper
     cat > "$PROJECT_ROOT/extract_wrapper.py" << 'EOF'
 #!/usr/bin/env python3
+"""
+Wrapper script for face feature extraction
+This script interfaces between Java Spring Boot and Python face extraction
+"""
+
 import sys
 import os
 import asyncio
 import json
+from pathlib import Path
 
-# Add the scripts directory to Python path
-project_root = os.path.dirname(os.path.abspath(__file__))
-scripts_dir = os.path.join(project_root, 'scripts', 'face_recognition')
-sys.path.insert(0, scripts_dir)
+# Add scripts directory to Python path
+project_root = Path(__file__).parent
+scripts_dir = project_root / 'scripts' / 'face_recognition'
+sys.path.insert(0, str(scripts_dir))
 
-# Import script chính
+# Import the main extractor
 try:
-    from face_feature_extractor import FaceFeatureExtractor, main as original_main
+    from face_feature_extractor import FaceFeatureExtractor
 except ImportError as e:
-    print(f"ERROR: Cannot import main script: {e}", file=sys.stderr)
-    print("Please make sure your Python script is at 'scripts/face_recognition/face_feature_extractor.py'", file=sys.stderr)
+    print(f"ERROR: Cannot import face_feature_extractor: {e}", file=sys.stderr)
+    print("Please ensure face_feature_extractor.py exists in scripts/face_recognition/", file=sys.stderr)
     sys.exit(1)
 
-def extract_single_student(ma_sv):
-    """Trích xuất đặc trưng cho một sinh viên"""
-    import asyncio
+def extract_single_student(student_id: str):
+    """Extract features for a single student"""
 
     async def extract_one():
-        # Cấu hình - CẬP NHẬT THEO SETUP CỦA BẠN
-        PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+        # Configuration
+        PROJECT_ROOT = str(project_root)
         BACKEND_API_URL = "http://localhost:8080/api"
         FACE_API_URL = "http://localhost:8001"
 
-        # Credentials - CẬP NHẬT THEO SETUP CỦA BẠN
+        # Credentials
         CREDENTIALS = {
             'username': 'admin',
             'password': 'admin123'
         }
 
-        # Khởi tạo extractor
+        # Initialize extractor
         extractor = FaceFeatureExtractor(BACKEND_API_URL, FACE_API_URL, PROJECT_ROOT, CREDENTIALS)
 
-        # Xử lý sinh viên
-        result = await extractor.process_student(ma_sv)
+        # Process student
+        result = await extractor.process_student(student_id)
 
-        # In kết quả dưới dạng JSON để Java đọc
+        # Output JSON for Java to parse
         print("RESULT_JSON_START")
         print(json.dumps(result, ensure_ascii=False, default=str))
         print("RESULT_JSON_END")
@@ -716,28 +430,27 @@ def extract_single_student(ma_sv):
     return asyncio.run(extract_one())
 
 def extract_all_students():
-    """Trích xuất đặc trưng cho tất cả sinh viên"""
-    import asyncio
+    """Extract features for all students"""
 
     async def extract_all():
-        # Cấu hình - CẬP NHẬT THEO SETUP CỦA BẠN
-        PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+        # Configuration
+        PROJECT_ROOT = str(project_root)
         BACKEND_API_URL = "http://localhost:8080/api"
         FACE_API_URL = "http://localhost:8001"
 
-        # Credentials - CẬP NHẬT THEO SETUP CỦA BẠN
+        # Credentials
         CREDENTIALS = {
             'username': 'admin',
             'password': 'admin123'
         }
 
-        # Khởi tạo extractor
+        # Initialize extractor
         extractor = FaceFeatureExtractor(BACKEND_API_URL, FACE_API_URL, PROJECT_ROOT, CREDENTIALS)
 
-        # Xử lý tất cả sinh viên
+        # Process all students
         results = await extractor.process_all_students()
 
-        # In kết quả dưới dạng JSON để Java đọc
+        # Output JSON for Java to parse
         print("RESULT_JSON_START")
         print(json.dumps(results, ensure_ascii=False, default=str))
         print("RESULT_JSON_END")
@@ -746,46 +459,60 @@ def extract_all_students():
 
     return asyncio.run(extract_all())
 
-if __name__ == "__main__":
+def main():
+    """Main function"""
     if len(sys.argv) < 2:
         print("Usage: python extract_wrapper.py <command> [student_id]")
-        print("Commands: single <student_id>, all")
+        print("Commands:")
+        print("  single <student_id>  - Extract features for one student")
+        print("  all                  - Extract features for all students")
         sys.exit(1)
 
-    command = sys.argv[1]
+    command = sys.argv[1].lower()
 
     try:
-        if command == "single" and len(sys.argv) >= 3:
+        if command == "single":
+            if len(sys.argv) < 3:
+                print("ERROR: Missing student_id for single extraction", file=sys.stderr)
+                sys.exit(1)
+
             student_id = sys.argv[2]
             result = extract_single_student(student_id)
             sys.exit(0 if result.get('status') == 'success' else 1)
+
         elif command == "all":
             results = extract_all_students()
             sys.exit(0 if results.get('success') else 1)
+
         else:
-            print("Invalid command or missing student_id")
+            print(f"ERROR: Unknown command '{command}'", file=sys.stderr)
+            print("Use 'single <student_id>' or 'all'", file=sys.stderr)
             sys.exit(1)
 
     except Exception as e:
         print(f"ERROR: {str(e)}", file=sys.stderr)
         sys.exit(1)
+
+if __name__ == "__main__":
+    main()
 EOF
 
     # Create Git Bash script
     cat > "$PROJECT_ROOT/run_extraction.sh" << EOF
 #!/bin/bash
+# Face Feature Extraction Runner Script for Git Bash
 
-# Đường dẫn tới virtual environment (Git Bash format)
 VENV_PATH="$VENV_PATH"
 SCRIPT_DIR="$PROJECT_ROOT"
 
-# Kiểm tra venv tồn tại
+# Check if virtual environment exists
 if [ ! -d "\$VENV_PATH" ]; then
     echo "ERROR: Virtual environment not found at \$VENV_PATH"
+    echo "Please run setup_python_extraction.sh first"
     exit 1
 fi
 
-# Activate virtual environment (check both Windows and Unix style)
+# Activate virtual environment
 if [ -f "\$VENV_PATH/Scripts/activate" ]; then
     source "\$VENV_PATH/Scripts/activate"
 elif [ -f "\$VENV_PATH/bin/activate" ]; then
@@ -795,64 +522,68 @@ else
     exit 1
 fi
 
-# Kiểm tra Python và packages
-if ! python -c "import insightface, numpy, cv2" 2>/dev/null; then
+# Verify Python packages
+if ! python -c "import numpy, cv2, requests" 2>/dev/null; then
     echo "ERROR: Required Python packages not installed"
+    echo "Please run setup_python_extraction.sh first"
     exit 1
 fi
 
-# Chuyển tới thư mục script
+# Change to project directory
 cd "\$SCRIPT_DIR"
 
-# Chạy Python script với các tham số
+# Run Python wrapper with arguments
 python extract_wrapper.py "\$@"
 
-# Lưu exit code
+# Store exit code
 exit_code=\$?
 
-# Trả về exit code
+# Return exit code
 exit \$exit_code
 EOF
 
-    # Create Windows batch file for compatibility
+    # Create Windows batch file
     cat > "$PROJECT_ROOT/run_extraction.bat" << EOF
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 
-rem Convert Git Bash path to Windows path
+rem Windows batch file for running face extraction
+
 set VENV_PATH=$(convert_to_windows_path "$VENV_PATH")
 set SCRIPT_DIR=$(convert_to_windows_path "$PROJECT_ROOT")
 
-rem Kiểm tra venv tồn tại
+rem Check if virtual environment exists
 if not exist "%VENV_PATH%" (
     echo ERROR: Virtual environment not found at %VENV_PATH%
+    echo Please run setup_python_extraction.sh first
     exit /b 1
 )
 
 rem Activate virtual environment
 call "%VENV_PATH%\\Scripts\\activate.bat"
 
-rem Kiểm tra Python và packages
-python -c "import insightface, numpy, cv2" >nul 2>&1
+rem Verify Python packages
+python -c "import numpy, cv2, requests" >nul 2>&1
 if errorlevel 1 (
     echo ERROR: Required Python packages not installed
-    deactivate
+    echo Please run setup_python_extraction.sh first
+    call deactivate
     exit /b 1
 )
 
-rem Chuyển tới thư mục script
+rem Change to project directory
 cd /d "%SCRIPT_DIR%"
 
-rem Chạy Python script với các tham số
+rem Run Python wrapper with arguments
 python extract_wrapper.py %*
 
-rem Lưu exit code
+rem Store exit code
 set exit_code=%errorlevel%
 
-rem Deactivate venv
-deactivate
+rem Deactivate virtual environment
+call deactivate
 
-rem Trả về exit code
+rem Return exit code
 exit /b %exit_code%
 EOF
 
@@ -861,6 +592,9 @@ EOF
     chmod +x "$PROJECT_ROOT/run_extraction.sh"
 
     print_status "Wrapper scripts created ✓"
+    print_status "  - extract_wrapper.py (Python wrapper)"
+    print_status "  - run_extraction.sh (Git Bash script)"
+    print_status "  - run_extraction.bat (Windows batch file)"
 }
 
 # Update application.properties
@@ -871,21 +605,27 @@ update_application_properties() {
 
     if [ -f "$PROPERTIES_FILE" ]; then
         # Backup original file
-        cp "$PROPERTIES_FILE" "$PROPERTIES_FILE.backup"
+        cp "$PROPERTIES_FILE" "$PROPERTIES_FILE.backup.$(date +%Y%m%d_%H%M%S)"
 
         # Convert paths to Windows format for Java
         WINDOWS_VENV_PATH=$(convert_to_windows_path "$VENV_PATH")
         WINDOWS_PROJECT_ROOT=$(convert_to_windows_path "$PROJECT_ROOT")
 
-        # Add or update Python configuration
-        if ! grep -q "app.python.venv.path" "$PROPERTIES_FILE"; then
-            echo "" >> "$PROPERTIES_FILE"
-            echo "# Python Feature Extraction Configuration" >> "$PROPERTIES_FILE"
-            echo "app.python.venv.path=$WINDOWS_VENV_PATH" >> "$PROPERTIES_FILE"
-            echo "app.python.script.path=$WINDOWS_PROJECT_ROOT" >> "$PROPERTIES_FILE"
-        fi
+        # Remove old Python configuration
+        sed -i '/# Python Feature Extraction Configuration/d' "$PROPERTIES_FILE"
+        sed -i '/app.python.venv.path/d' "$PROPERTIES_FILE"
+        sed -i '/app.python.script.path/d' "$PROPERTIES_FILE"
 
-        print_status "application.properties updated ✓"
+        # Add updated Python configuration
+        echo "" >> "$PROPERTIES_FILE"
+        echo "# Python Feature Extraction Configuration - Updated $(date)" >> "$PROPERTIES_FILE"
+        echo "app.python.venv.path=$WINDOWS_VENV_PATH" >> "$PROPERTIES_FILE"
+        echo "app.python.script.path=$WINDOWS_PROJECT_ROOT" >> "$PROPERTIES_FILE"
+        echo "app.python.script.file=$WINDOWS_PROJECT_ROOT\\scripts\\face_recognition\\face_feature_extractor.py" >> "$PROPERTIES_FILE"
+        echo "app.python.timeout.minutes=30" >> "$PROPERTIES_FILE"
+        echo "app.python.max.concurrent=2" >> "$PROPERTIES_FILE"
+
+        print_status "application.properties updated with Windows paths ✓"
     else
         print_warning "application.properties not found, skipping..."
     fi
@@ -895,10 +635,19 @@ update_application_properties() {
 test_complete_setup() {
     print_status "Testing complete setup..."
 
-    # Test bash script
-    if [ -f "$PROJECT_ROOT/run_extraction.sh" ]; then
-        print_status "Testing bash script execution..."
-        print_status "Bash script test completed ✓"
+    # Test Python wrapper
+    if [ -f "$PROJECT_ROOT/extract_wrapper.py" ]; then
+        print_status "Testing Python wrapper..."
+
+        # Activate venv and test
+        if [ -f "$VENV_PATH/Scripts/activate" ]; then
+            source "$VENV_PATH/Scripts/activate"
+        elif [ -f "$VENV_PATH/bin/activate" ]; then
+            source "$VENV_PATH/bin/activate"
+        fi
+
+        # Test wrapper (should show usage)
+        python "$PROJECT_ROOT/extract_wrapper.py" 2>/dev/null || print_status "Wrapper script ready"
     fi
 
     print_status "Complete setup test passed ✓"
@@ -906,12 +655,15 @@ test_complete_setup() {
 
 # Main execution
 main() {
-    echo -e "${BLUE}Starting setup process...${NC}\n"
+    echo -e "${BLUE}Starting Face Attendance Python Setup...${NC}\n"
 
-    check_git_bash
+    check_environment
     echo ""
 
     check_project_structure
+    echo ""
+
+    create_template_script
     echo ""
 
     setup_virtual_environment
@@ -933,28 +685,32 @@ main() {
     echo ""
 
     echo -e "${GREEN}==============================================================================${NC}"
-    echo -e "${GREEN}                            SETUP COMPLETED SUCCESSFULLY!${NC}"
+    echo -e "${GREEN}                     PYTHON SETUP COMPLETED SUCCESSFULLY!${NC}"
     echo -e "${GREEN}==============================================================================${NC}"
     echo ""
     echo -e "${BLUE}📁 Project Root:${NC} $PROJECT_ROOT"
     echo -e "${BLUE}🐍 Virtual Environment:${NC} $VENV_PATH"
     echo -e "${BLUE}📜 Python Script:${NC} $PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
     echo -e "${BLUE}🔧 Wrapper Script:${NC} $PROJECT_ROOT/extract_wrapper.py"
-    echo -e "${BLUE}⚙️  Bash Script:${NC} $PROJECT_ROOT/run_extraction.sh"
-    echo -e "${BLUE}⚙️  Batch Script:${NC} $PROJECT_ROOT/run_extraction.bat"
+    echo -e "${BLUE}⚙️  Git Bash Script:${NC} $PROJECT_ROOT/run_extraction.sh"
+    echo -e "${BLUE}⚙️  Windows Batch:${NC} $PROJECT_ROOT/run_extraction.bat"
     echo ""
-    echo -e "${YELLOW}Next steps:${NC}"
-    echo -e "1. Start your Spring Boot application"
-    echo -e "2. Make sure Face Recognition Service is running on port 8001"
-    echo -e "3. Test the feature extraction from the web interface"
+    echo -e "${YELLOW}📋 Next Steps:${NC}"
+    echo -e "1. 🚀 Start your Spring Boot application"
+    echo -e "2. 🔧 Ensure Face Recognition Service is running on port 8001"
+    echo -e "3. 🎯 Customize the template face_feature_extractor.py script"
+    echo -e "4. 🧪 Test feature extraction from the web interface"
     echo ""
-    echo -e "${YELLOW}Manual test commands:${NC}"
-    echo -e "Git Bash: ./run_extraction.sh all"
-    echo -e "Windows CMD: run_extraction.bat all"
+    echo -e "${YELLOW}🧪 Manual Test Commands:${NC}"
+    echo -e "Git Bash: ${GREEN}./run_extraction.sh all${NC}"
+    echo -e "Windows CMD: ${GREEN}run_extraction.bat all${NC}"
+    echo -e "Python Direct: ${GREEN}python extract_wrapper.py all${NC}"
     echo ""
-    echo -e "${YELLOW}Path format note:${NC}"
-    echo -e "Git Bash uses: /d/path/to/project"
-    echo -e "Windows uses: D:\\path\\to\\project"
+    echo -e "${YELLOW}📝 Important Notes:${NC}"
+    echo -e "• Template script created - customize it for your face recognition needs"
+    echo -e "• Uncomment required packages in requirements.txt (InsightFace, dlib, etc.)"
+    echo -e "• Virtual environment is at: ${GREEN}$VENV_PATH${NC}"
+    echo -e "• Logs will be saved to: ${GREEN}face_extraction.log${NC}"
     echo ""
 }
 

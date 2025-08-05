@@ -749,7 +749,7 @@ async def main():
     Hàm main để chạy script
     """
     # ========== CẤU HÌNH HỆ THỐNG ==========
-    PROJECT_ROOT = "/home/loki/Desktop/face-attendance"  # ĐƯỜNG DẪN PROJECT CỦA BẠN
+    PROJECT_ROOT = str(Path(__file__).parent.parent.parent)  # ĐƯỜNG DẪN PROJECT CỦA BẠN
     BACKEND_API_URL = "http://localhost:8080/api"  # Spring Boot API
     FACE_API_URL = "http://localhost:8001"  # Face Recognition Service
 
