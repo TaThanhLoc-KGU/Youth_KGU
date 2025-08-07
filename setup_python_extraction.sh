@@ -1,5 +1,5 @@
 # =============================================================================
-# Script Setup Python Feature Extraction cho Face Attendance System - Windows
+# Script Setup Python Feature Extraction cho Face Attendance System - Cross Platform
 # =============================================================================
 
 set -e  # Exit on any error
@@ -11,10 +11,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration - UPDATED FOR YOUR SETUP
-PROJECT_ROOT="/d/LuanVan/face-attendance"  # Git Bash path format
-VENV_PATH="$PROJECT_ROOT/scripts/face_recognition/.venv"  # Updated to match your structure
-PYTHON_SCRIPT_NAME="scripts/face_recognition/face_feature_extractor.py"  # Correct path
+# Configuration - RELATIVE PATHS
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"  # Script is in project root
+VENV_PATH="$PROJECT_ROOT/scripts/face_recognition/.venv"
+PYTHON_SCRIPT_NAME="scripts/face_recognition/face_feature_extractor.py"
 
 echo -e "${BLUE}==============================================================================${NC}"
 echo -e "${BLUE}        SETUP PYTHON FEATURE EXTRACTION - FACE ATTENDANCE SYSTEM${NC}"
@@ -33,22 +34,46 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Convert Git Bash path to Windows path
+# Convert path to Windows format
 convert_to_windows_path() {
-    echo "$1" | sed 's|^/\([a-z]\)|\U\1:|' | sed 's|/|\\|g'
+    local path="$1"
+    # Convert Unix path to Windows path
+    if [[ "$OSTYPE" == "msys" ]] || [[ "$MSYSTEM" == "MINGW"* ]]; then
+        # In Git Bash, convert /c/path to C:\path format
+        echo "$path" | sed 's|^/\([a-z]\)|\U\1:|' | sed 's|/|\\|g'
+    else
+        # On other systems, just replace forward slashes with backslashes
+        echo "$path" | sed 's|/|\\|g'
+    fi
+}
+
+# Get absolute path in cross-platform way
+get_absolute_path() {
+    local relative_path="$1"
+    if [[ "$relative_path" = /* ]]; then
+        # Already absolute
+        echo "$relative_path"
+    else
+        # Make it absolute
+        echo "$(cd "$PROJECT_ROOT" && cd "$relative_path" && pwd)"
+    fi
 }
 
 # Check if running in Git Bash on Windows
 check_environment() {
     print_status "Checking environment..."
+    print_status "Script directory: $SCRIPT_DIR"
+    print_status "Project root: $PROJECT_ROOT"
+    print_status "Operating system: $OSTYPE"
 
-    if [[ ! -n "$BASH_VERSION" ]]; then
-        print_warning "This script is designed for Git Bash on Windows"
-    fi
-
-    # Check if we're on Windows
-    if [[ ! "$OSTYPE" == "msys" ]] && [[ ! "$MSYSTEM" == "MINGW"* ]]; then
-        print_warning "This script is optimized for Windows environment"
+    if [[ -n "$MSYSTEM" ]]; then
+        print_status "Running in Git Bash on Windows: $MSYSTEM"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        print_status "Running on Linux"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        print_status "Running on macOS"
+    else
+        print_warning "Unknown operating system: $OSTYPE"
     fi
 
     print_status "Environment check completed ✓"
@@ -60,15 +85,14 @@ check_project_structure() {
 
     if [ ! -d "$PROJECT_ROOT" ]; then
         print_error "Project root not found: $PROJECT_ROOT"
-        print_error "Please verify the path: D:/LuanVan/face-attendance exists"
+        print_error "Please run this script from the project root directory"
         exit 1
     fi
 
     # Check if scripts directory exists
     if [ ! -d "$PROJECT_ROOT/scripts" ]; then
-        print_error "Scripts directory not found: $PROJECT_ROOT/scripts"
-        print_error "Please create the scripts directory structure"
-        exit 1
+        print_warning "Scripts directory not found. Creating it..."
+        mkdir -p "$PROJECT_ROOT/scripts"
     fi
 
     # Check if face_recognition directory exists
@@ -88,7 +112,7 @@ check_project_structure() {
 
 # Create template Python script if not exists
 create_template_script() {
-    SCRIPT_PATH="$PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
+    local SCRIPT_PATH="$PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
 
     if [ ! -f "$SCRIPT_PATH" ]; then
         print_status "Creating template face_feature_extractor.py..."
@@ -191,8 +215,8 @@ async def main():
     """Main function"""
     logger.info("Face Feature Extractor started")
 
-    # Configuration
-    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    # Configuration - Use relative paths
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     BACKEND_API_URL = "http://localhost:8080/api"
     FACE_API_URL = "http://localhost:8001"
     CREDENTIALS = {
@@ -251,13 +275,13 @@ setup_virtual_environment() {
         print_status "Virtual environment found at: $VENV_PATH"
     fi
 
-    # Activate virtual environment (Windows Git Bash)
+    # Activate virtual environment (cross-platform)
     if [ -f "$VENV_PATH/Scripts/activate" ]; then
         source "$VENV_PATH/Scripts/activate"
         print_status "Virtual environment activated (Windows)"
     elif [ -f "$VENV_PATH/bin/activate" ]; then
         source "$VENV_PATH/bin/activate"
-        print_status "Virtual environment activated (Unix-style)"
+        print_status "Virtual environment activated (Unix)"
     else
         print_error "Cannot find activation script in virtual environment"
         exit 1
@@ -281,7 +305,7 @@ install_python_packages() {
         source "$VENV_PATH/bin/activate"
     fi
 
-    # Create requirements.txt
+    # Create requirements.txt in project root
     cat > "$PROJECT_ROOT/requirements.txt" << EOF
 # Core dependencies
 numpy>=1.21.0
@@ -386,9 +410,11 @@ import asyncio
 import json
 from pathlib import Path
 
-# Add scripts directory to Python path
-project_root = Path(__file__).parent
+# Get project root directory (where this script is located)
+project_root = Path(__file__).parent.resolve()
 scripts_dir = project_root / 'scripts' / 'face_recognition'
+
+# Add scripts directory to Python path
 sys.path.insert(0, str(scripts_dir))
 
 # Import the main extractor
@@ -497,13 +523,14 @@ if __name__ == "__main__":
     main()
 EOF
 
-    # Create Git Bash script
+    # Create cross-platform Bash script
     cat > "$PROJECT_ROOT/run_extraction.sh" << EOF
 #!/bin/bash
-# Face Feature Extraction Runner Script for Git Bash
+# Face Feature Extraction Runner Script - Cross Platform
 
-VENV_PATH="$VENV_PATH"
-SCRIPT_DIR="$PROJECT_ROOT"
+# Get script directory
+SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+VENV_PATH="\$SCRIPT_DIR/scripts/face_recognition/.venv"
 
 # Check if virtual environment exists
 if [ ! -d "\$VENV_PATH" ]; then
@@ -512,7 +539,7 @@ if [ ! -d "\$VENV_PATH" ]; then
     exit 1
 fi
 
-# Activate virtual environment
+# Activate virtual environment (cross-platform)
 if [ -f "\$VENV_PATH/Scripts/activate" ]; then
     source "\$VENV_PATH/Scripts/activate"
 elif [ -f "\$VENV_PATH/bin/activate" ]; then
@@ -543,14 +570,19 @@ exit \$exit_code
 EOF
 
     # Create Windows batch file
+    local VENV_RELATIVE_PATH="scripts\\face_recognition\\.venv"
     cat > "$PROJECT_ROOT/run_extraction.bat" << EOF
 @echo off
 setlocal EnableDelayedExpansion
 
 rem Windows batch file for running face extraction
 
-set VENV_PATH=$(convert_to_windows_path "$VENV_PATH")
-set SCRIPT_DIR=$(convert_to_windows_path "$PROJECT_ROOT")
+rem Get script directory
+set SCRIPT_DIR=%~dp0
+set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
+
+rem Set relative paths
+set VENV_PATH=%SCRIPT_DIR%\\$VENV_RELATIVE_PATH
 
 rem Check if virtual environment exists
 if not exist "%VENV_PATH%" (
@@ -593,7 +625,7 @@ EOF
 
     print_status "Wrapper scripts created ✓"
     print_status "  - extract_wrapper.py (Python wrapper)"
-    print_status "  - run_extraction.sh (Git Bash script)"
+    print_status "  - run_extraction.sh (Cross-platform bash script)"
     print_status "  - run_extraction.bat (Windows batch file)"
 }
 
@@ -601,31 +633,39 @@ EOF
 update_application_properties() {
     print_status "Updating application.properties..."
 
-    PROPERTIES_FILE="$PROJECT_ROOT/src/main/resources/application.properties"
+    local PROPERTIES_FILE="$PROJECT_ROOT/src/main/resources/application.properties"
 
     if [ -f "$PROPERTIES_FILE" ]; then
         # Backup original file
         cp "$PROPERTIES_FILE" "$PROPERTIES_FILE.backup.$(date +%Y%m%d_%H%M%S)"
 
-        # Convert paths to Windows format for Java
-        WINDOWS_VENV_PATH=$(convert_to_windows_path "$VENV_PATH")
-        WINDOWS_PROJECT_ROOT=$(convert_to_windows_path "$PROJECT_ROOT")
+        # Get absolute paths for Java configuration
+        local ABS_VENV_PATH=$(get_absolute_path "$VENV_PATH")
+        local ABS_PROJECT_ROOT=$(get_absolute_path "$PROJECT_ROOT")
+
+        # Convert to Windows format if needed
+        local JAVA_VENV_PATH=$(convert_to_windows_path "$ABS_VENV_PATH")
+        local JAVA_PROJECT_ROOT=$(convert_to_windows_path "$ABS_PROJECT_ROOT")
+        local JAVA_SCRIPT_FILE=$(convert_to_windows_path "$ABS_PROJECT_ROOT/$PYTHON_SCRIPT_NAME")
 
         # Remove old Python configuration
         sed -i '/# Python Feature Extraction Configuration/d' "$PROPERTIES_FILE"
         sed -i '/app.python.venv.path/d' "$PROPERTIES_FILE"
         sed -i '/app.python.script.path/d' "$PROPERTIES_FILE"
+        sed -i '/app.python.script.file/d' "$PROPERTIES_FILE"
+        sed -i '/app.python.timeout.minutes/d' "$PROPERTIES_FILE"
+        sed -i '/app.python.max.concurrent/d' "$PROPERTIES_FILE"
 
         # Add updated Python configuration
         echo "" >> "$PROPERTIES_FILE"
         echo "# Python Feature Extraction Configuration - Updated $(date)" >> "$PROPERTIES_FILE"
-        echo "app.python.venv.path=$WINDOWS_VENV_PATH" >> "$PROPERTIES_FILE"
-        echo "app.python.script.path=$WINDOWS_PROJECT_ROOT" >> "$PROPERTIES_FILE"
-        echo "app.python.script.file=$WINDOWS_PROJECT_ROOT\\scripts\\face_recognition\\face_feature_extractor.py" >> "$PROPERTIES_FILE"
+        echo "app.python.venv.path=$JAVA_VENV_PATH" >> "$PROPERTIES_FILE"
+        echo "app.python.script.path=$JAVA_PROJECT_ROOT" >> "$PROPERTIES_FILE"
+        echo "app.python.script.file=$JAVA_SCRIPT_FILE" >> "$PROPERTIES_FILE"
         echo "app.python.timeout.minutes=30" >> "$PROPERTIES_FILE"
         echo "app.python.max.concurrent=2" >> "$PROPERTIES_FILE"
 
-        print_status "application.properties updated with Windows paths ✓"
+        print_status "application.properties updated with cross-platform paths ✓"
     else
         print_warning "application.properties not found, skipping..."
     fi
@@ -655,7 +695,7 @@ test_complete_setup() {
 
 # Main execution
 main() {
-    echo -e "${BLUE}Starting Face Attendance Python Setup...${NC}\n"
+    echo -e "${BLUE}Starting Face Attendance Python Setup (Cross-Platform)...${NC}\n"
 
     check_environment
     echo ""
@@ -692,7 +732,7 @@ main() {
     echo -e "${BLUE}🐍 Virtual Environment:${NC} $VENV_PATH"
     echo -e "${BLUE}📜 Python Script:${NC} $PROJECT_ROOT/$PYTHON_SCRIPT_NAME"
     echo -e "${BLUE}🔧 Wrapper Script:${NC} $PROJECT_ROOT/extract_wrapper.py"
-    echo -e "${BLUE}⚙️  Git Bash Script:${NC} $PROJECT_ROOT/run_extraction.sh"
+    echo -e "${BLUE}⚙️  Bash Script:${NC} $PROJECT_ROOT/run_extraction.sh"
     echo -e "${BLUE}⚙️  Windows Batch:${NC} $PROJECT_ROOT/run_extraction.bat"
     echo ""
     echo -e "${YELLOW}📋 Next Steps:${NC}"
@@ -702,15 +742,18 @@ main() {
     echo -e "4. 🧪 Test feature extraction from the web interface"
     echo ""
     echo -e "${YELLOW}🧪 Manual Test Commands:${NC}"
-    echo -e "Git Bash: ${GREEN}./run_extraction.sh all${NC}"
+    echo -e "Unix/Linux/macOS: ${GREEN}./run_extraction.sh all${NC}"
+    echo -e "Windows Git Bash: ${GREEN}./run_extraction.sh all${NC}"
     echo -e "Windows CMD: ${GREEN}run_extraction.bat all${NC}"
     echo -e "Python Direct: ${GREEN}python extract_wrapper.py all${NC}"
     echo ""
     echo -e "${YELLOW}📝 Important Notes:${NC}"
+    echo -e "• All paths are now relative - works on any system"
     echo -e "• Template script created - customize it for your face recognition needs"
     echo -e "• Uncomment required packages in requirements.txt (InsightFace, dlib, etc.)"
-    echo -e "• Virtual environment is at: ${GREEN}$VENV_PATH${NC}"
+    echo -e "• Virtual environment: ${GREEN}$VENV_PATH${NC}"
     echo -e "• Logs will be saved to: ${GREEN}face_extraction.log${NC}"
+    echo -e "• Cross-platform compatible: Windows, Linux, macOS"
     echo ""
 }
 
