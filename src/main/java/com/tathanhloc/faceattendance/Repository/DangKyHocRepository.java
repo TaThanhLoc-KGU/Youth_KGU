@@ -2,6 +2,7 @@ package com.tathanhloc.faceattendance.Repository;
 
 import com.tathanhloc.faceattendance.Model.DangKyHoc;
 import com.tathanhloc.faceattendance.Model.DangKyHocId;
+import com.tathanhloc.faceattendance.Model.SinhVien;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -59,4 +60,7 @@ public interface DangKyHocRepository extends JpaRepository<DangKyHoc, DangKyHocI
             "AND lhp.monHoc.maMh = :maMh " +
             "AND d.isActive = true")
     Optional<String> findCurrentLhpByStudentAndSubject(@Param("maSv") String maSv, @Param("maMh") String maMh);
+
+    @Query("SELECT lsv.sinhVien FROM DangKyHoc lsv WHERE lsv.lopHocPhan.maLhp = :maLhp AND lsv.isActive = true")
+    List<SinhVien> findStudentsByClass(@Param("maLhp") String maLhp);
 }

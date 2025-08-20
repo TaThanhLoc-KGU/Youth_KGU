@@ -42,4 +42,19 @@ public interface LichHocRepository extends JpaRepository<LichHoc, String> {
                                                          @Param("hocKy") String hocKy,
                                                          @Param("namHoc") String namHoc);
 
+    @Query(value = "SELECT MIN(hk.ngay_bat_dau) FROM hoc_ky hk " +
+            "JOIN hoc_ky_nam_hoc hknh ON hk.ma_hoc_ky = hknh.ma_hoc_ky " +
+            "WHERE hk.ma_hoc_ky = :semester AND hknh.ma_nam_hoc = :year",
+            nativeQuery = true)
+    LocalDate findEarliestDateBySemester(@Param("semester") String semester, @Param("year") String year);
+
+    @Query(value = "SELECT MAX(hk.ngay_ket_thuc) FROM hoc_ky hk " +
+            "JOIN hoc_ky_nam_hoc hknh ON hk.ma_hoc_ky = hknh.ma_hoc_ky " +
+            "WHERE hk.ma_hoc_ky = :semester AND hknh.ma_nam_hoc = :year",
+            nativeQuery = true)
+    LocalDate findLatestDateBySemester(@Param("semester") String semester, @Param("year") String year);
+
+    @Query("SELECT lh FROM LichHoc lh WHERE lh.lopHocPhan.hocKy = :semester AND lh.lopHocPhan.namHoc = :year")
+    List<LichHoc> findBySemesterAndYear(@Param("semester") String semester, @Param("year") String year);
+
 }

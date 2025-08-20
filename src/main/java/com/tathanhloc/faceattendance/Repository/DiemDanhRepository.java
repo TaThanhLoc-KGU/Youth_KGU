@@ -325,4 +325,10 @@ public interface DiemDanhRepository extends JpaRepository<DiemDanh, Long> {
     List<Object[]> getAttendanceHistoryByStudentAndSubjectRaw(@Param("maSv") String maSv,
                                                               @Param("maMh") String maMh,
                                                               Pageable pageable);
+
+    @Query("SELECT dd FROM DiemDanh dd WHERE dd.lichHoc.lopHocPhan.maLhp = :maLhp " +
+            "AND dd.ngayDiemDanh BETWEEN :startDate AND :endDate")
+    List<DiemDanh> findByClassAndDateRange(@Param("maLhp") String maLhp,
+                                           @Param("startDate") LocalDate startDate,
+                                           @Param("endDate") LocalDate endDate);
 }

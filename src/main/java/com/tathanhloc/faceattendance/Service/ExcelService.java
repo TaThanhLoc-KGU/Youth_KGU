@@ -1,6 +1,7 @@
 package com.tathanhloc.faceattendance.Service;
 
 import com.tathanhloc.faceattendance.DTO.*;
+import com.tathanhloc.faceattendance.Exception.BusinessException;
 import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
 import com.tathanhloc.faceattendance.Enum.GioiTinhEnum;
@@ -1507,5 +1508,61 @@ public class ExcelService {
         else if (attendanceRate >= 80) return "Đạt yêu cầu";
         else if (attendanceRate >= 60) return "Cần theo dõi";
         else return "Cần can thiệp";
+    }
+
+    public byte[] createSemesterReport(List<SemesterReportData> reportData, String semesterCode, String yearCode) {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Báo cáo học kỳ");
+
+            // Header
+            Row headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("BÁO CÁO ĐIỂM DANH HỌC KỲ " + semesterCode + " - " + yearCode);
+
+            int rowNum = 2;
+
+            for (SemesterReportData classData : reportData) {
+                // Class info
+                Row classRow = sheet.createRow(rowNum++);
+                classRow.createCell(0).setCellValue("Lớp: " + classData.getMaLhp());
+                classRow.createCell(1).setCellValue("Môn: " + classData.getTenMonHoc());
+                classRow.createCell(2).setCellValue("GV: " + classData.getTenGiangVien());
+                classRow.createCell(3).setCellValue("Tổng buổi: " + classData.getTotalSessions());
+
+                // Student header
+                Row studentHeaderRow = sheet.createRow(rowNum++);
+                studentHeaderRow.createCell(0).setCellValue("Mã SV");
+                studentHeaderRow.createCell(1).setCellValue("Họ tên");
+                studentHeaderRow.createCell(2).setCellValue("Có mặt");
+                studentHeaderRow.createCell(3).setCellValue("Trễ");
+                studentHeaderRow.createCell(4).setCellValue("Vắng");
+                studentHeaderRow.createCell(5).setCellValue("Tỷ lệ (%)");
+
+                // Student data
+                for (StudentSemesterData student : classData.getStudentData()) {
+                    Row studentRow = sheet.createRow(rowNum++);
+                    studentRow.createCell(0).setCellValue(student.getMaSv());
+                    studentRow.createCell(1).setCellValue(student.getHoTen());
+                    studentRow.createCell(2).setCellValue(student.getPresentCount());
+                    studentRow.createCell(3).setCellValue(student.getLateCount());
+                    studentRow.createCell(4).setCellValue(student.getAbsentCount());
+                    studentRow.createCell(5).setCellValue(String.format("%.1f", student.getAttendanceRate()));
+                }
+
+                rowNum++; // Blank row between classes
+            }
+
+            // Auto-size columns
+            for (int i = 0; i < 6; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+
+        } catch (Exception e) {
+            log.error("Error creating semester report: {}", e.getMessage(), e);
+            throw new BusinessException("Không thể tạo file Excel", e.getMessage());
+        }
     }
 }

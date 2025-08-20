@@ -425,4 +425,50 @@ public class DiemDanhController {
             ));
         }
     }
+
+    /**
+     * Xuất báo cáo điểm danh cả học kỳ
+     */
+    @PostMapping("/export-semester")
+    public ResponseEntity<byte[]> exportSemesterReport(
+            @RequestParam String semesterCode,
+            @RequestParam String yearCode,
+            @RequestParam(required = false) String lecturerCode,
+            @RequestParam(required = false) String classCode) {
+        try {
+            log.info("Exporting semester report for: {}-{}", semesterCode, yearCode);
+
+            byte[] excelData = diemDanhService.exportSemesterReport(semesterCode, yearCode, lecturerCode, classCode);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+
+            String filename = String.format("baocao-hocky-%s-%s.xlsx", semesterCode, yearCode);
+            headers.setContentDispositionFormData("attachment", filename);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(excelData);
+
+        } catch (Exception e) {
+            log.error("Error exporting semester report:", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Lấy thông tin học kỳ (ngày bắt đầu, kết thúc)
+     */
+    @GetMapping("/semester-info")
+    public ResponseEntity<Map<String, Object>> getSemesterInfo(
+            @RequestParam String semesterCode,
+            @RequestParam String yearCode) {
+        try {
+            Map<String, Object> info = diemDanhService.getSemesterDateRange(semesterCode, yearCode);
+            return ResponseEntity.ok(info);
+        } catch (Exception e) {
+            log.error("Error getting semester info:", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }

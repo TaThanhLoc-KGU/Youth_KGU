@@ -2,6 +2,7 @@ package com.tathanhloc.faceattendance.Service;
 
 import com.tathanhloc.faceattendance.DTO.*;
 import com.tathanhloc.faceattendance.Enum.TrangThaiDiemDanhEnum;
+import com.tathanhloc.faceattendance.Exception.BusinessException;
 import com.tathanhloc.faceattendance.Exception.ResourceNotFoundException;
 import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -1095,5 +1097,176 @@ public class DiemDanhService extends BaseService<DiemDanh, Long, DiemDanhDTO> {
         debugInfo.put("schedules", scheduleDetails);
 
         return debugInfo;
+    }
+
+    /**
+     * Xuất báo cáo cả học kỳ
+     */
+    public byte[] exportSemesterReport(String semesterCode, String yearCode, String lecturerCode, String classCode) {
+        try {
+            // Lấy khoảng thời gian học kỳ
+            Map<String, Object> semesterInfo = getSemesterDateRange(semesterCode, yearCode);
+            LocalDate startDate = (LocalDate) semesterInfo.get("startDate");
+            LocalDate endDate = (LocalDate) semesterInfo.get("endDate");
+
+            // Lấy tất cả lịch học trong học kỳ
+            List<LichHoc> schedules = lichHocRepository.findBySemesterAndYear(semesterCode, yearCode);
+
+            if (lecturerCode != null) {
+                schedules = schedules.stream()
+                        .filter(s -> lecturerCode.equals(s.getLopHocPhan().getGiangVien().getMaGv()))
+                        .collect(Collectors.toList());
+            }
+
+            if (classCode != null) {
+                schedules = schedules.stream()
+                        .filter(s -> classCode.equals(s.getLopHocPhan().getMaLhp()))
+                        .collect(Collectors.toList());
+            }
+
+            // Tính toán số buổi học và điểm danh
+            List<SemesterReportData> reportData = new ArrayList<>();
+
+            for (LichHoc schedule : schedules) {
+                SemesterReportData data = calculateSemesterAttendance(schedule, startDate, endDate);
+                reportData.add(data);
+            }
+
+            // Export ra Excel
+            return excelService.createSemesterReport(reportData, semesterCode, yearCode);
+
+        } catch (Exception e) {
+            log.error("Error creating semester report: {}", e.getMessage(), e);
+            throw new BusinessException("Không thể tạo báo cáo học kỳ: ", e.getMessage());
+        }
+    }
+
+    /**
+     * Lấy khoảng thời gian của học kỳ từ bảng hoc_ky
+     */
+    public Map<String, Object> getSemesterDateRange(String semesterCode, String yearCode) {
+        try {
+            // Lấy ngày từ bảng hoc_ky thay vì tính toán
+            LocalDate startDate = lichHocRepository.findEarliestDateBySemester(semesterCode, yearCode);
+            LocalDate endDate = lichHocRepository.findLatestDateBySemester(semesterCode, yearCode);
+
+            if (startDate == null || endDate == null) {
+                // Fallback: tính toán ngày dựa trên logic cũ
+                startDate = calculateSemesterStartDate(semesterCode, yearCode);
+                endDate = calculateSemesterEndDate(semesterCode, yearCode);
+            }
+
+            // Tính số tuần học
+            long totalWeeks = ChronoUnit.WEEKS.between(startDate, endDate) + 1;
+
+            Map<String, Object> info = new HashMap<>();
+            info.put("startDate", startDate);
+            info.put("endDate", endDate);
+            info.put("totalWeeks", totalWeeks);
+            info.put("semesterCode", semesterCode);
+            info.put("yearCode", yearCode);
+
+            return info;
+
+        } catch (Exception e) {
+            log.error("Error getting semester date range: {}", e.getMessage(), e);
+            throw new BusinessException("Không thể lấy thông tin học kỳ: ", e.getMessage());
+        }
+    }
+
+    // Helper methods để tính ngày fallback
+    private LocalDate calculateSemesterStartDate(String semesterCode, String yearCode) {
+        int year = Integer.parseInt(yearCode);
+        switch (semesterCode) {
+            case "1": return LocalDate.of(year, 8, 15);      // Học kỳ 1: 15/8
+            case "2": return LocalDate.of(year + 1, 1, 15);  // Học kỳ 2: 15/1 năm sau
+            case "3": return LocalDate.of(year + 1, 6, 1);   // Học kỳ hè: 1/6 năm sau
+            default: return LocalDate.of(year, 8, 15);
+        }
+    }
+
+    private LocalDate calculateSemesterEndDate(String semesterCode, String yearCode) {
+        int year = Integer.parseInt(yearCode);
+        switch (semesterCode) {
+            case "1": return LocalDate.of(year, 12, 31);     // Học kỳ 1: 31/12
+            case "2": return LocalDate.of(year + 1, 5, 31);  // Học kỳ 2: 31/5 năm sau
+            case "3": return LocalDate.of(year + 1, 8, 31);  // Học kỳ hè: 31/8 năm sau
+            default: return LocalDate.of(year, 12, 31);
+        }
+    }
+
+    /**
+     * Tính toán điểm danh cho 1 lớp trong cả học kỳ
+     */
+    private SemesterReportData calculateSemesterAttendance(LichHoc schedule, LocalDate startDate, LocalDate endDate) {
+        String maLhp = schedule.getLopHocPhan().getMaLhp();
+
+        // Đếm tổng số buổi học theo lịch
+        int totalSessions = countTotalSessions(schedule, startDate, endDate);
+
+        // Lấy tất cả điểm danh của lớp trong kỳ
+        List<DiemDanh> attendances = diemDanhRepository.findByClassAndDateRange(maLhp, startDate, endDate);
+
+        // Lấy danh sách sinh viên
+        List<SinhVien> students = dangKyHocRepository.findStudentsByClass(maLhp);
+
+        List<StudentSemesterData> studentData = new ArrayList<>();
+
+        for (SinhVien student : students) {
+            List<DiemDanh> studentAttendances = attendances.stream()
+                    .filter(a -> student.getMaSv().equals(a.getSinhVien().getMaSv()))
+                    .collect(Collectors.toList());
+
+            int presentCount = (int) studentAttendances.stream()
+                    .filter(a -> a.getTrangThai() == TrangThaiDiemDanhEnum.CO_MAT)
+                    .count();
+
+            int lateCount = (int) studentAttendances.stream()
+                    .filter(a -> a.getTrangThai() == TrangThaiDiemDanhEnum.DI_TRE)
+                    .count();
+
+            int absentCount = totalSessions - presentCount - lateCount;
+
+            double attendanceRate = totalSessions > 0 ?
+                    (double)(presentCount + lateCount) / totalSessions * 100 : 0;
+
+            StudentSemesterData data = StudentSemesterData.builder()
+                    .maSv(student.getMaSv())
+                    .hoTen(student.getHoTen())
+                    .totalSessions(totalSessions)
+                    .presentCount(presentCount)
+                    .lateCount(lateCount)
+                    .absentCount(absentCount)
+                    .attendanceRate(attendanceRate)
+                    .build();
+
+            studentData.add(data);
+        }
+
+        return SemesterReportData.builder()
+                .maLhp(maLhp)
+                .tenMonHoc(schedule.getLopHocPhan().getMonHoc().getTenMh())
+                .tenGiangVien(schedule.getLopHocPhan().getGiangVien().getHoTen())
+                .totalSessions(totalSessions)
+                .studentData(studentData)
+                .build();
+    }
+
+    /**
+     * Đếm số buổi học thực tế theo lịch
+     */
+    private int countTotalSessions(LichHoc schedule, LocalDate startDate, LocalDate endDate) {
+        int count = 0;
+        LocalDate current = startDate;
+        int dayOfWeek = schedule.getThu(); // 2=thứ 2, 3=thứ 3,...
+
+        while (!current.isAfter(endDate)) {
+            if (current.getDayOfWeek().getValue() == dayOfWeek) {
+                count++;
+            }
+            current = current.plusDays(1);
+        }
+
+        return count;
     }
 }
