@@ -35,6 +35,7 @@ public class DiemDanhService extends BaseService<DiemDanh, Long, DiemDanhDTO> {
     private final DangKyHocService dangKyHocService;
     private final LichHocService lichHocService;
     private final SinhVienService sinhVienService;
+    private final LopHocPhanRepository lopHocPhanRepository;
     // Cấu hình thời gian cho phép điểm danh
     private static final int ATTENDANCE_BEFORE_CLASS_MINUTES = 60; // Cho phép điểm danh trước 60 phút
     private static final int ATTENDANCE_AFTER_CLASS_MINUTES = 30;  // Cho phép điểm danh sau 30 phút
@@ -853,7 +854,11 @@ public class DiemDanhService extends BaseService<DiemDanh, Long, DiemDanhDTO> {
                             .filter(dd -> TrangThaiDiemDanhEnum.DI_TRE.equals(dd.getTrangThai()))
                             .count();
 
-                    double attendanceRate = (double) presentCount / studentAttendance.size() * 100;
+                    long excusedCount = studentAttendance.stream()
+                            .filter(dd -> TrangThaiDiemDanhEnum.VANG_CO_PHEP.equals(dd.getTrangThai()))
+                            .count();
+
+                    double attendanceRate = (double) (presentCount + lateCount) / studentAttendance.size() * 100;
 
                     Map<String, Object> studentStat = new HashMap<>();
                     studentStat.put("maSv", sinhVien.getMaSv());
@@ -862,6 +867,7 @@ public class DiemDanhService extends BaseService<DiemDanh, Long, DiemDanhDTO> {
                     studentStat.put("presentCount", presentCount);
                     studentStat.put("absentCount", absentCount);
                     studentStat.put("lateCount", lateCount);
+                    studentStat.put("excusedCount", excusedCount);
                     studentStat.put("attendanceRate", attendanceRate);
 
                     result.add(studentStat);

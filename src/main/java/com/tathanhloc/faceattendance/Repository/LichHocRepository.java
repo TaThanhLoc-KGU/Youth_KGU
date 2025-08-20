@@ -57,4 +57,7 @@ public interface LichHocRepository extends JpaRepository<LichHoc, String> {
     @Query("SELECT lh FROM LichHoc lh WHERE lh.lopHocPhan.hocKy = :semester AND lh.lopHocPhan.namHoc = :year")
     List<LichHoc> findBySemesterAndYear(@Param("semester") String semester, @Param("year") String year);
 
+    @Query("SELECT l FROM LichHoc l WHERE l.lopHocPhan.maLhp = :maLhp AND l.isActive = true")
+    List<LichHoc> findByLopHocPhanMaLhpAndIsActiveTrue(@Param("maLhp") String maLhp);
+
 }

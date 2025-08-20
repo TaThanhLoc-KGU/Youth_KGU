@@ -377,49 +377,43 @@ public class AttendanceReportController {
             SinhVienDTO sinhVien = sinhVienService.getById(maSv);
             List<LichHocDTO> lichHocList = lichHocService.getByLopHocPhan(maLhp);
 
-            int totalSessions = 0;
+            int totalRecords = 0;
             int presentCount = 0;
             int absentCount = 0;
             int lateCount = 0;
             int excusedCount = 0;
 
             for (LichHocDTO lichHoc : lichHocList) {
-                List<DiemDanhDTO> attendanceList = diemDanhService.getByMaLich(lichHoc.getMaLich());
-                if (!attendanceList.isEmpty()) {
-                    totalSessions++;
+                List<DiemDanhDTO> attendanceList = diemDanhService.getByMaLich(lichHoc.getMaLich())
+                        .stream()
+                        .filter(dd -> maSv.equals(dd.getMaSv()))
+                        .collect(Collectors.toList());
 
-                    DiemDanhDTO studentAttendance = attendanceList.stream()
-                            .filter(dd -> maSv.equals(dd.getMaSv()))
-                            .findFirst()
-                            .orElse(null);
-
-                    if (studentAttendance != null) {
-                        switch (studentAttendance.getTrangThai()) {
-                            case CO_MAT:
-                                presentCount++;
-                                break;
-                            case VANG_MAT:
-                                absentCount++;
-                                break;
-                            case DI_TRE:
-                                lateCount++;
-                                break;
-                            case VANG_CO_PHEP:
-                                excusedCount++;
-                                break;
-                        }
-                    } else {
-                        // Không có record = vắng mặt
-                        absentCount++;
+                // Đếm tất cả các lần điểm danh của sinh viên trong buổi học này
+                for (DiemDanhDTO attendance : attendanceList) {
+                    totalRecords++;
+                    switch (attendance.getTrangThai()) {
+                        case CO_MAT:
+                            presentCount++;
+                            break;
+                        case VANG_MAT:
+                            absentCount++;
+                            break;
+                        case DI_TRE:
+                            lateCount++;
+                            break;
+                        case VANG_CO_PHEP:
+                            excusedCount++;
+                            break;
                     }
                 }
             }
 
-            double presentRate = totalSessions > 0 ? (double) (presentCount + lateCount) / totalSessions * 100 : 0.0;
+            double presentRate = totalRecords > 0 ? (double) (presentCount + lateCount) / totalRecords * 100 : 0.0;
 
             stats.put("maSv", maSv);
             stats.put("hoTen", sinhVien.getHoTen());
-            stats.put("totalSessions", totalSessions);
+            stats.put("totalRecords", totalRecords);
             stats.put("presentCount", presentCount);
             stats.put("absentCount", absentCount);
             stats.put("lateCount", lateCount);

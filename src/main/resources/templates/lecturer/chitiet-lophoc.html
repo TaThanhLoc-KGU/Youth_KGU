@@ -2125,13 +2125,16 @@
     const students = reportData.attendanceStats.studentStats || [];
     const className = document.getElementById('reportClassName').textContent;
 
-    let csvContent = "STT,Mã SV,Họ tên,Tổng buổi,Có mặt,Vắng,Trễ,Có phép,Tỷ lệ %,Xếp hạng\n";
+    // Thêm BOM để hỗ trợ UTF-8
+    const BOM = '\uFEFF';
+    let csvContent = BOM + "STT,Mã SV,Họ tên,Tổng buổi,Có mặt,Vắng,Trễ,Có phép,Tỷ lệ %,Xếp hạng\n";
 
     students.forEach((student, index) => {
       const rank = getAttendanceRank(student.presentRate || 0);
       csvContent += `${index + 1},"${student.maSv}","${student.hoTen}",${student.totalSessions},${student.presentCount},${student.absentCount},${student.lateCount},${student.excusedCount},${student.presentRate},"${rank}"\n`;
     });
 
+    // Tạo Blob với loại text/csv và mã hóa UTF-8
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
