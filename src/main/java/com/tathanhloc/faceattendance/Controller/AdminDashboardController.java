@@ -19,7 +19,6 @@ public class AdminDashboardController {
     private final SinhVienService sinhVienService;
     private final GiangVienService giangVienService;
     private final LopService lopService;
-    private final DiemDanhService diemDanhService;
 
     @GetMapping(value ={"/dashboard","/dashboard.html"})
     public String dashboard(Authentication authentication, Model model) {
@@ -42,15 +41,13 @@ public class AdminDashboardController {
             int totalStudents = sinhVienService.getAll().size();
             int totalLecturers = giangVienService.getAll().size();
             long totalClasses = lopService.count();
-            long attendanceToday = diemDanhService.countTodayDiemDanh();
 
-            log.info("Dashboard stats loaded - Students: {}, Lecturers: {}, Classes: {}, Attendance: {}",
-                    totalStudents, totalLecturers, totalClasses, attendanceToday);
+            log.info("Dashboard stats loaded - Students: {}, Lecturers: {}, Classes: {}",
+                    totalStudents, totalLecturers, totalClasses);
 
             model.addAttribute("totalStudents", totalStudents);
             model.addAttribute("totalLecturers", totalLecturers);
             model.addAttribute("totalClasses", totalClasses);
-            model.addAttribute("attendanceToday", attendanceToday);
             model.addAttribute("currentUser", userDetails.getTaiKhoan());
 
             log.info("✅ Admin dashboard loaded successfully");
@@ -86,16 +83,6 @@ public class AdminDashboardController {
         return "admin/nganh";
     }
 
-    @GetMapping("/monhoc")
-    public String monhocManagement(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/monhoc";
-    }
 
     @GetMapping("/giangvien")
     public String giangvienManagement(Authentication authentication, Model model) {
@@ -129,39 +116,6 @@ public class AdminDashboardController {
         model.addAttribute("currentUser", userDetails.getTaiKhoan());
         return "admin/lop";
     }
-
-    @GetMapping("/camera")
-    public String cameraManagement(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/camera";
-    }
-
-    @GetMapping("/diemdanh")
-    public String diemDanhReports(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "baocao-diemdanh";
-    }
-
-    @GetMapping("/system")
-    public String systemSettings(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/system";
-    }
     @GetMapping("/taikhoan")
     public String taikhoanManagement(Authentication authentication, Model model) {
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -174,77 +128,6 @@ public class AdminDashboardController {
         return "admin/taikhoan";
     }
 
-    @GetMapping("/namhoc")
-    public String namhocManagement(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/namhoc";
-    }
-
-    @GetMapping("/hocky")
-    public String hockyManagement(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/hocky";
-    }
-
-    @GetMapping("/lophocphan")
-    public String lophocphanManagement(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/lophocphan";
-    }
-
-    @GetMapping("/lichhoc")
-    public String lichhocManagement(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/lichhoc";
-    }
-
-
-    @GetMapping("/baocao-diemdanh")
-    public String baocaoDiemdanhManagement(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/baocao-diemdanh";
-    }
-
-    @GetMapping("/phonghoc")
-    public String phonghocManagement(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/phonghoc";
-    }
-
-    @GetMapping("/cauhinh-hocky")
-    public String cauhinhHockyManagement(Authentication authentication, Model model) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return "redirect:/?error=not_authenticated";
-        }
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        model.addAttribute("currentUser", userDetails.getTaiKhoan());
-        return "admin/cauhinh-hocky";
-
-    }
 
     @GetMapping("/logs")
     public String logManagement(Authentication authentication, Model model) {

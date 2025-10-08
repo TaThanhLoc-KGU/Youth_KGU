@@ -25,16 +25,6 @@ public class Nganh {
     @JoinColumn(name = "ma_khoa")
     private Khoa khoa;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "nganh_monhoc",
-            joinColumns = @JoinColumn(name = "ma_nganh"),
-            inverseJoinColumns = @JoinColumn(name = "ma_mh")
-    )
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private Set<MonHoc> monHocs;
-
     @Column(name = "is_active")
     private boolean isActive;
 
