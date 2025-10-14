@@ -31,19 +31,10 @@ const SIDEBAR_CONFIG = {
             ]
         },
         {
-            title: "Quản lý học tập",
-            icon: "fas fa-graduation-cap",
-            children: [
-                { title: "Cấu hình Học kỳ - Năm học", icon: "fas fa-calendar-alt", url: "/admin/cauhinh-hocky" },
-                { title: "Lớp học phần", icon: "fas fa-clipboard-list", url: "/admin/lophocphan" },
-                { title: "Lịch học", icon: "fas fa-clock", url: "/admin/lichhoc" }
-            ]
-        },
-        {
-            title: "Điểm danh",
+            title: "Hoạt động",
             icon: "fas fa-user-check",
             children: [
-                { title: "Báo cáo điểm danh", icon: "fas fa-chart-bar", url: "/admin/baocao-diemdanh" }
+                { title: "Báo cáo hoạt động", icon: "fas fa-chart-bar", url: "/admin/baocao-diemdanh" }
             ]
         },
         {

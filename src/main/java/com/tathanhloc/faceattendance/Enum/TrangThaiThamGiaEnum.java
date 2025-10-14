@@ -3,20 +3,20 @@ package com.tathanhloc.faceattendance.Enum;
 import lombok.Getter;
 
 @Getter
-public enum TrangThaiDiemDanhEnum {
-    CO_MAT("Có mặt"),
+public enum TrangThaiThamGiaEnum {
+    DA_THAM_GIA("Đã tham gia"),
     VANG_MAT("Vắng"),
-    DI_TRE("Trễ"),
-    VANG_CO_PHEP("Vắng có phép");
+    DANG_KY("Đăng ký"),
+    HUY("Hủy");
 
     private final String value;
 
-    TrangThaiDiemDanhEnum(String value) {
+    TrangThaiThamGiaEnum(String value) {
         this.value = value;
     }
 
-    public static TrangThaiDiemDanhEnum fromValue(String value) {
-        for (TrangThaiDiemDanhEnum trangThai : TrangThaiDiemDanhEnum.values()) {
+    public static TrangThaiThamGiaEnum fromValue(String value) {
+        for (TrangThaiThamGiaEnum trangThai : TrangThaiThamGiaEnum.values()) {
             if (trangThai.getValue().equals(value)) {
                 return trangThai;
             }

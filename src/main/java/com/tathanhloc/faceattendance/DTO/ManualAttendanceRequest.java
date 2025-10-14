@@ -1,6 +1,6 @@
 package com.tathanhloc.faceattendance.DTO;
 
-import com.tathanhloc.faceattendance.Enum.TrangThaiDiemDanhEnum;
+import com.tathanhloc.faceattendance.Enum.TrangThaiThamGiaEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,7 +15,7 @@ import java.time.LocalTime;
 @AllArgsConstructor
 public class ManualAttendanceRequest {
     private String maSv;
-    private TrangThaiDiemDanhEnum trangThai;
+    private TrangThaiThamGiaEnum trangThai;
     private LocalTime thoiGianVao;
     private LocalTime thoiGianRa;
 }
