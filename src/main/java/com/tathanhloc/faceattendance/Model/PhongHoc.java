@@ -1,18 +1,10 @@
 package com.tathanhloc.faceattendance.Model;
 
-import com.tathanhloc.faceattendance.Enum.LoaiPhongEnum;
-import com.tathanhloc.faceattendance.Enum.ThietBiEnum;
-import com.tathanhloc.faceattendance.Enum.TrangThaiPhongEnum;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
-import java.util.Set;
 
 @Entity
 @Table(name = "phonghoc")
@@ -21,6 +13,7 @@ import java.util.Set;
 @AllArgsConstructor
 @Builder
 public class PhongHoc {
+
     @Id
     @Column(name = "ma_phong")
     private String maPhong;
@@ -29,7 +22,7 @@ public class PhongHoc {
     private String tenPhong;
 
     @Column(name = "loai_phong")
-    private String loaiPhong; // LECTURE, LAB, COMPUTER, CONFERENCE, OTHER
+    private String loaiPhong;
 
     @Column(name = "suc_chua")
     private Integer sucChua;
@@ -41,13 +34,13 @@ public class PhongHoc {
     private Integer tang;
 
     @Column(name = "trang_thai")
-    private String trangThai; // AVAILABLE, OCCUPIED, MAINTENANCE, INACTIVE
+    private String trangThai;
 
     @Column(name = "vi_tri")
     private String viTri;
 
     @Column(name = "thiet_bi", columnDefinition = "TEXT")
-    private String thietBi; // JSON string hoặc comma-separated: "PROJECTOR,COMPUTER,AC"
+    private String thietBi;
 
     @Column(name = "mo_ta", columnDefinition = "TEXT")
     private String moTa;

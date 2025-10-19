@@ -1,26 +1,18 @@
 package com.tathanhloc.faceattendance.Enum;
 
-import lombok.Getter;
-
-@Getter
 public enum TrangThaiThamGiaEnum {
+    DANG_KY("Đã đăng ký"),
     DA_THAM_GIA("Đã tham gia"),
-    VANG_MAT("Vắng"),
-    DANG_KY("Đăng ký"),
-    HUY("Hủy");
+    VANG_MAT("Vắng mặt"),
+    HUY_DANG_KY("Hủy đăng ký");
 
-    private final String value;
+    private final String displayName;
 
-    TrangThaiThamGiaEnum(String value) {
-        this.value = value;
+    TrangThaiThamGiaEnum(String displayName) {
+        this.displayName = displayName;
     }
 
-    public static TrangThaiThamGiaEnum fromValue(String value) {
-        for (TrangThaiThamGiaEnum trangThai : TrangThaiThamGiaEnum.values()) {
-            if (trangThai.getValue().equals(value)) {
-                return trangThai;
-            }
-        }
-        throw new IllegalArgumentException("Giá trị không hợp lệ: " + value);
+    public String getDisplayName() {
+        return displayName;
     }
 }
