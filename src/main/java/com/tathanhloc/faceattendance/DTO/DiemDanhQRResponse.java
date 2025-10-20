@@ -1,37 +1,39 @@
 package com.tathanhloc.faceattendance.DTO;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
-/**
- * Response DTO sau khi điểm danh QR
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class DiemDanhQRResponse {
-    private Boolean success;
+    private boolean success;
     private String message;
+    private DiemDanhHoatDongDTO data;
 
-    // Thông tin sinh viên đã điểm danh
-    private String maSv;
-    private String hoTen;
-    private String tenLop;
+    @Builder.Default
+    private LocalDateTime timestamp = LocalDateTime.now();
 
-    // Thông tin hoạt động
-    private String maHoatDong;
-    private String tenHoatDong;
+    // Explicit getter cho success (nếu Lombok không tạo)
+    public boolean isSuccess() {
+        return success;
+    }
 
-    // Thông tin điểm danh
-    private LocalDateTime thoiGianCheckIn;
-    private String trangThai;
+    public static DiemDanhQRResponse success(String message, DiemDanhHoatDongDTO data) {
+        return DiemDanhQRResponse.builder()
+                .success(true)
+                .message(message)
+                .data(data)
+                .build();
+    }
 
-    // Error details (nếu có)
-    private String errorCode;
-    private String errorDetail;
+    public static DiemDanhQRResponse failed(String message) {
+        return DiemDanhQRResponse.builder()
+                .success(false)
+                .message(message)
+                .data(null)
+                .build();
+    }
 }

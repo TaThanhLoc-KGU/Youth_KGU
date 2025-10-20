@@ -1,41 +1,116 @@
-// ===================================================================
-// Updated SecurityConfig.java - Merged với Flask support
-// ===================================================================
-
 package com.tathanhloc.faceattendance.Config;
 
-import com.tathanhloc.faceattendance.Security.CustomUserDetailsService;
+import com.tathanhloc.faceattendance.Security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.List;
 
+/**
+ * Security Configuration cho Activity Attendance System
+ * Roles: ADMIN, BCH, SINHVIEN
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthFilter;
+    private final UserDetailsService userDetailsService;
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        // Hoạt động - Public read, Admin write
+                        .requestMatchers(HttpMethod.GET, "/api/hoat-dong/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/hoat-dong/**").hasAnyRole("ADMIN", "BCH")
+                        .requestMatchers(HttpMethod.PUT, "/api/hoat-dong/**").hasAnyRole("ADMIN", "BCH")
+                        .requestMatchers(HttpMethod.DELETE, "/api/hoat-dong/**").hasRole("ADMIN")
+
+                        // Đăng ký - Sinh viên có thể đăng ký
+                        .requestMatchers(HttpMethod.POST, "/api/dang-ky").hasRole("SINHVIEN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/dang-ky").hasRole("SINHVIEN")
+                        .requestMatchers(HttpMethod.GET, "/api/dang-ky/student/**").hasRole("SINHVIEN")
+                        .requestMatchers("/api/dang-ky/**").hasAnyRole("ADMIN", "BCH")
+
+                        // Điểm danh - BCH quét QR
+                        .requestMatchers(HttpMethod.POST, "/api/diem-danh/scan").hasRole("BCH")
+                        .requestMatchers(HttpMethod.POST, "/api/diem-danh/check-out").hasRole("BCH")
+                        .requestMatchers("/api/diem-danh/**").hasAnyRole("ADMIN", "BCH")
+
+                        // BCH Management - Admin only
+                        .requestMatchers("/api/bch/**").hasRole("ADMIN")
+
+                        // Chứng nhận
+                        .requestMatchers(HttpMethod.GET, "/api/chung-nhan/student/**").hasRole("SINHVIEN")
+                        .requestMatchers("/api/chung-nhan/**").hasAnyRole("ADMIN", "BCH")
+
+                        // Thống kê
+                        .requestMatchers(HttpMethod.GET, "/api/thong-ke/sinh-vien/**").hasRole("SINHVIEN")
+                        .requestMatchers("/api/thong-ke/**").hasAnyRole("ADMIN", "BCH")
+
+                        // QR Code utilities - BCH và Sinh viên
+                        .requestMatchers("/api/qrcode/**").authenticated()
+
+                        // Tất cả requests khác cần authenticated
+                        .anyRequest().authenticated()
+                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:4200"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
@@ -43,129 +118,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-        return authConfig.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .formLogin(form -> form
-                        .loginPage("/")
-                        .loginProcessingUrl("/login")
-                        .usernameParameter("username")
-                        .passwordParameter("password")
-                        .successHandler((request, response, authentication) -> {
-                            String role = authentication.getAuthorities().iterator().next().getAuthority();
-                            String redirectUrl = switch (role) {
-                                case "ROLE_ADMIN" -> "/admin/dashboard";
-                                case "ROLE_GIANGVIEN" -> "/lecturer/dashboard";
-                                case "ROLE_SINHVIEN" -> "/student/dashboard";
-                                default -> "/";
-                            };
-                            response.sendRedirect(redirectUrl);
-                        })
-                        .failureHandler((request, response, exception) -> {
-                            response.sendRedirect("/?error=login_failed");
-                        })
-                        .permitAll()
-                )
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/?message=logout_success")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
-                        .permitAll()
-                )
-                .sessionManagement(session -> session
-                        .maximumSessions(1)
-                        .maxSessionsPreventsLogin(false)
-                        .and()
-                        .sessionFixation().migrateSession()
-                )
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.sendRedirect("/?error=not_authenticated");
-                        })
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.sendRedirect("/?error=access_denied");
-                        })
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/index", "/index.html", "/login", "/logout").permitAll()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
-                        .requestMatchers("/uploads/**").permitAll()  // Cho phép truy cập tất cả uploads
-                        .requestMatchers("/uploads/students/**").permitAll()  // Cụ thể cho students
-                        .requestMatchers("/streams/**").permitAll()  // ✅ THÊM DÒNG NÀY - Cho phép truy cập streams
-                        .requestMatchers("/error").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/auth/forgot-password").permitAll()
-                        .requestMatchers("/api/python/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
-
-                        // ===== EXISTING ROLE-BASED ACCESS =====
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/lecturer/**").hasRole("GIANGVIEN")
-                        .requestMatchers("/student/**").hasRole("SINHVIEN")
-                        .requestMatchers("/api/**").authenticated()
-                        .requestMatchers("/api/stream/**").authenticated()
-                        .requestMatchers("/stream/**").authenticated()
-                        .anyRequest().authenticated()
-                )
-                .authenticationProvider(authenticationProvider())
-                .build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        // ===== ALLOW ORIGINS - Bao gồm Flask và existing =====
-        configuration.setAllowedOriginPatterns(Arrays.asList(
-                "*",                        // Existing - allow all
-                "http://localhost:5000",    // Flask default port
-                "http://127.0.0.1:5000",   // Flask alternative
-                "http://localhost:8080"     // Spring Boot port
-        ));
-
-        // ===== ALLOW METHODS =====
-        configuration.setAllowedMethods(Arrays.asList(
-                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
-        ));
-
-        // ===== ALLOW HEADERS - Merged existing + Flask requirements =====
-        configuration.setAllowedHeaders(Arrays.asList(
-                "authorization",
-                "content-type",
-                "x-auth-token",
-                "Content-Type",
-                "Authorization",
-                "X-Requested-With",
-                "Accept"
-        ));
-
-        // ===== EXPOSED HEADERS =====
-        configuration.setExposedHeaders(Arrays.asList(
-                "x-auth-token"
-        ));
-
-        // ===== ALLOW CREDENTIALS =====
-        configuration.setAllowCredentials(true);
-
-        // ===== REGISTER CONFIGURATIONS =====
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-
-        // Apply to all endpoints (existing behavior)
-        source.registerCorsConfiguration("/**", configuration);
-
-        return source;
     }
 }

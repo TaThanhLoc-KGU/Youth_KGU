@@ -6,73 +6,98 @@ import com.tathanhloc.faceattendance.Model.HoatDong;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
- * ★ MỚI: Utility để tính toán thời gian check-in/check-out
+ * Utility class for time tracking and validation
  */
 public class TimeTrackingUtil {
 
     /**
-     * Tính trạng thái check-in
+     * Tính trạng thái check-in (đúng giờ/trễ)
      */
-    public static TrangThaiCheckInEnum calculateCheckInStatus(
-            LocalDateTime checkInTime,
-            HoatDong hoatDong) {
-
-        if (checkInTime == null || hoatDong == null || hoatDong.getThoiGianBatDau() == null) {
-            return TrangThaiCheckInEnum.CHUA_CHECK_IN;
+    public static TrangThaiCheckInEnum calculateCheckInStatus(HoatDong hoatDong, LocalDateTime checkInTime) {
+        if (hoatDong.getThoiGianBatDau() == null) {
+            return TrangThaiCheckInEnum.DUNG_GIO; // Default nếu không set thời gian
         }
 
-        LocalDateTime gioTreToiDa = hoatDong.getThoiGianBatDau()
-                .plusMinutes(hoatDong.getThoiGianTreToiDa());
+        LocalTime checkInLocalTime = checkInTime.toLocalTime();
+        LocalTime startTime = hoatDong.getThoiGianBatDau();
+        int maxLateMinutes = hoatDong.getThoiGianTreToiDa() != null ?
+                hoatDong.getThoiGianTreToiDa() : 0;
 
-        return checkInTime.isAfter(gioTreToiDa)
-                ? TrangThaiCheckInEnum.TRE
-                : TrangThaiCheckInEnum.DUNG_GIO;
+        // Tính số phút trễ
+        long minutesLate = Duration.between(startTime, checkInLocalTime).toMinutes();
+
+        if (minutesLate <= 0) {
+            return TrangThaiCheckInEnum.DUNG_GIO;
+        } else if (minutesLate <= maxLateMinutes) {
+            return TrangThaiCheckInEnum.TRE_CHAP_NHAN;
+        } else {
+            return TrangThaiCheckInEnum.TRE_QUA_GIO;
+        }
     }
 
     /**
      * Tính số phút trễ
      */
-    public static int calculateLateMinutes(LocalDateTime checkInTime, HoatDong hoatDong) {
-        if (checkInTime == null || hoatDong == null) {
+    public static Integer calculateLateMinutes(HoatDong hoatDong, LocalDateTime checkInTime) {
+        if (hoatDong.getThoiGianBatDau() == null) {
             return 0;
         }
 
-        LocalDateTime gioTreToiDa = hoatDong.getThoiGianBatDau()
-                .plusMinutes(hoatDong.getThoiGianTreToiDa());
+        LocalTime checkInLocalTime = checkInTime.toLocalTime();
+        LocalTime startTime = hoatDong.getThoiGianBatDau();
+        int maxLateMinutes = hoatDong.getThoiGianTreToiDa() != null ?
+                hoatDong.getThoiGianTreToiDa() : 0;
 
-        if (checkInTime.isAfter(gioTreToiDa)) {
-            return (int) Duration.between(gioTreToiDa, checkInTime).toMinutes();
-        }
+        long minutesLate = Duration.between(startTime, checkInLocalTime).toMinutes();
 
-        return 0;
+        return minutesLate > 0 ? (int) minutesLate : 0;
     }
 
     /**
-     * Tính trạng thái check-out
+     * Tính trạng thái check-out (hoàn thành/về sớm)
      */
-    public static TrangThaiCheckOutEnum calculateCheckOutStatus(
-            LocalDateTime checkOutTime,
-            HoatDong hoatDong) {
-
-        if (checkOutTime == null) {
-            return TrangThaiCheckOutEnum.CHUA_CHECK_OUT;
+    public static TrangThaiCheckOutEnum calculateCheckOutStatus(HoatDong hoatDong, LocalDateTime checkOutTime) {
+        if (hoatDong.getThoiGianKetThuc() == null) {
+            return TrangThaiCheckOutEnum.HOAN_THANH; // Default
         }
 
-        if (hoatDong == null || hoatDong.getThoiGianKetThuc() == null) {
+        LocalTime checkOutLocalTime = checkOutTime.toLocalTime();
+        LocalTime endTime = hoatDong.getThoiGianKetThuc();
+
+        long minutesEarly = Duration.between(checkOutLocalTime, endTime).toMinutes();
+
+        if (minutesEarly <= 0) {
             return TrangThaiCheckOutEnum.HOAN_THANH;
+        } else if (minutesEarly <= 30) {
+            return TrangThaiCheckOutEnum.VE_SOM_CHAP_NHAN;
+        } else {
+            return TrangThaiCheckOutEnum.VE_SOM_QUA_SUA;
+        }
+    }
+
+    /**
+     * Tính số phút về sớm
+     */
+    public static Integer calculateEarlyMinutes(HoatDong hoatDong, LocalDateTime checkOutTime) {
+        if (hoatDong.getThoiGianKetThuc() == null) {
+            return 0;
         }
 
-        return checkOutTime.isBefore(hoatDong.getThoiGianKetThuc())
-                ? TrangThaiCheckOutEnum.VE_SOM
-                : TrangThaiCheckOutEnum.HOAN_THANH;
+        LocalTime checkOutLocalTime = checkOutTime.toLocalTime();
+        LocalTime endTime = hoatDong.getThoiGianKetThuc();
+
+        long minutesEarly = Duration.between(checkOutLocalTime, endTime).toMinutes();
+
+        return minutesEarly > 0 ? (int) minutesEarly : 0;
     }
 
     /**
      * Tính tổng thời gian tham gia (phút)
      */
-    public static int calculateTotalMinutes(LocalDateTime checkIn, LocalDateTime checkOut) {
+    public static Integer calculateTotalParticipationTime(LocalDateTime checkIn, LocalDateTime checkOut) {
         if (checkIn == null || checkOut == null) {
             return 0;
         }
@@ -81,19 +106,34 @@ public class TimeTrackingUtil {
     }
 
     /**
-     * Tính tổng thời gian tham gia (giờ)
+     * Kiểm tra có đủ thời gian tối thiểu không
      */
-    public static double calculateTotalHours(LocalDateTime checkIn, LocalDateTime checkOut) {
-        return calculateTotalMinutes(checkIn, checkOut) / 60.0;
+    public static Boolean isMinimumTimeMet(HoatDong hoatDong, Integer totalMinutes) {
+        if (hoatDong.getThoiGianToiThieu() == null || totalMinutes == null) {
+            return true; // Default true nếu không set yêu cầu
+        }
+
+        return totalMinutes >= hoatDong.getThoiGianToiThieu();
     }
 
     /**
-     * Check có đủ thời gian tối thiểu không
+     * Kiểm tra có được tính giờ phục vụ cộng đồng không
      */
-    public static boolean meetsMinimumTime(int totalMinutes, Integer requiredMinutes) {
-        if (requiredMinutes == null) {
-            return true;
-        }
-        return totalMinutes >= requiredMinutes;
+    public static Boolean shouldCountCommunityServiceHours(
+            HoatDong hoatDong,
+            TrangThaiCheckInEnum checkInStatus,
+            TrangThaiCheckOutEnum checkOutStatus,
+            Integer totalMinutes
+    ) {
+        // Điều kiện để tính giờ phục vụ:
+        // 1. Check-in không quá trễ
+        // 2. Check-out không về sớm quá sớm
+        // 3. Đủ thời gian tối thiểu
+
+        boolean validCheckIn = checkInStatus != TrangThaiCheckInEnum.TRE_QUA_GIO;
+        boolean validCheckOut = checkOutStatus != TrangThaiCheckOutEnum.VE_SOM_QUA_SUA;
+        boolean metMinimumTime = isMinimumTimeMet(hoatDong, totalMinutes);
+
+        return validCheckIn && validCheckOut && metMinimumTime;
     }
 }

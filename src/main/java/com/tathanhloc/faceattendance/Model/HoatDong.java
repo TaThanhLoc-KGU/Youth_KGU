@@ -1,18 +1,14 @@
 package com.tathanhloc.faceattendance.Model;
 
-import com.tathanhloc.faceattendance.Enum.LoaiHoatDongEnum;
-import com.tathanhloc.faceattendance.Enum.TrangThaiHoatDongEnum;
-import com.tathanhloc.faceattendance.Enum.CapDoEnum;
+import com.tathanhloc.faceattendance.Enum.*;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "hoat_dong")
@@ -23,10 +19,10 @@ import java.time.LocalDate;
 public class HoatDong {
 
     @Id
-    @Column(name = "ma_hoat_dong")
+    @Column(name = "ma_hoat_dong", length = 20)
     private String maHoatDong;
 
-    @Column(name = "ten_hoat_dong", nullable = false)
+    @Column(name = "ten_hoat_dong", nullable = false, length = 200)
     private String tenHoatDong;
 
     @Column(name = "mo_ta", columnDefinition = "TEXT")
@@ -38,50 +34,47 @@ public class HoatDong {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "cap_do", nullable = false)
-    @Builder.Default
-    private CapDoEnum capDo = CapDoEnum.TRUONG;
+    private CapDoEnum capDo;
 
     @Column(name = "ngay_to_chuc", nullable = false)
     private LocalDate ngayToChuc;
 
-    @Column(name = "thoi_gian_bat_dau")
-    private LocalDateTime thoiGianBatDau;
+    @Column(name = "gio_to_chuc")
+    private LocalTime gioToChuc;
 
-    @Column(name = "thoi_gian_ket_thuc")
-    private LocalDateTime thoiGianKetThuc;
+    // ========== TIME TRACKING FIELDS ==========
 
     /**
-     * ★ MỚI: Thời gian cho phép check-in sớm (phút)
-     * VD: 30 phút trước giờ bắt đầu
+     * Thời gian bắt đầu hoạt động (check-in window opens)
+     * VD: 07:00 - Bắt đầu cho phép check-in
      */
-    @Column(name = "cho_phep_check_in_som")
-    @Builder.Default
-    private Integer choPhepCheckInSom = 30;
+    @Column(name = "thoi_gian_bat_dau")
+    private LocalTime thoiGianBatDau;
 
     /**
-     * ★ MỚI: Thời gian tối đa check-in muộn (phút)
-     * VD: 15 phút sau giờ bắt đầu vẫn tính đúng giờ
+     * Thời gian kết thúc hoạt động (check-out deadline)
+     * VD: 17:00 - Phải check-out trước giờ này
+     */
+    @Column(name = "thoi_gian_ket_thuc")
+    private LocalTime thoiGianKetThuc;
+
+    /**
+     * Thời gian trễ tối đa (phút)
+     * VD: 15 - Cho phép check-in trễ tối đa 15 phút
      */
     @Column(name = "thoi_gian_tre_toi_da")
-    @Builder.Default
-    private Integer thoiGianTreToiDa = 15;
+    private Integer thoiGianTreToiDa;
 
     /**
-     * ★ MỚI: Yêu cầu check-out không
-     */
-    @Column(name = "yeu_cau_check_out")
-    @Builder.Default
-    private Boolean yeuCauCheckOut = false;
-
-    /**
-     * ★ MỚI: Thời gian tối thiểu tham gia (phút)
-     * Để tính giờ phục vụ cộng đồng
+     * Thời gian tối thiểu tham gia (phút)
+     * VD: 120 - Phải tham gia ít nhất 2 giờ
      */
     @Column(name = "thoi_gian_toi_thieu")
-    @Builder.Default
-    private Integer thoiGianToiThieu = 60;
+    private Integer thoiGianToiThieu;
 
-    @Column(name = "dia_diem")
+    // ========== BASIC FIELDS ==========
+
+    @Column(name = "dia_diem", length = 200)
     private String diaDiem;
 
     @ManyToOne
@@ -122,8 +115,11 @@ public class HoatDong {
     @Column(name = "han_dang_ky")
     private LocalDateTime hanDangKy;
 
-    @Column(name = "hinh_anh_poster")
+    @Column(name = "hinh_anh_poster", length = 500)
     private String hinhAnhPoster;
+
+    @Column(name = "ghi_chu", columnDefinition = "TEXT")
+    private String ghiChu;
 
     @Column(name = "is_active")
     @Builder.Default

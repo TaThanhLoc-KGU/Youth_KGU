@@ -1,16 +1,10 @@
 package com.tathanhloc.faceattendance.DTO;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * DTO cho Chứng nhận hoạt động
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,20 +12,14 @@ import java.time.LocalDateTime;
 public class ChungNhanHoatDongDTO {
     private Long id;
     private String maChungNhan;
-
     private String maSv;
-    private String hoTenSinhVien; // Thêm để hiển thị
-
+    private String hoTenSinhVien;
+    private String emailSinhVien;
     private String maHoatDong;
-    private String tenHoatDong; // Thêm để hiển thị
-
+    private String tenHoatDong;
     private LocalDate ngayCap;
-    private String noiDungChungNhan;
-
-    private String maBchKy;
-    private String tenNguoiKy; // Thêm để hiển thị
-
-    private String filePdf;
+    private String noiDung;
+    private String filePath;
     private Boolean isActive;
     private LocalDateTime createdAt;
 }

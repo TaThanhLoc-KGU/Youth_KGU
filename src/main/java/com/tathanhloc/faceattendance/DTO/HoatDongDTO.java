@@ -1,19 +1,12 @@
 package com.tathanhloc.faceattendance.DTO;
 
-import com.tathanhloc.faceattendance.Enum.CapDoEnum;
-import com.tathanhloc.faceattendance.Enum.LoaiHoatDongEnum;
-import com.tathanhloc.faceattendance.Enum.TrangThaiHoatDongEnum;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.tathanhloc.faceattendance.Enum.*;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
-/**
- * DTO cho Hoạt động
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -25,32 +18,32 @@ public class HoatDongDTO {
     private LoaiHoatDongEnum loaiHoatDong;
     private CapDoEnum capDo;
     private LocalDate ngayToChuc;
-    private LocalDateTime thoiGianBatDau;
-    private LocalDateTime thoiGianKetThuc;
+    private LocalTime gioToChuc;
+
+    // Time tracking
+    private LocalTime thoiGianBatDau;
+    private LocalTime thoiGianKetThuc;
+    private Integer thoiGianTreToiDa;
+    private Integer thoiGianToiThieu;
+
     private String diaDiem;
     private String maPhong;
-    private String tenPhong; // Thêm để hiển thị
+    private String tenPhong;
     private Integer soLuongToiDa;
     private Integer diemRenLuyen;
     private String maBchPhuTrach;
-    private String tenNguoiPhuTrach; // Thêm để hiển thị
+    private String tenNguoiPhuTrach;
     private String maKhoa;
-    private String tenKhoa; // Thêm để hiển thị
+    private String tenKhoa;
     private String maNganh;
-    private String tenNganh; // Thêm để hiển thị
+    private String tenNganh;
     private TrangThaiHoatDongEnum trangThai;
     private Boolean yeuCauDiemDanh;
     private Boolean choPhepDangKy;
     private LocalDateTime hanDangKy;
     private String hinhAnhPoster;
+    private String ghiChu;
     private Boolean isActive;
-
-    // Thống kê
-    private Integer soNguoiDaDangKy;
-    private Integer soNguoiDaThamGia;
-    private Double tyLeThamGia;
-    private Integer soChoConLai;
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

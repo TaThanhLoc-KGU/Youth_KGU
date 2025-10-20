@@ -1,12 +1,9 @@
 package com.tathanhloc.faceattendance.Enum;
 
-/**
- * ★ MỚI: Enum đánh giá trạng thái check-out
- */
 public enum TrangThaiCheckOutEnum {
     HOAN_THANH("Hoàn thành"),
-    VE_SOM("Về sớm"),
-    CHUA_CHECK_OUT("Chưa check-out");
+    VE_SOM_CHAP_NHAN("Về sớm chấp nhận"),
+    VE_SOM_QUA_SUA("Về sớm quá sớm");
 
     private final String displayName;
 

@@ -1,38 +1,78 @@
 package com.tathanhloc.faceattendance.Security;
 
-import com.tathanhloc.faceattendance.Model.TaiKhoan;
-import com.tathanhloc.faceattendance.Repository.TaiKhoanRepository;
+import com.tathanhloc.faceattendance.Model.*;
+import com.tathanhloc.faceattendance.Repository.*;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.core.userdetails.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collection;
+
+/**
+ * Custom UserDetailsService cho hệ thống
+ * Support: SinhVien, GiangVien, BCHDoanHoi
+ */
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final TaiKhoanRepository taiKhoanRepository;
+    private final SinhVienRepository sinhVienRepository;
+    private final GiangVienRepository giangVienRepository;
+    private final BCHDoanHoiRepository bchRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        log.info("Loading user by username: {}", username);
-
-        TaiKhoan taiKhoan = taiKhoanRepository.findByUsername(username)
-                .orElseThrow(() -> {
-                    log.error("User not found with username: {}", username);
-                    return new UsernameNotFoundException("Không tìm thấy tài khoản với username: " + username);
-                });
-
-        log.info("User found: {} with role: {} and active status: {}",
-                taiKhoan.getUsername(), taiKhoan.getVaiTro(), taiKhoan.getIsActive());
-
-        if (!taiKhoan.getIsActive()) {
-            log.warn("User account is not active: {}", username);
-            throw new DisabledException("Tài khoản đã bị vô hiệu hóa");
+        // Try Sinh Vien
+        var sinhVien = sinhVienRepository.findByEmail(username);
+        if (sinhVien.isPresent()) {
+            return buildUserDetails(
+                    sinhVien.get().getEmail(),
+                    sinhVien.get().getMaSv(), // Use maSv as password (or integrate with User table)
+                    "ROLE_SINHVIEN"
+            );
         }
 
-        return new CustomUserDetails(taiKhoan);
+        // Try BCH
+        var bch = bchRepository.findByEmail(username);
+        if (bch.isPresent()) {
+            return buildUserDetails(
+                    bch.get().getEmail(),
+                    bch.get().getMaBch(),
+                    "ROLE_BCH"
+            );
+        }
+
+        // Try Giang Vien (as ADMIN)
+        var giangVien = giangVienRepository.findByEmail(username);
+        if (giangVien.isPresent()) {
+            return buildUserDetails(
+                    giangVien.get().getEmail(),
+                    giangVien.get().getMaGv(),
+                    "ROLE_ADMIN"
+            );
+        }
+
+        throw new UsernameNotFoundException("User not found: " + username);
+    }
+
+    private UserDetails buildUserDetails(String username, String password, String role) {
+        Collection<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(role));
+
+        return User.builder()
+                .username(username)
+                .password(password) // Should be encrypted
+                .authorities(authorities)
+                .accountExpired(false)
+                .accountLocked(false)
+                .credentialsExpired(false)
+                .disabled(false)
+                .build();
     }
 }

@@ -1,15 +1,10 @@
 package com.tathanhloc.faceattendance.DTO;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-/**
- * DTO cho Ban Chấp Hành Đoàn - Hội
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,14 +12,15 @@ import java.time.LocalDate;
 public class BCHDoanHoiDTO {
     private String maBch;
     private String hoTen;
-    private String gioiTinh;
-    private LocalDate ngaySinh;
     private String email;
-    private String sdt;
+    private String soDienThoai;
     private String chucVu;
-    private String nhiemVu;
     private String maKhoa;
-    private String tenKhoa; // Thêm để hiển thị
-    private String hinhAnh;
+    private String tenKhoa;
+    private String nhiemKy;
+    private LocalDate ngayBatDau;
+    private LocalDate ngayKetThuc;
     private Boolean isActive;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

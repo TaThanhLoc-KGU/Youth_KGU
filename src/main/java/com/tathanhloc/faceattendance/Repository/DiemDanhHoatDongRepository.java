@@ -11,78 +11,29 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Repository cho Điểm danh hoạt động
- * ĐIỂM DANH BẰNG CÁCH QUÉT MÃ QR
- */
 @Repository
 public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDong, Long> {
 
-    // ========== BASIC QUERIES ==========
-
-    /**
-     * Tìm điểm danh theo hoạt động
-     */
+    // Basic queries
     List<DiemDanhHoatDong> findByHoatDongMaHoatDong(String maHoatDong);
-
-    /**
-     * Tìm điểm danh theo sinh viên
-     */
     List<DiemDanhHoatDong> findBySinhVienMaSv(String maSv);
 
-    /**
-     * Tìm điểm danh theo trạng thái
-     */
-    List<DiemDanhHoatDong> findByTrangThai(TrangThaiThamGiaEnum trangThai);
-
-    /**
-     * Kiểm tra sinh viên đã điểm danh hoạt động chưa
-     */
-    boolean existsByHoatDongMaHoatDongAndSinhVienMaSv(String maHoatDong, String maSv);
-
-    /**
-     * Tìm điểm danh của sinh viên trong hoạt động
-     */
-    Optional<DiemDanhHoatDong> findByHoatDongMaHoatDongAndSinhVienMaSv(String maHoatDong, String maSv);
-
-    // ========== QR CODE VALIDATION - QUAN TRỌNG ==========
-
-    /**
-     * Kiểm tra mã QR đã được quét chưa
-     * (Tránh quét trùng)
-     */
-    boolean existsByMaQRDaQuet(String maQR);
-
-    /**
-     * Tìm điểm danh theo mã QR đã quét
-     */
     Optional<DiemDanhHoatDong> findByMaQRDaQuet(String maQR);
 
-    /**
-     * Kiểm tra mã QR đã được sử dụng trong hoạt động cụ thể chưa
-     */
     @Query("SELECT CASE WHEN COUNT(dd) > 0 THEN true ELSE false END " +
             "FROM DiemDanhHoatDong dd WHERE dd.maQRDaQuet = :maQR " +
             "AND dd.hoatDong.maHoatDong = :maHoatDong")
     boolean isQRAlreadyUsed(@Param("maQR") String maQR, @Param("maHoatDong") String maHoatDong);
 
-    // ========== ATTENDANCE TRACKING ==========
-
-    /**
-     * Đếm số người đã tham gia hoạt động
-     */
     long countByHoatDongMaHoatDongAndTrangThai(String maHoatDong, TrangThaiThamGiaEnum trangThai);
 
-    /**
-     * Lấy danh sách đã check-in
-     */
+    // THÊM METHOD NÀY
+    long countByHoatDongMaHoatDong(String maHoatDong);
+
     @Query("SELECT dd FROM DiemDanhHoatDong dd WHERE dd.hoatDong.maHoatDong = :maHoatDong " +
             "AND dd.trangThai = 'DA_THAM_GIA' ORDER BY dd.thoiGianCheckIn DESC")
     List<DiemDanhHoatDong> findCheckedInStudents(@Param("maHoatDong") String maHoatDong);
 
-    /**
-     * Lấy danh sách chưa check-in (đã đăng ký nhưng chưa điểm danh)
-     */
     @Query("SELECT sv.maSv, sv.hoTen, dk.maQR, dk.ngayDangKy " +
             "FROM DangKyHoatDong dk " +
             "JOIN dk.sinhVien sv " +
@@ -96,9 +47,6 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             "ORDER BY dk.ngayDangKy")
     List<Object[]> findNotCheckedInStudents(@Param("maHoatDong") String maHoatDong);
 
-    /**
-     * Đếm số sinh viên chưa check-in
-     */
     @Query("SELECT COUNT(dk) FROM DangKyHoatDong dk " +
             "WHERE dk.hoatDong.maHoatDong = :maHoatDong " +
             "AND dk.isActive = true " +
@@ -109,16 +57,8 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             ")")
     long countNotCheckedIn(@Param("maHoatDong") String maHoatDong);
 
-    // ========== TIME-BASED QUERIES ==========
-
-    /**
-     * Tìm điểm danh trong khoảng thời gian
-     */
     List<DiemDanhHoatDong> findByThoiGianCheckInBetween(LocalDateTime start, LocalDateTime end);
 
-    /**
-     * Tìm điểm danh của sinh viên trong tháng
-     */
     @Query("SELECT dd FROM DiemDanhHoatDong dd " +
             "WHERE dd.sinhVien.maSv = :maSv " +
             "AND YEAR(dd.thoiGianCheckIn) = :year " +
@@ -130,54 +70,32 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             @Param("month") int month
     );
 
-    // ========== VERIFIER QUERIES ==========
+    List<DiemDanhHoatDong> findByNguoiCheckInMaBch(String maBch);
+    long countByNguoiCheckInMaBch(String maBch);
 
-    /**
-     * Tìm điểm danh do BCH cụ thể xác nhận
-     */
-    List<DiemDanhHoatDong> findByNguoiXacNhanMaBch(String maBch);
+    // THÊM METHODS NÀY
+    @Query("SELECT dd FROM DiemDanhHoatDong dd " +
+            "WHERE dd.sinhVien.maSv = :maSv " +
+            "AND dd.hoatDong.maHoatDong = :maHoatDong")
+    Optional<DiemDanhHoatDong> findBySinhVienMaSvAndHoatDongMaHoatDong(
+            @Param("maSv") String maSv,
+            @Param("maHoatDong") String maHoatDong
+    );
 
-    /**
-     * Đếm số lượt điểm danh BCH đã xác nhận
-     */
-    long countByNguoiXacNhanMaBch(String maBch);
-
-    // ========== STATISTICS ==========
-
-    /**
-     * Thống kê điểm danh theo hoạt động
-     */
-    @Query("SELECT hd.maHoatDong, hd.tenHoatDong, " +
-            "COUNT(CASE WHEN dd.trangThai = 'DA_THAM_GIA' THEN 1 END) as soNguoiThamGia, " +
-            "COUNT(CASE WHEN dd.trangThai = 'VANG_MAT' THEN 1 END) as soNguoiVang " +
+    @Query("SELECT CASE WHEN COUNT(dd) > 0 THEN true ELSE false END " +
             "FROM DiemDanhHoatDong dd " +
-            "JOIN dd.hoatDong hd " +
-            "GROUP BY hd.maHoatDong, hd.tenHoatDong")
-    List<Object[]> getAttendanceStatisticsByActivity();
+            "WHERE dd.sinhVien.maSv = :maSv " +
+            "AND dd.hoatDong.maHoatDong = :maHoatDong")
+    boolean existsBySinhVienMaSvAndHoatDongMaHoatDong(
+            @Param("maSv") String maSv,
+            @Param("maHoatDong") String maHoatDong
+    );
 
-    /**
-     * Thống kê tham gia của sinh viên
-     */
-    @Query("SELECT sv.maSv, sv.hoTen, sv.lop.tenLop, " +
-            "COUNT(CASE WHEN dd.trangThai = 'DA_THAM_GIA' THEN 1 END) as soHoatDongThamGia, " +
-            "SUM(CASE WHEN dd.trangThai = 'DA_THAM_GIA' THEN hd.diemRenLuyen ELSE 0 END) as tongDiemRenLuyen " +
-            "FROM DiemDanhHoatDong dd " +
-            "JOIN dd.sinhVien sv " +
-            "JOIN dd.hoatDong hd " +
-            "GROUP BY sv.maSv, sv.hoTen, sv.lop.tenLop " +
-            "ORDER BY soHoatDongThamGia DESC")
-    List<Object[]> getStudentParticipationStatistics();
-
-    /**
-     * Tỷ lệ tham gia hoạt động
-     */
-    @Query("SELECT hd.maHoatDong, hd.tenHoatDong, " +
-            "COUNT(dk) as tongDangKy, " +
-            "COUNT(dd) as daThamGia, " +
-            "CAST(COUNT(dd) * 100.0 / COUNT(dk) AS double) as tyLeThamGia " +
-            "FROM HoatDong hd " +
-            "LEFT JOIN DangKyHoatDong dk ON hd.maHoatDong = dk.hoatDong.maHoatDong AND dk.isActive = true " +
-            "LEFT JOIN DiemDanhHoatDong dd ON hd.maHoatDong = dd.hoatDong.maHoatDong AND dd.trangThai = 'DA_THAM_GIA' " +
-            "GROUP BY hd.maHoatDong, hd.tenHoatDong")
-    List<Object[]> getParticipationRateByActivity();
+    @Query("SELECT dd FROM DiemDanhHoatDong dd " +
+            "WHERE dd.hoatDong.maHoatDong = :maHoatDong " +
+            "AND dd.trangThai = :trangThai")
+    List<DiemDanhHoatDong> findByHoatDongMaHoatDongAndTrangThai(
+            @Param("maHoatDong") String maHoatDong,
+            @Param("trangThai") TrangThaiThamGiaEnum trangThai
+    );
 }
