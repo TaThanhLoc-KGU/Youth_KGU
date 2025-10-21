@@ -4,6 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+/**
+ * DTO trả về sau khi đăng nhập thành công
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -11,6 +15,6 @@ import lombok.NoArgsConstructor;
 public class AuthResponse {
     private String token;
     private String refreshToken;
-    private String email;
-    private String role;
+    private String tokenType = "Bearer";
+    private UserDTO user; // Thông tin chi tiết user
 }
