@@ -8,6 +8,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import Students from './pages/admin/Students';
 import StudentDashboard from './pages/student/Dashboard';
 import Activities from './pages/admin/Activities';
+import StudentActivities from './pages/student/Activities';
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES } from './utils/constants';
 
@@ -67,7 +68,7 @@ function App() {
         >
           <Route index element={<Navigate to={ROUTES.STUDENT_DASHBOARD} replace />} />
           <Route path="dashboard" element={<StudentDashboard />} />
-          <Route path="activities" element={<ComingSoon title="Hoạt động" />} />
+          <Route path="activities" element={<StudentActivities />} />
           <Route path="registrations" element={<ComingSoon title="Đăng ký của tôi" />} />
           <Route path="certificates" element={<ComingSoon title="Chứng nhận" />} />
           <Route path="profile" element={<ComingSoon title="Hồ sơ" />} />
