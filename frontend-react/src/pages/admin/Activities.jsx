@@ -64,8 +64,8 @@ const Activities = () => {
       accessor: 'tenHoatDong',
       render: (value, row) => (
         <div>
-          <div className="font-medium text-gray-900">{value}</div>
-          <div className="text-xs text-gray-500">{ACTIVITY_TYPE_LABELS[row.loaiHoatDong]}</div>
+          <div className="font-medium">{value}</div>
+          <div className="text-xs text-base-content/60">{ACTIVITY_TYPE_LABELS[row.loaiHoatDong]}</div>
         </div>
       ),
     },
@@ -133,7 +133,7 @@ const Activities = () => {
               handleDelete(row);
             }}
             title="Xóa"
-            className="text-red-600 hover:text-red-700"
+            className="text-error hover:text-error/80"
           />
         </div>
       ),
@@ -173,8 +173,8 @@ const Activities = () => {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Hoạt động</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold">Quản lý Hoạt động</h1>
+          <p className="text-base-content/70 mt-1">
             Quản lý các hoạt động Đoàn - Hội sinh viên
           </p>
         </div>

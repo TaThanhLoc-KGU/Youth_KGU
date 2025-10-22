@@ -4,21 +4,20 @@ const Card = ({ children, className, padding = true, hover = false }) => {
   return (
     <div
       className={clsx(
-        'card',
-        padding && 'card-body',
+        'card bg-base-100 shadow-sm border border-base-300',
         hover && 'transition-shadow hover:shadow-lg',
         className
       )}
     >
-      {children}
+      {padding ? <div className="card-body">{children}</div> : children}
     </div>
   );
 };
 
 const CardHeader = ({ children, className, action }) => {
   return (
-    <div className={clsx('card-header', className)}>
-      <div className="flex items-center justify-between">
+    <div className={clsx('card-title border-b border-base-300 pb-4', className)}>
+      <div className="flex items-center justify-between w-full">
         <div>{children}</div>
         {action && <div>{action}</div>}
       </div>
@@ -32,7 +31,7 @@ const CardBody = ({ children, className }) => {
 
 const CardFooter = ({ children, className }) => {
   return (
-    <div className={clsx('border-t border-gray-200 px-6 py-4', className)}>
+    <div className={clsx('border-t border-base-300 px-6 py-4', className)}>
       {children}
     </div>
   );

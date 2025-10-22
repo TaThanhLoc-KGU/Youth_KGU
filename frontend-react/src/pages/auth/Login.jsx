@@ -64,10 +64,10 @@ const Login = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-4">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold mb-2">
             Hệ thống Quản lý
           </h1>
-          <p className="text-gray-600">Hoạt động Đoàn - Hội Sinh viên</p>
+          <p className="text-base-content/70">Hoạt động Đoàn - Hội Sinh viên</p>
         </div>
 
         {/* Login Card */}
@@ -84,7 +84,7 @@ const Login = () => {
                 <input
                   type="text"
                   id="username"
-                  className={`form-input ${errors.username ? 'border-red-500' : ''}`}
+                  className={`input input-bordered w-full ${errors.username ? 'input-error' : ''}`}
                   placeholder="Nhập tên đăng nhập"
                   {...register('username', {
                     required: 'Vui lòng nhập tên đăng nhập',
@@ -104,7 +104,7 @@ const Login = () => {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     id="password"
-                    className={`form-input pr-10 ${errors.password ? 'border-red-500' : ''}`}
+                    className={`input input-bordered w-full pr-10 ${errors.password ? 'input-error' : ''}`}
                     placeholder="Nhập mật khẩu"
                     {...register('password', {
                       required: 'Vui lòng nhập mật khẩu',
@@ -113,7 +113,7 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content/70"
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -132,16 +132,16 @@ const Login = () => {
                 <label className="flex items-center">
                   <input
                     type="checkbox"
-                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                    className="checkbox"
                     {...register('rememberMe')}
                   />
-                  <span className="ml-2 text-sm text-gray-600">
+                  <span className="ml-2 text-sm">
                     Ghi nhớ đăng nhập
                   </span>
                 </label>
                 <Link
                   to={ROUTES.FORGOT_PASSWORD}
-                  className="text-sm text-primary hover:text-primary-600"
+                  className="text-sm text-primary hover:underline"
                 >
                   Quên mật khẩu?
                 </Link>
@@ -157,7 +157,7 @@ const Login = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-gray-600 mt-6">
+        <p className="text-center text-sm text-base-content/70 mt-6">
           © 2024 Youth KGU. All rights reserved.
         </p>
       </div>

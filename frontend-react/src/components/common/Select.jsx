@@ -26,8 +26,8 @@ const Select = forwardRef(
         <select
           ref={ref}
           className={clsx(
-            'form-input',
-            error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
+            'select select-bordered w-full',
+            error && 'select-error',
             className
           )}
           {...props}

@@ -58,9 +58,9 @@ const ActivityRegistrationModal = ({ activity, onSuccess, onCancel }) => {
   return (
     <div className="space-y-4">
       {/* Activity Info */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h4 className="font-semibold text-gray-900 mb-3">{activity.tenHoatDong}</h4>
-        <div className="space-y-2 text-sm text-gray-600">
+      <div className="bg-base-200 rounded-lg p-4">
+        <h4 className="font-semibold mb-3">{activity.tenHoatDong}</h4>
+        <div className="space-y-2 text-sm text-base-content/70">
           <p>
             <span className="font-medium">Ngày tổ chức:</span>{' '}
             {new Date(activity.ngayToChuc).toLocaleString('vi-VN')}
@@ -83,9 +83,9 @@ const ActivityRegistrationModal = ({ activity, onSuccess, onCancel }) => {
       )}
 
       {/* Terms */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h5 className="font-semibold text-blue-900 mb-2">Điều khoản đăng ký</h5>
-        <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+      <div className="bg-info/10 border border-info/30 rounded-lg p-4">
+        <h5 className="font-semibold text-info mb-2">Điều khoản đăng ký</h5>
+        <ul className="text-sm text-info/80 space-y-1 list-disc list-inside">
           <li>Bạn sẽ tham gia đầy đủ hoạt động</li>
           <li>Mang theo giấy tờ tùy thân khi tham gia</li>
           <li>Tuân theo các quy định của tổ chức</li>

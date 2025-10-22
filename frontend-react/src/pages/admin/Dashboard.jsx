@@ -68,21 +68,21 @@ const AdminDashboard = () => {
       title: 'Tổng sinh viên',
       value: stats.totalStudents,
       icon: Users,
-      color: 'bg-blue-500',
+      color: 'bg-info',
       trend: '+12%',
     },
     {
       title: 'Hoạt động',
       value: stats.totalActivities,
       icon: Activity,
-      color: 'bg-green-500',
+      color: 'bg-success',
       trend: '+8%',
     },
     {
       title: 'Điểm danh hôm nay',
       value: stats.todayAttendance,
       icon: ClipboardCheck,
-      color: 'bg-yellow-500',
+      color: 'bg-warning',
       trend: '+5%',
     },
     {
@@ -142,8 +142,8 @@ const AdminDashboard = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Tổng quan hệ thống quản lý hoạt động</p>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-base-content/70 mt-1">Tổng quan hệ thống quản lý hoạt động</p>
       </div>
 
       {/* Stats Cards */}
@@ -153,9 +153,9 @@ const AdminDashboard = () => {
             <div className="card-body">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
-                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                  <p className="text-sm text-base-content/70 mb-1">{stat.title}</p>
+                  <p className="text-3xl font-bold">{stat.value}</p>
+                  <p className="text-xs text-success mt-2 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                     {stat.trend} so với tháng trước
                   </p>
@@ -174,7 +174,7 @@ const AdminDashboard = () => {
         {/* Attendance Chart */}
         <div className="card">
           <div className="card-header">
-            <h3 className="font-semibold text-gray-900">Điểm danh 7 ngày qua</h3>
+            <h3 className="font-semibold">Điểm danh 7 ngày qua</h3>
           </div>
           <div className="card-body">
             <div style={{ height: '300px' }}>
@@ -186,7 +186,7 @@ const AdminDashboard = () => {
         {/* Activity Chart */}
         <div className="card">
           <div className="card-header">
-            <h3 className="font-semibold text-gray-900">Hoạt động theo tháng</h3>
+            <h3 className="font-semibold">Hoạt động theo tháng</h3>
           </div>
           <div className="card-body">
             <div style={{ height: '300px' }}>
@@ -199,8 +199,8 @@ const AdminDashboard = () => {
       {/* Recent Activities */}
       <div className="card">
         <div className="card-header flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Hoạt động gần đây</h3>
-          <button className="text-sm text-primary hover:text-primary-600">
+          <h3 className="font-semibold">Hoạt động gần đây</h3>
+          <button className="text-sm text-primary hover:underline">
             Xem tất cả
           </button>
         </div>
@@ -209,16 +209,16 @@ const AdminDashboard = () => {
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-4 p-4 bg-base-200 rounded-lg hover:bg-base-300 transition-colors"
               >
-                <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                   <Activity className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">
+                  <h4 className="font-medium">
                     Hoạt động tình nguyện {item}
                   </h4>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-base-content/70">
                     {item * 50} sinh viên đã đăng ký
                   </p>
                 </div>

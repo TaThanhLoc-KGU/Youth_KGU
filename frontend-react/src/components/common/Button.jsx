@@ -24,17 +24,17 @@ const Button = forwardRef(
       primary: 'btn-primary',
       secondary: 'btn-secondary',
       outline: 'btn-outline',
-      danger: 'btn-danger',
-      success: 'bg-green-600 text-white hover:bg-green-700',
-      warning: 'bg-yellow-600 text-white hover:bg-yellow-700',
-      ghost: 'bg-transparent hover:bg-gray-100',
+      danger: 'btn-error',
+      success: 'btn-success',
+      warning: 'btn-warning',
+      ghost: 'btn-ghost',
     };
 
     const sizes = {
-      sm: 'px-3 py-1.5 text-xs',
-      md: 'px-4 py-2 text-sm',
-      lg: 'px-6 py-3 text-base',
-      xl: 'px-8 py-4 text-lg',
+      sm: 'btn-sm',
+      md: 'btn-md',
+      lg: 'btn-lg',
+      xl: 'btn-lg',
     };
 
     const classes = clsx(

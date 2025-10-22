@@ -32,10 +32,10 @@ const Input = forwardRef(
           <input
             ref={ref}
             className={clsx(
-              'form-input',
+              'input input-bordered w-full',
               LeftIcon && 'pl-10',
               RightIcon && 'pr-10',
-              error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
+              error && 'input-error',
               className
             )}
             {...props}

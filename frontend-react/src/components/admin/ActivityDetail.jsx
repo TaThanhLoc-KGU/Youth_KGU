@@ -22,8 +22,8 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">{activity.tenHoatDong}</h2>
-        <p className="text-gray-600 mt-1">Mã: {activity.maHoatDong}</p>
+        <h2 className="text-2xl font-bold">{activity.tenHoatDong}</h2>
+        <p className="text-base-content/70 mt-1">Mã: {activity.maHoatDong}</p>
         <div className="mt-3 flex items-center gap-2">
           <Badge variant="primary">
             {ACTIVITY_STATUS_LABELS[activity.trangThai]}
@@ -39,9 +39,9 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
 
       {/* Description */}
       {activity.moTa && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h4 className="font-medium text-gray-900 mb-2">Mô tả</h4>
-          <p className="text-gray-700 whitespace-pre-wrap">{activity.moTa}</p>
+        <div className="bg-base-200 border border-base-300 rounded-lg p-4">
+          <h4 className="font-medium mb-2">Mô tả</h4>
+          <p className="whitespace-pre-wrap">{activity.moTa}</p>
         </div>
       )}
 
@@ -72,15 +72,15 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
       {/* Statistics */}
       {activity.soNguoiDangKy !== undefined && (
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{activity.soNguoiDangKy || 0}</div>
-            <div className="text-sm text-blue-700 mt-1">Người đã đăng ký</div>
+          <div className="bg-info/10 border border-info/30 rounded-lg p-4 text-center">
+            <div className="text-2xl font-bold text-info">{activity.soNguoiDangKy || 0}</div>
+            <div className="text-sm text-info/80 mt-1">Người đã đăng ký</div>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">
+          <div className="bg-success/10 border border-success/30 rounded-lg p-4 text-center">
+            <div className="text-2xl font-bold text-success">
               {activity.soNguoiToiDa - (activity.soNguoiDangKy || 0)}
             </div>
-            <div className="text-sm text-green-700 mt-1">Chỗ còn trống</div>
+            <div className="text-sm text-success/80 mt-1">Chỗ còn trống</div>
           </div>
         </div>
       )}
