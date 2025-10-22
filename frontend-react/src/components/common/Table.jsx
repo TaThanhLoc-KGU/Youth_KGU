@@ -27,9 +27,9 @@ const Table = ({
   }
 
   return (
-    <div className={clsx('overflow-x-auto border border-base-300 rounded-lg', className)}>
-      <table className="table table-zebra">
-        <thead>
+    <div className={clsx('overflow-x-auto', className)}>
+      <table className="table table-zebra w-full">
+        <thead className="bg-base-200">
           <tr>
             {columns.map((column, index) => (
               <th
@@ -48,7 +48,7 @@ const Table = ({
               key={row.id || rowIndex}
               onClick={() => onRowClick && onRowClick(row)}
               className={clsx(
-                onRowClick && 'cursor-pointer'
+                onRowClick && 'cursor-pointer hover:bg-base-200'
               )}
             >
               {columns.map((column, colIndex) => (

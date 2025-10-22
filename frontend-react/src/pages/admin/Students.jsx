@@ -217,7 +217,7 @@ const Students = () => {
       </div>
 
       {/* Table */}
-      <div className="card">
+      <div className="card bg-base-100 border border-base-300 rounded-lg overflow-hidden">
         <Table
           columns={columns}
           data={studentsData?.content || []}
