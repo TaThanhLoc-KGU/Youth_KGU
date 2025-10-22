@@ -7,6 +7,7 @@ import Login from './pages/auth/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import Students from './pages/admin/Students';
 import StudentDashboard from './pages/student/Dashboard';
+import Activities from './pages/admin/Activities';
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES } from './utils/constants';
 
@@ -47,7 +48,7 @@ function App() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="students" element={<Students />} />
           <Route path="teachers" element={<ComingSoon title="Quản lý Giảng viên" />} />
-          <Route path="activities" element={<ComingSoon title="Quản lý Hoạt động" />} />
+          <Route path="activities" element={<Activities />} />
           <Route path="bch" element={<ComingSoon title="Quản lý BCH" />} />
           <Route path="attendance" element={<ComingSoon title="Quản lý Điểm danh" />} />
           <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
@@ -83,7 +84,7 @@ function App() {
         >
           <Route index element={<Navigate to={ROUTES.BCH_DASHBOARD} replace />} />
           <Route path="dashboard" element={<ComingSoon title="BCH Dashboard" />} />
-          <Route path="activities" element={<ComingSoon title="Quản lý Hoạt động" />} />
+          <Route path="activities" element={<Activities />} />
           <Route path="attendance" element={<ComingSoon title="Điểm danh" />} />
           <Route path="scan-qr" element={<ComingSoon title="Quét QR" />} />
         </Route>
