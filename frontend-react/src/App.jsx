@@ -5,6 +5,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import MainLayout from './components/layout/MainLayout';
 import Login from './pages/auth/Login';
 import AdminDashboard from './pages/admin/Dashboard';
+import Students from './pages/admin/Students';
 import StudentDashboard from './pages/student/Dashboard';
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES } from './utils/constants';
@@ -44,7 +45,7 @@ function App() {
         >
           <Route index element={<Navigate to={ROUTES.ADMIN_DASHBOARD} replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="students" element={<ComingSoon title="Quản lý Sinh viên" />} />
+          <Route path="students" element={<Students />} />
           <Route path="teachers" element={<ComingSoon title="Quản lý Giảng viên" />} />
           <Route path="activities" element={<ComingSoon title="Quản lý Hoạt động" />} />
           <Route path="bch" element={<ComingSoon title="Quản lý BCH" />} />
