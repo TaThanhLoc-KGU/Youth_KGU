@@ -6,6 +6,7 @@ import MainLayout from './components/layout/MainLayout';
 import Login from './pages/auth/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import Students from './pages/admin/Students';
+import BCH from './pages/admin/BCH';
 import StudentDashboard from './pages/student/Dashboard';
 import Activities from './pages/admin/Activities';
 import StudentActivities from './pages/student/Activities';
@@ -50,7 +51,7 @@ function App() {
           <Route path="students" element={<Students />} />
           <Route path="teachers" element={<ComingSoon title="Quản lý Giảng viên" />} />
           <Route path="activities" element={<Activities />} />
-          <Route path="bch" element={<ComingSoon title="Quản lý BCH" />} />
+          <Route path="bch" element={<BCH />} />
           <Route path="attendance" element={<ComingSoon title="Quản lý Điểm danh" />} />
           <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
           <Route path="statistics" element={<ComingSoon title="Thống kê" />} />
