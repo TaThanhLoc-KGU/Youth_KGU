@@ -60,29 +60,29 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-screen bg-base-100 border-r border-base-300 transition-all duration-300 z-40 ${
+      className={`fixed top-0 left-0 h-screen bg-white border-r border-gray-200 transition-all duration-300 z-40 ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-base-300">
+      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
         {!isCollapsed && (
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-sm font-bold">Youth KGU</h1>
-              <p className="text-xs opacity-70">Quản lý hoạt động</p>
+              <h1 className="text-sm font-bold text-gray-900">Youth KGU</h1>
+              <p className="text-xs text-gray-500">Quản lý hoạt động</p>
             </div>
           </div>
         )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-2 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
           <ChevronLeft
-            className={`w-5 h-5 transition-transform ${
+            className={`w-5 h-5 text-gray-600 transition-transform ${
               isCollapsed ? 'rotate-180' : ''
             }`}
           />
@@ -90,19 +90,19 @@ const Sidebar = () => {
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-b border-base-300">
+      <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-primary/10">
+          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-primary font-semibold text-sm">
               {user?.hoTen?.charAt(0) || user?.username?.charAt(0) || 'U'}
             </span>
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
+              <p className="text-sm font-medium text-gray-900 truncate">
                 {user?.hoTen || user?.username}
               </p>
-              <p className="text-xs opacity-70 truncate">
+              <p className="text-xs text-gray-500 truncate">
                 {user?.vaiTro === ROLES.ADMIN && 'Quản trị viên'}
                 {user?.vaiTro === ROLES.BCH && 'BCH Đoàn - Hội'}
                 {user?.vaiTro === ROLES.SINHVIEN && 'Sinh viên'}
@@ -125,8 +125,8 @@ const Sidebar = () => {
                   to={item.path}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-primary text-primary-content'
-                      : 'hover:bg-base-200'
+                      ? 'bg-primary text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
                   } ${isCollapsed ? 'justify-center' : ''}`}
                   title={isCollapsed ? item.label : ''}
                 >
@@ -142,10 +142,10 @@ const Sidebar = () => {
       </nav>
 
       {/* Logout Button */}
-      <div className="p-4 border-t border-base-300">
+      <div className="p-4 border-t border-gray-200">
         <button
           onClick={handleLogout}
-          className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-error hover:bg-error/10 transition-colors ${
+          className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors ${
             isCollapsed ? 'justify-center' : ''
           }`}
           title={isCollapsed ? 'Đăng xuất' : ''}

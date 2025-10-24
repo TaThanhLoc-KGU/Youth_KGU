@@ -1,99 +1,87 @@
 import axios from 'axios';
+import { toast } from 'react-toastify';
+
+// Get base URL from environment variable or use default
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: 'http://localhost:8080', // Thay đổi nếu cần
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 seconds
 });
 
-// Request interceptor - Thêm token vào mọi request
+// Request interceptor - Add auth token to requests
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
-    
-    console.log('🚀 Request interceptor:');
-    console.log('  - URL:', config.url);
-    console.log('  - Method:', config.method);
-    console.log('  - Token:', token);
-    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('  ✅ Added Authorization header:', config.headers.Authorization);
-    } else {
-      console.log('  ❌ No token found in localStorage!');
     }
-    
     return config;
   },
   (error) => {
-    console.error('❌ Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor - Handle token refresh
+// Response interceptor - Handle errors globally
 api.interceptors.response.use(
   (response) => {
-    console.log('✅ Response:', response.status, response.config.url);
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
-    
-    console.error('❌ Response error:', error.response?.status, error.config?.url);
-    
-    // Nếu lỗi 401 (Unauthorized) và chưa retry
+
+    // If 401 and not already retrying
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      
+
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        
         if (!refreshToken) {
-          console.log('⚠️ No refresh token, redirecting to login...');
-          // Redirect to login
-          window.location.href = '/login';
-          return Promise.reject(error);
+          throw new Error('No refresh token');
         }
-        
-        console.log('🔄 Attempting to refresh token...');
-        
-        // Call refresh token API
-        const response = await axios.post('http://localhost:8080/api/auth/refresh', {
-          refreshToken: refreshToken
+
+        // Try to refresh token
+        const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
+          refreshToken,
         });
-        
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data || response.data;
-        
+
+        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+
         // Update tokens
         localStorage.setItem('accessToken', accessToken);
-        if (newRefreshToken) {
-          localStorage.setItem('refreshToken', newRefreshToken);
-        }
-        
-        console.log('✅ Token refreshed successfully');
-        
+        localStorage.setItem('refreshToken', newRefreshToken);
+
         // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
-        
       } catch (refreshError) {
-        console.error('❌ Refresh token failed:', refreshError);
-        
-        // Clear tokens and redirect to login
+        // Refresh failed - logout user
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }
-    
+
+    // Handle other errors
+    const errorMessage = error.response?.data?.message || error.message || 'Đã xảy ra lỗi';
+
+    // Don't show toast for certain status codes
+    if (error.response?.status !== 401) {
+      toast.error(errorMessage);
+    }
+
     return Promise.reject(error);
   }
 );
 
 export default api;
+
+// Export base URL for use in components
+export { API_BASE_URL };

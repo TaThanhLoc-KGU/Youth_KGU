@@ -44,13 +44,16 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        // Public endpoints - Swagger UI và DEBUG
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/debug/**",        // ← CHO PHÉP DEBUG ENDPOINTS
                                 "/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/v3/api-docs/**"
+                                "/swagger-resources/**",
+                                "/v3/api-docs/**",
+                                "/webjars/**"
                         ).permitAll()
 
                         // Hoạt động - Public read, Admin write
@@ -60,31 +63,29 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/hoat-dong/**").hasRole("ADMIN")
 
                         // Đăng ký - Sinh viên có thể đăng ký
-                        .requestMatchers(HttpMethod.POST, "/api/dang-ky").hasRole("SINHVIEN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/dang-ky").hasRole("SINHVIEN")
-                        .requestMatchers(HttpMethod.GET, "/api/dang-ky/student/**").hasRole("SINHVIEN")
-                        .requestMatchers("/api/dang-ky/**").hasAnyRole("ADMIN", "BCH")
+                        .requestMatchers(HttpMethod.POST, "/api/dang-ky/**").hasRole("SINHVIEN")
+                        .requestMatchers(HttpMethod.GET, "/api/dang-ky/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/dang-ky/**").hasRole("SINHVIEN")
 
-                        // Điểm danh - BCH quét QR
-                        .requestMatchers(HttpMethod.POST, "/api/diem-danh/scan").hasRole("BCH")
-                        .requestMatchers(HttpMethod.POST, "/api/diem-danh/check-out").hasRole("BCH")
-                        .requestMatchers("/api/diem-danh/**").hasAnyRole("ADMIN", "BCH")
+                        // Điểm danh - Authenticated users
+                        .requestMatchers("/api/diem-danh/**").authenticated()
 
-                        // BCH Management - Admin only
-                        .requestMatchers("/api/bch/**").hasRole("ADMIN")
+                        // QR Code
+                        .requestMatchers(HttpMethod.POST, "/api/qrcode/**").hasAnyRole("ADMIN", "BCH")
+                        .requestMatchers(HttpMethod.GET, "/api/qrcode/**").authenticated()
+
+                        // Admin endpoints
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/tai-khoan/**").hasRole("ADMIN")
+                        .requestMatchers("/api/sinh-vien/**").hasAnyRole("ADMIN", "BCH")
+                        .requestMatchers("/api/giang-vien/**").hasRole("ADMIN")
+                        .requestMatchers("/api/bch/**").hasAnyRole("ADMIN", "BCH")
 
                         // Chứng nhận
-                        .requestMatchers(HttpMethod.GET, "/api/chung-nhan/student/**").hasRole("SINHVIEN")
-                        .requestMatchers("/api/chung-nhan/**").hasAnyRole("ADMIN", "BCH")
+                        .requestMatchers(HttpMethod.GET, "/api/chung-nhan/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/chung-nhan/**").hasAnyRole("ADMIN", "BCH")
 
-                        // Thống kê
-                        .requestMatchers(HttpMethod.GET, "/api/thong-ke/sinh-vien/**").hasRole("SINHVIEN")
-                        .requestMatchers("/api/thong-ke/**").hasAnyRole("ADMIN", "BCH")
-
-                        // QR Code utilities - BCH và Sinh viên
-                        .requestMatchers("/api/qrcode/**").authenticated()
-
-                        // Tất cả requests khác cần authenticated
+                        // All other requests need authentication
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -99,11 +100,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:4200",
-                "http://localhost:5173"  // Vite default port
-        ));        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:4200"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
 

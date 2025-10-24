@@ -12,7 +12,7 @@ const Table = ({
 }) => {
   if (isLoading) {
     return (
-      <div className="overflow-x-auto border border-base-300 rounded-lg">
+      <div className="border border-gray-200 rounded-lg">
         <Loading text="Đang tải dữ liệu..." />
       </div>
     );
@@ -20,21 +20,21 @@ const Table = ({
 
   if (data.length === 0) {
     return (
-      <div className="overflow-x-auto border border-base-300 rounded-lg p-8 text-center">
-        <p className="text-base-content/60">{emptyMessage}</p>
+      <div className="border border-gray-200 rounded-lg p-8 text-center">
+        <p className="text-gray-500">{emptyMessage}</p>
       </div>
     );
   }
 
   return (
-    <div className={clsx('overflow-x-auto', className)}>
-      <table className="table table-zebra w-full">
-        <thead className="bg-base-200">
+    <div className={clsx('overflow-x-auto border border-gray-200 rounded-lg', className)}>
+      <table className="table">
+        <thead className="table-header">
           <tr>
             {columns.map((column, index) => (
               <th
                 key={index}
-                className={clsx('bg-base-200', column.headerClassName)}
+                className={clsx('table-header-cell', column.headerClassName)}
                 style={{ width: column.width }}
               >
                 {column.header}
@@ -42,19 +42,19 @@ const Table = ({
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="table-body">
           {data.map((row, rowIndex) => (
             <tr
               key={row.id || rowIndex}
               onClick={() => onRowClick && onRowClick(row)}
               className={clsx(
-                onRowClick && 'cursor-pointer hover:bg-base-200'
+                onRowClick && 'cursor-pointer hover:bg-gray-50 transition-colors'
               )}
             >
               {columns.map((column, colIndex) => (
                 <td
                   key={colIndex}
-                  className={clsx(column.cellClassName)}
+                  className={clsx('table-cell', column.cellClassName)}
                 >
                   {column.render
                     ? column.render(row[column.accessor], row, rowIndex)
@@ -115,10 +115,10 @@ const Pagination = ({
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-base-300 sm:px-6">
+    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 sm:px-6">
       {/* Info */}
       <div className="flex items-center gap-4">
-        <p className="text-sm">
+        <p className="text-sm text-gray-700">
           Hiển thị <span className="font-medium">{startItem}</span> đến{' '}
           <span className="font-medium">{endItem}</span> trong tổng số{' '}
           <span className="font-medium">{totalElements}</span> kết quả
@@ -127,11 +127,11 @@ const Pagination = ({
         {/* Page Size Selector */}
         {onPageSizeChange && (
           <div className="flex items-center gap-2">
-            <label className="text-sm">Hiển thị:</label>
+            <label className="text-sm text-gray-700">Hiển thị:</label>
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="select select-bordered select-sm w-20"
+              className="form-input py-1 text-sm"
             >
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
@@ -144,59 +144,63 @@ const Pagination = ({
       </div>
 
       {/* Pagination Buttons */}
-      <div className="join">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => onPageChange(0)}
           disabled={!canPreviousPage}
-          className="join-item btn btn-sm"
+          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Trang đầu"
         >
-          <ChevronsLeft className="w-4 h-4" />
+          <ChevronsLeft className="w-5 h-5" />
         </button>
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={!canPreviousPage}
-          className="join-item btn btn-sm"
+          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Trang trước"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
 
         {/* Page Numbers */}
-        {getPageNumbers().map((page, index) =>
-          page === '...' ? (
-            <button key={`ellipsis-${index}`} className="join-item btn btn-sm btn-disabled">
-              ...
-            </button>
-          ) : (
-            <button
-              key={page}
-              onClick={() => onPageChange(page)}
-              className={clsx(
-                'join-item btn btn-sm',
-                page === currentPage && 'btn-active'
-              )}
-            >
-              {page + 1}
-            </button>
-          )
-        )}
+        <div className="flex items-center gap-1">
+          {getPageNumbers().map((page, index) =>
+            page === '...' ? (
+              <span key={`ellipsis-${index}`} className="px-3 py-1">
+                ...
+              </span>
+            ) : (
+              <button
+                key={page}
+                onClick={() => onPageChange(page)}
+                className={clsx(
+                  'px-3 py-1 rounded-lg transition-colors',
+                  page === currentPage
+                    ? 'bg-primary text-white'
+                    : 'hover:bg-gray-100'
+                )}
+              >
+                {page + 1}
+              </button>
+            )
+          )}
+        </div>
 
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={!canNextPage}
-          className="join-item btn btn-sm"
+          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Trang sau"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-5 h-5" />
         </button>
         <button
           onClick={() => onPageChange(totalPages - 1)}
           disabled={!canNextPage}
-          className="join-item btn btn-sm"
+          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Trang cuối"
         >
-          <ChevronsRight className="w-4 h-4" />
+          <ChevronsRight className="w-5 h-5" />
         </button>
       </div>
     </div>

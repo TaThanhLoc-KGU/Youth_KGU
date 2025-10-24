@@ -65,7 +65,7 @@ public class AuthService {
         log.info("Login successful for user: {}", request.getUsername());
 
         return AuthResponse.builder()
-                .token(token)
+                .accessToken(token)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .user(userDTO)
@@ -227,7 +227,7 @@ public class AuthService {
         UserDTO userDTO = buildUserDTO(userDetails.getTaiKhoan());
 
         return AuthResponse.builder()
-                .token(newToken)
+                .accessToken(newToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .user(userDTO)

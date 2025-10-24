@@ -67,7 +67,7 @@ const Students = () => {
           </div>
           <div>
             <div className="font-medium">{value}</div>
-            <div className="text-xs text-base-content/60">{row.email}</div>
+            <div className="text-xs text-gray-500">{row.email}</div>
           </div>
         </div>
       ),
@@ -127,7 +127,7 @@ const Students = () => {
               handleDelete(row);
             }}
             title="Xóa"
-            className="text-error hover:text-error/80"
+            className="text-red-600 hover:text-red-700"
           />
         </div>
       ),
@@ -167,8 +167,8 @@ const Students = () => {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Quản lý Sinh viên</h1>
-          <p className="text-base-content/70 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý Sinh viên</h1>
+          <p className="text-gray-600 mt-1">
             Quản lý thông tin sinh viên và hồ sơ
           </p>
         </div>
@@ -217,7 +217,7 @@ const Students = () => {
       </div>
 
       {/* Table */}
-      <div className="card bg-base-100 border border-base-300 rounded-lg overflow-hidden">
+      <div className="card">
         <Table
           columns={columns}
           data={studentsData?.content || []}

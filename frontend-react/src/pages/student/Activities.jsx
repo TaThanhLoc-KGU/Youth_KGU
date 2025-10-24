@@ -89,8 +89,8 @@ const StudentActivities = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold">Các hoạt động</h1>
-        <p className="text-base-content/70 mt-1">
+        <h1 className="text-2xl font-bold text-gray-900">Các hoạt động</h1>
+        <p className="text-gray-600 mt-1">
           Xem và đăng ký tham gia hoạt động Đoàn - Hội sinh viên
         </p>
       </div>
@@ -136,7 +136,7 @@ const StudentActivities = () => {
         <Loading fullScreen />
       ) : filteredActivities.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-base-content/60 text-lg">Không tìm thấy hoạt động nào</p>
+          <p className="text-gray-500 text-lg">Không tìm thấy hoạt động nào</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -158,10 +158,10 @@ const StudentActivities = () => {
                 <div className="p-4 space-y-3">
                   {/* Header */}
                   <div>
-                    <h3 className="font-bold text-lg line-clamp-2">
+                    <h3 className="font-bold text-lg text-gray-900 line-clamp-2">
                       {activity.tenHoatDong}
                     </h3>
-                    <p className="text-xs text-base-content/60 mt-1">{activity.maHoatDong}</p>
+                    <p className="text-xs text-gray-500 mt-1">{activity.maHoatDong}</p>
                   </div>
 
                   {/* Badges */}
@@ -179,17 +179,17 @@ const StudentActivities = () => {
 
                   {/* Info */}
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-base-content/70">
+                    <div className="flex items-center gap-2 text-gray-600">
                       <Calendar className="w-4 h-4" />
                       <span>
                         {new Date(activity.ngayToChuc).toLocaleDateString('vi-VN')}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-base-content/70">
+                    <div className="flex items-center gap-2 text-gray-600">
                       <MapPin className="w-4 h-4" />
                       <span>{activity.diaDiem || 'Chưa xác định'}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-base-content/70">
+                    <div className="flex items-center gap-2 text-gray-600">
                       <Users className="w-4 h-4" />
                       <span>
                         {activity.soNguoiDangKy || 0} / {activity.soNguoiToiDa || '∞'}
@@ -199,15 +199,15 @@ const StudentActivities = () => {
 
                   {/* Description */}
                   {activity.moTa && (
-                    <p className="text-sm text-base-content/70 line-clamp-2">
+                    <p className="text-sm text-gray-600 line-clamp-2">
                       {activity.moTa}
                     </p>
                   )}
 
                   {/* Status Warning */}
                   {isFull && (
-                    <div className="bg-error/10 border border-error/30 rounded p-2">
-                      <p className="text-xs text-error font-medium">
+                    <div className="bg-red-50 border border-red-200 rounded p-2">
+                      <p className="text-xs text-red-700 font-medium">
                         Hoạt động đã kín chỗ
                       </p>
                     </div>
