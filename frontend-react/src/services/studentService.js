@@ -78,6 +78,62 @@ const studentService = {
     const response = await api.get('/api/sinhvien/count');
     return response.data;
   },
+
+  // Validate email format
+  validateEmailFormat: async (email) => {
+    try {
+      const response = await api.get('/api/sinhvien/validate-email', {
+        params: { email },
+      });
+      return response.data?.data || { isValid: false };
+    } catch (error) {
+      // If API doesn't exist, validate locally
+      const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+      return { isValid: emailRegex.test(email) };
+    }
+  },
+
+  // Check if email is duplicate
+  checkDuplicateEmail: async (email, excludeMaSv = null) => {
+    try {
+      const response = await api.get('/api/sinhvien/check-duplicate-email', {
+        params: { email, excludeMaSv },
+      });
+      return response.data?.data || { isDuplicate: false };
+    } catch (error) {
+      console.error('Error checking duplicate email:', error);
+      return { isDuplicate: false };
+    }
+  },
+
+  // Import students from Excel
+  importFromExcel: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/sinhvien/import-excel', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Export students to Excel
+  exportToExcel: async (params = {}) => {
+    const response = await api.get('/api/sinhvien/export-excel', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  // Download Excel template
+  downloadTemplate: async () => {
+    const response = await api.get('/api/sinhvien/template-excel', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
 
 export default studentService;

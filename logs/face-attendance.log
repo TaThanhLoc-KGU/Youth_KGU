@@ -4984,3 +4984,55 @@ Caused by: java.sql.SQLException: Cannot change column 'ma_sv': used in a foreig
         (action, created_at, duration_ms, entity_id, entity_type, error_details, ip_address, log_level, message, module, new_value, old_value, request_method, request_url, session_id, status, user_agent, user_id, user_name) 
     values
         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2025-10-25 01:23:53 [http-nio-8080-exec-3] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/sinhvien?page=0&size=10&sortBy=maSv&direction=asc
+2025-10-25 01:23:53 [http-nio-8080-exec-5] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/sinhvien?page=0&size=10&sortBy=maSv&direction=asc
+2025-10-25 01:23:53 [http-nio-8080-exec-5] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2025-10-25 01:23:53 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.created_at,
+        tk1_0.ma_gv,
+        tk1_0.is_active,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2025-10-25 01:23:53 [http-nio-8080-exec-5] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2025-10-25 01:23:53 [http-nio-8080-exec-5] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2025-10-25 01:23:53 [http-nio-8080-exec-5] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/sinhvien?page=0&size=10&sortBy=maSv&direction=asc
+2025-10-25 01:23:53 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        sv1_0.ma_sv,
+        sv1_0.email,
+        sv1_0.embedding,
+        sv1_0.gioi_tinh,
+        sv1_0.hinh_anh,
+        sv1_0.ho_ten,
+        sv1_0.is_active,
+        sv1_0.ma_lop,
+        sv1_0.ngay_sinh 
+    from
+        sinhvien sv1_0 
+    order by
+        sv1_0.ma_sv 
+    limit
+        ?, ?
+2025-10-25 01:23:53 [SimpleAsyncTaskExecutor-19] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        system_log
+        (action, created_at, duration_ms, entity_id, entity_type, error_details, ip_address, log_level, message, module, new_value, old_value, request_method, request_url, session_id, status, user_agent, user_id, user_name) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2025-10-25 01:36:31 [SpringApplicationShutdownHook] INFO  o.s.b.w.e.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2025-10-25 01:36:31 [tomcat-shutdown] INFO  o.s.b.w.e.tomcat.GracefulShutdown - Graceful shutdown complete
+2025-10-25 01:36:31 [SpringApplicationShutdownHook] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - Stopping...
+2025-10-25 01:36:31 [SpringApplicationShutdownHook] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@62841d5c]]
+2025-10-25 01:36:31 [SpringApplicationShutdownHook] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - Stopped.
+2025-10-25 01:36:31 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-10-25 01:36:31 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-25 01:36:31 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

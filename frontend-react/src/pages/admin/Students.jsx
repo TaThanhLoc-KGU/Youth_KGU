@@ -11,6 +11,7 @@ import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import StudentForm from '../../components/admin/StudentForm';
 import StudentDetail from '../../components/admin/StudentDetail';
+import StudentExcelImport from '../../components/admin/StudentExcelImport';
 
 const Students = () => {
   const queryClient = useQueryClient();
@@ -21,6 +22,7 @@ const Students = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [modalMode, setModalMode] = useState('create'); // 'create' | 'edit'
 
@@ -162,6 +164,23 @@ const Students = () => {
     queryClient.invalidateQueries('students');
   };
 
+  const handleExport = async () => {
+    try {
+      const blob = await studentService.exportToExcel();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `danh-sach-sinh-vien-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Xuất Excel thành công');
+    } catch (error) {
+      toast.error('Lỗi xuất Excel');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -173,10 +192,14 @@ const Students = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" icon={Upload}>
+          <Button
+            variant="outline"
+            icon={Upload}
+            onClick={() => setIsImportModalOpen(true)}
+          >
             Import
           </Button>
-          <Button variant="outline" icon={Download}>
+          <Button variant="outline" icon={Download} onClick={handleExport}>
             Export
           </Button>
           <Button icon={Plus} onClick={handleCreate}>
@@ -265,6 +288,22 @@ const Students = () => {
             handleEdit(selectedStudent);
           }}
           onClose={() => setIsDetailModalOpen(false)}
+        />
+      </Modal>
+
+      {/* Import Modal */}
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        title="Nhập danh sách sinh viên"
+        size="lg"
+      >
+        <StudentExcelImport
+          onImportSuccess={() => {
+            setIsImportModalOpen(false);
+            queryClient.invalidateQueries('students');
+          }}
+          onCancel={() => setIsImportModalOpen(false)}
         />
       </Modal>
     </div>
