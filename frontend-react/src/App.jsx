@@ -8,7 +8,11 @@ import AdminDashboard from './pages/admin/Dashboard';
 import Students from './pages/admin/Students';
 import BCH from './pages/admin/BCH';
 import Khoa from './pages/admin/Khoa';
+import Nganh from './pages/admin/Nganh';
 import Lop from './pages/admin/Lop';
+import KhoaHoc from './pages/admin/KhoaHoc';
+import GiangVien from './pages/admin/GiangVien';
+import Logs from './pages/admin/Logs';
 import StudentDashboard from './pages/student/Dashboard';
 import Activities from './pages/admin/Activities';
 import StudentActivities from './pages/student/Activities';
@@ -51,14 +55,17 @@ function App() {
           <Route index element={<Navigate to={ROUTES.ADMIN_DASHBOARD} replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="students" element={<Students />} />
-          <Route path="teachers" element={<ComingSoon title="Quản lý Giảng viên" />} />
+          <Route path="teachers" element={<GiangVien />} />
           <Route path="activities" element={<Activities />} />
           <Route path="bch" element={<BCH />} />
           <Route path="khoa" element={<Khoa />} />
+          <Route path="nganh" element={<Nganh />} />
           <Route path="lop" element={<Lop />} />
+          <Route path="khoahoc" element={<KhoaHoc />} />
+          <Route path="logs" element={<Logs />} />
           <Route path="attendance" element={<ComingSoon title="Quản lý Điểm danh" />} />
           <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
-          <Route path="statistics" element={<ComingSoon title="Thống kê" />} />
+          <Route path="accounts" element={<ComingSoon title="Quản lý Tài khoản" />} />
           <Route path="settings" element={<ComingSoon title="Cài đặt" />} />
         </Route>
 
