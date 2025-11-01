@@ -11,6 +11,8 @@ import {
   Building2,
   ChevronLeft,
   UserCheck,
+  Briefcase,
+  BookOpen,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES } from '../../utils/constants';
@@ -26,6 +28,9 @@ const Sidebar = () => {
       { icon: LayoutDashboard, label: 'Dashboard', path: ROUTES.ADMIN_DASHBOARD },
       { icon: Users, label: 'Sinh viên', path: ROUTES.ADMIN_STUDENTS },
       { icon: Activity, label: 'Hoạt động', path: ROUTES.ADMIN_ACTIVITIES },
+      { icon: Building2, label: 'Khoa', path: ROUTES.ADMIN_KHOA },
+      { icon: Briefcase, label: 'Ngành', path: ROUTES.ADMIN_NGANH },
+      { icon: BookOpen, label: 'Lớp', path: ROUTES.ADMIN_LOP },
       { icon: UserCheck, label: 'BCH Đoàn - Hội', path: ROUTES.ADMIN_BCH },
       { icon: ClipboardCheck, label: 'Điểm danh', path: ROUTES.ADMIN_ATTENDANCE },
       { icon: Award, label: 'Chứng nhận', path: ROUTES.ADMIN_CERTIFICATES },
