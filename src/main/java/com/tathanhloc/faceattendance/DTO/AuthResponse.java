@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class AuthResponse {
-    private String token;
+    private String accessToken;
     private String refreshToken;
     private String tokenType = "Bearer";
     private UserDTO user; // Thông tin chi tiết user

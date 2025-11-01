@@ -35,3 +35,6 @@ src.zip
 /src/main/resources/static/streams/
 /scripts/face_recognition/.venv/
 /scripts/face_recognition/.idea/
+
+### log ###
+logs

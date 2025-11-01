@@ -5,7 +5,19 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import MainLayout from './components/layout/MainLayout';
 import Login from './pages/auth/Login';
 import AdminDashboard from './pages/admin/Dashboard';
+import Students from './pages/admin/Students';
+import BCH from './pages/admin/BCH';
+import Khoa from './pages/admin/Khoa';
+import Nganh from './pages/admin/Nganh';
+import Lop from './pages/admin/Lop';
+import KhoaHoc from './pages/admin/KhoaHoc';
+import GiangVien from './pages/admin/GiangVien';
+import Taikhoan from './pages/admin/Taikhoan';
+import Logs from './pages/admin/Logs';
+import AttendanceReport from './pages/admin/AttendanceReport';
 import StudentDashboard from './pages/student/Dashboard';
+import Activities from './pages/admin/Activities';
+import StudentActivities from './pages/student/Activities';
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES } from './utils/constants';
 
@@ -44,13 +56,18 @@ function App() {
         >
           <Route index element={<Navigate to={ROUTES.ADMIN_DASHBOARD} replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="students" element={<ComingSoon title="Quản lý Sinh viên" />} />
-          <Route path="teachers" element={<ComingSoon title="Quản lý Giảng viên" />} />
-          <Route path="activities" element={<ComingSoon title="Quản lý Hoạt động" />} />
-          <Route path="bch" element={<ComingSoon title="Quản lý BCH" />} />
-          <Route path="attendance" element={<ComingSoon title="Quản lý Điểm danh" />} />
+          <Route path="students" element={<Students />} />
+          <Route path="teachers" element={<GiangVien />} />
+          <Route path="activities" element={<Activities />} />
+          <Route path="bch" element={<BCH />} />
+          <Route path="khoa" element={<Khoa />} />
+          <Route path="nganh" element={<Nganh />} />
+          <Route path="lop" element={<Lop />} />
+          <Route path="khoahoc" element={<KhoaHoc />} />
+          <Route path="logs" element={<Logs />} />
+          <Route path="accounts" element={<Taikhoan />} />
+          <Route path="attendance" element={<AttendanceReport />} />
           <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
-          <Route path="statistics" element={<ComingSoon title="Thống kê" />} />
           <Route path="settings" element={<ComingSoon title="Cài đặt" />} />
         </Route>
 
@@ -65,7 +82,7 @@ function App() {
         >
           <Route index element={<Navigate to={ROUTES.STUDENT_DASHBOARD} replace />} />
           <Route path="dashboard" element={<StudentDashboard />} />
-          <Route path="activities" element={<ComingSoon title="Hoạt động" />} />
+          <Route path="activities" element={<StudentActivities />} />
           <Route path="registrations" element={<ComingSoon title="Đăng ký của tôi" />} />
           <Route path="certificates" element={<ComingSoon title="Chứng nhận" />} />
           <Route path="profile" element={<ComingSoon title="Hồ sơ" />} />
@@ -82,7 +99,7 @@ function App() {
         >
           <Route index element={<Navigate to={ROUTES.BCH_DASHBOARD} replace />} />
           <Route path="dashboard" element={<ComingSoon title="BCH Dashboard" />} />
-          <Route path="activities" element={<ComingSoon title="Quản lý Hoạt động" />} />
+          <Route path="activities" element={<Activities />} />
           <Route path="attendance" element={<ComingSoon title="Điểm danh" />} />
           <Route path="scan-qr" element={<ComingSoon title="Quét QR" />} />
         </Route>
