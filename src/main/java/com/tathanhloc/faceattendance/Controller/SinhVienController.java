@@ -1,7 +1,10 @@
 package com.tathanhloc.faceattendance.Controller;
 
+import com.tathanhloc.faceattendance.DTO.ApiResponse;
 import com.tathanhloc.faceattendance.DTO.SinhVienDTO;
+import com.tathanhloc.faceattendance.DTO.StudentCountDTO;
 import com.tathanhloc.faceattendance.Service.SinhVienService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -241,22 +244,22 @@ public class SinhVienController {
         log.info("Lấy tất cả sinh viên đang hoạt động (không phân trang)");
         return ResponseEntity.ok(sinhVienService.getAllActive());
     }
-    @GetMapping("/count")
-    public ResponseEntity<Map<String, Object>> getStudentCount() {
-        try {
-            long count = sinhVienService.count();
-            Map<String, Object> response = new HashMap<>();
-            response.put("count", count);
-            response.put("status", "success");
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("count", 0);
-            response.put("status", "error");
-            response.put("message", e.getMessage());
-            return ResponseEntity.ok(response);
-        }
-    }
+//    @GetMapping("/count")
+//    public ResponseEntity<Map<String, Object>> getStudentCount() {
+//        try {
+//            long count = sinhVienService.count();
+//            Map<String, Object> response = new HashMap<>();
+//            response.put("count", count);
+//            response.put("status", "success");
+//            return ResponseEntity.ok(response);
+//        } catch (Exception e) {
+//            Map<String, Object> response = new HashMap<>();
+//            response.put("count", 0);
+//            response.put("status", "error");
+//            response.put("message", e.getMessage());
+//            return ResponseEntity.ok(response);
+//        }
+//    }
     // Thêm vào class SinhVienController
     @GetMapping("/count/active")
     public ResponseEntity<Long> countActiveSinhVien() {
@@ -270,6 +273,18 @@ public class SinhVienController {
         log.info("Đếm tổng số sinh viên");
         long count = sinhVienService.countAll();
         return ResponseEntity.ok(count);
+    }
+
+    @GetMapping("/count")
+    @Operation(summary = "Đếm tổng số sinh viên")
+    public ResponseEntity<ApiResponse<StudentCountDTO>> getStudentCount(
+            @RequestParam(required = false) String maKhoa,
+            @RequestParam(required = false) String maNganh,
+            @RequestParam(required = false) Boolean isActive) {
+        log.info("GET /api/sinh-vien/count");
+
+        StudentCountDTO countData = sinhVienService.getStudentCount(maKhoa, maNganh, isActive);
+        return ResponseEntity.ok(ApiResponse.success(countData));
     }
 }
 

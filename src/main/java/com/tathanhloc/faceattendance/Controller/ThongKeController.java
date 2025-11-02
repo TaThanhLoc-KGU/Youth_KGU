@@ -181,4 +181,80 @@ public class ThongKeController {
                 .tyLeCheckIn((Double) stats.get("tyLeThamGia"))
                 .build();
     }
+
+    // ========== API THỐNG KÊ THEO KHOA ==========
+
+    @GetMapping("/participation-by-faculty")
+    @Operation(summary = "Thống kê tham gia theo khoa")
+    public ResponseEntity<ApiResponse<List<ParticipationByFacultyDTO>>> getParticipationByFaculty(
+            @RequestParam(required = false) String maHoatDong,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate) {
+        log.info("GET /api/thong-ke/participation-by-faculty");
+
+        List<ParticipationByFacultyDTO> stats = hoatDongService.getParticipationByFaculty(
+                maHoatDong, fromDate, toDate);
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+// ========== API XU HƯỚNG HOẠT ĐỘNG ==========
+
+    @GetMapping("/activity-trends")
+    @Operation(summary = "Xu hướng hoạt động theo thời gian")
+    public ResponseEntity<ApiResponse<List<ActivityTrendDTO>>> getActivityTrends(
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) Integer months) {
+        log.info("GET /api/thong-ke/activity-trends");
+
+        // Mặc định lấy 6 tháng gần nhất
+        int monthsToGet = months != null ? months : 6;
+        List<ActivityTrendDTO> trends = hoatDongService.getActivityTrends(monthsToGet);
+
+        return ResponseEntity.ok(ApiResponse.success(trends));
+    }
+
+// ========== API TOP SINH VIÊN ==========
+
+    @GetMapping("/top-students")
+    @Operation(summary = "Top sinh viên tích cực nhất")
+    public ResponseEntity<ApiResponse<List<TopStudentDTO>>> getTopStudents(
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(required = false) String maKhoa,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate) {
+        log.info("GET /api/thong-ke/top-students?limit={}", limit);
+
+        List<TopStudentDTO> topStudents = dangKyService.getTopStudents(
+                limit, maKhoa, fromDate, toDate);
+        return ResponseEntity.ok(ApiResponse.success(topStudents));
+    }
+
+// ========== API THỐNG KÊ HOẠT ĐỘNG ==========
+
+    @GetMapping("/hoat-dong/statistics")
+    @Operation(summary = "Thống kê tổng quan hoạt động")
+    public ResponseEntity<ApiResponse<ActivityStatisticsDTO>> getActivityStatistics(
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate) {
+        log.info("GET /api/thong-ke/hoat-dong/statistics");
+
+        ActivityStatisticsDTO stats = hoatDongService.getActivityStatistics(fromDate, toDate);
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+// ========== API THỐNG KÊ ĐIỂM DANH ==========
+
+    @GetMapping("/attendance-statistics")
+    @Operation(summary = "Thống kê điểm danh")
+    public ResponseEntity<ApiResponse<AttendanceStatisticsDTO>> getAttendanceStatistics(
+            @RequestParam(required = false) String maHoatDong,
+            @RequestParam(required = false) String maKhoa,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate) {
+        log.info("GET /api/thong-ke/attendance-statistics");
+
+        AttendanceStatisticsDTO stats = diemDanhService.getAttendanceStatistics(
+                maHoatDong, maKhoa, fromDate, toDate);
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
 }

@@ -3,24 +3,14 @@ import api from './api';
 const khoaService = {
   // Get all faculties
   getAll: async (params = {}) => {
-    try {
-      const response = await api.get('/api/khoa', { params });
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching khoa list:', error);
-      return [];
-    }
+    const response = await api.get('/api/khoa', { params });
+    return response.data?.data || [];
   },
 
   // Get khoa by ID
   getById: async (maKhoa) => {
-    try {
-      const response = await api.get(`/api/khoa/${maKhoa}`);
-      return response.data?.data;
-    } catch (error) {
-      console.error('Error fetching khoa:', error);
-      return null;
-    }
+    const response = await api.get(`/api/khoa/${maKhoa}`);
+    return response.data?.data;
   },
 
   // Create new khoa
@@ -55,26 +45,16 @@ const khoaService = {
 
   // Search/filter
   search: async (keyword) => {
-    try {
-      const response = await api.get('/api/khoa/search', {
-        params: { keyword },
-      });
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error searching khoa:', error);
-      return [];
-    }
+    const response = await api.get('/api/khoa/search', {
+      params: { keyword },
+    });
+    return response.data?.data || [];
   },
 
   // Get active khoa only
   getActive: async () => {
-    try {
-      const response = await api.get('/api/khoa/active');
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching active khoa:', error);
-      return [];
-    }
+    const response = await api.get('/api/khoa/active');
+    return response.data?.data || [];
   },
 };
 

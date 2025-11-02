@@ -3,21 +3,26 @@ package com.tathanhloc.faceattendance.Service;
 import com.tathanhloc.faceattendance.DTO.*;
 import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.repository.JpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> {
 
     private final SinhVienRepository sinhVienRepository;
     private final LopRepository lopRepository;
+    private final KhoaRepository khoaRepository;
+    private final NganhRepository nganhRepository;
 
     @Override
     protected JpaRepository<SinhVien, String> getRepository() {
@@ -165,5 +170,57 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
 
     public long countAll() {
         return sinhVienRepository.count();
+    }
+
+    @Transactional(readOnly = true)
+    public StudentCountDTO getStudentCount(String maKhoa, String maNganh, Boolean isActive) {
+        log.debug("Getting student count statistics");
+
+        // Đếm tổng
+        long tongSinhVien = isActive != null ?
+                sinhVienRepository.countByIsActive(isActive) :
+                sinhVienRepository.count();
+
+        long sinhVienHoatDong = sinhVienRepository.countByIsActive(true);
+        long sinhVienKhongHoatDong = tongSinhVien - sinhVienHoatDong;
+
+        // Thống kê theo khoa
+        Map<String, Long> thongKeTheoKhoa = new HashMap<>();
+        List<Khoa> faculties = khoaRepository.findByIsActiveTrue();
+        for (Khoa khoa : faculties) {
+            if (maKhoa != null && !khoa.getMaKhoa().equals(maKhoa)) continue;
+
+            long count = sinhVienRepository.countByLopNganhKhoaMaKhoaAndIsActiveTrue(khoa.getMaKhoa());
+            thongKeTheoKhoa.put(khoa.getTenKhoa(), count);
+        }
+
+        // Thống kê theo ngành
+        Map<String, Long> thongKeTheoNganh = new HashMap<>();
+        List<Nganh> majors = nganhRepository.findAllActive(); // SỬA ĐÚNG TÊN METHOD
+        for (Nganh nganh : majors) {
+            if (maNganh != null && !nganh.getMaNganh().equals(maNganh)) continue;
+
+            long count = sinhVienRepository.countByLopNganhMaNganhAndIsActiveTrue(nganh.getMaNganh());
+            thongKeTheoNganh.put(nganh.getTenNganh(), count);
+        }
+
+        // Thống kê theo lớp
+        Map<String, Long> thongKeTheoLop = new HashMap<>();
+        List<Lop> classes = lopRepository.findByIsActiveTrue();
+        for (Lop lop : classes) {
+            long count = sinhVienRepository.countByLopMaLopAndIsActiveTrue(lop.getMaLop());
+            if (count > 0) {
+                thongKeTheoLop.put(lop.getTenLop(), count);
+            }
+        }
+
+        return StudentCountDTO.builder()
+                .tongSinhVien(tongSinhVien)
+                .sinhVienHoatDong(sinhVienHoatDong)
+                .sinhVienKhongHoatDong(sinhVienKhongHoatDong)
+                .thongKeTheoKhoa(thongKeTheoKhoa)
+                .thongKeTheoNganh(thongKeTheoNganh)
+                .thongKeTheoLop(thongKeTheoLop)
+                .build();
     }
 }

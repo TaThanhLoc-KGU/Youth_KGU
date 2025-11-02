@@ -20,5 +20,15 @@ public interface SinhVienRepository extends JpaRepository<SinhVien, String> {
     List<SinhVien> findByIsActive(Boolean isActive);
     long countByIsActiveTrue();
     boolean existsByEmail(String email);
+    // Đếm theo khoa
+    long countByLopMaKhoaMaKhoaAndIsActiveTrue(String maKhoa);
 
+    // Đếm theo ngành
+    long countByLopNganhMaNganhAndIsActiveTrue(String maNganh);
+
+    // Đếm theo trạng thái
+    long countByIsActive(Boolean isActive);
+
+    // Đếm theo khoa
+    long countByLopNganhKhoaMaKhoaAndIsActiveTrue(String maKhoa);
 }

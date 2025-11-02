@@ -14,7 +14,7 @@ public class CacheConfig {
     public CacheManager cacheManager() {
         ConcurrentMapCacheManager cacheManager = new ConcurrentMapCacheManager();
         cacheManager.setCacheNames(java.util.Arrays.asList(
-                "khoahoc", "lop", "giangvien", "sinhvien"
+            "khoahoc", "lop", "giangvien", "sinhvien", "khoa", "nganh"
         ));
         return cacheManager;
     }

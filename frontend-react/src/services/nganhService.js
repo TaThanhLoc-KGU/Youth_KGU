@@ -3,24 +3,14 @@ import api from './api';
 const nganhService = {
   // Get all majors
   getAll: async (params = {}) => {
-    try {
-      const response = await api.get('/api/nganh', { params });
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching nganh list:', error);
-      return [];
-    }
+    const response = await api.get('/api/nganh', { params });
+    return response.data?.data || [];
   },
 
   // Get nganh by ID
   getById: async (maNganh) => {
-    try {
-      const response = await api.get(`/api/nganh/${maNganh}`);
-      return response.data?.data;
-    } catch (error) {
-      console.error('Error fetching nganh:', error);
-      return null;
-    }
+    const response = await api.get(`/api/nganh/${maNganh}`);
+    return response.data?.data;
   },
 
   // Create new nganh
@@ -55,37 +45,22 @@ const nganhService = {
 
   // Search/filter
   search: async (keyword) => {
-    try {
-      const response = await api.get('/api/nganh/search', {
-        params: { keyword },
-      });
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error searching nganh:', error);
-      return [];
-    }
+    const response = await api.get('/api/nganh/search', {
+      params: { keyword },
+    });
+    return response.data?.data || [];
   },
 
   // Get by khoa
   getByKhoa: async (maKhoa) => {
-    try {
-      const response = await api.get(`/api/nganh/khoa/${maKhoa}`);
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching nganh by khoa:', error);
-      return [];
-    }
+    const response = await api.get(`/api/nganh/khoa/${maKhoa}`);
+    return response.data?.data || [];
   },
 
   // Get active nganh only
   getActive: async () => {
-    try {
-      const response = await api.get('/api/nganh/active');
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching active nganh:', error);
-      return [];
-    }
+    const response = await api.get('/api/nganh/active');
+    return response.data?.data || [];
   },
 
   // Export to Excel

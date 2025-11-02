@@ -6,10 +6,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.*;
 
 /**
@@ -146,5 +148,34 @@ public class DiemDanhHoatDongController {
         log.error("Error in DiemDanhHoatDongController", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(e.getMessage()));
+    }
+    // ========== THỐNG KÊ ĐIỂM DANH ENDPOINTS ==========
+
+    @GetMapping("/date-range")
+    @Operation(summary = "Lấy điểm danh theo khoảng thời gian")
+    public ResponseEntity<ApiResponse<List<DiemDanhHoatDongDTO>>> getByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String maHoatDong,
+            @RequestParam(required = false) String maSv) {
+        log.info("GET /api/diem-danh/date-range?fromDate={}&toDate={}", fromDate, toDate);
+
+        List<DiemDanhHoatDongDTO> result = diemDanhService.getByDateRange(
+                fromDate, toDate, maHoatDong, maSv);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @GetMapping("/rate-by-class")
+    @Operation(summary = "Thống kê tỷ lệ điểm danh theo lớp")
+    public ResponseEntity<ApiResponse<List<AttendanceRateByClassDTO>>> getAttendanceRateByClass(
+            @RequestParam(required = false) String maHoatDong,
+            @RequestParam(required = false) String maKhoa,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
+        log.info("GET /api/diem-danh/rate-by-class");
+
+        List<AttendanceRateByClassDTO   > result = diemDanhService.getAttendanceRateByClass(
+                maHoatDong, maKhoa, fromDate, toDate);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

@@ -1,6 +1,9 @@
 package com.tathanhloc.faceattendance.Service;
 
+import com.tathanhloc.faceattendance.DTO.ActivityStatisticsDTO;
+import com.tathanhloc.faceattendance.DTO.ActivityTrendDTO;
 import com.tathanhloc.faceattendance.DTO.HoatDongDTO;
+import com.tathanhloc.faceattendance.DTO.ParticipationByFacultyDTO;
 import com.tathanhloc.faceattendance.Enum.*;
 import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
@@ -31,6 +34,7 @@ public class HoatDongService {
     private final PhongHocRepository phongHocRepository;
     private final DangKyHoatDongRepository dangKyRepository;
     private final DiemDanhHoatDongRepository diemDanhRepository;
+    private final SinhVienRepository sinhVienRepository;
 
     // ========== CRUD OPERATIONS ==========
 
@@ -376,5 +380,151 @@ public class HoatDongService {
         if (dto.getMaNganh() != null) {
             entity.setNganh(nganhRepository.findById(dto.getMaNganh()).orElse(null));
         }
+    }
+
+    // ========== THỐNG KÊ METHODS ==========
+
+    @Transactional(readOnly = true)
+    public List<ParticipationByFacultyDTO> getParticipationByFaculty(
+            String maHoatDong, LocalDate fromDate, LocalDate toDate) {
+        log.debug("Getting participation statistics by faculty");
+
+        // Lấy danh sách khoa
+        List<Khoa> faculties = khoaRepository.findByIsActiveTrue();
+
+        return faculties.stream().map(khoa -> {
+            // Đếm sinh viên theo khoa
+            long tongSinhVien = sinhVienRepository.countByLopMaKhoaMaKhoaAndIsActiveTrue(khoa.getMaKhoa());
+
+            // Đếm đăng ký và tham gia
+            long soLuongDangKy = dangKyRepository.countByKhoaAndDateRange(
+                    khoa.getMaKhoa(), maHoatDong, fromDate, toDate);
+
+            long soLuongThamGia = diemDanhRepository.countByKhoaAndDateRange(
+                    khoa.getMaKhoa(), maHoatDong, fromDate, toDate);
+
+            // Đếm hoạt động
+            long tongHoatDong = hoatDongRepository.countByKhoaAndDateRange(
+                    khoa.getMaKhoa(), fromDate, toDate);
+
+            double tiLeThamGia = tongSinhVien > 0 ?
+                    (double) soLuongThamGia / tongSinhVien * 100 : 0;
+
+            return ParticipationByFacultyDTO.builder()
+                    .maKhoa(khoa.getMaKhoa())
+                    .tenKhoa(khoa.getTenKhoa())
+                    .tongSinhVien(tongSinhVien)
+                    .soLuongDangKy(soLuongDangKy)
+                    .soLuongThamGia(soLuongThamGia)
+                    .tiLeThamGia(Math.round(tiLeThamGia * 100.0) / 100.0)
+                    .tongHoatDong(tongHoatDong)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ActivityTrendDTO> getActivityTrends(int months) {
+        log.debug("Getting activity trends for {} months", months);
+
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusMonths(months);
+
+        List<ActivityTrendDTO> trends = new ArrayList<>();
+
+        for (int i = 0; i < months; i++) {
+            LocalDate periodStart = startDate.plusMonths(i);
+            LocalDate periodEnd = periodStart.plusMonths(1).minusDays(1);
+
+            // Đếm hoạt động trong tháng
+            long totalActivities = hoatDongRepository.countByNgayToChucBetween(periodStart, periodEnd);
+
+            long completedActivities = hoatDongRepository.countByTrangThaiAndNgayToChucBetween(
+                    TrangThaiHoatDongEnum.DA_HOAN_THANH, periodStart, periodEnd);
+
+            // Đếm đăng ký và điểm danh
+            long totalRegistrations = dangKyRepository.countByNgayDangKyBetween(
+                    periodStart.atStartOfDay(), periodEnd.atTime(23, 59, 59));
+
+            long totalAttendance = diemDanhRepository.countByThoiGianCheckInBetween(
+                    periodStart.atStartOfDay(), periodEnd.atTime(23, 59, 59));
+
+            double avgAttendanceRate = totalRegistrations > 0 ?
+                    (double) totalAttendance / totalRegistrations * 100 : 0;
+
+            trends.add(ActivityTrendDTO.builder()
+                    .period(periodStart.getYear() + "-" + String.format("%02d", periodStart.getMonthValue()))
+                    .year(periodStart.getYear())
+                    .month(periodStart.getMonthValue())
+                    .totalActivities(totalActivities)
+                    .completedActivities(completedActivities)
+                    .totalRegistrations(totalRegistrations)
+                    .totalAttendance(totalAttendance)
+                    .averageAttendanceRate(Math.round(avgAttendanceRate * 100.0) / 100.0)
+                    .build());
+        }
+
+        return trends;
+    }
+
+    @Transactional(readOnly = true)
+    public ActivityStatisticsDTO getActivityStatistics(LocalDate fromDate, LocalDate toDate) {
+        log.debug("Getting activity statistics");
+
+        // Xác định khoảng thời gian
+        LocalDate start = fromDate != null ? fromDate : LocalDate.now().minusMonths(6);
+        LocalDate end = toDate != null ? toDate : LocalDate.now();
+
+        // Đếm theo trạng thái
+        Map<String, Long> statusStats = getStatisticsByStatus();
+
+        // Thống kê theo loại
+        Map<String, Long> thongKeTheoLoai = new HashMap<>();
+        for (LoaiHoatDongEnum loai : LoaiHoatDongEnum.values()) {
+            long count = hoatDongRepository.countByLoaiHoatDongAndNgayToChucBetween(
+                    loai, start, end);
+            if (count > 0) {
+                thongKeTheoLoai.put(loai.name(), count);
+            }
+        }
+
+        // Thống kê theo cấp độ
+        Map<String, Long> thongKeTheoCapDo = new HashMap<>();
+        for (CapDoEnum capDo : CapDoEnum.values()) {
+            long count = hoatDongRepository.countByCapDoAndNgayToChucBetween(
+                    capDo, start, end);
+            if (count > 0) {
+                thongKeTheoCapDo.put(capDo.name(), count);
+            }
+        }
+
+        // Thống kê đăng ký và tham gia
+        long tongLuotDangKy = dangKyRepository.countByNgayDangKyBetween(
+                start.atStartOfDay(), end.atTime(23, 59, 59));
+
+        long tongLuotThamGia = diemDanhRepository.countByThoiGianCheckInBetween(
+                start.atStartOfDay(), end.atTime(23, 59, 59));
+
+        double tiLeThamGia = tongLuotDangKy > 0 ?
+                (double) tongLuotThamGia / tongLuotDangKy * 100 : 0;
+
+        // Tính điểm rèn luyện
+        Integer tongDiem = hoatDongRepository.sumDiemRenLuyenByDateRange(start, end);
+        long soHoatDong = hoatDongRepository.countByNgayToChucBetween(start, end);
+        double diemTrungBinh = soHoatDong > 0 ? (double) tongDiem / soHoatDong : 0;
+
+        return ActivityStatisticsDTO.builder()
+                .tongHoatDong(statusStats.values().stream().mapToLong(Long::longValue).sum())
+                .hoatDongSapDienRa(statusStats.getOrDefault("SAP_DIEN_RA", 0L))
+                .hoatDongDangDienRa(statusStats.getOrDefault("DANG_DIEN_RA", 0L))
+                .hoatDongDaHoanThanh(statusStats.getOrDefault("DA_HOAN_THANH", 0L))
+                .hoatDongDaHuy(statusStats.getOrDefault("DA_HUY", 0L))
+                .thongKeTheoLoai(thongKeTheoLoai)
+                .thongKeTheoCapDo(thongKeTheoCapDo)
+                .tongLuotDangKy(tongLuotDangKy)
+                .tongLuotThamGia(tongLuotThamGia)
+                .tiLeThamGiaTrungBinh(Math.round(tiLeThamGia * 100.0) / 100.0)
+                .tongDiemRenLuyen(tongDiem != null ? tongDiem : 0)
+                .diemRenLuyenTrungBinh(Math.round(diemTrungBinh * 100.0) / 100.0)
+                .build();
     }
 }

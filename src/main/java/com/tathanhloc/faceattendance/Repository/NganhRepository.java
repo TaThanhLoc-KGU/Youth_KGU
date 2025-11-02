@@ -93,4 +93,5 @@ public interface NganhRepository extends JpaRepository<Nganh, String> {
 
     @Query("SELECT n.maNganh FROM Nganh n WHERE n.maNganh IN :nganhIds AND n.isActive = true")
     List<String> findExistingIds(@Param("nganhIds") Set<String> nganhIds);
+
 }

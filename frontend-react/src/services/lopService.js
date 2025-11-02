@@ -3,24 +3,14 @@ import api from './api';
 const lopService = {
   // Get all classes
   getAll: async (params = {}) => {
-    try {
-      const response = await api.get('/api/lop', { params });
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching lop list:', error);
-      return [];
-    }
+    const response = await api.get('/api/lop', { params });
+    return response.data?.data || [];
   },
 
   // Get lop by ID
   getById: async (maLop) => {
-    try {
-      const response = await api.get(`/api/lop/${maLop}`);
-      return response.data?.data;
-    } catch (error) {
-      console.error('Error fetching lop:', error);
-      return null;
-    }
+    const response = await api.get(`/api/lop/${maLop}`);
+    return response.data?.data;
   },
 
   // Create new lop
@@ -65,70 +55,40 @@ const lopService = {
 
   // Search/filter
   search: async (keyword) => {
-    try {
-      const response = await api.get('/api/lop/search', {
-        params: { keyword },
-      });
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error searching lop:', error);
-      return [];
-    }
+    const response = await api.get('/api/lop/search', {
+      params: { keyword },
+    });
+    return response.data?.data || [];
   },
 
   // Get by khoa
   getByKhoa: async (maKhoa) => {
-    try {
-      const response = await api.get(`/api/lop/khoa/${maKhoa}`);
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching lop by khoa:', error);
-      return [];
-    }
+    const response = await api.get(`/api/lop/khoa/${maKhoa}`);
+    return response.data?.data || [];
   },
 
   // Get by nganh
   getByNganh: async (maNganh) => {
-    try {
-      const response = await api.get(`/api/lop/nganh/${maNganh}`);
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching lop by nganh:', error);
-      return [];
-    }
+    const response = await api.get(`/api/lop/nganh/${maNganh}`);
+    return response.data?.data || [];
   },
 
   // Get by khoahoc
   getByKhoaHoc: async (maKhoaHoc) => {
-    try {
-      const response = await api.get(`/api/lop/khoahoc/${maKhoaHoc}`);
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching lop by khoahoc:', error);
-      return [];
-    }
+    const response = await api.get(`/api/lop/khoahoc/${maKhoaHoc}`);
+    return response.data?.data || [];
   },
 
   // Get active lop only
   getActive: async () => {
-    try {
-      const response = await api.get('/api/lop/active');
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching active lop:', error);
-      return [];
-    }
+    const response = await api.get('/api/lop/active');
+    return response.data?.data || [];
   },
 
   // Get count
   getCount: async () => {
-    try {
-      const response = await api.get('/api/lop/count');
-      return response.data?.data || 0;
-    } catch (error) {
-      console.error('Error fetching lop count:', error);
-      return 0;
-    }
+    const response = await api.get('/api/lop/count');
+    return response.data?.data || 0;
   },
 };
 

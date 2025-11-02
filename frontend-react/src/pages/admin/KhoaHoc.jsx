@@ -113,7 +113,7 @@ const KhoaHoc = () => {
   const [selectedKhoaHoc, setSelectedKhoaHoc] = useState(null);
   const [modalMode, setModalMode] = useState('create');
 
-  const { data: khoahocList = [], isLoading, refetch } = useQuery(
+  const { data: khoahocList = [], isLoading, isError, error, refetch } = useQuery(
     ['khoahoc', search, statusFilter],
     async () => {
       let result = await khoahocService.getAll();
@@ -131,7 +131,13 @@ const KhoaHoc = () => {
 
       return result;
     },
-    { keepPreviousData: true }
+    {
+      keepPreviousData: true,
+      retry: 3,
+      onError: () => {
+        toast.error('Không thể tải danh sách khóa học');
+      }
+    }
   );
 
   const deleteMutation = useMutation(
@@ -249,6 +255,29 @@ const KhoaHoc = () => {
       </Card>
 
       <Card>
+        {isError && (
+          <div className="p-6 bg-red-50 border border-red-200 rounded-lg mb-4">
+            <p className="text-red-700 font-medium">
+              ⚠️ Có lỗi xảy ra khi tải danh sách khóa học
+            </p>
+            <p className="text-red-600 text-sm mt-1">
+              {error?.response?.data?.message || error?.message || 'Vui lòng thử lại'}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => refetch()}
+              className="mt-3"
+            >
+              Thử lại
+            </Button>
+          </div>
+        )}
+        {!isError && khoahocList.length === 0 && !isLoading && (
+          <div className="p-6 text-center">
+            <p className="text-gray-500">Chưa có khóa học nào. Vui lòng thêm khóa học mới.</p>
+          </div>
+        )}
         <Table columns={columns} data={khoahocList} isLoading={isLoading} />
       </Card>
 
