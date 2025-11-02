@@ -18,7 +18,6 @@ const LopExcelImport = ({ onImportSuccess, onCancel }) => {
     {
       onSuccess: (result) => {
         setPreviewData(result);
-        setUploadedFile(file);
         toast.success(`Tải preview thành công`);
       },
       onError: (error) => {
@@ -63,6 +62,7 @@ const LopExcelImport = ({ onImportSuccess, onCancel }) => {
     }
 
     setFileName(file.name);
+    setUploadedFile(file);
     setPreviewData(null);
     setConfirmResult(null);
     previewMutation.mutate(file);

@@ -19,7 +19,10 @@ import { useForm } from 'react-hook-form';
 
 const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nganhs, khoahocs }) => {
   const { register, handleSubmit, formState: { errors }, watch } = useForm({
-    defaultValues: initialData || {
+    defaultValues: initialData ? {
+      ...initialData,
+      isActive: initialData.isActive === true || initialData.isActive === 1,
+    } : {
       maLop: '',
       tenLop: '',
       maKhoa: '',

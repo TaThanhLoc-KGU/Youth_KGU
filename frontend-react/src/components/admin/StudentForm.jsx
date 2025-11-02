@@ -18,7 +18,10 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
     watch,
     getValues,
   } = useForm({
-    defaultValues: initialData || {
+    defaultValues: initialData ? {
+      ...initialData,
+      isActive: initialData.isActive === true || initialData.isActive === 1,
+    } : {
       maSv: '',
       hoTen: '',
       gioiTinh: '',

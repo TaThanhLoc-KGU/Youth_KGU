@@ -16,7 +16,10 @@ import { useForm } from 'react-hook-form';
 
 const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas = [], khoasLoading = false, khoasError = null }) => {
   const { register, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: initialData || {
+    defaultValues: initialData ? {
+      ...initialData,
+      isActive: initialData.isActive === true || initialData.isActive === 1,
+    } : {
       maNganh: '',
       tenNganh: '',
       maKhoa: '',

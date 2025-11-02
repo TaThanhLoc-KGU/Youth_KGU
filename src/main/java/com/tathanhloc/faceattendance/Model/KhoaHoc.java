@@ -30,6 +30,10 @@ public class KhoaHoc {
     @Column(name = "nam_ket_thuc")
     private Integer namKetThuc;
 
+    @Column(name = "is_active")
+    @Builder.Default
+    private Boolean isActive = true;
+
     @AssertTrue(message = "Năm kết thúc phải sau năm bắt đầu")
     public boolean isValidDateRange() {
         return namKetThuc == null || namBatDau == null || namKetThuc > namBatDau;

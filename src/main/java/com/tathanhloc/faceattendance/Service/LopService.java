@@ -45,11 +45,19 @@ public class LopService {
     }
 
     public LopDTO update(String id, LopDTO dto) {
-        Lop existing = lopRepository.findById(id).orElseThrow();
+        Lop existing = lopRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy lớp với mã: " + id));
+
+        Nganh nganh = nganhRepository.findById(dto.getMaNganh())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy ngành với mã: " + dto.getMaNganh()));
+
         existing.setTenLop(dto.getTenLop());
-        existing.setNganh(nganhRepository.findById(dto.getMaNganh()).orElseThrow());
-        existing.setKhoaHoc(khoaHocRepository.findById(dto.getMaKhoahoc()).orElseThrow());
+        existing.setNganh(nganh);
+        existing.setKhoaHoc(khoaHocRepository.findById(dto.getMaKhoahoc())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học với mã: " + dto.getMaKhoahoc())));
+        existing.setMaKhoa(nganh.getKhoa()); // Tự động cập nhật Khoa từ Ngành
         existing.setActive(dto.getIsActive());
+
         return toDTO(lopRepository.save(existing));
     }
 
@@ -81,18 +89,29 @@ public class LopService {
         return LopDTO.builder()
                 .maLop(e.getMaLop())
                 .tenLop(e.getTenLop())
-                .maKhoahoc(e.getKhoaHoc().getMaKhoahoc())
-                .maNganh(e.getNganh().getMaNganh())
+                .maNganh(e.getNganh() != null ? e.getNganh().getMaNganh() : null)
+                .tenNganh(e.getNganh() != null ? e.getNganh().getTenNganh() : null)
+                .maKhoahoc(e.getKhoaHoc() != null ? e.getKhoaHoc().getMaKhoahoc() : null)
+                .tenKhoahoc(e.getKhoaHoc() != null ? e.getKhoaHoc().getTenKhoahoc() : null)
+                .maKhoa(e.getMaKhoa() != null ? e.getMaKhoa().getMaKhoa() : null)
+                .tenKhoa(e.getMaKhoa() != null ? e.getMaKhoa().getTenKhoa() : null)
                 .isActive(e.isActive())
                 .build();
     }
 
     private Lop toEntity(LopDTO dto) {
+        Nganh nganh = nganhRepository.findById(dto.getMaNganh())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy ngành với mã: " + dto.getMaNganh()));
+
+        KhoaHoc khoaHoc = khoaHocRepository.findById(dto.getMaKhoahoc())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học với mã: " + dto.getMaKhoahoc()));
+
         return Lop.builder()
                 .maLop(dto.getMaLop())
                 .tenLop(dto.getTenLop())
-                .nganh(nganhRepository.findById(dto.getMaNganh()).orElseThrow())
-                .khoaHoc(khoaHocRepository.findById(dto.getMaKhoahoc()).orElseThrow())
+                .nganh(nganh)
+                .khoaHoc(khoaHoc)
+                .maKhoa(nganh.getKhoa()) // Tự động lấy Khoa từ Ngành
                 .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
                 .build();
     }

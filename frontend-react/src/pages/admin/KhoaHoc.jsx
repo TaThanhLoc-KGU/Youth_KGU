@@ -15,7 +15,10 @@ import { useForm } from 'react-hook-form';
 
 const KhoaHocForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
   const { register, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: initialData || {
+    defaultValues: initialData ? {
+      ...initialData,
+      isActive: initialData.isActive === true || initialData.isActive === 1,
+    } : {
       maKhoahoc: '',
       tenKhoahoc: '',
       namBatDau: new Date().getFullYear(),
@@ -115,8 +118,8 @@ const KhoaHoc = () => {
 
       if (search) {
         result = result.filter(k =>
-          k.maKhoaHoc.toLowerCase().includes(search.toLowerCase()) ||
-          k.tenKhoaHoc.toLowerCase().includes(search.toLowerCase())
+          k.maKhoahoc.toLowerCase().includes(search.toLowerCase()) ||
+          k.tenKhoahoc.toLowerCase().includes(search.toLowerCase())
         );
       }
       if (statusFilter !== '') {

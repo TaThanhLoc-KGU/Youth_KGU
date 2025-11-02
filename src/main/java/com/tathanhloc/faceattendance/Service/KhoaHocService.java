@@ -56,13 +56,13 @@ public class KhoaHocService {
         khoaHocRepository.deleteById(maKhoahoc);
     }
 
-    // Mapping methods
-    private KhoaHocDTO toDTO(KhoaHoc kh) {
+    private KhoaHocDTO toDTO(KhoaHoc entity) {
         return KhoaHocDTO.builder()
-                .maKhoahoc(kh.getMaKhoahoc())
-                .tenKhoahoc(kh.getTenKhoahoc())
-                .namBatDau(kh.getNamBatDau())
-                .namKetThuc(kh.getNamKetThuc())
+                .maKhoahoc(entity.getMaKhoahoc())
+                .tenKhoahoc(entity.getTenKhoahoc())
+                .namBatDau(entity.getNamBatDau())
+                .namKetThuc(entity.getNamKetThuc())
+                .isActive(entity.getIsActive())
                 .build();
     }
 
@@ -72,6 +72,7 @@ public class KhoaHocService {
                 .tenKhoahoc(dto.getTenKhoahoc())
                 .namBatDau(dto.getNamBatDau())
                 .namKetThuc(dto.getNamKetThuc())
+                .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
                 .build();
     }
 
