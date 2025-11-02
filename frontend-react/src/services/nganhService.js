@@ -4,7 +4,7 @@ const nganhService = {
   // Get all majors
   getAll: async (params = {}) => {
     const response = await api.get('/api/nganh', { params });
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get nganh by ID
@@ -48,19 +48,19 @@ const nganhService = {
     const response = await api.get('/api/nganh/search', {
       params: { keyword },
     });
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get by khoa
   getByKhoa: async (maKhoa) => {
     const response = await api.get(`/api/nganh/khoa/${maKhoa}`);
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get active nganh only
   getActive: async () => {
     const response = await api.get('/api/nganh/active');
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Export to Excel

@@ -4,8 +4,7 @@ const khoaService = {
   // Get all faculties
   getAll: async (params = {}) => {
     const response = await api.get('/api/khoa', { params });
-    return response.data?.data || [];
-  },
+    return response.data || [];  },
 
   // Get khoa by ID
   getById: async (maKhoa) => {
@@ -48,14 +47,12 @@ const khoaService = {
     const response = await api.get('/api/khoa/search', {
       params: { keyword },
     });
-    return response.data?.data || [];
-  },
+    return response.data || [];  },
 
   // Get active khoa only
   getActive: async () => {
     const response = await api.get('/api/khoa/active');
-    return response.data?.data || [];
-  },
+    return response.data || [];  },
 };
 
 export default khoaService;

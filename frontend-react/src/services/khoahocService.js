@@ -4,7 +4,7 @@ const khoahocService = {
   // Get all khoa hoc (courses/semesters)
   getAll: async (params = {}) => {
     const response = await api.get('/api/khoahoc', { params });
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get khoahoc by ID
@@ -17,7 +17,7 @@ const khoahocService = {
   create: async (khoahocData) => {
     try {
       const response = await api.post('/api/khoahoc', khoahocData);
-      return response.data?.data;
+      return response.data;
     } catch (error) {
       throw error;
     }
@@ -27,7 +27,7 @@ const khoahocService = {
   update: async (maKhoaHoc, khoahocData) => {
     try {
       const response = await api.put(`/api/khoahoc/${maKhoaHoc}`, khoahocData);
-      return response.data?.data;
+      return response.data;
     } catch (error) {
       throw error;
     }
@@ -37,7 +37,7 @@ const khoahocService = {
   delete: async (maKhoaHoc) => {
     try {
       const response = await api.delete(`/api/khoahoc/${maKhoaHoc}`);
-      return response.data?.data;
+      return response.data;
     } catch (error) {
       throw error;
     }
@@ -48,19 +48,19 @@ const khoahocService = {
     const response = await api.get('/api/khoahoc/search', {
       params: { keyword },
     });
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get active khoahoc only
   getActive: async () => {
     const response = await api.get('/api/khoahoc/active');
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get current semester
   getCurrent: async () => {
     const response = await api.get('/api/khoahoc/current');
-    return response.data?.data;
+    return response.data;
   },
 };
 

@@ -120,6 +120,7 @@ export const ROUTES = {
   ADMIN_KHOA: '/admin/khoa',
   ADMIN_NGANH: '/admin/nganh',
   ADMIN_LOP: '/admin/lop',
+  ADMIN_KHOAHOC: '/admin/khoahoc',
   ADMIN_BCH: '/admin/bch',
   ADMIN_ATTENDANCE: '/admin/attendance',
   ADMIN_CERTIFICATES: '/admin/certificates',

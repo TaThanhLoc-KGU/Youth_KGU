@@ -41,9 +41,9 @@ public class KhoaHocController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/by-makhoahoc/{maKhoahoc}")
-    public ResponseEntity<KhoaHocDTO> getByMaKhoahoc(@PathVariable String maKhoahoc) {
-        return ResponseEntity.ok(khoaHocService.getByMaKhoahoc(maKhoahoc));
+    @GetMapping("/by-makhoahoc/{maKhoaHoc}")
+    public ResponseEntity<KhoaHocDTO> getByMaKhoaHoc(@PathVariable String maKhoaHoc) {
+        return ResponseEntity.ok(khoaHocService.getByMaKhoaHoc(maKhoaHoc));
     }
 
 }

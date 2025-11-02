@@ -22,15 +22,15 @@ public class KhoaHocService {
                 .collect(Collectors.toList());
     }
 
-    public KhoaHocDTO getById(String maKhoahoc) {
-        KhoaHoc kh = khoaHocRepository.findById(maKhoahoc)
+    public KhoaHocDTO getById(String maKhoaHoc) {
+        KhoaHoc kh = khoaHocRepository.findById(maKhoaHoc)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học"));
         return toDTO(kh);
     }
 
     @Transactional
     public KhoaHocDTO create(KhoaHocDTO dto) {
-        if (khoaHocRepository.existsById(dto.getMaKhoahoc())) {
+        if (khoaHocRepository.existsById(dto.getMaKhoaHoc())) {
             throw new RuntimeException("Mã khóa học đã tồn tại");
         }
         KhoaHoc kh = toEntity(dto);
@@ -38,45 +38,53 @@ public class KhoaHocService {
     }
 
     @Transactional
-    public KhoaHocDTO update(String maKhoahoc, KhoaHocDTO dto) {
-        KhoaHoc existing = khoaHocRepository.findById(maKhoahoc)
+    public KhoaHocDTO update(String maKhoaHoc, KhoaHocDTO dto) {
+        KhoaHoc existing = khoaHocRepository.findById(maKhoaHoc)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học"));
 
-        existing.setTenKhoahoc(dto.getTenKhoahoc());
+        existing.setTenKhoaHoc(dto.getTenKhoaHoc());
         existing.setNamBatDau(dto.getNamBatDau());
         existing.setNamKetThuc(dto.getNamKetThuc());
+        if (dto.getIsCurrent() != null) {
+            existing.setIsCurrent(dto.getIsCurrent());
+        }
+        existing.setIsActive(dto.getIsActive());
 
         return toDTO(khoaHocRepository.save(existing));
     }
 
-    public void delete(String maKhoahoc) {
-        if (!khoaHocRepository.existsById(maKhoahoc)) {
+    public void delete(String maKhoaHoc) {
+        if (!khoaHocRepository.existsById(maKhoaHoc)) {
             throw new RuntimeException("Không tìm thấy khóa học để xóa");
         }
-        khoaHocRepository.deleteById(maKhoahoc);
+        khoaHocRepository.deleteById(maKhoaHoc);
     }
 
     // Mapping methods
     private KhoaHocDTO toDTO(KhoaHoc kh) {
         return KhoaHocDTO.builder()
-                .maKhoahoc(kh.getMaKhoahoc())
-                .tenKhoahoc(kh.getTenKhoahoc())
+                .maKhoaHoc(kh.getMaKhoaHoc())
+                .tenKhoaHoc(kh.getTenKhoaHoc())
                 .namBatDau(kh.getNamBatDau())
                 .namKetThuc(kh.getNamKetThuc())
+                .isCurrent(kh.getIsCurrent())
+                .isActive(kh.getIsActive())
                 .build();
     }
 
     private KhoaHoc toEntity(KhoaHocDTO dto) {
         return KhoaHoc.builder()
-                .maKhoahoc(dto.getMaKhoahoc())
-                .tenKhoahoc(dto.getTenKhoahoc())
+                .maKhoaHoc(dto.getMaKhoaHoc())
+                .tenKhoaHoc(dto.getTenKhoaHoc())
                 .namBatDau(dto.getNamBatDau())
                 .namKetThuc(dto.getNamKetThuc())
+                .isCurrent(dto.getIsCurrent())
+                .isActive(dto.getIsActive())
                 .build();
     }
 
-    public KhoaHocDTO getByMaKhoahoc(String maKhoahoc) {
-        return toDTO(khoaHocRepository.findById(maKhoahoc)
+    public KhoaHocDTO getByMaKhoaHoc(String maKhoaHoc) {
+        return toDTO(khoaHocRepository.findById(maKhoaHoc)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học")));
     }
 }

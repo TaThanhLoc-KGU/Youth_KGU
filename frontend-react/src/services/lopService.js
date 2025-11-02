@@ -4,7 +4,7 @@ const lopService = {
   // Get all classes
   getAll: async (params = {}) => {
     const response = await api.get('/api/lop', { params });
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get lop by ID
@@ -58,31 +58,31 @@ const lopService = {
     const response = await api.get('/api/lop/search', {
       params: { keyword },
     });
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get by khoa
   getByKhoa: async (maKhoa) => {
     const response = await api.get(`/api/lop/khoa/${maKhoa}`);
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get by nganh
   getByNganh: async (maNganh) => {
     const response = await api.get(`/api/lop/nganh/${maNganh}`);
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get by khoahoc
   getByKhoaHoc: async (maKhoaHoc) => {
     const response = await api.get(`/api/lop/khoahoc/${maKhoaHoc}`);
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get active lop only
   getActive: async () => {
     const response = await api.get('/api/lop/active');
-    return response.data?.data || [];
+    return response.data || [];
   },
 
   // Get count
