@@ -17,7 +17,7 @@ const khoahocService = {
   create: async (khoahocData) => {
     try {
       const response = await api.post('/api/khoahoc', khoahocData);
-      return response.data;
+      return response.data?.data;
     } catch (error) {
       throw error;
     }
@@ -27,7 +27,7 @@ const khoahocService = {
   update: async (maKhoaHoc, khoahocData) => {
     try {
       const response = await api.put(`/api/khoahoc/${maKhoaHoc}`, khoahocData);
-      return response.data;
+      return response.data?.data;
     } catch (error) {
       throw error;
     }
@@ -37,7 +37,7 @@ const khoahocService = {
   delete: async (maKhoaHoc) => {
     try {
       const response = await api.delete(`/api/khoahoc/${maKhoaHoc}`);
-      return response.data;
+      return response.data?.data;
     } catch (error) {
       throw error;
     }
@@ -60,7 +60,7 @@ const khoahocService = {
   // Get current semester
   getCurrent: async () => {
     const response = await api.get('/api/khoahoc/current');
-    return response.data;
+    return response.data?.data;
   },
 };
 

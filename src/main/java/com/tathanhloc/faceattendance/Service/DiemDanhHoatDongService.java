@@ -6,11 +6,9 @@ import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,8 +28,7 @@ public class DiemDanhHoatDongService {
     private final SinhVienRepository sinhVienRepository;
     private final BCHDoanHoiRepository bchRepository;
     private final QRCodeService qrCodeService;
-    private final KhoaRepository khoaRepository;
-    private final LopRepository lopRepository;
+
     // ========== QR CODE ATTENDANCE ==========
 
     /**
@@ -269,6 +266,29 @@ public class DiemDanhHoatDongService {
         return stats;
     }
 
+    /**
+     * Lấy thống kê điểm danh tổng hợp
+     */
+    @Transactional(readOnly = true)
+    public AttendanceStatisticsDTO getAttendanceStatisticsOverview() {
+        log.debug("Getting overall attendance statistics");
+
+        long totalAttendance = diemDanhRepository.count();
+        long successful = diemDanhRepository.countByHoatDongMaHoatDongAndTrangThai(null, TrangThaiThamGiaEnum.DA_THAM_GIA);
+        long absent = diemDanhRepository.countByHoatDongMaHoatDongAndTrangThai(null, TrangThaiThamGiaEnum.VANG_MAT);
+
+        double presentRate = totalAttendance > 0 ? (double) successful / totalAttendance * 100 : 0;
+        double absentRate = totalAttendance > 0 ? (double) absent / totalAttendance * 100 : 0;
+
+        return AttendanceStatisticsDTO.builder()
+                .tongLuotDiemDanh(totalAttendance)
+                .diemDanhThanhCong(successful)
+                .vangKhongPhep(absent)
+                .tiLeCoMat(Math.round(presentRate * 100.0) / 100.0)
+                .tiLeDiemDanhTre(Math.round(absentRate * 100.0) / 100.0)
+                .build();
+    }
+
     // ========== ADMIN OPERATIONS ==========
 
     @Transactional
@@ -344,175 +364,5 @@ public class DiemDanhHoatDongService {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
-    }
-
-    @Transactional(readOnly = true)
-    public AttendanceStatisticsDTO getAttendanceStatistics(
-            String maHoatDong, String maKhoa, LocalDate fromDate, LocalDate toDate) {
-        log.debug("Getting attendance statistics");
-
-        LocalDate start = fromDate != null ? fromDate : LocalDate.now().minusMonths(3);
-        LocalDate end = toDate != null ? toDate : LocalDate.now();
-
-        // Thống kê tổng quan
-        long tongLuotDiemDanh = diemDanhRepository.countByDateRange(start, end, maHoatDong, maKhoa);
-        long diemDanhThanhCong = diemDanhRepository.countByTrangThaiAndDateRange(
-                TrangThaiThamGiaEnum.DA_THAM_GIA,
-                start.atStartOfDay(), end.atTime(23, 59, 59), maHoatDong, maKhoa);
-
-        // Tính những trường hợp vắng (DANG_KY hoặc VANG_MAT)
-        long vangKhongPhep = diemDanhRepository.countByTrangThaiAndDateRange(
-                TrangThaiThamGiaEnum.VANG_MAT,
-                start.atStartOfDay(), end.atTime(23, 59, 59), maHoatDong, maKhoa);
-
-        // Điểm danh trễ - cần check thêm field soPhutTre
-        long diemDanhTre = 0; // Cần implement query riêng cho trường hợp này
-
-        double tiLeCoMat = tongLuotDiemDanh > 0 ?
-                (double) diemDanhThanhCong / tongLuotDiemDanh * 100 : 0;
-        double tiLeDiemDanhTre = tongLuotDiemDanh > 0 ?
-                (double) diemDanhTre / tongLuotDiemDanh * 100 : 0;
-
-        // Thống kê theo khoa
-        Map<String, Long> thongKeTheoKhoa = new HashMap<>();
-        List<Khoa> faculties = khoaRepository.findByIsActiveTrue();
-        for (Khoa khoa : faculties) {
-            long count = diemDanhRepository.countByKhoaAndDateRange(
-                    khoa.getMaKhoa(), maHoatDong, start, end);
-            if (count > 0) {
-                thongKeTheoKhoa.put(khoa.getTenKhoa(), count);
-            }
-        }
-
-        // Thống kê theo hoạt động
-        Map<String, AttendanceByActivityDTO> thongKeTheoHoatDong = new HashMap<>();
-        List<HoatDong> activities = maHoatDong != null ?
-                List.of(hoatDongRepository.findById(maHoatDong).orElse(null)) :
-                hoatDongRepository.findByNgayToChucBetween(start, end);
-
-        for (HoatDong hd : activities) {
-            if (hd == null) continue;
-
-            long tongDangKy = dangKyRepository.countByHoatDongMaHoatDongAndIsActiveTrue(hd.getMaHoatDong());
-            long soLuongCoMat = diemDanhRepository.countByHoatDongMaHoatDongAndTrangThai(
-                    hd.getMaHoatDong(), TrangThaiThamGiaEnum.DA_THAM_GIA);
-            long soLuongVang = tongDangKy - soLuongCoMat;
-            double tiLe = tongDangKy > 0 ? (double) soLuongCoMat / tongDangKy * 100 : 0;
-
-            thongKeTheoHoatDong.put(hd.getMaHoatDong(), AttendanceByActivityDTO.builder()
-                    .maHoatDong(hd.getMaHoatDong())
-                    .tenHoatDong(hd.getTenHoatDong())
-                    .tongDangKy(tongDangKy)
-                    .soLuongCoMat(soLuongCoMat)
-                    .soLuongVang(soLuongVang)
-                    .tiLeCoMat(Math.round(tiLe * 100.0) / 100.0)
-                    .build());
-        }
-
-        return AttendanceStatisticsDTO.builder()
-                .tongLuotDiemDanh(tongLuotDiemDanh)
-                .diemDanhThanhCong(diemDanhThanhCong)
-                .diemDanhTre(diemDanhTre)
-                .vangKhongPhep(vangKhongPhep)
-                .tiLeCoMat(Math.round(tiLeCoMat * 100.0) / 100.0)
-                .tiLeDiemDanhTre(Math.round(tiLeDiemDanhTre * 100.0) / 100.0)
-                .thongKeTheoKhoa(thongKeTheoKhoa)
-                .thongKeTheoHoatDong(thongKeTheoHoatDong)
-                .build();
-    }
-    @Transactional(readOnly = true)
-    public List<DiemDanhHoatDongDTO> getByDateRange(
-            LocalDate fromDate, LocalDate toDate, String maHoatDong, String maSv) {
-        log.debug("Getting attendance records from {} to {}", fromDate, toDate);
-
-        LocalDateTime startDateTime = fromDate.atStartOfDay();
-        LocalDateTime endDateTime = toDate.atTime(23, 59, 59);
-
-        List<DiemDanhHoatDong> records;
-
-        if (maHoatDong != null && maSv != null) {
-            // Lọc theo cả hoạt động và sinh viên
-            records = diemDanhRepository.findByHoatDongMaHoatDongAndSinhVienMaSvAndThoiGianCheckInBetween(
-                    maHoatDong, maSv, startDateTime, endDateTime);
-        } else if (maHoatDong != null) {
-            // Chỉ lọc theo hoạt động
-            records = diemDanhRepository.findByHoatDongMaHoatDongAndThoiGianCheckInBetween(
-                    maHoatDong, startDateTime, endDateTime);
-        } else if (maSv != null) {
-            // Chỉ lọc theo sinh viên
-            records = diemDanhRepository.findBySinhVienMaSvAndThoiGianCheckInBetween(
-                    maSv, startDateTime, endDateTime);
-        } else {
-            // Lấy tất cả trong khoảng thời gian
-            records = diemDanhRepository.findByThoiGianCheckInBetween(
-                    startDateTime, endDateTime);
-        }
-
-        return records.stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<AttendanceRateByClassDTO> getAttendanceRateByClass(
-            String maHoatDong, String maKhoa, LocalDate fromDate, LocalDate toDate) {
-        log.debug("Getting attendance rate by class");
-
-        // Lấy danh sách lớp
-        List<Lop> classes = lopRepository.findByIsActiveTrue();
-
-        List<AttendanceRateByClassDTO> result = new ArrayList<>();
-
-        for (Lop lop : classes) {
-            // Filter theo khoa nếu có
-            if (maKhoa != null && !lop.getNganh().getKhoa().getMaKhoa().equals(maKhoa)) {
-                continue;
-            }
-
-            // Đếm sinh viên trong lớp
-            long tongSinhVien = sinhVienRepository.countByLopMaLopAndIsActiveTrue(lop.getMaLop());
-
-            if (tongSinhVien == 0) continue;
-
-            // Đếm đăng ký và tham gia của lớp
-            long tongLuotDangKy = dangKyRepository.countByLopAndDateRange(
-                    lop.getMaLop(), maHoatDong, fromDate, toDate);
-
-            long tongLuotThamGia = diemDanhRepository.countByLopAndDateRange(
-                    lop.getMaLop(), maHoatDong, fromDate, toDate);
-
-            long tongLuotVang = tongLuotDangKy - tongLuotThamGia;
-
-            // Tính tỷ lệ
-            double tiLeThamGia = tongLuotDangKy > 0 ?
-                    (double) tongLuotThamGia / tongLuotDangKy * 100 : 0;
-            double tiLeVang = tongLuotDangKy > 0 ?
-                    (double) tongLuotVang / tongLuotDangKy * 100 : 0;
-
-            // Đếm số hoạt động
-            long soHoatDong = maHoatDong != null ? 1 :
-                    hoatDongRepository.countByDateRange(fromDate, toDate);
-
-            result.add(AttendanceRateByClassDTO.builder()
-                    .maLop(lop.getMaLop())
-                    .tenLop(lop.getTenLop())
-                    .maKhoa(lop.getNganh().getKhoa().getMaKhoa())
-                    .tenKhoa(lop.getNganh().getKhoa().getTenKhoa())
-                    .maNganh(lop.getNganh().getMaNganh())
-                    .tenNganh(lop.getNganh().getTenNganh())
-                    .tongSinhVien(tongSinhVien)
-                    .tongLuotDangKy(tongLuotDangKy)
-                    .tongLuotThamGia(tongLuotThamGia)
-                    .tongLuotVang(tongLuotVang)
-                    .tiLeThamGia(Math.round(tiLeThamGia * 100.0) / 100.0)
-                    .tiLeVang(Math.round(tiLeVang * 100.0) / 100.0)
-                    .soHoatDong(soHoatDong)
-                    .build());
-        }
-
-        // Sắp xếp theo tỷ lệ tham gia giảm dần
-        result.sort((a, b) -> Double.compare(b.getTiLeThamGia(), a.getTiLeThamGia()));
-
-        return result;
     }
 }

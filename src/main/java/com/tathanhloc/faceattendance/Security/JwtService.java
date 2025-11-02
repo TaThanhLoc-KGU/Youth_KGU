@@ -22,17 +22,13 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    // Default fallback secret key (256-bit base64 encoded)
-    // Nếu properties không config, sẽ dùng key này
-    private static final String DEFAULT_SECRET = "5Jf8kN9pL2mQ7rT3vW6xZ1aC4eH8jK0nP5sU9wY2bD7gI4lO8qR6tV3xA0cF5hJ9mN2pQ5rS8uV1wY4zA7cE0dF3gH6kI9lM2oP5sT8uW1xY4z";
-
-    @Value("${jwt.secret:" + DEFAULT_SECRET + "}")
+    @Value("${jwt.secret}")
     private String secretKey;
 
-    @Value("${jwt.expiration:86400000}")
+    @Value("${jwt.expiration}")
     private long jwtExpiration;
 
-    @Value("${jwt.refresh-token.expiration:604800000}")
+    @Value("${jwt.refresh-token.expiration}")
     private long refreshExpiration;
 
     public String extractUsername(String token) {

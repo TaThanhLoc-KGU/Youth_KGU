@@ -19,22 +19,16 @@ import lombok.NoArgsConstructor;
 public class KhoaHoc {
     @Id
     @Column(name = "ma_khoahoc")
-    private String maKhoaHoc;
+    private String maKhoahoc;
 
     @Column(name = "ten_khoahoc")
-    private String tenKhoaHoc;
+    private String tenKhoahoc;
 
     @Column(name = "nam_bat_dau")
     private Integer namBatDau;
 
     @Column(name = "nam_ket_thuc")
     private Integer namKetThuc;
-
-    @Column(name = "is_current")
-    private Boolean isCurrent;
-
-    @Column(name = "is_active")
-    private Boolean isActive;
 
     @AssertTrue(message = "Năm kết thúc phải sau năm bắt đầu")
     public boolean isValidDateRange() {

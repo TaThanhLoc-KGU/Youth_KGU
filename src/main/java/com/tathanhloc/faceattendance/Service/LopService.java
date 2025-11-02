@@ -48,7 +48,7 @@ public class LopService {
         Lop existing = lopRepository.findById(id).orElseThrow();
         existing.setTenLop(dto.getTenLop());
         existing.setNganh(nganhRepository.findById(dto.getMaNganh()).orElseThrow());
-        existing.setKhoaHoc(khoaHocRepository.findById(dto.getMaKhoaHoc()).orElseThrow());
+        existing.setKhoaHoc(khoaHocRepository.findById(dto.getMaKhoahoc()).orElseThrow());
         existing.setActive(dto.getIsActive());
         return toDTO(lopRepository.save(existing));
     }
@@ -81,7 +81,7 @@ public class LopService {
         return LopDTO.builder()
                 .maLop(e.getMaLop())
                 .tenLop(e.getTenLop())
-                .maKhoaHoc(e.getKhoaHoc().getMaKhoaHoc())
+                .maKhoahoc(e.getKhoaHoc().getMaKhoahoc())
                 .maNganh(e.getNganh().getMaNganh())
                 .isActive(e.isActive())
                 .build();
@@ -92,7 +92,7 @@ public class LopService {
                 .maLop(dto.getMaLop())
                 .tenLop(dto.getTenLop())
                 .nganh(nganhRepository.findById(dto.getMaNganh()).orElseThrow())
-                .khoaHoc(khoaHocRepository.findById(dto.getMaKhoaHoc()).orElseThrow())
+                .khoaHoc(khoaHocRepository.findById(dto.getMaKhoahoc()).orElseThrow())
                 .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
                 .build();
     }

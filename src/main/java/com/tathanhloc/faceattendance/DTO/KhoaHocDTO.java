@@ -7,10 +7,9 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class KhoaHocDTO {
-    private String maKhoaHoc;
-    private String tenKhoaHoc;
+    private String maKhoahoc;
+    private String tenKhoahoc;
     private Integer namBatDau;
     private Integer namKetThuc;
-    private Boolean isCurrent;
     private Boolean isActive;
 }

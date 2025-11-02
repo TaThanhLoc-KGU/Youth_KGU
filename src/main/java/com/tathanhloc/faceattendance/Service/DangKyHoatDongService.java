@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -253,50 +252,5 @@ public class DangKyHoatDongService {
                 .isActive(entity.getIsActive())
                 .daDiemDanh(daDiemDanh)
                 .build();
-    }
-    @Transactional(readOnly = true)
-    public List<TopStudentDTO> getTopStudents(int limit, String maKhoa,
-                                              LocalDate fromDate, LocalDate toDate) {
-        log.debug("Getting top {} students", limit);
-
-        // Lấy danh sách sinh viên có nhiều hoạt động nhất
-        List<Object[]> results = dangKyRepository.findTopStudentsByParticipation(
-                limit, maKhoa, fromDate, toDate);
-
-        int rank = 1;
-        List<TopStudentDTO> topStudents = new ArrayList<>();
-
-        for (Object[] row : results) {
-            String maSv = (String) row[0];
-            Long soHoatDongDangKy = ((Number) row[1]).longValue();
-            Long soHoatDongThamGia = ((Number) row[2]).longValue();
-
-            // Lấy thông tin sinh viên
-            SinhVien sv = sinhVienRepository.findById(maSv).orElse(null);
-            if (sv == null) continue;
-
-            // Tính tỷ lệ hoàn thành
-            double tiLeHoanThanh = soHoatDongDangKy > 0 ?
-                    (double) soHoatDongThamGia / soHoatDongDangKy * 100 : 0;
-
-            // Tính tổng điểm rèn luyện
-            Integer tongDiem = diemDanhRepository.sumDiemRenLuyenBySinhVien(
-                    maSv, fromDate, toDate);
-
-            topStudents.add(TopStudentDTO.builder()
-                    .maSv(sv.getMaSv())
-                    .hoTen(sv.getHoTen())
-                    .email(sv.getEmail())
-                    .tenLop(sv.getLop().getTenLop())
-                    .tenKhoa(sv.getLop().getNganh().getKhoa().getTenKhoa()) // SỬA LẠI ĐÚNG
-                    .soHoatDongDangKy(soHoatDongDangKy)
-                    .soHoatDongThamGia(soHoatDongThamGia)
-                    .tiLeHoanThanh(Math.round(tiLeHoanThanh * 100.0) / 100.0)
-                    .tongDiemRenLuyen(tongDiem != null ? tongDiem : 0)
-                    .rank(rank++)
-                    .build());
-        }
-
-        return topStudents;
     }
 }

@@ -6,10 +6,7 @@
       "Bash(git commit:*)",
       "Bash(npm run build:*)",
       "Bash(npm install:*)",
-      "Bash(git push:*)",
-      "Bash(del nul 2)",
-      "Bash(git -C \"D:\\Youth_KGU\" status --short)",
-      "Bash(mvn clean install:*)"
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
