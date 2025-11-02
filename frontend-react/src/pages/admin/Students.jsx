@@ -11,7 +11,7 @@ import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import StudentForm from '../../components/admin/StudentForm';
 import StudentDetail from '../../components/admin/StudentDetail';
-import StudentExcelImport from '../../components/admin/StudentExcelImport';
+import StudentExcelImportWithPreview from '../../components/admin/StudentExcelImportWithPreview';
 
 const Students = () => {
   const queryClient = useQueryClient();
@@ -296,9 +296,9 @@ const Students = () => {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         title="Nhập danh sách sinh viên"
-        size="lg"
+        size="xl"
       >
-        <StudentExcelImport
+        <StudentExcelImportWithPreview
           onImportSuccess={() => {
             setIsImportModalOpen(false);
             queryClient.invalidateQueries('students');

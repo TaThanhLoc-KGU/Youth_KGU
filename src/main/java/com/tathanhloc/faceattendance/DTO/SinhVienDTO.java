@@ -17,8 +17,9 @@ public class SinhVienDTO {
     private GioiTinhEnum gioiTinh;
     private LocalDate ngaySinh;
     private String email;
-    private String hinhAnh;
-    private String embedding;
-    private Boolean isActive;
+    private String sdt;
     private String maLop;
+    private String tenLop; // Để hiển thị
+    private Boolean isActive;
+    private String errorMessage; // Để báo lỗi khi import
 }

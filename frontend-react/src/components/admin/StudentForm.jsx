@@ -1,8 +1,9 @@
 import { useForm } from 'react-hook-form';
-import { useMutation } from 'react-query';
+import { useMutation, useQuery } from 'react-query';
 import { toast } from 'react-toastify';
 import { Save, X, Check, AlertCircle, Loader } from 'lucide-react';
 import studentService from '../../services/studentService';
+import lopService from '../../services/lopService';
 import { useEmailValidation } from '../../hooks/useEmailValidation';
 import Input from '../common/Input';
 import Select from '../common/Select';
@@ -28,7 +29,8 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
     },
   });
 
-  const emailValue = watch('email');
+    const { data: lops = [] } = useQuery('lop-for-student', () => lopService.getActive());
+    const emailValue = watch('email');
   const { isValid: isEmailValid, isDuplicate, isLoading: isEmailLoading, isEmailOk } = useEmailValidation(
     emailValue,
     mode === 'edit' ? initialData.maSv : null
@@ -146,27 +148,54 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
             </div>
           )}
         </div>
+          {/* Giới tính */}
+          <Select
+              label="Giới tính"
+              {...register('gioiTinh')}
+              options={[
+                  { value: '', label: '-- Chọn giới tính --' },
+                  { value: 'NAM', label: 'Nam' },
+                  { value: 'NU', label: 'Nữ' },
+              ]}
+              error={errors.gioiTinh?.message}
+          />
 
-        {/* Số điện thoại */}
-        <Input
-          label="Số điện thoại"
-          {...register('sdt', {
-            pattern: {
-              value: /^[0-9]{10}$/,
-              message: 'Số điện thoại phải có 10 chữ số',
-            },
-          })}
-          error={errors.sdt?.message}
-          placeholder="0123456789"
-        />
+          {/* Ngày sinh */}
+          <Input
+              label="Ngày sinh"
+              type="date"
+              {...register('ngaySinh')}
+              error={errors.ngaySinh?.message}
+              max={new Date().toISOString().split('T')[0]} // Không cho chọn ngày tương lai
+          />
 
-        {/* Mã lớp */}
-        <Input
-          label="Mã lớp"
-          {...register('maLop')}
-          error={errors.maLop?.message}
-          placeholder="VD: CNTT01"
-        />
+          {/* Số điện thoại - đã có nhưng cần đảm bảo được gửi lên */}
+          <Input
+              label="Số điện thoại"
+              {...register('sdt', {
+                  pattern: {
+                      value: /^[0-9]{10}$/,
+                      message: 'Số điện thoại phải có 10 chữ số',
+                  },
+              })}
+              error={errors.sdt?.message}
+              placeholder="0123456789"
+          />
+
+          {/* Mã lớp - sửa thành dropdown */}
+          <Select
+              label="Lớp"
+              {...register('maLop', { required: 'Lớp là bắt buộc' })}
+              options={[
+                  { value: '', label: '-- Chọn lớp --' },
+                  ...lops.map(lop => ({
+                      value: lop.maLop,
+                      label: `${lop.maLop} - ${lop.tenLop}`
+                  }))
+              ]}
+              error={errors.maLop?.message}
+              required
+          />
 
         {/* Trạng thái */}
         <Select
@@ -179,24 +208,6 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
         />
       </div>
 
-      {/* Ảnh đại diện */}
-      <div>
-        <ImageUpload
-          label="Ảnh đại diện"
-          value={watch('hinhAnh')}
-          onChange={(file) => {
-            if (file) {
-              // Convert to base64 or upload to server
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                setValue('hinhAnh', reader.result);
-              };
-              reader.readAsDataURL(file);
-            }
-          }}
-          helperText="Ảnh sẽ được sử dụng để nhận diện khuôn mặt"
-        />
-      </div>
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-4 border-t">

@@ -1,6 +1,7 @@
 package com.tathanhloc.faceattendance.Service;
 
 import com.tathanhloc.faceattendance.DTO.*;
+import com.tathanhloc.faceattendance.Exception.ResourceNotFoundException;
 import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
 import com.tathanhloc.faceattendance.Util.AutoLogUtil;
@@ -36,7 +37,8 @@ public class LopService {
     }
 
     public LopDTO getById(String id) {
-        return toDTO(lopRepository.findById(id).orElseThrow());
+        return toDTO(lopRepository.findById(id).orElseThrow(
+            () -> new ResourceNotFoundException("Lớp", "mã lớp", id)));
     }
 
     public LopDTO create(LopDTO dto) {
@@ -45,24 +47,29 @@ public class LopService {
     }
 
     public LopDTO update(String id, LopDTO dto) {
-        Lop existing = lopRepository.findById(id).orElseThrow();
+        Lop existing = lopRepository.findById(id).orElseThrow(
+            () -> new ResourceNotFoundException("Lớp", "mã lớp", id));
         existing.setTenLop(dto.getTenLop());
-        existing.setNganh(nganhRepository.findById(dto.getMaNganh()).orElseThrow());
-        existing.setKhoaHoc(khoaHocRepository.findById(dto.getMaKhoahoc()).orElseThrow());
+        existing.setNganh(nganhRepository.findById(dto.getMaNganh()).orElseThrow(
+            () -> new ResourceNotFoundException("Ngành", "mã ngành", dto.getMaNganh())));
+        existing.setKhoaHoc(khoaHocRepository.findById(dto.getMaKhoahoc()).orElseThrow(
+            () -> new ResourceNotFoundException("Khóa học", "mã khóa học", dto.getMaKhoahoc())));
         existing.setActive(dto.getIsActive());
         return toDTO(lopRepository.save(existing));
     }
 
     // Xóa mềm
     public void softDelete(String id) {
-        Lop existing = lopRepository.findById(id).orElseThrow();
+        Lop existing = lopRepository.findById(id).orElseThrow(
+            () -> new ResourceNotFoundException("Lớp", "mã lớp", id));
         existing.setActive(false);
         lopRepository.save(existing);
     }
 
     // Khôi phục lớp đã xóa mềm
     public LopDTO restore(String id) {
-        Lop existing = lopRepository.findById(id).orElseThrow();
+        Lop existing = lopRepository.findById(id).orElseThrow(
+            () -> new ResourceNotFoundException("Lớp", "mã lớp", id));
         existing.setActive(true);
         return toDTO(lopRepository.save(existing));
     }
@@ -91,15 +98,17 @@ public class LopService {
         return Lop.builder()
                 .maLop(dto.getMaLop())
                 .tenLop(dto.getTenLop())
-                .nganh(nganhRepository.findById(dto.getMaNganh()).orElseThrow())
-                .khoaHoc(khoaHocRepository.findById(dto.getMaKhoahoc()).orElseThrow())
+                .nganh(nganhRepository.findById(dto.getMaNganh()).orElseThrow(
+                    () -> new ResourceNotFoundException("Ngành", "mã ngành", dto.getMaNganh())))
+                .khoaHoc(khoaHocRepository.findById(dto.getMaKhoahoc()).orElseThrow(
+                    () -> new ResourceNotFoundException("Khóa học", "mã khóa học", dto.getMaKhoahoc())))
                 .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
                 .build();
     }
 
     public LopDTO getByMaLop(String maLop) {
         Lop lop = lopRepository.findById(maLop)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy lớp"));
+                .orElseThrow(() -> new ResourceNotFoundException("Lớp", "mã lớp", maLop));
         return toDTO(lop);
     }
 
@@ -116,9 +125,9 @@ public class LopService {
     }
     // Thêm vào class LopService
     public long countSinhVienByLop(String maLop) {
-        // Tìm lớp
-        Lop lop = lopRepository.findById(maLop)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy lớp với mã: " + maLop));
+        // Kiểm tra lớp có tồn tại không
+        lopRepository.findById(maLop)
+                .orElseThrow(() -> new ResourceNotFoundException("Lớp", "mã lớp", maLop));
 
         // Đếm sinh viên trong lớp (chỉ sinh viên đang hoạt động)
         return sinhVienRepository.countByLopMaLopAndIsActiveTrue(maLop);

@@ -6,7 +6,10 @@
       "Bash(git commit:*)",
       "Bash(npm run build:*)",
       "Bash(npm install:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(mvn clean compile:*)",
+      "Bash(mvn compile:*)",
+      "Bash(mvn clean package:*)"
     ],
     "deny": [],
     "ask": []

@@ -42,11 +42,8 @@ public class SinhVien {
     @Column(name = "email")
     private String email;
 
-    @Column(name = "hinh_anh")
-    private String hinhAnh;
-
-    @Column(name = "embedding")
-    private String embedding;
+    @Column(name = "sdt", length = 15)
+    private String sdt;
 
     @NotNull(message = "Trạng thái hoạt động không được để trống")
     @Column(name = "is_active")
