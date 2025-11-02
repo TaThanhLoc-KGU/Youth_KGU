@@ -14,7 +14,7 @@ import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import { useForm } from 'react-hook-form';
 
-const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas }) => {
+const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas = [], khoasLoading = false, khoasError = null }) => {
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: initialData || {
       maNganh: '',
@@ -27,10 +27,16 @@ const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas })
 
   const mutation = useMutation(
     (data) => {
+      // Convert isActive to boolean
+      const submitData = {
+        ...data,
+        isActive: data.isActive === true || data.isActive === 'true',
+      };
+
       if (mode === 'create') {
-        return nganhService.create(data);
+        return nganhService.create(submitData);
       } else {
-        return nganhService.update(initialData.maNganh, data);
+        return nganhService.update(initialData.maNganh, submitData);
       }
     },
     {
@@ -44,8 +50,21 @@ const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas })
     }
   );
 
+  const khoaOptions = khoas && khoas.length > 0
+    ? [{ value: '', label: '-- Chọn khoa --' }, ...khoas.map(k => ({
+        value: k.maKhoa,
+        label: k.tenKhoa
+      }))]
+    : [{ value: '', label: khoasLoading ? 'Đang tải...' : 'Không có khoa nào' }];
+
   return (
     <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
+      {khoasError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700">⚠️ Không thể tải danh sách khoa</p>
+        </div>
+      )}
+
       <Input
         label="Mã ngành"
         {...register('maNganh', { required: 'Mã ngành là bắt buộc' })}
@@ -62,10 +81,9 @@ const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas })
       <Select
         label="Khoa"
         {...register('maKhoa', { required: 'Khoa là bắt buộc' })}
-        options={[{ value: '', label: '-- Chọn khoa --' }, ...khoas.map(k => ({
-          value: k.maKhoa, label: k.tenKhoa
-        }))]}
+        options={khoaOptions}
         error={errors.maKhoa?.message}
+        disabled={khoasLoading || (khoas && khoas.length === 0) || khoasError}
         required
       />
       <div>
@@ -81,13 +99,16 @@ const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas })
         label="Trạng thái"
         {...register('isActive')}
         options={[
-          { value: 'true', label: 'Hoạt động' },
-          { value: 'false', label: 'Ngừng' },
+          { value: true, label: 'Hoạt động' },
+          { value: false, label: 'Ngừng' },
         ]}
       />
       <div className="flex gap-2 justify-end pt-4 border-t">
         <Button variant="outline" onClick={onCancel}>Hủy</Button>
-        <Button isLoading={mutation.isLoading} disabled={mutation.isLoading}>
+        <Button
+          isLoading={mutation.isLoading}
+          disabled={mutation.isLoading || khoasLoading || (khoas && khoas.length === 0) || khoasError}
+        >
           {mode === 'create' ? 'Thêm ngành' : 'Cập nhật'}
         </Button>
       </div>
@@ -316,6 +337,8 @@ const Nganh = () => {
           initialData={selectedNganh}
           mode={modalMode}
           khoas={khoas}
+          khoasLoading={false}
+          khoasError={khoasError}
           onSuccess={() => {
             setIsModalOpen(false);
             queryClient.invalidateQueries('nganh');

@@ -21,6 +21,8 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
     defaultValues: initialData || {
       maSv: '',
       hoTen: '',
+      gioiTinh: '',
+      ngaySinh: '',
       email: '',
       sdt: '',
       maLop: '',
@@ -100,6 +102,26 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
           })}
           error={errors.hoTen?.message}
           required
+        />
+
+        {/* Giới tính */}
+        <Select
+          label="Giới tính"
+          {...register('gioiTinh')}
+          options={[
+            { value: '', label: '-- Chọn giới tính --' },
+            { value: 'NAM', label: 'Nam' },
+            { value: 'NU', label: 'Nữ' },
+          ]}
+          error={errors.gioiTinh?.message}
+        />
+
+        {/* Ngày sinh */}
+        <Input
+          label="Ngày sinh"
+          type="date"
+          {...register('ngaySinh')}
+          error={errors.ngaySinh?.message}
         />
 
         {/* Email */}

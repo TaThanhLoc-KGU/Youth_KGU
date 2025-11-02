@@ -14,7 +14,10 @@ public class LopDTO {
     private String maLop;
     private String tenLop;
     private String maNganh;
+    private String tenNganh;
     private String maKhoahoc;
+    private String tenKhoahoc;
     private String maKhoa;
+    private String tenKhoa;
     private Boolean isActive;
 }

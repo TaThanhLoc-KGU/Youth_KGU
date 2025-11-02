@@ -1,4 +1,4 @@
-import { Edit, Mail, Phone, Calendar, User } from 'lucide-react';
+import { Edit, Mail, Phone, Calendar, User, Users } from 'lucide-react';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
 
@@ -47,6 +47,16 @@ const StudentDetail = ({ student, onEdit, onClose }) => {
 
       {/* Detailed Info */}
       <div className="space-y-1">
+        <InfoRow
+          icon={Users}
+          label="Giới tính"
+          value={student.gioiTinh === 'NAM' ? 'Nam' : student.gioiTinh === 'NU' ? 'Nữ' : '-'}
+        />
+        <InfoRow
+          icon={Calendar}
+          label="Ngày sinh"
+          value={student.ngaySinh ? new Date(student.ngaySinh).toLocaleDateString('vi-VN') : '-'}
+        />
         <InfoRow icon={Mail} label="Email" value={student.email} />
         <InfoRow icon={Phone} label="Số điện thoại" value={student.sdt} />
         <InfoRow icon={User} label="Lớp" value={student.tenLop} />

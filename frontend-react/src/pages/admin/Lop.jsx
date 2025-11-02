@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, RotateCcw, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, RotateCcw, RefreshCw, Download, Upload } from 'lucide-react';
 import lopService from '../../services/lopService';
 import khoaService from '../../services/khoaService';
 import nganhService from '../../services/nganhService';
@@ -14,6 +14,7 @@ import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
+import LopExcelImport from '../../components/admin/LopExcelImport';
 import { useForm } from 'react-hook-form';
 
 const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nganhs, khoahocs }) => {
@@ -23,7 +24,7 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
       tenLop: '',
       maKhoa: '',
       maNganh: '',
-      maKhoaHoc: '',
+      maKhoahoc: '',
       isActive: true,
     },
   });
@@ -36,10 +37,16 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
 
   const mutation = useMutation(
     (data) => {
+      // Convert isActive to boolean if it's a string
+      const submitData = {
+        ...data,
+        isActive: data.isActive === true || data.isActive === 'true',
+      };
+
       if (mode === 'create') {
-        return lopService.create(data);
+        return lopService.create(submitData);
       } else {
-        return lopService.update(initialData.maLop, data);
+        return lopService.update(initialData.maLop, submitData);
       }
     },
     {
@@ -89,17 +96,17 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
       />
       <Select
         label="Khóa học"
-        {...register('maKhoaHoc')}
+        {...register('maKhoahoc')}
         options={[{ value: '', label: '-- Chọn khóa học --' }, ...khoahocs.map(k => ({
-          value: k.maKhoaHoc, label: k.tenKhoaHoc
+          value: k.maKhoahoc, label: k.tenKhoahoc
         }))]}
       />
       <Select
         label="Trạng thái"
         {...register('isActive')}
         options={[
-          { value: 'true', label: 'Hoạt động' },
-          { value: 'false', label: 'Ngừng' },
+          { value: true, label: 'Hoạt động' },
+          { value: false, label: 'Ngừng' },
         ]}
       />
       <div className="flex gap-2 justify-end pt-4 border-t">
@@ -120,6 +127,7 @@ const Lop = () => {
   const [khoahocFilter, setKhoahocFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedLop, setSelectedLop] = useState(null);
   const [modalMode, setModalMode] = useState('create');
 
@@ -204,10 +212,33 @@ const Lop = () => {
   );
 
   const columns = [
-    { header: 'Mã lớp', accessor: 'maLop', render: (v) => <span className="font-medium">{v}</span> },
-    { header: 'Tên lớp', accessor: 'tenLop' },
-    { header: 'Khoa', accessor: 'tenKhoa' },
-    { header: 'Ngành', accessor: 'tenNganh' },
+    {
+      header: 'Mã lớp',
+      accessor: 'maLop',
+      render: (v) => <span className="font-semibold text-primary">{v}</span>,
+    },
+    {
+      header: 'Tên lớp',
+      accessor: 'tenLop',
+    },
+    {
+      header: 'Khoa',
+      accessor: 'tenKhoa',
+      render: (value) => (
+        <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+          {value || '-'}
+        </span>
+      ),
+    },
+    {
+      header: 'Ngành',
+      accessor: 'tenNganh',
+      render: (value) => (
+        <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm">
+          {value || '-'}
+        </span>
+      ),
+    },
     {
       header: 'Trạng thái',
       accessor: 'isActive',
@@ -273,13 +304,44 @@ const Lop = () => {
           <h1 className="text-2xl font-bold text-gray-900">Quản lý Lớp</h1>
           <p className="text-gray-600 mt-1">Quản lý các lớp học</p>
         </div>
-        <Button icon={Plus} onClick={() => {
-          setSelectedLop(null);
-          setModalMode('create');
-          setIsModalOpen(true);
-        }}>
-          Thêm lớp
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            icon={Upload}
+            onClick={() => setIsImportModalOpen(true)}
+          >
+            Import Excel
+          </Button>
+          <Button
+            variant="outline"
+            icon={Download}
+            onClick={async () => {
+              try {
+                const blob = await lopService.exportToExcel();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `lop-${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                toast.success('Xuất Excel thành công');
+              } catch (error) {
+                toast.error('Lỗi xuất Excel');
+              }
+            }}
+          >
+            Export Excel
+          </Button>
+          <Button icon={Plus} onClick={() => {
+            setSelectedLop(null);
+            setModalMode('create');
+            setIsModalOpen(true);
+          }}>
+            Thêm lớp
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -366,6 +428,21 @@ const Lop = () => {
             queryClient.invalidateQueries('lop');
           }}
           onCancel={() => setIsModalOpen(false)}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        title="Nhập danh sách lớp từ Excel"
+        size="lg"
+      >
+        <LopExcelImport
+          onImportSuccess={() => {
+            setIsImportModalOpen(false);
+            queryClient.invalidateQueries('lop');
+          }}
+          onCancel={() => setIsImportModalOpen(false)}
         />
       </Modal>
     </div>

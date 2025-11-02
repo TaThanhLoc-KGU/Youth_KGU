@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react';
 import { useMutation } from 'react-query';
 import { toast } from 'react-toastify';
-import { Upload, Download, AlertCircle, Check, X, ChevronDown } from 'lucide-react';
-import studentService from '../../services/studentService';
+import { Upload, Download, AlertCircle, Check, X } from 'lucide-react';
+import lopService from '../../services/lopService';
 import Button from '../common/Button';
 import Card from '../common/Card';
 
-const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
+const LopExcelImport = ({ onImportSuccess, onCancel }) => {
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState(null);
   const [previewData, setPreviewData] = useState(null);
@@ -14,7 +14,7 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
   const [uploadedFile, setUploadedFile] = useState(null);
 
   const previewMutation = useMutation(
-    (file) => studentService.previewExcelImport(file),
+    (file) => lopService.previewExcelImport(file),
     {
       onSuccess: (result) => {
         setPreviewData(result);
@@ -28,12 +28,12 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
   );
 
   const confirmMutation = useMutation(
-    (file) => studentService.confirmExcelImport(file),
+    (file) => lopService.confirmExcelImport(file),
     {
       onSuccess: (result) => {
         setConfirmResult(result);
         toast.success(
-          `Nhập thành công ${result.successCount} sinh viên${
+          `Nhập thành công ${result.successCount} lớp${
             result.failureCount > 0 ? `, thất bại ${result.failureCount}` : ''
           }`
         );
@@ -86,11 +86,11 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
 
   const handleDownloadTemplate = async () => {
     try {
-      const blob = await studentService.downloadTemplate();
+      const blob = await lopService.downloadTemplate();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'template-sinh-vien.xlsx';
+      a.download = 'template-lop.xlsx';
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -108,7 +108,7 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
         <Card>
           <div className="p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Nhập danh sách sinh viên từ Excel
+              Nhập danh sách lớp từ Excel
             </h3>
 
             <div className="space-y-4">
@@ -224,29 +224,25 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200 bg-gray-50">
-                        <th className="px-4 py-3 text-left font-medium text-gray-700">Mã SV</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700">Họ tên</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700">Giới tính</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700">Ngày sinh</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700">Email</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700">SĐT</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700">Lớp</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700">Mã lớp</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700">Tên lớp</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700">Mã ngành</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700">Mã khóa học</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700">Trạng thái</th>
                       </tr>
                     </thead>
                     <tbody>
                       {previewData.validData.map((row, idx) => (
                         <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-4 py-3 text-gray-900">{row.maSv}</td>
-                          <td className="px-4 py-3 text-gray-900">{row.hoTen}</td>
-                          <td className="px-4 py-3 text-gray-700">
-                            {row.gioiTinh === 'NAM' ? 'Nam' : row.gioiTinh === 'NU' ? 'Nữ' : '-'}
+                          <td className="px-4 py-3 text-gray-900 font-medium">{row.maLop}</td>
+                          <td className="px-4 py-3 text-gray-900">{row.tenLop}</td>
+                          <td className="px-4 py-3 text-gray-700">{row.maNganh || '-'}</td>
+                          <td className="px-4 py-3 text-gray-700">{row.maKhoahoc || '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-block px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                              {row.isActive ? 'Hoạt động' : 'Ngừng'}
+                            </span>
                           </td>
-                          <td className="px-4 py-3 text-gray-700">
-                            {row.ngaySinh ? new Date(row.ngaySinh).toLocaleDateString('vi-VN') : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">{row.email || '-'}</td>
-                          <td className="px-4 py-3 text-gray-700">{row.sdt || '-'}</td>
-                          <td className="px-4 py-3 text-gray-700">{row.maLop || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -317,7 +313,7 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-green-900">
-                    Nhập thành công {confirmResult.successCount} sinh viên
+                    Nhập thành công {confirmResult.successCount} lớp
                   </p>
                 </div>
               </div>
@@ -329,7 +325,7 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
                 <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-yellow-900">
-                    Lỗi khi nhập {confirmResult.errorCount} sinh viên
+                    Lỗi khi nhập {confirmResult.errorCount} lớp
                   </p>
                 </div>
               </div>
@@ -355,4 +351,4 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
   );
 };
 
-export default StudentExcelImport;
+export default LopExcelImport;

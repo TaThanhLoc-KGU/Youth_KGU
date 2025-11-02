@@ -1,9 +1,14 @@
 package com.tathanhloc.faceattendance.Controller;
 import com.tathanhloc.faceattendance.DTO.LopDTO;
+import com.tathanhloc.faceattendance.DTO.ExcelImportPreviewDTO;
 import com.tathanhloc.faceattendance.Service.LopService;
+import com.tathanhloc.faceattendance.Service.LopExcelService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -13,6 +18,7 @@ import java.util.List;
 public class LopController {
 
     private final LopService lopService;
+    private final LopExcelService lopExcelService;
 
     // Lấy tất cả lớp (bao gồm cả đã xóa)
     @GetMapping("/all")
@@ -95,5 +101,50 @@ public class LopController {
     public ResponseEntity<Long> countSinhVienByLop(@PathVariable String maLop) {
         long count = lopService.countSinhVienByLop(maLop);
         return ResponseEntity.ok(count);
+    }
+
+    // Excel import/export endpoints
+    @GetMapping("/template-excel")
+    public ResponseEntity<byte[]> downloadTemplate() throws Exception {
+        byte[] excelFile = lopExcelService.createTemplate();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=template-lop.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelFile);
+    }
+
+    @PostMapping("/import-excel/preview")
+    public ResponseEntity<ExcelImportPreviewDTO> previewExcelImport(@RequestParam MultipartFile file) throws Exception {
+        ExcelImportPreviewDTO preview = lopExcelService.previewExcel(file);
+        return ResponseEntity.ok(preview);
+    }
+
+    @PostMapping("/import-excel/confirm")
+    public ResponseEntity<ExcelImportPreviewDTO> confirmExcelImport(@RequestParam MultipartFile file) throws Exception {
+        ExcelImportPreviewDTO preview = lopExcelService.previewExcel(file);
+        // Import valid data
+        if (preview.getValidData() != null && !preview.getValidData().isEmpty()) {
+            for (Object item : preview.getValidData()) {
+                try {
+                    if (item instanceof LopDTO) {
+                        LopDTO lopDTO = (LopDTO) item;
+                        lopService.create(lopDTO);
+                    }
+                } catch (Exception e) {
+                    // Log error but continue importing
+                }
+            }
+        }
+        return ResponseEntity.ok(preview);
+    }
+
+    @GetMapping("/export-excel")
+    public ResponseEntity<byte[]> exportToExcel() throws Exception {
+        List<LopDTO> lopList = lopService.getAll();
+        byte[] excelFile = lopExcelService.exportToExcel(lopList);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=lop-" + System.currentTimeMillis() + ".xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelFile);
     }
 }

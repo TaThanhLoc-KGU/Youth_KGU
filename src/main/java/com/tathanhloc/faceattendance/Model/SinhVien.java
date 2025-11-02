@@ -42,11 +42,9 @@ public class SinhVien {
     @Column(name = "email")
     private String email;
 
-    @Column(name = "hinh_anh")
-    private String hinhAnh;
-
-    @Column(name = "embedding")
-    private String embedding;
+    @Size(max = 15, message = "Số điện thoại không được vượt quá 15 ký tự")
+    @Column(name = "sdt")
+    private String sdt;
 
     @NotNull(message = "Trạng thái hoạt động không được để trống")
     @Column(name = "is_active")

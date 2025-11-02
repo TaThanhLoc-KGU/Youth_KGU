@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Check, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
 import khoahocService from '../../services/khoahocService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
@@ -16,21 +16,26 @@ import { useForm } from 'react-hook-form';
 const KhoaHocForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: initialData || {
-      maKhoaHoc: '',
-      tenKhoaHoc: '',
+      maKhoahoc: '',
+      tenKhoahoc: '',
       namBatDau: new Date().getFullYear(),
       namKetThuc: new Date().getFullYear() + 1,
-      isCurrent: false,
       isActive: true,
     },
   });
 
   const mutation = useMutation(
     (data) => {
+      // Convert boolean to proper format if needed
+      const submitData = {
+        ...data,
+        isActive: data.isActive === true || data.isActive === 'true',
+      };
+
       if (mode === 'create') {
-        return khoahocService.create(data);
+        return khoahocService.create(submitData);
       } else {
-        return khoahocService.update(initialData.maKhoaHoc, data);
+        return khoahocService.update(initialData.maKhoahoc, submitData);
       }
     },
     {
@@ -48,16 +53,16 @@ const KhoaHocForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
     <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
       <Input
         label="Mã khóa học"
-        {...register('maKhoaHoc', { required: 'Mã khóa học là bắt buộc' })}
-        error={errors.maKhoaHoc?.message}
+        {...register('maKhoahoc', { required: 'Mã khóa học là bắt buộc' })}
+        error={errors.maKhoahoc?.message}
         disabled={mode === 'edit'}
         placeholder="VD: K20, K21"
         required
       />
       <Input
         label="Tên khóa học"
-        {...register('tenKhoaHoc', { required: 'Tên khóa học là bắt buộc' })}
-        error={errors.tenKhoaHoc?.message}
+        {...register('tenKhoahoc', { required: 'Tên khóa học là bắt buộc' })}
+        error={errors.tenKhoahoc?.message}
         placeholder="VD: Khóa 2020-2024"
         required
       />
@@ -77,22 +82,12 @@ const KhoaHocForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
           required
         />
       </div>
-      <div className="flex gap-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            {...register('isCurrent')}
-            className="w-4 h-4 border border-gray-300 rounded"
-          />
-          <span className="text-sm text-gray-700">Khóa học hiện tại</span>
-        </label>
-      </div>
       <Select
         label="Trạng thái"
         {...register('isActive')}
         options={[
-          { value: 'true', label: 'Hoạt động' },
-          { value: 'false', label: 'Ngừng' },
+          { value: true, label: 'Hoạt động' },
+          { value: false, label: 'Ngừng' },
         ]}
       />
       <div className="flex gap-2 justify-end pt-4 border-t">
@@ -156,22 +151,17 @@ const KhoaHoc = () => {
   const columns = [
     {
       header: 'Mã khóa',
-      accessor: 'maKhoaHoc',
+      accessor: 'maKhoahoc',
       render: (v) => <span className="font-medium">{v}</span>,
     },
     {
       header: 'Tên khóa học',
-      accessor: 'tenKhoaHoc',
+      accessor: 'tenKhoahoc',
     },
     {
       header: 'Năm học',
       accessor: 'namBatDau',
       render: (value, row) => `${value} - ${row.namKetThuc}`,
-    },
-    {
-      header: 'Khóa hiện tại',
-      accessor: 'isCurrent',
-      render: (value) => value ? <Check className="w-5 h-5 text-green-500" /> : '-',
     },
     {
       header: 'Trạng thái',
@@ -203,8 +193,8 @@ const KhoaHoc = () => {
             icon={Trash2}
             className="text-red-600"
             onClick={() => {
-              if (window.confirm(`Xóa khóa học ${row.tenKhoaHoc}?`)) {
-                deleteMutation.mutate(row.maKhoaHoc);
+              if (window.confirm(`Xóa khóa học ${row.tenKhoahoc}?`)) {
+                deleteMutation.mutate(row.maKhoahoc);
               }
             }}
           />

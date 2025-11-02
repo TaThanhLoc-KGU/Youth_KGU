@@ -1,17 +1,23 @@
 package com.tathanhloc.faceattendance.Controller;
 
+import com.tathanhloc.faceattendance.DTO.ExcelImportPreviewDTO;
 import com.tathanhloc.faceattendance.DTO.SinhVienDTO;
 import com.tathanhloc.faceattendance.DTO.StudentCountDTO;
+import com.tathanhloc.faceattendance.Service.SinhVienExcelService;
 import com.tathanhloc.faceattendance.Service.SinhVienService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,6 +32,8 @@ public class SinhVienController {
 
     private final SinhVienService sinhVienService;
 
+    @Autowired
+    private SinhVienExcelService excelService;
 
     @GetMapping
     public ResponseEntity<Page<SinhVienDTO>> getAll(@RequestParam(defaultValue = "0") int page,
@@ -94,34 +102,6 @@ public class SinhVienController {
         return ResponseEntity.ok(sinhVienService.getAllEmbeddings());
     }
 
-    /**
-     * API lấy embedding của một sinh viên
-     * @param maSv Mã sinh viên
-     * @return Embedding của sinh viên
-     */
-    @GetMapping("/students/{maSv}/embedding")
-    public ResponseEntity<Map<String, Object>> getEmbeddingByMaSv(@PathVariable String maSv) {
-        return ResponseEntity.ok(sinhVienService.getEmbeddingByMaSv(maSv));
-    }
-
-    /**
-     * API lưu embedding cho một sinh viên
-     * @param maSv Mã sinh viên
-     * @param requestBody Body chứa embedding
-     * @return SinhVienDTO đã cập nhật
-     */
-    @PostMapping("/students/{maSv}/embedding")
-    public ResponseEntity<SinhVienDTO> saveEmbedding(
-            @PathVariable String maSv,
-            @RequestBody Map<String, String> requestBody) {
-        String embedding = requestBody.get("embedding");
-        if (embedding == null || embedding.isEmpty()) {
-            throw new RuntimeException("Embedding không được để trống");
-        }
-        return ResponseEntity.ok(sinhVienService.saveEmbedding(maSv, embedding));
-    }
-
-    // Thêm endpoint này vào SinhVienController.java
 
     @GetMapping("/all")
     public ResponseEntity<List<SinhVienDTO>> getAllStudentsNoPagination() {
@@ -144,10 +124,8 @@ public class SinhVienController {
                     .filter(s -> s.getIsActive() != null && s.getIsActive())
                     .count();
             long studentsWithPhoto = allStudents.stream()
-                    .filter(s -> s.getHinhAnh() != null && !s.getHinhAnh().isEmpty())
                     .count();
             long studentsWithEmbedding = allStudents.stream()
-                    .filter(s -> s.getEmbedding() != null && !s.getEmbedding().isEmpty())
                     .count();
 
             Map<String, Object> stats = new HashMap<>();
@@ -264,6 +242,117 @@ public class SinhVienController {
         log.info("Đếm tổng số sinh viên");
         long count = sinhVienService.countAll();
         return ResponseEntity.ok(count);
+    }
+
+    /**
+     * Download template Excel
+     */
+    @GetMapping("/template-excel")
+    public ResponseEntity<byte[]> downloadTemplate() {
+        try {
+            log.info("Download template Excel");
+            byte[] excelFile = excelService.createTemplate();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", "template-sinh-vien.xlsx");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(excelFile);
+        } catch (Exception e) {
+            log.error("Error creating template", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Preview dữ liệu từ Excel
+     */
+    @PostMapping("/import-excel/preview")
+    public ResponseEntity<ExcelImportPreviewDTO> previewExcelImport(
+            @RequestParam("file") MultipartFile file) {
+        try {
+            log.info("Preview Excel import: {}", file.getOriginalFilename());
+
+            if (file.isEmpty()) {
+                throw new RuntimeException("File không được để trống");
+            }
+
+            ExcelImportPreviewDTO preview = excelService.previewExcel(file);
+            return ResponseEntity.ok(preview);
+        } catch (Exception e) {
+            log.error("Error previewing Excel", e);
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * Confirm và lưu dữ liệu từ Excel
+     */
+    @PostMapping("/import-excel/confirm")
+    public ResponseEntity<Map<String, Object>> confirmExcelImport(
+            @RequestBody ExcelImportPreviewDTO previewData) {
+        try {
+            log.info("Confirm Excel import: {} valid rows", previewData.getValidRows());
+
+            @SuppressWarnings("unchecked")
+            List<SinhVienDTO> validData = (List<SinhVienDTO>) (List<?>) previewData.getValidData();
+            List<SinhVienDTO> savedList = sinhVienService.importFromExcel(validData);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("totalImported", savedList.size());
+            response.put("data", savedList);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error confirming Excel import", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    /**
+     * Export sinh viên ra Excel
+     */
+    @GetMapping("/export-excel")
+    public ResponseEntity<byte[]> exportToExcel(
+            @RequestParam(required = false) String maLop,
+            @RequestParam(required = false) Boolean isActive) {
+        try {
+            log.info("Export to Excel - maLop: {}, isActive: {}", maLop, isActive);
+
+            List<SinhVienDTO> sinhVienList = sinhVienService.getAll();
+
+            // Filter if needed
+            if (maLop != null) {
+                sinhVienList = sinhVienList.stream()
+                        .filter(sv -> sv.getMaLop().equals(maLop))
+                        .toList();
+            }
+
+            if (isActive != null) {
+                sinhVienList = sinhVienList.stream()
+                        .filter(sv -> sv.getIsActive().equals(isActive))
+                        .toList();
+            }
+
+            byte[] excelFile = excelService.exportToExcel(sinhVienList);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", "danh-sach-sinh-vien.xlsx");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(excelFile);
+        } catch (Exception e) {
+            log.error("Error exporting to Excel", e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
 

@@ -90,6 +90,46 @@ const lopService = {
     const response = await api.get('/api/lop/count');
     return response.data?.data || 0;
   },
+
+  // Excel template download
+  downloadTemplate: async () => {
+    const response = await api.get('/api/lop/template-excel', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  // Preview Excel import
+  previewExcelImport: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/lop/import-excel/preview', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Confirm Excel import
+  confirmExcelImport: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/lop/import-excel/confirm', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Export to Excel
+  exportToExcel: async () => {
+    const response = await api.get('/api/lop/export-excel', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
 
 export default lopService;

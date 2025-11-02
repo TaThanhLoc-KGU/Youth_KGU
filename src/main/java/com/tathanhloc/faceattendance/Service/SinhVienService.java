@@ -3,15 +3,15 @@ package com.tathanhloc.faceattendance.Service;
 import com.tathanhloc.faceattendance.DTO.*;
 import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.repository.JpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> {
@@ -33,6 +33,7 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
     protected boolean isActive(SinhVien entity) {
         return entity.getIsActive() != null && entity.getIsActive();
     }
+    private final SinhVienExcelService excelService;
 
     public SinhVienDTO create(SinhVienDTO dto) {
         SinhVien entity = toEntity(dto);
@@ -47,8 +48,6 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
         sv.setGioiTinh(dto.getGioiTinh());
         sv.setNgaySinh(dto.getNgaySinh());
         sv.setEmail(dto.getEmail());
-        sv.setHinhAnh(dto.getHinhAnh());
-        sv.setEmbedding(dto.getEmbedding());
         sv.setIsActive(dto.getIsActive());
         sv.setLop(lopRepository.findById(dto.getMaLop()).orElseThrow(() ->
                 new RuntimeException("Không tìm thấy lớp với mã: " + dto.getMaLop())));
@@ -64,8 +63,6 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
                 .gioiTinh(sv.getGioiTinh())
                 .ngaySinh(sv.getNgaySinh())
                 .email(sv.getEmail())
-                .hinhAnh(sv.getHinhAnh())
-                .embedding(sv.getEmbedding())
                 .isActive(sv.getIsActive())
                 .maLop(sv.getLop().getMaLop())
                 .build();
@@ -79,8 +76,6 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
                 .gioiTinh(dto.getGioiTinh())
                 .ngaySinh(dto.getNgaySinh())
                 .email(dto.getEmail())
-                .hinhAnh(dto.getHinhAnh())
-                .embedding(dto.getEmbedding())
                 .isActive(dto.getIsActive())
                 .lop(lopRepository.findById(dto.getMaLop()).orElseThrow(() ->
                         new RuntimeException("Không tìm thấy lớp với mã: " + dto.getMaLop())))
@@ -108,52 +103,15 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
     public List<Map<String, Object>> getAllEmbeddings() {
         return sinhVienRepository.findAll().stream()
                 .filter(sv -> sv.getIsActive() != null && sv.getIsActive())
-                .filter(sv -> sv.getEmbedding() != null && !sv.getEmbedding().isEmpty())
                 .map(sv -> {
                     Map<String, Object> result = new HashMap<>();
                     result.put("studentId", sv.getMaSv());
                     result.put("name", sv.getHoTen());
-                    result.put("embedding", sv.getEmbedding());
                     return result;
                 })
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Lấy embedding của một sinh viên theo mã sinh viên
-     * @param maSv Mã sinh viên
-     * @return Embedding của sinh viên
-     */
-    public Map<String, Object> getEmbeddingByMaSv(String maSv) {
-        SinhVien sinhVien = sinhVienRepository.findById(maSv)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên với mã: " + maSv));
-
-        if (sinhVien.getEmbedding() == null || sinhVien.getEmbedding().isEmpty()) {
-            throw new RuntimeException("Sinh viên chưa có dữ liệu embedding");
-        }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("studentId", sinhVien.getMaSv());
-        result.put("name", sinhVien.getHoTen());
-        result.put("embedding", sinhVien.getEmbedding());
-        return result;
-    }
-
-    /**
-     * Lưu embedding cho một sinh viên
-     * @param maSv Mã sinh viên
-     * @param embedding Dữ liệu embedding
-     * @return SinhVienDTO đã cập nhật
-     */
-    public SinhVienDTO saveEmbedding(String maSv, String embedding) {
-        SinhVien sinhVien = sinhVienRepository.findById(maSv)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên với mã: " + maSv));
-
-        sinhVien.setEmbedding(embedding);
-        sinhVienRepository.save(sinhVien);
-
-        return toDTO(sinhVien);
-    }
 
     public long count() {
         return sinhVienRepository.count();
@@ -214,5 +172,40 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
                 .thongKeTheoNganh(byMajor)
                 .thongKeTheoLop(byClass)
                 .build();
+    }
+
+    public List<SinhVienDTO> importFromExcel(List<SinhVienDTO> dtoList) {
+        List<SinhVienDTO> savedList = new ArrayList<>();
+
+        for (SinhVienDTO dto : dtoList) {
+            try {
+                // Check if exists
+                Optional<SinhVien> existing = sinhVienRepository.findById(dto.getMaSv());
+                SinhVien saved;
+
+                if (existing.isPresent()) {
+                    // Update
+                    SinhVien sv = existing.get();
+                    sv.setHoTen(dto.getHoTen());
+                    sv.setGioiTinh(dto.getGioiTinh());
+                    sv.setNgaySinh(dto.getNgaySinh());
+                    sv.setEmail(dto.getEmail());
+                    sv.setSdt(dto.getSdt());
+                    sv.setIsActive(dto.getIsActive());
+                    sv.setLop(lopRepository.findById(dto.getMaLop())
+                            .orElseThrow(() -> new RuntimeException("Không tìm thấy lớp")));
+                    saved = sinhVienRepository.save(sv);
+                } else {
+                    // Create new
+                    saved = sinhVienRepository.save(toEntity(dto));
+                }
+
+                savedList.add(toDTO(saved));
+            } catch (Exception e) {
+                log.error("Error importing student: " + dto.getMaSv(), e);
+            }
+        }
+
+        return savedList;
     }
 }

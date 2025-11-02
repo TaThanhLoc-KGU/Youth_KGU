@@ -17,8 +17,8 @@ public class SinhVienDTO {
     private GioiTinhEnum gioiTinh;
     private LocalDate ngaySinh;
     private String email;
-    private String hinhAnh;
-    private String embedding;
+    private String sdt;
     private Boolean isActive;
     private String maLop;
+    private String tenLop; // For display purpose
 }
