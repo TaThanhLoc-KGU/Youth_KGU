@@ -1,6 +1,8 @@
 package com.tathanhloc.faceattendance.Controller;
 
-import com.tathanhloc.faceattendance.DTO.*;
+import com.tathanhloc.faceattendance.DTO.ApiResponse;
+import com.tathanhloc.faceattendance.DTO.BCHChucVuDTO;
+import com.tathanhloc.faceattendance.DTO.BCHDoanHoiDTO;
 import com.tathanhloc.faceattendance.Service.BCHDoanHoiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,11 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
-/**
- * REST API Controller cho quản lý Ban Chấp Hành
- */
 @RestController
 @RequestMapping("/api/bch")
 @RequiredArgsConstructor
@@ -24,36 +24,28 @@ public class BCHDoanHoiController {
 
     private final BCHDoanHoiService bchService;
 
-    // ========== CRUD ENDPOINTS ==========
+    // ========== CRUD BCH ==========
 
     @GetMapping
     @Operation(summary = "Lấy tất cả BCH")
     public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getAll() {
-        log.info("GET /api/bch - Get all BCH members");
-        List<BCHDoanHoiDTO> members = bchService.getAll();
-        return ResponseEntity.ok(ApiResponse.success(members));
+        log.info("GET /api/bch");
+        List<BCHDoanHoiDTO> list = bchService.getAll();
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
 
     @GetMapping("/{maBch}")
     @Operation(summary = "Lấy chi tiết BCH")
     public ResponseEntity<ApiResponse<BCHDoanHoiDTO>> getById(@PathVariable String maBch) {
         log.info("GET /api/bch/{}", maBch);
-        BCHDoanHoiDTO member = bchService.getById(maBch);
-        return ResponseEntity.ok(ApiResponse.success(member));
-    }
-
-    @GetMapping("/email/{email}")
-    @Operation(summary = "Tìm BCH theo email")
-    public ResponseEntity<ApiResponse<BCHDoanHoiDTO>> getByEmail(@PathVariable String email) {
-        log.info("GET /api/bch/email/{}", email);
-        BCHDoanHoiDTO member = bchService.getByEmail(email);
-        return ResponseEntity.ok(ApiResponse.success(member));
+        BCHDoanHoiDTO dto = bchService.getById(maBch);
+        return ResponseEntity.ok(ApiResponse.success(dto));
     }
 
     @PostMapping
-    @Operation(summary = "Tạo BCH mới")
+    @Operation(summary = "Tạo BCH mới (mã tự động: BCHKGU0001)")
     public ResponseEntity<ApiResponse<BCHDoanHoiDTO>> create(@RequestBody BCHDoanHoiDTO dto) {
-        log.info("POST /api/bch - Create new BCH: {}", dto.getMaBch());
+        log.info("POST /api/bch - Student: {}", dto.getMaSv());
         BCHDoanHoiDTO created = bchService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo BCH thành công", created));
@@ -77,77 +69,81 @@ public class BCHDoanHoiController {
         return ResponseEntity.ok(ApiResponse.success("Xóa BCH thành công", null));
     }
 
-    // ========== FILTER ENDPOINTS ==========
+    // ========== QUẢN LÝ CHỨC VỤ ==========
 
-    @GetMapping("/chuc-vu/{chucVu}")
-    @Operation(summary = "Lọc theo chức vụ")
-    public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getByChucVu(
-            @PathVariable String chucVu) {
-        log.info("GET /api/bch/chuc-vu/{}", chucVu);
-        List<BCHDoanHoiDTO> members = bchService.getByChucVu(chucVu);
-        return ResponseEntity.ok(ApiResponse.success(members));
+    @PostMapping("/{maBch}/chuc-vu")
+    @Operation(summary = "Thêm chức vụ cho BCH")
+    public ResponseEntity<ApiResponse<BCHChucVuDTO>> addChucVu(
+            @PathVariable String maBch,
+            @RequestBody BCHChucVuDTO dto) {
+        log.info("POST /api/bch/{}/chuc-vu", maBch);
+        BCHChucVuDTO created = bchService.addChucVu(maBch, dto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Thêm chức vụ thành công", created));
     }
 
-    @GetMapping("/khoa/{maKhoa}")
-    @Operation(summary = "Lọc theo khoa")
-    public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getByKhoa(
-            @PathVariable String maKhoa) {
-        log.info("GET /api/bch/khoa/{}", maKhoa);
-        List<BCHDoanHoiDTO> members = bchService.getByKhoa(maKhoa);
-        return ResponseEntity.ok(ApiResponse.success(members));
+    @DeleteMapping("/chuc-vu/{id}")
+    @Operation(summary = "Xóa chức vụ của BCH")
+    public ResponseEntity<ApiResponse<Void>> removeChucVu(@PathVariable Long id) {
+        log.info("DELETE /api/bch/chuc-vu/{}", id);
+        bchService.removeChucVu(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa chức vụ thành công", null));
     }
+
+    @GetMapping("/{maBch}/chuc-vu")
+    @Operation(summary = "Lấy danh sách chức vụ của BCH")
+    public ResponseEntity<ApiResponse<List<BCHChucVuDTO>>> getChucVuByBCH(
+            @PathVariable String maBch) {
+        log.info("GET /api/bch/{}/chuc-vu", maBch);
+        List<BCHChucVuDTO> list = bchService.getChucVuByBCH(maBch);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    // ========== TÌM KIẾM & LỌC ==========
 
     @GetMapping("/search")
-    @Operation(summary = "Tìm kiếm BCH")
+    @Operation(summary = "Tìm kiếm BCH theo từ khóa")
     public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> search(
             @RequestParam String keyword) {
         log.info("GET /api/bch/search?keyword={}", keyword);
-        List<BCHDoanHoiDTO> members = bchService.searchByKeyword(keyword);
-        return ResponseEntity.ok(ApiResponse.success(members));
+        List<BCHDoanHoiDTO> list = bchService.searchByKeyword(keyword);
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
 
-    @GetMapping("/search/advanced")
-    @Operation(summary = "Tìm kiếm nâng cao")
-    public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> searchAdvanced(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String chucVu,
-            @RequestParam(required = false) String maKhoa) {
-        log.info("GET /api/bch/search/advanced?keyword={}&chucVu={}&khoa={}",
-                keyword, chucVu, maKhoa);
-        List<BCHDoanHoiDTO> members = bchService.searchAdvanced(keyword, chucVu, maKhoa);
-        return ResponseEntity.ok(ApiResponse.success(members));
+    @GetMapping("/nhiem-ky/{nhiemKy}")
+    @Operation(summary = "Lọc BCH theo nhiệm kỳ")
+    public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getByNhiemKy(
+            @PathVariable String nhiemKy) {
+        log.info("GET /api/bch/nhiem-ky/{}", nhiemKy);
+        List<BCHDoanHoiDTO> list = bchService.getByNhiemKy(nhiemKy);
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
 
-    // ========== STATISTICS ENDPOINTS ==========
+    @GetMapping("/chuc-vu/{maChucVu}/bch")
+    @Operation(summary = "Lấy BCH theo chức vụ")
+    public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getBCHByChucVu(
+            @PathVariable String maChucVu) {
+        log.info("GET /api/bch/chuc-vu/{}/bch", maChucVu);
+        List<BCHDoanHoiDTO> list = bchService.getBCHByChucVu(maChucVu);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
 
-    @GetMapping("/statistics/by-position")
-    @Operation(summary = "Thống kê theo chức vụ")
-    public ResponseEntity<ApiResponse<Map<String, Long>>> countByPosition() {
-        log.info("GET /api/bch/statistics/by-position");
-        Map<String, Long> stats = bchService.countByChucVu();
+    @GetMapping("/ban/{maBan}/bch")
+    @Operation(summary = "Lấy BCH theo ban")
+    public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getBCHByBan(
+            @PathVariable String maBan) {
+        log.info("GET /api/bch/ban/{}/bch", maBan);
+        List<BCHDoanHoiDTO> list = bchService.getBCHByBan(maBan);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    // ========== THỐNG KÊ ==========
+
+    @GetMapping("/statistics")
+    @Operation(summary = "Thống kê BCH")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics() {
+        log.info("GET /api/bch/statistics");
+        Map<String, Object> stats = bchService.getStatistics();
         return ResponseEntity.ok(ApiResponse.success(stats));
-    }
-
-    @GetMapping("/statistics/by-department")
-    @Operation(summary = "Thống kê theo khoa")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> countByDepartment() {
-        log.info("GET /api/bch/statistics/by-department");
-        List<Map<String, Object>> stats = bchService.countByKhoa();
-        return ResponseEntity.ok(ApiResponse.success(stats));
-    }
-
-    @GetMapping("/statistics/total")
-    @Operation(summary = "Tổng số BCH hoạt động")
-    public ResponseEntity<ApiResponse<Long>> getTotalActive() {
-        log.info("GET /api/bch/statistics/total");
-        long total = bchService.getTotalActive();
-        return ResponseEntity.ok(ApiResponse.success(total));
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
-        log.error("Error in BCHDoanHoiController", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(e.getMessage()));
     }
 }

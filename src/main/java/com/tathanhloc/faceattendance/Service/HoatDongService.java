@@ -353,7 +353,7 @@ public class HoatDongService {
                 .soLuongToiDa(entity.getSoLuongToiDa())
                 .diemRenLuyen(entity.getDiemRenLuyen())
                 .maBchPhuTrach(entity.getNguoiPhuTrach() != null ? entity.getNguoiPhuTrach().getMaBch() : null)
-                .tenNguoiPhuTrach(entity.getNguoiPhuTrach() != null ? entity.getNguoiPhuTrach().getHoTen() : null)
+                .tenNguoiPhuTrach(entity.getNguoiPhuTrach() != null ? entity.getNguoiPhuTrach().getSinhVien().getHoTen() : null)
                 .maKhoa(entity.getKhoa() != null ? entity.getKhoa().getMaKhoa() : null)
                 .tenKhoa(entity.getKhoa() != null ? entity.getKhoa().getTenKhoa() : null)
                 .maNganh(entity.getNganh() != null ? entity.getNganh().getMaNganh() : null)

@@ -356,7 +356,7 @@ public class DiemDanhHoatDongService {
                 .maBchXacNhan(entity.getNguoiCheckIn() != null ?
                         entity.getNguoiCheckIn().getMaBch() : null)
                 .tenNguoiXacNhan(entity.getNguoiCheckIn() != null ?
-                        entity.getNguoiCheckIn().getHoTen() : null)
+                        entity.getNguoiCheckIn().getSinhVien().getHoTen() : null)
                 .ghiChu(entity.getGhiChu())
                 .thietBiQuet(entity.getThietBiQuet())
                 .latitude(entity.getLatitude())

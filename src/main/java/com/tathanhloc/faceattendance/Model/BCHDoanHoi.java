@@ -18,32 +18,26 @@ public class BCHDoanHoi {
 
     @Id
     @Column(name = "ma_bch", length = 20)
-    private String maBch;
+    private String maBch; // BCHKGU0001, BCHKGU0002...
 
-    @Column(name = "ho_ten", nullable = false, length = 100)
-    private String hoTen;
+    @OneToOne  // ← THAY ĐỔI: Liên kết với SinhVien
+    @JoinColumn(name = "ma_sv", nullable = false)
+    private SinhVien sinhVien;
 
-    @Column(name = "email", nullable = false, unique = true, length = 100)
-    private String email;
-
-    @Column(name = "so_dien_thoai", length = 15)
-    private String soDienThoai;
-
-    @Column(name = "chuc_vu", length = 50)
-    private String chucVu;
-
-    @ManyToOne
-    @JoinColumn(name = "ma_khoa")
-    private Khoa khoa;
+    // XÓA: chucVu field (vì giờ dùng bảng trung gian)
+    // XÓA: hoTen, email (lấy từ SinhVien)
 
     @Column(name = "nhiem_ky", length = 20)
-    private String nhiemKy;
+    private String nhiemKy; // "2023-2024"
 
     @Column(name = "ngay_bat_dau")
     private LocalDate ngayBatDau;
 
     @Column(name = "ngay_ket_thuc")
     private LocalDate ngayKetThuc;
+
+    @Column(name = "hinh_anh", length = 255)
+    private String hinhAnh;
 
     @Column(name = "is_active")
     @Builder.Default

@@ -15,47 +15,46 @@ import java.util.Optional;
 @Repository
 public interface BCHDoanHoiRepository extends JpaRepository<BCHDoanHoi, String> {
 
+
+    List<BCHDoanHoi> findByIsActiveTrue();
+    Optional<BCHDoanHoi> findBySinhVienMaSv(String maSv);
+
+
     // ========== BASIC QUERIES ==========
 
-    Optional<BCHDoanHoi> findByEmail(String email);
-    boolean existsByEmail(String email);
     List<BCHDoanHoi> findByIsActive(Boolean isActive);
-    long countByIsActiveTrue();
-
-    // ========== SEARCH BY ATTRIBUTES ==========
-
-    List<BCHDoanHoi> findByChucVu(String chucVu);
-    List<BCHDoanHoi> findByChucVuAndIsActive(String chucVu, Boolean isActive);
-    List<BCHDoanHoi> findByKhoaMaKhoa(String maKhoa);
-    List<BCHDoanHoi> findByKhoaMaKhoaAndIsActive(String maKhoa, Boolean isActive);
 
     // ========== SEARCH & FILTER ==========
 
-    @Query("SELECT b FROM BCHDoanHoi b WHERE " +
-            "(LOWER(b.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "OR LOWER(b.email) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-            "AND b.isActive = true")
+    @Query("SELECT b FROM BCHDoanHoi b WHERE b.isActive = true " +
+            "AND (LOWER(b.maBch) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(b.sinhVien.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(b.sinhVien.email) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    List<BCHDoanHoi> searchAdvanced(@Param("keyword") String keyword);
+
+
+    List<BCHDoanHoi> findByIsActiveTrueOrderByMaBchDesc();
+
+    Optional<BCHDoanHoi> findBySinhVienMaSvAndIsActiveTrue(String maSv);
+
+    boolean existsBySinhVienMaSv(String maSv);
+
+    @Query("SELECT COUNT(b) FROM BCHDoanHoi b WHERE b.isActive = true")
+    long countActive();
+
+    // Tìm mã BCH lớn nhất để gen mã mới
+    @Query("SELECT b FROM BCHDoanHoi b WHERE b.maBch LIKE 'BCHKGU%' " +
+            "ORDER BY b.maBch DESC")
+    List<BCHDoanHoi> findLatestBCHCode();
+
+    // Tìm kiếm BCH
+    @Query("SELECT b FROM BCHDoanHoi b WHERE b.isActive = true " +
+            "AND (LOWER(b.maBch) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(b.sinhVien.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(b.sinhVien.maSv) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "ORDER BY b.maBch DESC")
     List<BCHDoanHoi> searchByKeyword(@Param("keyword") String keyword);
 
-    @Query("SELECT b FROM BCHDoanHoi b WHERE " +
-            "(:keyword IS NULL OR LOWER(b.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "OR LOWER(b.email) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-            "AND (:chucVu IS NULL OR b.chucVu = :chucVu) " +
-            "AND (:maKhoa IS NULL OR b.khoa.maKhoa = :maKhoa) " +
-            "AND b.isActive = true")
-    List<BCHDoanHoi> searchAdvanced(
-            @Param("keyword") String keyword,
-            @Param("chucVu") String chucVu,
-            @Param("maKhoa") String maKhoa
-    );
-
-    // ========== STATISTICS ==========
-
-    @Query("SELECT b.chucVu, COUNT(b) FROM BCHDoanHoi b " +
-            "WHERE b.isActive = true GROUP BY b.chucVu")
-    List<Object[]> countByChucVu();
-
-    @Query("SELECT b.khoa.maKhoa, b.khoa.tenKhoa, COUNT(b) FROM BCHDoanHoi b " +
-            "WHERE b.isActive = true GROUP BY b.khoa.maKhoa, b.khoa.tenKhoa")
-    List<Object[]> countByKhoa();
+    // Tìm BCH theo nhiệm kỳ
+    List<BCHDoanHoi> findByNhiemKyAndIsActiveTrueOrderByMaBchDesc(String nhiemKy);
 }

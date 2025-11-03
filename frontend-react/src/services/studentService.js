@@ -2,40 +2,42 @@ import api from './api';
 
 const studentService = {
   // Get all students with pagination
-  getAll: async (params = {}) => {
-    const {
-      page = 0,
-      size = 10,
-      sortBy = 'maSv',
-      direction = 'asc',
-      search,           // ← THÊM
-      maLop,           // ← THÊM
-      isActive         // ← THÊM
-    } = params;
-
-    // Tạo object params để gửi lên server
-    const queryParams = {
-      page,
-      size,
-      sortBy,
-      direction
-    };
-
-    // Chỉ thêm params nếu có giá trị
-    if (search) queryParams.search = search;
-    if (maLop) queryParams.classFilter = maLop;  // Backend expects "classFilter"
-    if (isActive !== null && isActive !== undefined) {
-      queryParams.status = isActive ? 'active' : 'inactive';  // Backend expects "status"
-    }
-
-    // Gọi endpoint /search nếu có filter, ngược lại gọi endpoint chính
-    const endpoint = (search || maLop || isActive !== null)
-      ? '/api/sinhvien/search'
-      : '/api/sinhvien';
-
-    const response = await api.get(endpoint, { params: queryParams });
-    return response.data;
-  },
+  // Get all students with pagination
+getAll: async (params = {}) => {
+  const { 
+    page = 0, 
+    size = 10, 
+    sortBy = 'maSv', 
+    direction = 'asc',
+    search,      // ← Thêm
+    maLop,       // ← Thêm
+    isActive     // ← Thêm
+  } = params;
+  
+  // Tạo object params
+  const queryParams = {
+    page,
+    size,
+    sortBy,
+    direction
+  };
+  
+  // Chỉ thêm nếu có giá trị (tránh gửi undefined)
+  if (search) {
+    queryParams.search = search;
+  }
+  if (maLop) {
+    queryParams.maLop = maLop;
+  }
+  if (isActive !== null && isActive !== undefined) {
+    queryParams.isActive = isActive;
+  }
+  
+  const response = await api.get('/api/sinhvien', {
+    params: queryParams
+  });
+  return response.data;
+},
 
   // Get all active students
   getAllActive: async () => {
