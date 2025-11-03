@@ -49,6 +49,9 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
         sv.setNgaySinh(dto.getNgaySinh());
         sv.setEmail(dto.getEmail());
         sv.setIsActive(dto.getIsActive());
+        // THÊM DÒNG NÀY:
+        sv.setSdt(dto.getSdt());
+
         sv.setLop(lopRepository.findById(dto.getMaLop()).orElseThrow(() ->
                 new RuntimeException("Không tìm thấy lớp với mã: " + dto.getMaLop())));
 
@@ -63,8 +66,10 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
                 .gioiTinh(sv.getGioiTinh())
                 .ngaySinh(sv.getNgaySinh())
                 .email(sv.getEmail())
+                .sdt(sv.getSdt())                          // ← THÊM DÒNG NÀY
                 .isActive(sv.getIsActive())
                 .maLop(sv.getLop().getMaLop())
+                .tenLop(sv.getLop().getTenLop())          // ← THÊM DÒNG NÀY
                 .build();
     }
 
@@ -76,6 +81,7 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
                 .gioiTinh(dto.getGioiTinh())
                 .ngaySinh(dto.getNgaySinh())
                 .email(dto.getEmail())
+                .sdt(dto.getSdt())                        // ← THÊM DÒNG NÀY
                 .isActive(dto.getIsActive())
                 .lop(lopRepository.findById(dto.getMaLop()).orElseThrow(() ->
                         new RuntimeException("Không tìm thấy lớp với mã: " + dto.getMaLop())))

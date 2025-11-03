@@ -195,9 +195,14 @@ public class SinhVienController {
             log.info("Searching students with filters - search: {}, class: {}, status: {}",
                     search, classFilter, status);
 
-            // TODO: Implement advanced search logic with filters
-            // For now, use existing pagination endpoint
-            return getAll(page, size, sortBy, direction);
+            // Convert status string to isActive boolean
+            Boolean isActive = null;
+            if (status != null && !status.isEmpty()) {
+                isActive = status.equalsIgnoreCase("active") ? true :
+                          status.equalsIgnoreCase("inactive") ? false : null;
+            }
+
+            return getAll(page, size, sortBy, direction, search, classFilter, isActive);
 
         } catch (Exception e) {
             log.error("Error searching students: ", e);
