@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chuyenvien")
@@ -28,6 +29,14 @@ public class ChuyenVienController {
         log.info("GET /api/chuyenvien");
         List<ChuyenVienDTO> list = chuyenVienService.getAll();
         return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    @GetMapping("/statistics")
+    @Operation(summary = "Lấy thống kê chuyên viên")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics() {
+        log.info("GET /api/chuyenvien/statistics");
+        Map<String, Object> stats = chuyenVienService.getStatistics();
+        return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
     @GetMapping("/{maChuyenVien}")
@@ -88,4 +97,5 @@ public class ChuyenVienController {
         long count = chuyenVienService.getTotalActive();
         return ResponseEntity.ok(ApiResponse.success(count));
     }
+
 }

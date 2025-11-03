@@ -10,7 +10,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -118,6 +120,31 @@ public class ChuyenVienService {
     @Transactional(readOnly = true)
     public long getTotalActive() {
         return chuyenVienRepository.countActive();
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getStatistics() {
+        log.debug("Getting chuyen vien statistics");
+        Map<String, Object> stats = new HashMap<>();
+
+        long total = chuyenVienRepository.count();
+        long active = chuyenVienRepository.countActive();
+
+        stats.put("totalChuyenVien", total);
+        stats.put("activeChuyenVien", active);
+        stats.put("inactiveChuyenVien", total - active);
+
+        // Group by khoa if exists
+        Map<String, Long> byKhoa = chuyenVienRepository.findByIsActiveTrueOrderByHoTenAsc()
+                .stream()
+                .filter(cv -> cv.getKhoa() != null)
+                .collect(Collectors.groupingBy(
+                        cv -> cv.getKhoa().getTenKhoa(),
+                        Collectors.counting()
+                ));
+        stats.put("byKhoa", byKhoa);
+
+        return stats;
     }
 
     // ========== MAPPING METHODS ==========
