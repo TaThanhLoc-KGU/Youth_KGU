@@ -36,9 +36,16 @@ const Students = () => {
   const { data: facultyList = [] } = useQuery('faculties', () => khoaService.getAll());
   const { data: majorList = [] } = useQuery('majors', () => nganhService.getAll());
 
+  // Filter classes by faculty/major for display (client-side filtering)
+  const filteredClasses = Array.isArray(classList) ? classList.filter(cls => {
+    if (facultyFilter && cls.maKhoa !== facultyFilter) return false;
+    if (majorFilter && cls.maNganh !== majorFilter) return false;
+    return true;
+  }) : [];
+
   // Fetch students with pagination and filters
   const { data: studentsData, isLoading } = useQuery(
-    ['students', page, size, search, statusFilter, classFilter, facultyFilter, majorFilter],
+    ['students', page, size, search, statusFilter, classFilter],
     () => studentService.getAll({
       page,
       size,
@@ -46,8 +53,6 @@ const Students = () => {
       direction: 'asc',
       search,
       maLop: classFilter,
-      maKhoa: facultyFilter,
-      maNganh: majorFilter,
       isActive: statusFilter === 'all' ? null : statusFilter === 'active' ? true : false
     }),
     {
@@ -370,7 +375,7 @@ const Students = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                 >
                   <option value="">Tất cả lớp</option>
-                  {Array.isArray(classList) && classList.map(cls => (
+                  {filteredClasses.map(cls => (
                     <option key={cls.maLop} value={cls.maLop}>
                       {cls.maLop} - {cls.tenLop || ''}
                     </option>

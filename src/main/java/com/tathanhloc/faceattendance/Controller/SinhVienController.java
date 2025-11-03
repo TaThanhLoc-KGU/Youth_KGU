@@ -42,8 +42,6 @@ public class SinhVienController {
                                                     @RequestParam(defaultValue = "asc") String direction,
                                                     @RequestParam(required = false) String search,
                                                     @RequestParam(required = false) String maLop,
-                                                    @RequestParam(required = false) String maKhoa,
-                                                    @RequestParam(required = false) String maNganh,
                                                     @RequestParam(required = false) Boolean isActive) {
         Pageable pageable = PageRequest.of(
                 page,
@@ -66,18 +64,6 @@ public class SinhVienController {
         if (maLop != null && !maLop.isEmpty()) {
             allStudents = allStudents.stream()
                     .filter(s -> s.getMaLop() != null && s.getMaLop().equals(maLop))
-                    .toList();
-        }
-
-        if (maKhoa != null && !maKhoa.isEmpty()) {
-            allStudents = allStudents.stream()
-                    .filter(s -> s.getMaKhoa() != null && s.getMaKhoa().equals(maKhoa))
-                    .toList();
-        }
-
-        if (maNganh != null && !maNganh.isEmpty()) {
-            allStudents = allStudents.stream()
-                    .filter(s -> s.getMaNganh() != null && s.getMaNganh().equals(maNganh))
                     .toList();
         }
 
