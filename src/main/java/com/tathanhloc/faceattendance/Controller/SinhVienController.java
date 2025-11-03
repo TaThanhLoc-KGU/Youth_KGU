@@ -39,13 +39,64 @@ public class SinhVienController {
     public ResponseEntity<Page<SinhVienDTO>> getAll(@RequestParam(defaultValue = "0") int page,
                                                     @RequestParam(defaultValue = "10") int size,
                                                     @RequestParam(defaultValue = "maSv") String sortBy,
-                                                    @RequestParam(defaultValue = "asc") String direction) {
+                                                    @RequestParam(defaultValue = "asc") String direction,
+                                                    @RequestParam(required = false) String search,
+                                                    @RequestParam(required = false) String maLop,
+                                                    @RequestParam(required = false) String maKhoa,
+                                                    @RequestParam(required = false) String maNganh,
+                                                    @RequestParam(required = false) Boolean isActive) {
         Pageable pageable = PageRequest.of(
                 page,
                 size,
                 direction.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending()
         );
-        return ResponseEntity.ok(sinhVienService.getAllWithPagination(pageable));
+
+        List<SinhVienDTO> allStudents = sinhVienService.getAll();
+
+        // Apply filters
+        if (search != null && !search.isEmpty()) {
+            String searchLower = search.toLowerCase();
+            allStudents = allStudents.stream()
+                    .filter(s -> s.getMaSv().toLowerCase().contains(searchLower) ||
+                               s.getHoTen().toLowerCase().contains(searchLower) ||
+                               (s.getEmail() != null && s.getEmail().toLowerCase().contains(searchLower)))
+                    .toList();
+        }
+
+        if (maLop != null && !maLop.isEmpty()) {
+            allStudents = allStudents.stream()
+                    .filter(s -> s.getMaLop() != null && s.getMaLop().equals(maLop))
+                    .toList();
+        }
+
+        if (maKhoa != null && !maKhoa.isEmpty()) {
+            allStudents = allStudents.stream()
+                    .filter(s -> s.getMaKhoa() != null && s.getMaKhoa().equals(maKhoa))
+                    .toList();
+        }
+
+        if (maNganh != null && !maNganh.isEmpty()) {
+            allStudents = allStudents.stream()
+                    .filter(s -> s.getMaNganh() != null && s.getMaNganh().equals(maNganh))
+                    .toList();
+        }
+
+        if (isActive != null) {
+            allStudents = allStudents.stream()
+                    .filter(s -> s.getIsActive() == isActive)
+                    .toList();
+        }
+
+        // Convert to page
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), allStudents.size());
+        List<SinhVienDTO> pageContent = allStudents.subList(start, end);
+
+        return ResponseEntity.ok(new org.springframework.data.domain.PageImpl<>(
+                pageContent,
+                pageable,
+                allStudents.size()
+        ));
     }
 
 
