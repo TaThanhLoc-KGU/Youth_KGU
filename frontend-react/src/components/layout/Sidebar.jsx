@@ -31,6 +31,7 @@ const Sidebar = () => {
     [ROLES.ADMIN]: [
       { icon: LayoutDashboard, label: 'Dashboard', path: ROUTES.ADMIN_DASHBOARD },
       { icon: Users, label: 'Sinh viên', path: ROUTES.ADMIN_STUDENTS },
+      { icon: Users, label: 'Giảng viên', path: ROUTES.ADMIN_GIANGVIEN },
       { icon: Activity, label: 'Hoạt động', path: ROUTES.ADMIN_ACTIVITIES },
       { icon: Building2, label: 'Khoa', path: ROUTES.ADMIN_KHOA },
       { icon: Briefcase, label: 'Ngành', path: ROUTES.ADMIN_NGANH },

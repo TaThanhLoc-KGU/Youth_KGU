@@ -116,6 +116,7 @@ export const ROUTES = {
   ADMIN_DASHBOARD: '/admin/dashboard',
   ADMIN_STUDENTS: '/admin/students',
   ADMIN_TEACHERS: '/admin/teachers',
+  ADMIN_GIANGVIEN: '/admin/giangvien',
   ADMIN_ACTIVITIES: '/admin/activities',
   ADMIN_KHOA: '/admin/khoa',
   ADMIN_NGANH: '/admin/nganh',

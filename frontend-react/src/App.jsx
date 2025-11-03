@@ -61,6 +61,7 @@ function App() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="students" element={<Students />} />
           <Route path="teachers" element={<GiangVien />} />
+          <Route path="giangvien" element={<GiangVien />} />
           <Route path="activities" element={<Activities />} />
           <Route path="bch" element={<BCH />} />
           <Route path="chuc-vu" element={<ChucVu />} />
