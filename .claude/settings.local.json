@@ -10,7 +10,11 @@
       "Bash(mvn clean:*)",
       "Bash(mvn compile:*)",
       "Bash(timeout 30 mvn spring-boot:run:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(timeout 60 mvn spring-boot:run:*)",
+      "Bash(ping:*)",
+      "Bash(nul)",
+      "Bash(timeout 15 bash:*)"
     ],
     "deny": [],
     "ask": []
