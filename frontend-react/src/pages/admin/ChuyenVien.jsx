@@ -24,9 +24,6 @@ const ChuyenVien = () => {
     email: '',
     sdt: '',
     chucDanh: '',
-    khoa: '',
-    diaChi: '',
-    ghiChu: '',
     isActive: true,
   });
   const [errors, setErrors] = useState({});
@@ -134,11 +131,6 @@ const ChuyenVien = () => {
       render: (value) => <Badge variant="info">{value || '-'}</Badge>,
     },
     {
-      header: 'Khoa',
-      accessor: 'khoa',
-      render: (value) => value || '-',
-    },
-    {
       header: 'Trạng thái',
       accessor: 'isActive',
       width: '100px',
@@ -189,9 +181,6 @@ const ChuyenVien = () => {
       email: '',
       sdt: '',
       chucDanh: '',
-      khoa: '',
-      diaChi: '',
-      ghiChu: '',
       isActive: true,
     });
     setErrors({});
@@ -212,9 +201,6 @@ const ChuyenVien = () => {
       email: chuyenvien.email || '',
       sdt: chuyenvien.sdt || '',
       chucDanh: chuyenvien.chucDanh || '',
-      khoa: chuyenvien.khoa || '',
-      diaChi: chuyenvien.diaChi || '',
-      ghiChu: chuyenvien.ghiChu || '',
       isActive: chuyenvien.isActive !== false,
     });
     setErrors({});
@@ -235,9 +221,6 @@ const ChuyenVien = () => {
       email: '',
       sdt: '',
       chucDanh: '',
-      khoa: '',
-      diaChi: '',
-      ghiChu: '',
       isActive: true,
     });
     setErrors({});
@@ -355,10 +338,6 @@ const ChuyenVien = () => {
                       <p className="mt-1">{selectedChuyenVien.chucDanh || '-'}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Khoa</label>
-                      <p className="mt-1">{selectedChuyenVien.khoa || '-'}</p>
-                    </div>
-                    <div>
                       <label className="text-sm font-medium text-gray-700">Trạng thái</label>
                       <p className="mt-1">
                         <Badge variant={selectedChuyenVien.isActive ? 'success' : 'danger'}>
@@ -366,16 +345,6 @@ const ChuyenVien = () => {
                         </Badge>
                       </p>
                     </div>
-                    <div className="col-span-2">
-                      <label className="text-sm font-medium text-gray-700">Địa chỉ</label>
-                      <p className="mt-1">{selectedChuyenVien.diaChi || '-'}</p>
-                    </div>
-                    {selectedChuyenVien.ghiChu && (
-                      <div className="col-span-2">
-                        <label className="text-sm font-medium text-gray-700">Ghi chú</label>
-                        <p className="mt-1 text-sm text-gray-600">{selectedChuyenVien.ghiChu}</p>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -428,27 +397,6 @@ const ChuyenVien = () => {
                   onChange={(e) => handleInputChange('chucDanh', e.target.value)}
                 />
               </div>
-
-              <Input
-                label="Khoa"
-                placeholder="Nhập khoa"
-                value={formData.khoa}
-                onChange={(e) => handleInputChange('khoa', e.target.value)}
-              />
-
-              <Input
-                label="Địa chỉ"
-                placeholder="Nhập địa chỉ"
-                value={formData.diaChi}
-                onChange={(e) => handleInputChange('diaChi', e.target.value)}
-              />
-
-              <Textarea
-                label="Ghi chú"
-                placeholder="Ghi chú thêm..."
-                value={formData.ghiChu}
-                onChange={(e) => handleInputChange('ghiChu', e.target.value)}
-              />
 
               <div className="flex items-center gap-2">
                 <input

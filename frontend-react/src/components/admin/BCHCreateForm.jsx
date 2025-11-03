@@ -5,6 +5,7 @@ import { ChevronRight, ChevronLeft, Plus, Trash2 } from 'lucide-react';
 import bchService from '../../services/bchService';
 import chucVuService from '../../services/chucVuService';
 import studentService from '../../services/studentService';
+import giangvienService from '../../services/giangvienService';
 import chuyenVienService from '../../services/chuyenVienService';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
@@ -43,10 +44,7 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
   const { data: allStudents = [] } = useQuery('students-for-bch-search', studentService.getAll);
 
   // Fetch all teachers
-  const { data: allTeachers = [] } = useQuery('teachers-for-bch-search', async () => {
-    // Placeholder - adjust if giangVienService exists
-    return [];
-  });
+  const { data: allTeachers = [] } = useQuery('teachers-for-bch-search', giangvienService.getAll);
 
   // Fetch all chuyen vien
   const { data: allChuyenVien = [] } = useQuery('chuyenvien-for-bch-search', chuyenVienService.getAll);
@@ -211,7 +209,9 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
       maThanhVien:
         loaiThanhVien === BCH_TYPES.SINH_VIEN
           ? selectedPerson.maSv
-          : selectedPerson.id,
+          : loaiThanhVien === BCH_TYPES.GIANG_VIEN
+            ? selectedPerson.maGv
+            : selectedPerson.maChuyenVien,
       nhiemKy: formData.nhiemKy,
       ngayBatDau: formData.ngayBatDau,
       ngayKetThuc: formData.ngayKetThuc,
@@ -332,13 +332,21 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
                     <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 mt-1 max-h-64 overflow-y-auto">
                       {searchResults.map((person) => (
                         <div
-                          key={person.id || person.maSv}
+                          key={
+                            loaiThanhVien === BCH_TYPES.SINH_VIEN
+                              ? person.maSv
+                              : loaiThanhVien === BCH_TYPES.GIANG_VIEN
+                                ? person.maGv
+                                : person.maChuyenVien
+                          }
                           onClick={() => handleSelectPerson(person)}
                           className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                         >
                           <p className="font-medium text-sm">
                             {person.hoTen}
                             {loaiThanhVien === BCH_TYPES.SINH_VIEN && ` (${person.maSv})`}
+                            {loaiThanhVien === BCH_TYPES.GIANG_VIEN && ` (${person.maGv})`}
+                            {loaiThanhVien === BCH_TYPES.CHUYEN_VIEN && ` (${person.maChuyenVien})`}
                           </p>
                           <p className="text-xs text-gray-600">
                             {person.email}
@@ -360,7 +368,15 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <h4 className="font-semibold text-blue-900 mb-2">Đã chọn</h4>
                   <div className="text-sm space-y-1 text-blue-800">
-                    {selectedPerson.maSv && <p>Mã: {selectedPerson.maSv}</p>}
+                    {loaiThanhVien === BCH_TYPES.SINH_VIEN && selectedPerson.maSv && (
+                      <p>Mã: {selectedPerson.maSv}</p>
+                    )}
+                    {loaiThanhVien === BCH_TYPES.GIANG_VIEN && selectedPerson.maGv && (
+                      <p>Mã: {selectedPerson.maGv}</p>
+                    )}
+                    {loaiThanhVien === BCH_TYPES.CHUYEN_VIEN && selectedPerson.maChuyenVien && (
+                      <p>Mã: {selectedPerson.maChuyenVien}</p>
+                    )}
                     <p>Tên: {selectedPerson.hoTen}</p>
                     {selectedPerson.email && <p>Email: {selectedPerson.email}</p>}
                   </div>
