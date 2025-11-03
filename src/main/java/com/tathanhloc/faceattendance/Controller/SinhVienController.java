@@ -292,17 +292,23 @@ public class SinhVienController {
      */
     @PostMapping("/import-excel/confirm")
     public ResponseEntity<Map<String, Object>> confirmExcelImport(
-            @RequestBody ExcelImportPreviewDTO previewData) {
+            @RequestParam("file") MultipartFile file) {
         try {
-            log.info("Confirm Excel import: {} valid rows", previewData.getValidRows());
+            log.info("Confirm Excel import: {}", file.getOriginalFilename());
 
+            if (file.isEmpty()) {
+                throw new RuntimeException("File không được để trống");
+            }
+
+            ExcelImportPreviewDTO preview = excelService.previewExcel(file);
             @SuppressWarnings("unchecked")
-            List<SinhVienDTO> validData = (List<SinhVienDTO>) (List<?>) previewData.getValidData();
+            List<SinhVienDTO> validData = (List<SinhVienDTO>) (List<?>) preview.getValidData();
             List<SinhVienDTO> savedList = sinhVienService.importFromExcel(validData);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("totalImported", savedList.size());
+            response.put("successCount", savedList.size());
+            response.put("failureCount", preview.getErrorRows());
             response.put("data", savedList);
 
             return ResponseEntity.ok(response);

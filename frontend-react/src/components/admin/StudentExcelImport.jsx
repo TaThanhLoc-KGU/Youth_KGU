@@ -18,7 +18,6 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
     {
       onSuccess: (result) => {
         setPreviewData(result);
-        setUploadedFile(file);
         toast.success(`Tải preview thành công`);
       },
       onError: (error) => {
@@ -32,12 +31,14 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
     {
       onSuccess: (result) => {
         setConfirmResult(result);
+        const successCount = result.successCount || result.validRows || 0;
+        const failureCount = result.failureCount || result.errorRows || 0;
         toast.success(
-          `Nhập thành công ${result.successCount} sinh viên${
-            result.failureCount > 0 ? `, thất bại ${result.failureCount}` : ''
+          `Nhập thành công ${successCount} sinh viên${
+            failureCount > 0 ? `, thất bại ${failureCount}` : ''
           }`
         );
-        if (result.successCount > 0) {
+        if (successCount > 0) {
           onImportSuccess?.();
         }
       },
@@ -63,6 +64,7 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
     }
 
     setFileName(file.name);
+    setUploadedFile(file);
     setPreviewData(null);
     setConfirmResult(null);
     previewMutation.mutate(file);
@@ -312,24 +314,24 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
             </h3>
 
             {/* Success Summary */}
-            {confirmResult.successCount > 0 && (
+            {(confirmResult.successCount || confirmResult.validRows || 0) > 0 && (
               <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg border border-green-200 mb-4">
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-green-900">
-                    Nhập thành công {confirmResult.successCount} sinh viên
+                    Nhập thành công {confirmResult.successCount || confirmResult.validRows || 0} sinh viên
                   </p>
                 </div>
               </div>
             )}
 
             {/* Error Summary */}
-            {confirmResult.errorCount > 0 && (
+            {(confirmResult.errorCount || confirmResult.failureCount || confirmResult.errorRows || 0) > 0 && (
               <div className="flex items-start gap-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200 mb-4">
                 <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-yellow-900">
-                    Lỗi khi nhập {confirmResult.errorCount} sinh viên
+                    Lỗi khi nhập {confirmResult.errorCount || confirmResult.failureCount || confirmResult.errorRows || 0} sinh viên
                   </p>
                 </div>
               </div>

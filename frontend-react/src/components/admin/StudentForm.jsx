@@ -7,16 +7,13 @@ import { useEmailValidation } from '../../hooks/useEmailValidation';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
-import ImageUpload from '../common/ImageUpload';
 
 const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
   const {
     register,
     handleSubmit,
     formState: { errors },
-    setValue,
     watch,
-    getValues,
   } = useForm({
     defaultValues: initialData ? {
       ...initialData,
@@ -201,25 +198,6 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
             { value: true, label: 'Hoạt động' },
             { value: false, label: 'Ngừng hoạt động' },
           ]}
-        />
-      </div>
-
-      {/* Ảnh đại diện */}
-      <div>
-        <ImageUpload
-          label="Ảnh đại diện"
-          value={watch('hinhAnh')}
-          onChange={(file) => {
-            if (file) {
-              // Convert to base64 or upload to server
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                setValue('hinhAnh', reader.result);
-              };
-              reader.readAsDataURL(file);
-            }
-          }}
-          helperText="Ảnh sẽ được sử dụng để nhận diện khuôn mặt"
         />
       </div>
 
