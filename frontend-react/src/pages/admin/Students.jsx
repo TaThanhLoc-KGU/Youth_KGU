@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { toast } from 'react-toastify';
 import { Plus, Edit, Trash2, Eye, RefreshCw, Download, Upload } from 'lucide-react';
 import studentService from '../../services/studentService';
+import lopService from '../../services/lopService';
+import khoaService from '../../services/khoaService';
+import nganhService from '../../services/nganhService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import SearchInput from '../../components/common/SearchInput';
@@ -19,6 +22,10 @@ const Students = () => {
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [classFilter, setClassFilter] = useState('');
+  const [facultyFilter, setFacultyFilter] = useState('');
+  const [majorFilter, setMajorFilter] = useState('');
+  const [selectedRows, setSelectedRows] = useState(new Set());
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -26,10 +33,25 @@ const Students = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [modalMode, setModalMode] = useState('create'); // 'create' | 'edit'
 
-  // Fetch students with pagination
+  // Fetch dropdown data
+  const { data: classList = [] } = useQuery('classes', () => lopService.getAll());
+  const { data: facultyList = [] } = useQuery('faculties', () => khoaService.getAll());
+  const { data: majorList = [] } = useQuery('majors', () => nganhService.getAll());
+
+  // Fetch students with pagination and filters
   const { data: studentsData, isLoading, refetch } = useQuery(
-    ['students', page, size, search, statusFilter],
-    () => studentService.getAll({ page, size, sortBy: 'maSv', direction: 'asc' }),
+    ['students', page, size, search, statusFilter, classFilter, facultyFilter, majorFilter],
+    () => studentService.getAll({
+      page,
+      size,
+      sortBy: 'maSv',
+      direction: 'asc',
+      search,
+      maLop: classFilter,
+      maKhoa: facultyFilter,
+      maNganh: majorFilter,
+      isActive: statusFilter === 'all' ? null : statusFilter === 'active' ? true : false
+    }),
     {
       keepPreviousData: true,
     }
@@ -49,8 +71,55 @@ const Students = () => {
     }
   );
 
+  // Handle row selection
+  const handleSelectRow = (maSv) => {
+    const newSelectedRows = new Set(selectedRows);
+    if (newSelectedRows.has(maSv)) {
+      newSelectedRows.delete(maSv);
+    } else {
+      newSelectedRows.add(maSv);
+    }
+    setSelectedRows(newSelectedRows);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedRows.size === (studentsData?.content?.length || 0)) {
+      setSelectedRows(new Set());
+    } else {
+      const allMaSv = studentsData?.content?.map(s => s.maSv) || [];
+      setSelectedRows(new Set(allMaSv));
+    }
+  };
+
   // Table columns
   const columns = [
+    {
+      header: (
+        <input
+          type="checkbox"
+          checked={selectedRows.size > 0 && selectedRows.size === (studentsData?.content?.length || 0)}
+          onChange={handleSelectAll}
+          className="w-4 h-4"
+        />
+      ),
+      accessor: 'select',
+      width: '50px',
+      render: (_, row) => (
+        <input
+          type="checkbox"
+          checked={selectedRows.has(row.maSv)}
+          onChange={() => handleSelectRow(row.maSv)}
+          className="w-4 h-4"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+    },
+    {
+      header: 'STT',
+      accessor: 'stt',
+      width: '60px',
+      render: (_, __, index) => <span>{index + 1}</span>,
+    },
     {
       header: 'Mã SV',
       accessor: 'maSv',
@@ -60,19 +129,21 @@ const Students = () => {
     {
       header: 'Họ và tên',
       accessor: 'hoTen',
-      render: (value, row) => (
+      render: (value) => (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
             <span className="text-primary font-semibold text-sm">
               {value?.charAt(0)}
             </span>
           </div>
-          <div>
-            <div className="font-medium">{value}</div>
-            <div className="text-xs text-gray-500">{row.email}</div>
-          </div>
+          <span className="font-medium">{value}</span>
         </div>
       ),
+    },
+    {
+      header: 'Email',
+      accessor: 'email',
+      render: (value) => <span className="text-sm text-gray-600">{value || '-'}</span>,
     },
     {
       header: 'Lớp',
@@ -211,30 +282,87 @@ const Students = () => {
       {/* Filters */}
       <div className="card">
         <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <SearchInput
-              placeholder="Tìm kiếm theo mã SV, tên..."
-              value={search}
-              onSearch={setSearch}
-              className="md:col-span-2"
-            />
-            <Select
-              options={[
-                { value: 'all', label: 'Tất cả trạng thái' },
-                { value: 'active', label: 'Đang hoạt động' },
-                { value: 'inactive', label: 'Ngừng hoạt động' },
-              ]}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            />
-            <Button
-              variant="outline"
-              icon={RefreshCw}
-              onClick={() => refetch()}
-              fullWidth
-            >
-              Làm mới
-            </Button>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SearchInput
+                placeholder="Tìm kiếm theo mã SV, tên..."
+                value={search}
+                onSearch={setSearch}
+              />
+              <Select
+                label="Trạng thái"
+                options={[
+                  { value: 'all', label: 'Tất cả trạng thái' },
+                  { value: 'active', label: 'Đang hoạt động' },
+                  { value: 'inactive', label: 'Ngừng hoạt động' },
+                ]}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Select
+                label="Khoa"
+                options={[
+                  { value: '', label: '-- Tất cả khoa --' },
+                  ...(Array.isArray(facultyList) ? facultyList : []).map(faculty => ({
+                    value: faculty.maKhoa,
+                    label: faculty.tenKhoa || faculty.maKhoa
+                  }))
+                ]}
+                value={facultyFilter}
+                onChange={(e) => {
+                  setFacultyFilter(e.target.value);
+                  setPage(0);
+                }}
+              />
+              <Select
+                label="Ngành"
+                options={[
+                  { value: '', label: '-- Tất cả ngành --' },
+                  ...(Array.isArray(majorList) ? majorList : []).map(major => ({
+                    value: major.maNganh,
+                    label: major.tenNganh || major.maNganh
+                  }))
+                ]}
+                value={majorFilter}
+                onChange={(e) => {
+                  setMajorFilter(e.target.value);
+                  setPage(0);
+                }}
+              />
+              <Select
+                label="Lớp"
+                options={[
+                  { value: '', label: '-- Tất cả lớp --' },
+                  ...(Array.isArray(classList) ? classList : []).map(cls => ({
+                    value: cls.maLop,
+                    label: `${cls.maLop} - ${cls.tenLop || ''}`
+                  }))
+                ]}
+                value={classFilter}
+                onChange={(e) => {
+                  setClassFilter(e.target.value);
+                  setPage(0);
+                }}
+              />
+              <Button
+                variant="outline"
+                icon={RefreshCw}
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('all');
+                  setClassFilter('');
+                  setFacultyFilter('');
+                  setMajorFilter('');
+                  setPage(0);
+                  refetch();
+                }}
+                fullWidth
+              >
+                Xóa bộ lọc
+              </Button>
+            </div>
           </div>
         </div>
       </div>
