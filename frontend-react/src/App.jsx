@@ -7,6 +7,8 @@ import Login from './pages/auth/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import Students from './pages/admin/Students';
 import BCH from './pages/admin/BCH';
+import ChucVu from './pages/admin/ChucVu';
+import Ban from './pages/admin/Ban';
 import Khoa from './pages/admin/Khoa';
 import Nganh from './pages/admin/Nganh';
 import Lop from './pages/admin/Lop';
@@ -15,6 +17,7 @@ import GiangVien from './pages/admin/GiangVien';
 import Taikhoan from './pages/admin/Taikhoan';
 import Logs from './pages/admin/Logs';
 import AttendanceReport from './pages/admin/AttendanceReport';
+import ChuyenVien from './pages/admin/ChuyenVien';
 import StudentDashboard from './pages/student/Dashboard';
 import Activities from './pages/admin/Activities';
 import StudentActivities from './pages/student/Activities';
@@ -60,10 +63,13 @@ function App() {
           <Route path="teachers" element={<GiangVien />} />
           <Route path="activities" element={<Activities />} />
           <Route path="bch" element={<BCH />} />
+          <Route path="chuc-vu" element={<ChucVu />} />
+          <Route path="ban" element={<Ban />} />
           <Route path="khoa" element={<Khoa />} />
           <Route path="nganh" element={<Nganh />} />
           <Route path="lop" element={<Lop />} />
           <Route path="khoahoc" element={<KhoaHoc />} />
+          <Route path="chuyenvien" element={<ChuyenVien />} />
           <Route path="logs" element={<Logs />} />
           <Route path="accounts" element={<Taikhoan />} />
           <Route path="attendance" element={<AttendanceReport />} />

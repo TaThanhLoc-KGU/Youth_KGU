@@ -99,6 +99,85 @@ const bchService = {
     }
   },
 
+  // Get by nhiem ky
+  getByNhiemKy: async (nhiemKy) => {
+    try {
+      const response = await api.get(`/api/bch/nhiem-ky/${nhiemKy}`);
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching BCH by nhiem ky:', error);
+      return [];
+    }
+  },
+
+  // Get BCH by chuc vu
+  getBCHByChucVu: async (maChucVu) => {
+    try {
+      const response = await api.get(`/api/bch/chuc-vu/${maChucVu}/bch`);
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching BCH by chuc vu:', error);
+      return [];
+    }
+  },
+
+  // Get BCH by ban
+  getBCHByBan: async (maBan) => {
+    try {
+      const response = await api.get(`/api/bch/ban/${maBan}/bch`);
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching BCH by ban:', error);
+      return [];
+    }
+  },
+
+  // ========== CHUC VU MANAGEMENT ==========
+
+  // Add chuc vu to BCH
+  addChucVu: async (maBch, chucVuData) => {
+    try {
+      const response = await api.post(`/api/bch/${maBch}/chuc-vu`, chucVuData);
+      return response.data?.data;
+    } catch (error) {
+      console.error('Error adding chuc vu to BCH:', error);
+      throw error;
+    }
+  },
+
+  // Remove chuc vu from BCH
+  removeChucVu: async (id) => {
+    try {
+      const response = await api.delete(`/api/bch/chuc-vu/${id}`);
+      return response.data?.data;
+    } catch (error) {
+      console.error('Error removing chuc vu:', error);
+      throw error;
+    }
+  },
+
+  // Get chuc vu of BCH
+  getChucVuByBCH: async (maBch) => {
+    try {
+      const response = await api.get(`/api/bch/${maBch}/chuc-vu`);
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching chuc vu by BCH:', error);
+      return [];
+    }
+  },
+
+  // Get statistics
+  getStatistics: async () => {
+    try {
+      const response = await api.get('/api/bch/statistics');
+      return response.data?.data || {};
+    } catch (error) {
+      console.error('Error fetching BCH statistics:', error);
+      return {};
+    }
+  },
+
   // Advanced search with filters
   searchAdvanced: async (keyword, chucVu, maKhoa) => {
     try {

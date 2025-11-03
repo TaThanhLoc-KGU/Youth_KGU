@@ -14,6 +14,9 @@ import {
   Briefcase,
   BookOpen,
   Calendar,
+  Zap,
+  Building,
+  UserCog,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES } from '../../utils/constants';
@@ -34,6 +37,9 @@ const Sidebar = () => {
       { icon: BookOpen, label: 'Lớp', path: ROUTES.ADMIN_LOP },
       { icon: Calendar, label: 'Khóa học', path: ROUTES.ADMIN_KHOAHOC },
       { icon: UserCheck, label: 'BCH Đoàn - Hội', path: ROUTES.ADMIN_BCH },
+      { icon: UserCog, label: 'Chuyên viên', path: ROUTES.ADMIN_CHUYENVIEN },
+      { icon: Zap, label: 'Chức vụ', path: ROUTES.ADMIN_CHUC_VU },
+      { icon: Building, label: 'Ban/Đội/CLB', path: ROUTES.ADMIN_BAN },
       { icon: ClipboardCheck, label: 'Điểm danh', path: ROUTES.ADMIN_ATTENDANCE },
       { icon: Award, label: 'Chứng nhận', path: ROUTES.ADMIN_CERTIFICATES },
       { icon: BarChart3, label: 'Thống kê', path: ROUTES.ADMIN_STATISTICS },

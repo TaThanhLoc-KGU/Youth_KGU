@@ -1,5 +1,6 @@
 package com.tathanhloc.faceattendance.Repository;
 
+import com.tathanhloc.faceattendance.Enum.LoaiThanhVienEnum;
 import com.tathanhloc.faceattendance.Model.BCHDoanHoi;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -9,35 +10,20 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Repository cho Ban Chấp Hành Đoàn - Hội
- */
 @Repository
 public interface BCHDoanHoiRepository extends JpaRepository<BCHDoanHoi, String> {
 
-
-    List<BCHDoanHoi> findByIsActiveTrue();
-    Optional<BCHDoanHoi> findBySinhVienMaSv(String maSv);
-
-
-    // ========== BASIC QUERIES ==========
-
-    List<BCHDoanHoi> findByIsActive(Boolean isActive);
-
-    // ========== SEARCH & FILTER ==========
-
-    @Query("SELECT b FROM BCHDoanHoi b WHERE b.isActive = true " +
-            "AND (LOWER(b.maBch) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "OR LOWER(b.sinhVien.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "OR LOWER(b.sinhVien.email) LIKE LOWER(CONCAT('%', :keyword, '%')))")
-    List<BCHDoanHoi> searchAdvanced(@Param("keyword") String keyword);
-
-
     List<BCHDoanHoi> findByIsActiveTrueOrderByMaBchDesc();
 
-    Optional<BCHDoanHoi> findBySinhVienMaSvAndIsActiveTrue(String maSv);
+    // Kiểm tra đã là BCH chưa
+    boolean existsBySinhVienMaSvAndIsActiveTrue(String maSv);
+    boolean existsByGiangVienMaGvAndIsActiveTrue(String maGv);
+    boolean existsByChuyenVienMaChuyenVienAndIsActiveTrue(String maChuyenVien);
 
-    boolean existsBySinhVienMaSv(String maSv);
+    // Tìm BCH theo thành viên
+    Optional<BCHDoanHoi> findBySinhVienMaSvAndIsActiveTrue(String maSv);
+    Optional<BCHDoanHoi> findByGiangVienMaGvAndIsActiveTrue(String maGv);
+    Optional<BCHDoanHoi> findByChuyenVienMaChuyenVienAndIsActiveTrue(String maChuyenVien);
 
     @Query("SELECT COUNT(b) FROM BCHDoanHoi b WHERE b.isActive = true")
     long countActive();
@@ -50,11 +36,27 @@ public interface BCHDoanHoiRepository extends JpaRepository<BCHDoanHoi, String> 
     // Tìm kiếm BCH
     @Query("SELECT b FROM BCHDoanHoi b WHERE b.isActive = true " +
             "AND (LOWER(b.maBch) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "OR LOWER(b.sinhVien.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "OR LOWER(b.sinhVien.maSv) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "OR (b.sinhVien IS NOT NULL AND LOWER(b.sinhVien.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "OR (b.giangVien IS NOT NULL AND LOWER(b.giangVien.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "OR (b.chuyenVien IS NOT NULL AND LOWER(b.chuyenVien.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%')))) " +
             "ORDER BY b.maBch DESC")
     List<BCHDoanHoi> searchByKeyword(@Param("keyword") String keyword);
 
+    // Tìm BCH theo loại thành viên
+    List<BCHDoanHoi> findByLoaiThanhVienAndIsActiveTrueOrderByMaBchDesc(LoaiThanhVienEnum loaiThanhVien);
+
     // Tìm BCH theo nhiệm kỳ
     List<BCHDoanHoi> findByNhiemKyAndIsActiveTrueOrderByMaBchDesc(String nhiemKy);
+
+    // Thống kê theo loại thành viên
+    @Query("SELECT b.loaiThanhVien, COUNT(b) FROM BCHDoanHoi b " +
+            "WHERE b.isActive = true GROUP BY b.loaiThanhVien")
+    List<Object[]> countByLoaiThanhVien();
+
+    // Thống kê theo nhiệm kỳ
+    @Query("SELECT b.nhiemKy, COUNT(b) FROM BCHDoanHoi b " +
+            "WHERE b.isActive = true " +
+            "GROUP BY b.nhiemKy " +
+            "ORDER BY b.nhiemKy DESC")
+    List<Object[]> countByNhiemKy();
 }

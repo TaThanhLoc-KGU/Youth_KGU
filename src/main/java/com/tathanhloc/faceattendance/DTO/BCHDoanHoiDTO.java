@@ -1,5 +1,6 @@
 package com.tathanhloc.faceattendance.DTO;
 
+import com.tathanhloc.faceattendance.Enum.LoaiThanhVienEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,22 +15,26 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BCHDoanHoiDTO {
-    private String maBch; // BCHKGU0001 - Auto generated
+    private String maBch; // Auto: BCHKGU0001
 
-    // Thông tin sinh viên
-    private String maSv;
-    private String hoTen; // From SinhVien
-    private String email; // From SinhVien
-    private String soDienThoai; // From SinhVien
-    private String tenLop; // From SinhVien
-    private String gioiTinh; // From SinhVien
-    private LocalDate ngaySinh; // From SinhVien
+    // Loại thành viên
+    private LoaiThanhVienEnum loaiThanhVien; // SINH_VIEN, GIANG_VIEN, CHUYEN_VIEN
+    private String loaiThanhVienDisplay; // For display: "Sinh viên", "Giảng viên"...
+
+    // Mã thành viên (dựa vào loại)
+    private String maThanhVien; // maSv HOẶC maGv HOẶC maChuyenVien
+
+    // Thông tin chung (lấy từ bảng tương ứng)
+    private String hoTen;
+    private String email;
+    private String soDienThoai;
+    private String donVi; // Lớp (SV) hoặc Khoa (GV/CV)
 
     // Thông tin BCH
-    private String nhiemKy; // 2023-2024
+    private String nhiemKy;
     private LocalDate ngayBatDau;
     private LocalDate ngayKetThuc;
-    private String hinhAnh; // Optional
+    private String hinhAnh;
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

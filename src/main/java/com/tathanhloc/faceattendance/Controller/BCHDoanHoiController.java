@@ -3,6 +3,7 @@ package com.tathanhloc.faceattendance.Controller;
 import com.tathanhloc.faceattendance.DTO.ApiResponse;
 import com.tathanhloc.faceattendance.DTO.BCHChucVuDTO;
 import com.tathanhloc.faceattendance.DTO.BCHDoanHoiDTO;
+import com.tathanhloc.faceattendance.Enum.LoaiThanhVienEnum;
 import com.tathanhloc.faceattendance.Service.BCHDoanHoiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,7 +20,7 @@ import java.util.Map;
 @RequestMapping("/api/bch")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "BCH Đoàn - Hội", description = "API quản lý Ban Chấp Hành")
+@Tag(name = "BCH Đoàn - Hội", description = "API quản lý Ban Chấp Hành (Sinh viên, Giảng viên, Chuyên viên)")
 public class BCHDoanHoiController {
 
     private final BCHDoanHoiService bchService;
@@ -45,7 +46,7 @@ public class BCHDoanHoiController {
     @PostMapping
     @Operation(summary = "Tạo BCH mới (mã tự động: BCHKGU0001)")
     public ResponseEntity<ApiResponse<BCHDoanHoiDTO>> create(@RequestBody BCHDoanHoiDTO dto) {
-        log.info("POST /api/bch - Student: {}", dto.getMaSv());
+        log.info("POST /api/bch - Type: {}, Member: {}", dto.getLoaiThanhVien(), dto.getMaThanhVien());
         BCHDoanHoiDTO created = bchService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo BCH thành công", created));
@@ -107,6 +108,15 @@ public class BCHDoanHoiController {
             @RequestParam String keyword) {
         log.info("GET /api/bch/search?keyword={}", keyword);
         List<BCHDoanHoiDTO> list = bchService.searchByKeyword(keyword);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    @GetMapping("/loai/{loaiThanhVien}")
+    @Operation(summary = "Lọc BCH theo loại thành viên")
+    public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getByLoaiThanhVien(
+            @PathVariable LoaiThanhVienEnum loaiThanhVien) {
+        log.info("GET /api/bch/loai/{}", loaiThanhVien);
+        List<BCHDoanHoiDTO> list = bchService.getByLoaiThanhVien(loaiThanhVien);
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 

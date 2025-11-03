@@ -2,6 +2,7 @@ package com.tathanhloc.faceattendance.Service;
 
 import com.tathanhloc.faceattendance.DTO.BCHChucVuDTO;
 import com.tathanhloc.faceattendance.DTO.BCHDoanHoiDTO;
+import com.tathanhloc.faceattendance.Enum.LoaiThanhVienEnum;
 import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,6 +22,8 @@ public class BCHDoanHoiService {
 
     private final BCHDoanHoiRepository bchRepository;
     private final SinhVienRepository sinhVienRepository;
+    private final GiangVienRepository giangVienRepository;
+    private final ChuyenVienRepository chuyenVienRepository;
     private final BCHChucVuRepository bchChucVuRepository;
     private final ChucVuRepository chucVuRepository;
     private final BanRepository banRepository;
@@ -34,7 +36,6 @@ public class BCHDoanHoiService {
         return bchRepository.findByIsActiveTrueOrderByMaBchDesc()
                 .stream()
                 .map(this::toDTOWithChucVu)
-                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -48,24 +49,49 @@ public class BCHDoanHoiService {
 
     @Transactional
     public BCHDoanHoiDTO create(BCHDoanHoiDTO dto) {
-        log.info("Creating new BCH member for student: {}", dto.getMaSv());
+        log.info("Creating BCH: type={}, member={}", dto.getLoaiThanhVien(), dto.getMaThanhVien());
 
-        // 1. Validate sinh viên
-        SinhVien sinhVien = sinhVienRepository.findById(dto.getMaSv())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên: " + dto.getMaSv()));
-
-        if (bchRepository.existsBySinhVienMaSv(dto.getMaSv())) {
-            throw new RuntimeException("Sinh viên này đã là BCH: " + dto.getMaSv());
-        }
-
-        // 2. Gen mã BCH tự động
+        // 1. Gen mã BCH
         String maBch = generateMaBCH();
-        log.info("Generated BCH code: {}", maBch);
+
+        // 2. Validate và lấy thành viên
+        SinhVien sinhVien = null;
+        GiangVien giangVien = null;
+        ChuyenVien chuyenVien = null;
+
+        switch (dto.getLoaiThanhVien()) {
+            case SINH_VIEN:
+                sinhVien = sinhVienRepository.findById(dto.getMaThanhVien())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên: " + dto.getMaThanhVien()));
+                if (bchRepository.existsBySinhVienMaSvAndIsActiveTrue(dto.getMaThanhVien())) {
+                    throw new RuntimeException("Sinh viên này đã là BCH");
+                }
+                break;
+
+            case GIANG_VIEN:
+                giangVien = giangVienRepository.findById(dto.getMaThanhVien())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy giảng viên: " + dto.getMaThanhVien()));
+                if (bchRepository.existsByGiangVienMaGvAndIsActiveTrue(dto.getMaThanhVien())) {
+                    throw new RuntimeException("Giảng viên này đã là BCH");
+                }
+                break;
+
+            case CHUYEN_VIEN:
+                chuyenVien = chuyenVienRepository.findById(dto.getMaThanhVien())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyên viên: " + dto.getMaThanhVien()));
+                if (bchRepository.existsByChuyenVienMaChuyenVienAndIsActiveTrue(dto.getMaThanhVien())) {
+                    throw new RuntimeException("Chuyên viên này đã là BCH");
+                }
+                break;
+        }
 
         // 3. Tạo BCH
         BCHDoanHoi bch = BCHDoanHoi.builder()
                 .maBch(maBch)
+                .loaiThanhVien(dto.getLoaiThanhVien())
                 .sinhVien(sinhVien)
+                .giangVien(giangVien)
+                .chuyenVien(chuyenVien)
                 .nhiemKy(dto.getNhiemKy())
                 .ngayBatDau(dto.getNgayBatDau())
                 .ngayKetThuc(dto.getNgayKetThuc())
@@ -74,9 +100,9 @@ public class BCHDoanHoiService {
                 .build();
 
         bch = bchRepository.save(bch);
-        log.info("BCH member created: {}", maBch);
+        log.info("BCH created: {}", maBch);
 
-        // 4. Thêm các chức vụ
+        // 4. Thêm chức vụ
         if (dto.getDanhSachChucVu() != null && !dto.getDanhSachChucVu().isEmpty()) {
             for (BCHChucVuDTO cvDto : dto.getDanhSachChucVu()) {
                 addChucVuInternal(bch, cvDto);
@@ -88,12 +114,12 @@ public class BCHDoanHoiService {
 
     @Transactional
     public BCHDoanHoiDTO update(String maBch, BCHDoanHoiDTO dto) {
-        log.info("Updating BCH member: {}", maBch);
+        log.info("Updating BCH: {}", maBch);
 
         BCHDoanHoi bch = bchRepository.findById(maBch)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy BCH: " + maBch));
 
-        // Update basic info
+        // Update basic info (không update loại và mã thành viên)
         if (dto.getNhiemKy() != null) bch.setNhiemKy(dto.getNhiemKy());
         if (dto.getNgayBatDau() != null) bch.setNgayBatDau(dto.getNgayBatDau());
         if (dto.getNgayKetThuc() != null) bch.setNgayKetThuc(dto.getNgayKetThuc());
@@ -101,14 +127,14 @@ public class BCHDoanHoiService {
         if (dto.getIsActive() != null) bch.setIsActive(dto.getIsActive());
 
         bch = bchRepository.save(bch);
-        log.info("BCH member updated: {}", maBch);
+        log.info("BCH updated: {}", maBch);
 
         return toDTOWithChucVu(bch);
     }
 
     @Transactional
     public void delete(String maBch) {
-        log.info("Soft deleting BCH member: {}", maBch);
+        log.info("Soft deleting BCH: {}", maBch);
 
         BCHDoanHoi bch = bchRepository.findById(maBch)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy BCH: " + maBch));
@@ -117,13 +143,14 @@ public class BCHDoanHoiService {
         bchRepository.save(bch);
 
         // Soft delete tất cả chức vụ
-        List<BCHChucVu> chucVuList = bchChucVuRepository.findByBchMaBchAndIsActiveTrueOrderByIdAsc(maBch);
+        List<BCHChucVu> chucVuList = bchChucVuRepository
+                .findByBchMaBchAndIsActiveTrueOrderByIdAsc(maBch);
         for (BCHChucVu cv : chucVuList) {
             cv.setIsActive(false);
             bchChucVuRepository.save(cv);
         }
 
-        log.info("BCH member soft deleted: {}", maBch);
+        log.info("BCH soft deleted: {}", maBch);
     }
 
     // ========== CHỨC VỤ OPERATIONS ==========
@@ -188,7 +215,15 @@ public class BCHDoanHoiService {
         return bchRepository.searchByKeyword(keyword)
                 .stream()
                 .map(this::toDTOWithChucVu)
-                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<BCHDoanHoiDTO> getByLoaiThanhVien(LoaiThanhVienEnum loaiThanhVien) {
+        log.debug("Getting BCH by loai thanh vien: {}", loaiThanhVien);
+        return bchRepository.findByLoaiThanhVienAndIsActiveTrueOrderByMaBchDesc(loaiThanhVien)
+                .stream()
+                .map(this::toDTOWithChucVu)
                 .collect(Collectors.toList());
     }
 
@@ -198,7 +233,6 @@ public class BCHDoanHoiService {
         return bchRepository.findByNhiemKyAndIsActiveTrueOrderByMaBchDesc(nhiemKy)
                 .stream()
                 .map(this::toDTOWithChucVu)
-                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -219,7 +253,6 @@ public class BCHDoanHoiService {
 
         return bchChucVuList.stream()
                 .map(bcv -> toDTOWithChucVu(bcv.getBch()))
-                .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
     }
@@ -232,7 +265,6 @@ public class BCHDoanHoiService {
 
         return bchChucVuList.stream()
                 .map(bcv -> toDTOWithChucVu(bcv.getBch()))
-                .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
     }
@@ -243,6 +275,15 @@ public class BCHDoanHoiService {
         Map<String, Object> stats = new HashMap<>();
 
         stats.put("totalBCH", bchRepository.countActive());
+
+        // Thống kê theo loại thành viên
+        List<Object[]> byLoaiThanhVien = bchRepository.countByLoaiThanhVien();
+        Map<String, Long> loaiThanhVienStats = new HashMap<>();
+        for (Object[] row : byLoaiThanhVien) {
+            LoaiThanhVienEnum loai = (LoaiThanhVienEnum) row[0];
+            loaiThanhVienStats.put(loai.name(), (Long) row[1]);
+        }
+        stats.put("byLoaiThanhVien", loaiThanhVienStats);
 
         // Thống kê theo chức vụ
         List<Object[]> byChucVu = bchChucVuRepository.countBCHByChucVu();
@@ -290,23 +331,15 @@ public class BCHDoanHoiService {
     private BCHDoanHoiDTO toDTOWithChucVu(BCHDoanHoi entity) {
         if (entity == null) return null;
 
-        SinhVien sv = entity.getSinhVien();
-
-        // Skip if sinh vien is null
-        if (sv == null) {
-            log.warn("BCH {} has no associated student", entity.getMaBch());
-            return null;
-        }
-
         BCHDoanHoiDTO dto = BCHDoanHoiDTO.builder()
                 .maBch(entity.getMaBch())
-                .maSv(sv.getMaSv())
-                .hoTen(sv.getHoTen())
-                .email(sv.getEmail())
-                .soDienThoai(sv.getSdt())
-                .tenLop(sv.getLop() != null ? sv.getLop().getTenLop() : null)
-                .gioiTinh(sv.getGioiTinh() != null ? sv.getGioiTinh().name() : null)
-                .ngaySinh(sv.getNgaySinh())
+                .loaiThanhVien(entity.getLoaiThanhVien())
+                .loaiThanhVienDisplay(entity.getLoaiThanhVien().getDisplayName())
+                .maThanhVien(entity.getMaThanhVien())
+                .hoTen(entity.getHoTen())
+                .email(entity.getEmail())
+                .soDienThoai(entity.getSoDienThoai())
+                .donVi(entity.getDonVi())
                 .nhiemKy(entity.getNhiemKy())
                 .ngayBatDau(entity.getNgayBatDau())
                 .ngayKetThuc(entity.getNgayKetThuc())
@@ -332,7 +365,7 @@ public class BCHDoanHoiService {
         return BCHChucVuDTO.builder()
                 .id(entity.getId())
                 .maBch(entity.getBch().getMaBch())
-                .hoTenBch(entity.getBch().getSinhVien().getHoTen())
+                .hoTenBch(entity.getBch().getHoTen())
                 .maChucVu(entity.getChucVu().getMaChucVu())
                 .tenChucVu(entity.getChucVu().getTenChucVu())
                 .maBan(entity.getBan() != null ? entity.getBan().getMaBan() : null)
@@ -342,43 +375,131 @@ public class BCHDoanHoiService {
                 .isActive(entity.getIsActive())
                 .build();
     }
+// ========== METHODS CHO THỐNG KÊ CONTROLLER ==========
 
-    // ========== STATISTICS HELPER METHODS ==========
-
+    /**
+     * Đếm tổng số BCH active
+     */
     @Transactional(readOnly = true)
     public long getTotalActive() {
-        log.debug("Getting total active BCH count");
         return bchRepository.countActive();
     }
 
+    /**
+     * Thống kê BCH theo chức vụ
+     * @return Map<tenChucVu, soBCH>
+     */
     @Transactional(readOnly = true)
     public Map<String, Long> countByChucVu() {
         log.debug("Counting BCH by chuc vu");
         List<Object[]> results = bchChucVuRepository.countBCHByChucVu();
-        Map<String, Long> countMap = new HashMap<>();
+
+        Map<String, Long> stats = new HashMap<>();
         for (Object[] row : results) {
-            countMap.put((String) row[0], (Long) row[1]);
+            String tenChucVu = (String) row[0];
+            Long count = (Long) row[1];
+            stats.put(tenChucVu, count);
         }
-        return countMap;
+
+        return stats;
     }
 
+    /**
+     * Thống kê BCH theo khoa (dựa trên sinh viên/giảng viên/chuyên viên)
+     * @return Map<tenKhoa, soBCH>
+     */
     @Transactional(readOnly = true)
     public Map<String, Long> countByKhoa() {
         log.debug("Counting BCH by khoa");
-        Map<String, Long> khoaStats = new HashMap<>();
+        List<BCHDoanHoi> allBch = bchRepository.findByIsActiveTrueOrderByMaBchDesc();
 
-        // Get all active BCH with their student info
-        List<BCHDoanHoi> activeBCH = bchRepository.findByIsActiveTrueOrderByMaBchDesc();
+        Map<String, Long> stats = new HashMap<>();
 
-        // Group by khoa from sinhVien -> lop -> khoa
-        for (BCHDoanHoi bch : activeBCH) {
-            if (bch.getSinhVien() != null && bch.getSinhVien().getLop() != null
-                    && bch.getSinhVien().getLop().getMaKhoa() != null) {
-                String tenKhoa = bch.getSinhVien().getLop().getMaKhoa().getTenKhoa();
-                khoaStats.put(tenKhoa, khoaStats.getOrDefault(tenKhoa, 0L) + 1);
+        for (BCHDoanHoi bch : allBch) {
+            String tenKhoa = null;
+
+            switch (bch.getLoaiThanhVien()) {
+                case SINH_VIEN:
+                    if (bch.getSinhVien() != null &&
+                            bch.getSinhVien().getLop() != null &&
+                            bch.getSinhVien().getLop().getMaKhoa() != null) {
+                        tenKhoa = bch.getSinhVien().getLop().getMaKhoa().getTenKhoa();
+                    }
+                    break;
+
+                case GIANG_VIEN:
+                    if (bch.getGiangVien() != null &&
+                            bch.getGiangVien().getKhoa() != null) {
+                        tenKhoa = bch.getGiangVien().getKhoa().getTenKhoa();
+                    }
+                    break;
+
+                case CHUYEN_VIEN:
+                    if (bch.getChuyenVien() != null &&
+                            bch.getChuyenVien().getKhoa() != null) {
+                        tenKhoa = bch.getChuyenVien().getKhoa().getTenKhoa();
+                    }
+                    break;
+            }
+
+            if (tenKhoa != null) {
+                stats.put(tenKhoa, stats.getOrDefault(tenKhoa, 0L) + 1);
+            } else {
+                stats.put("Chưa xác định", stats.getOrDefault("Chưa xác định", 0L) + 1);
             }
         }
 
-        return khoaStats;
+        return stats;
     }
+
+    /**
+     * Thống kê BCH theo loại thành viên
+     * @return Map<loaiThanhVien, soBCH>
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Long> countByLoaiThanhVien() {
+        log.debug("Counting BCH by loai thanh vien");
+        List<Object[]> results = bchRepository.countByLoaiThanhVien();
+
+        Map<String, Long> stats = new HashMap<>();
+        for (Object[] row : results) {
+            LoaiThanhVienEnum loai = (LoaiThanhVienEnum) row[0];
+            Long count = (Long) row[1];
+            stats.put(loai.getDisplayName(), count);
+        }
+
+        return stats;
+    }
+
+    /**
+     * Thống kê BCH theo nhiệm kỳ
+     * @return Map<nhiemKy, soBCH>
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Long> countByNhiemKy() {
+        log.debug("Counting BCH by nhiem ky");
+        List<BCHDoanHoi> allBch = bchRepository.findByIsActiveTrueOrderByMaBchDesc();
+
+        Map<String, Long> stats = new HashMap<>();
+        for (BCHDoanHoi bch : allBch) {
+            String nhiemKy = bch.getNhiemKy() != null ? bch.getNhiemKy() : "Chưa xác định";
+            stats.put(nhiemKy, stats.getOrDefault(nhiemKy, 0L) + 1);
+        }
+
+        return stats;
+    }
+
+    /**
+     * Lấy danh sách BCH gần đây nhất (top N)
+     */
+    @Transactional(readOnly = true)
+    public List<BCHDoanHoiDTO> getRecentBCH(int limit) {
+        log.debug("Getting {} recent BCH members", limit);
+        return bchRepository.findByIsActiveTrueOrderByMaBchDesc()
+                .stream()
+                .limit(limit)
+                .map(this::toDTOWithChucVu)
+                .collect(Collectors.toList());
+    }
+
 }
