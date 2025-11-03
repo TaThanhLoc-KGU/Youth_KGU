@@ -22,7 +22,7 @@ const ChuyenVien = () => {
   const [formData, setFormData] = useState({
     hoTen: '',
     email: '',
-    soDienThoai: '',
+    sdt: '',
     chucDanh: '',
     khoa: '',
     diaChi: '',
@@ -125,7 +125,7 @@ const ChuyenVien = () => {
     },
     {
       header: 'SĐT',
-      accessor: 'soDienThoai',
+      accessor: 'sdt',
       render: (value) => value || '-',
     },
     {
@@ -187,7 +187,7 @@ const ChuyenVien = () => {
     setFormData({
       hoTen: '',
       email: '',
-      soDienThoai: '',
+      sdt: '',
       chucDanh: '',
       khoa: '',
       diaChi: '',
@@ -210,7 +210,7 @@ const ChuyenVien = () => {
     setFormData({
       hoTen: chuyenvien.hoTen || '',
       email: chuyenvien.email || '',
-      soDienThoai: chuyenvien.soDienThoai || '',
+      sdt: chuyenvien.sdt || '',
       chucDanh: chuyenvien.chucDanh || '',
       khoa: chuyenvien.khoa || '',
       diaChi: chuyenvien.diaChi || '',
@@ -233,7 +233,7 @@ const ChuyenVien = () => {
     setFormData({
       hoTen: '',
       email: '',
-      soDienThoai: '',
+      sdt: '',
       chucDanh: '',
       khoa: '',
       diaChi: '',
@@ -348,7 +348,7 @@ const ChuyenVien = () => {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-700">SĐT</label>
-                      <p className="mt-1">{selectedChuyenVien.soDienThoai || '-'}</p>
+                      <p className="mt-1">{selectedChuyenVien.sdt || '-'}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-700">Chức danh</label>
@@ -418,8 +418,8 @@ const ChuyenVien = () => {
                 <Input
                   label="SĐT"
                   placeholder="Nhập số điện thoại"
-                  value={formData.soDienThoai}
-                  onChange={(e) => handleInputChange('soDienThoai', e.target.value)}
+                  value={formData.sdt}
+                  onChange={(e) => handleInputChange('sdt', e.target.value)}
                 />
                 <Input
                   label="Chức danh"
