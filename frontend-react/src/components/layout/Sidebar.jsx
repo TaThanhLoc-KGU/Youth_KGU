@@ -17,6 +17,9 @@ import {
   Zap,
   Building,
   UserCog,
+  User,
+  UserPlus,
+  BarChart2,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES } from '../../utils/constants';
@@ -44,6 +47,9 @@ const Sidebar = () => {
       { icon: ClipboardCheck, label: 'Điểm danh', path: ROUTES.ADMIN_ATTENDANCE },
       { icon: Award, label: 'Chứng nhận', path: ROUTES.ADMIN_CERTIFICATES },
       { icon: BarChart3, label: 'Thống kê', path: ROUTES.ADMIN_STATISTICS },
+      { icon: UserPlus, label: 'Quản lý tài khoản', path: ROUTES.ADMIN_ACCOUNTS },
+      { icon: BarChart2, label: 'Thống kê tài khoản', path: ROUTES.ADMIN_ACCOUNT_STATISTICS },
+      { icon: User, label: 'Hồ sơ cá nhân', path: ROUTES.PROFILE },
       { icon: Settings, label: 'Cài đặt', path: ROUTES.ADMIN_SETTINGS },
     ],
     [ROLES.BCH]: [
@@ -51,6 +57,7 @@ const Sidebar = () => {
       { icon: Activity, label: 'Hoạt động', path: ROUTES.BCH_ACTIVITIES },
       { icon: ClipboardCheck, label: 'Điểm danh', path: ROUTES.BCH_ATTENDANCE },
       { icon: Award, label: 'Quét QR', path: ROUTES.BCH_SCAN_QR },
+      { icon: User, label: 'Hồ sơ cá nhân', path: ROUTES.PROFILE },
     ],
     [ROLES.SINHVIEN]: [
       { icon: LayoutDashboard, label: 'Dashboard', path: ROUTES.STUDENT_DASHBOARD },

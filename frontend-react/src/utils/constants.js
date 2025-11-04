@@ -130,6 +130,11 @@ export const ROUTES = {
   ADMIN_CERTIFICATES: '/admin/certificates',
   ADMIN_STATISTICS: '/admin/statistics',
   ADMIN_SETTINGS: '/admin/settings',
+  ADMIN_ACCOUNTS: '/admin/accounts',
+  ADMIN_ACCOUNT_STATISTICS: '/admin/account-statistics',
+
+  // User routes
+  PROFILE: '/profile',
 
   // Student routes
   STUDENT: '/student',

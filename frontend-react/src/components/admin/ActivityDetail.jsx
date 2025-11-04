@@ -1,4 +1,4 @@
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Edit, Calendar, MapPin, Users, Type, Loader } from 'lucide-react';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
@@ -19,7 +19,7 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
     ['activity-registrations', activity.maHoatDong],
     async () => {
       try {
-        const response = await api.get(`/api/dang-ky/hoat-dong/${activity.maHoatDong}`);
+        const response = await api.get(`/api/dang-ky/activity/${activity.maHoatDong}`);
         return response.data.data || [];
       } catch (error) {
         console.error('Error fetching registrations:', error);
@@ -86,7 +86,7 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
         <InfoRow
           icon={Users}
           label="Số người đăng ký"
-          value={`${activity.soNguoiDangKy || 0} / ${activity.soNguoiToiDa || 'Không giới hạn'}`}
+          value={`${activity.soNguoiDangKy || 0} / ${activity.soLuongToiDa ?? 'Không giới hạn'}`}
         />
         <InfoRow
           icon={Type}
@@ -104,7 +104,7 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
           </div>
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-green-600">
-              {activity.soNguoiToiDa - (activity.soNguoiDangKy || 0)}
+              {activity.soLuongToiDa - (activity.soNguoiDangKy || 0)}
             </div>
             <div className="text-sm text-green-700 mt-1">Chỗ còn trống</div>
           </div>

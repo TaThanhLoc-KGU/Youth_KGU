@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import Input from '../common/Input';
 import Select from '../common/Select';

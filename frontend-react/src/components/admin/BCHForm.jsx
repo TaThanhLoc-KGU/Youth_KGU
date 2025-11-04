@@ -1,5 +1,5 @@
 import { useForm } from 'react-hook-form';
-import { useMutation, useQuery } from 'react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Save, X, Check, AlertCircle, Loader } from 'lucide-react';
 import bchService from '../../services/bchService';

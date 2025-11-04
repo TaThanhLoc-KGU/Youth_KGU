@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Upload, Download, AlertCircle, Check, X, ChevronDown } from 'lucide-react';
 import studentService from '../../services/studentService';

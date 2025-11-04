@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Calendar, MapPin, Users, Filter, Search } from 'lucide-react';
 import activityService from '../../services/activityService';
@@ -59,8 +59,8 @@ const StudentActivities = () => {
 
   const isActivityFull = (activity) => {
     return (
-      activity.soNguoiToiDa > 0 &&
-      (activity.soNguoiDangKy || 0) >= activity.soNguoiToiDa
+      activity.soLuongToiDa > 0 &&
+      (activity.soNguoiDangKy || 0) >= activity.soLuongToiDa
     );
   };
 
@@ -193,7 +193,7 @@ const StudentActivities = () => {
                     <div className="flex items-center gap-2 text-gray-600">
                       <Users className="w-4 h-4" />
                       <span>
-                        {activity.soNguoiDangKy || 0} / {activity.soNguoiToiDa || '∞'}
+                        {activity.soNguoiDangKy || 0} / {activity.soLuongToiDa ?? '∞'}
                       </span>
                     </div>
                   </div>

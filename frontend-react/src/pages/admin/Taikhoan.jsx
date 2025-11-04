@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Trash2, RotateCcw, Key, Shield, Lock } from 'lucide-react';
 import taikhoanService from '../../services/taikhoanService';

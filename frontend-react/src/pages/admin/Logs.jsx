@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Download, RefreshCw, AlertCircle, Info, AlertTriangle, Bug } from 'lucide-react';
 import logsService from '../../services/logsService';
 import Button from '../../components/common/Button';

@@ -1,5 +1,5 @@
 import { useForm } from 'react-hook-form';
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Save, X } from 'lucide-react';
 import activityService from '../../services/activityService';
@@ -23,7 +23,7 @@ const ActivityForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => 
       ngayToChuc: '',
       diaDiem: '',
       soNguoiDangKy: 0,
-      soNguoiToiDa: 100,
+      soLuongToiDa: 100,
     },
   });
 
@@ -121,11 +121,11 @@ const ActivityForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => 
         <Input
           label="Số người tối đa"
           type="number"
-          {...register('soNguoiToiDa', {
+          {...register('soLuongToiDa', {
             required: 'Số người tối đa là bắt buộc',
             min: { value: 1, message: 'Phải từ 1 người trở lên' },
           })}
-          error={errors.soNguoiToiDa?.message}
+          error={errors.soLuongToiDa?.message}
           required
         />
       </div>

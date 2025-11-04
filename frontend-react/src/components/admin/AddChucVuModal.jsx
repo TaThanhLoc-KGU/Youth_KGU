@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Trash2 } from 'lucide-react';
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import chucVuService from '../../services/chucVuService';
 import banService from '../../services/banService';
 import bchService from '../../services/bchService';

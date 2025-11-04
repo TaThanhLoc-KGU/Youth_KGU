@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../common/Button';
@@ -70,13 +70,13 @@ const ActivityRegistrationModal = ({ activity, onSuccess, onCancel }) => {
           </p>
           <p>
             <span className="font-medium">Số người đã đăng ký:</span> {activity.soNguoiDangKy || 0} /{' '}
-            {activity.soNguoiToiDa}
+            {activity.soLuongToiDa}
           </p>
         </div>
       </div>
 
       {/* Capacity Warning */}
-      {activity.soNguoiToiDa > 0 && (activity.soNguoiDangKy || 0) > activity.soNguoiToiDa * 0.8 && (
+      {activity.soLuongToiDa > 0 && (activity.soNguoiDangKy || 0) > activity.soLuongToiDa * 0.8 && (
         <Alert variant="warning" title="Chỉ còn vài chỗ">
           Hoạt động sắp kín chỗ, hãy đăng ký sớm!
         </Alert>

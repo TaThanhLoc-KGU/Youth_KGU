@@ -4,6 +4,10 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import MainLayout from './components/layout/MainLayout';
 import Login from './pages/auth/Login';
+import RegisterPage from './pages/RegisterPage';
+import ProfilePage from './pages/ProfilePage';
+import AccountManagementPage from './pages/admin/AccountManagementPage';
+import DashboardStatisticsPage from './pages/admin/DashboardStatisticsPage';
 import AdminDashboard from './pages/admin/Dashboard';
 import Students from './pages/admin/Students';
 import BCH from './pages/admin/BCH';
@@ -47,6 +51,19 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path={ROUTES.LOGIN} element={<Login />} />
+        <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+
+        {/* Profile Route - Accessible by all authenticated users */}
+        <Route
+          path={ROUTES.PROFILE}
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.BCH, ROLES.SINHVIEN]}>
+              <MainLayout title="Hồ sơ cá nhân" />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<ProfilePage />} />
+        </Route>
 
         {/* Admin Routes */}
         <Route
@@ -72,9 +89,10 @@ function App() {
           <Route path="khoahoc" element={<KhoaHoc />} />
           <Route path="chuyenvien" element={<ChuyenVien />} />
           <Route path="logs" element={<Logs />} />
-          <Route path="accounts" element={<Taikhoan />} />
           <Route path="attendance" element={<AttendanceReport />} />
           <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
+          <Route path="accounts" element={<AccountManagementPage />} />
+          <Route path="account-statistics" element={<DashboardStatisticsPage />} />
           <Route path="settings" element={<ComingSoon title="Cài đặt" />} />
         </Route>
 
@@ -92,7 +110,7 @@ function App() {
           <Route path="activities" element={<StudentActivities />} />
           <Route path="registrations" element={<ComingSoon title="Đăng ký của tôi" />} />
           <Route path="certificates" element={<ComingSoon title="Chứng nhận" />} />
-          <Route path="profile" element={<ComingSoon title="Hồ sơ" />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
 
         {/* BCH Routes */}
@@ -109,6 +127,7 @@ function App() {
           <Route path="activities" element={<Activities />} />
           <Route path="attendance" element={<ComingSoon title="Điểm danh" />} />
           <Route path="scan-qr" element={<ComingSoon title="Quét QR" />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
 
         {/* Unauthorized */}
