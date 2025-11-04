@@ -20,9 +20,16 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Log request for debugging
+    console.log(`[API Request] ${config.method.toUpperCase()} ${config.url}`, {
+      params: config.params,
+      headers: config.headers,
+      data: config.data
+    });
     return config;
   },
   (error) => {
+    console.error('[API Request Error]', error);
     return Promise.reject(error);
   }
 );
@@ -30,6 +37,12 @@ api.interceptors.request.use(
 // Response interceptor - Handle errors globally
 api.interceptors.response.use(
   (response) => {
+    // Log response for debugging
+    console.log(`[API Response] ${response.config.method.toUpperCase()} ${response.config.url}`, {
+      status: response.status,
+      data: response.data,
+      headers: response.headers
+    });
     return response;
   },
   async (error) => {

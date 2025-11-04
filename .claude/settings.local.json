@@ -14,7 +14,8 @@
       "Bash(timeout 60 mvn spring-boot:run:*)",
       "Bash(ping:*)",
       "Bash(nul)",
-      "Bash(timeout 15 bash:*)"
+      "Bash(timeout 15 bash:*)",
+      "Bash(ls -la \"d:\\Youth_KGU\\src\\main\\java\\com\\tathanhloc\\faceattendance\\DataLoader\"\" 2>/dev/null || echo \"DataLoader directory not found or empty \")"
     ],
     "deny": [],
     "ask": []

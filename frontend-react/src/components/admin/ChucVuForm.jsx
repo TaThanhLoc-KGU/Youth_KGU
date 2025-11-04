@@ -10,7 +10,9 @@ import Textarea from '../common/Textarea';
 const THUOC_BAN_OPTIONS = [
   { value: 'DOAN', label: 'Đoàn' },
   { value: 'HOI', label: 'Hội' },
-  { value: 'BAN_PHUC_VU', label: 'Ban phục vụ' },
+  { value: 'DOI', label: 'Đội' },
+  { value: 'CLB', label: 'CLB' },
+  { value: 'BAN', label: 'Ban' },
 ];
 
 const ChucVuForm = ({

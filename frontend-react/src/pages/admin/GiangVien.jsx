@@ -20,7 +20,6 @@ const GiangVienForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoa
       maGv: '',
       hoTen: '',
       email: '',
-      sdt: '',
       maKhoa: '',
       isActive: true,
     },
@@ -70,14 +69,6 @@ const GiangVienForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoa
         error={errors.email?.message}
         required
       />
-      <Input
-        label="Số điện thoại"
-        {...register('sdt', {
-          pattern: { value: /^[0-9]{10}$/, message: 'Số điện thoại phải có 10 chữ số' }
-        })}
-        error={errors.sdt?.message}
-        placeholder="0123456789"
-      />
       <Select
         label="Khoa"
         {...register('maKhoa', { required: 'Khoa là bắt buộc' })}
@@ -116,29 +107,32 @@ const GiangVien = () => {
 
   const { data: khoas = [] } = useQuery('khoa-for-gv', () => khoaService.getAll());
 
-  const { data: gvList = [], isLoading, refetch } = useQuery(
+  const { data: gvList = [], isLoading, error, refetch } = useQuery(
     ['giangvien', search, khoaFilter, statusFilter],
     async () => {
-      let result = await giangvienService.getAll();
+      try {
+        const params = {};
+        if (search) params.search = search;
+        if (khoaFilter) params.khoa = khoaFilter;
+        if (statusFilter) params.status = statusFilter;
 
-      if (search) {
-        result = result.filter(gv =>
-          gv.maGv.toLowerCase().includes(search.toLowerCase()) ||
-          gv.hoTen.toLowerCase().includes(search.toLowerCase()) ||
-          gv.email.toLowerCase().includes(search.toLowerCase())
-        );
+        const result = await giangvienService.getAll(params);
+        console.log('Fetched giangvien data:', result);
+        // Đảm bảo trả về array
+        return Array.isArray(result) ? result : (result.data || []);
+      } catch (error) {
+        console.error('Error fetching giangvien:', error);
+        throw error;
       }
-      if (khoaFilter) {
-        result = result.filter(gv => gv.maKhoa === khoaFilter);
-      }
-      if (statusFilter !== '') {
-        const active = statusFilter === 'active';
-        result = result.filter(gv => gv.isActive === active);
-      }
-
-      return result;
     },
-    { keepPreviousData: true }
+    {
+      keepPreviousData: true,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      onError: (error) => {
+        toast.error('Lỗi tải dữ liệu giảng viên: ' + (error.message || 'Unknown error'));
+      }
+    }
   );
 
   const deleteMutation = useMutation(
@@ -292,7 +286,31 @@ const GiangVien = () => {
       </Card>
 
       <Card>
-        <Table columns={columns} data={gvList} isLoading={isLoading} />
+        {isLoading ? (
+          <div className="p-8 text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <p className="mt-2">Đang tải dữ liệu...</p>
+          </div>
+        ) : error ? (
+          <div className="p-8 text-center text-red-600">
+            <p className="font-medium">Có lỗi xảy ra khi tải dữ liệu</p>
+            <p className="text-sm mt-1">{error.message}</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => refetch()}
+              icon={RefreshCw}
+            >
+              Thử lại
+            </Button>
+          </div>
+        ) : gvList && gvList.length > 0 ? (
+          <Table columns={columns} data={gvList} />
+        ) : (
+          <div className="p-8 text-center text-gray-500">
+            <p>Không có dữ liệu giảng viên</p>
+          </div>
+        )}
       </Card>
 
       <Modal

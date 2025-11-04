@@ -10,7 +10,9 @@ import Textarea from '../common/Textarea';
 const LOAI_BAN_OPTIONS = [
   { value: 'DOAN', label: 'Đoàn' },
   { value: 'HOI', label: 'Hội' },
-  { value: 'DOI_CLB_BAN', label: 'Đội/CLB/Ban' },
+  { value: 'DOI', label: 'Đội' },
+  { value: 'CLB', label: 'CLB' },
+  { value: 'BAN', label: 'Ban' },
 ];
 
 const BanForm = ({

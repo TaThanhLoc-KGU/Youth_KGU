@@ -16,7 +16,9 @@ const THUOC_BAN_OPTIONS = [
   { value: '', label: 'Tất cả' },
   { value: 'DOAN', label: 'Đoàn' },
   { value: 'HOI', label: 'Hội' },
-  { value: 'BAN_PHUC_VU', label: 'Ban phục vụ' },
+  { value: 'DOI', label: 'Đội' },
+  { value: 'CLB', label: 'CLB' },
+  { value: 'BAN', label: 'Ban' },
 ];
 
 const getBadgeVariant = (thuocBan) => {
@@ -25,7 +27,11 @@ const getBadgeVariant = (thuocBan) => {
       return 'info';
     case 'HOI':
       return 'success';
-    case 'BAN_PHUC_VU':
+    case 'DOI':
+      return 'warning';
+    case 'CLB':
+      return 'warning';
+    case 'BAN':
       return 'warning';
     default:
       return 'secondary';
@@ -203,31 +209,41 @@ const ChucVu = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <div className="text-center">
             <div className="text-3xl font-bold text-primary">{stats.total || 0}</div>
-            <div className="text-gray-600 text-sm">Tổng chức vụ</div>
+            <div className="text-gray-600 text-sm">Tổng cộng</div>
           </div>
         </Card>
         <Card>
           <div className="text-center">
             <div className="text-3xl font-bold text-blue-600">{stats.DOAN || 0}</div>
-            <div className="text-gray-600 text-sm">Chức vụ Đoàn</div>
+            <div className="text-gray-600 text-sm">Đoàn</div>
           </div>
         </Card>
         <Card>
           <div className="text-center">
             <div className="text-3xl font-bold text-green-600">{stats.HOI || 0}</div>
-            <div className="text-gray-600 text-sm">Chức vụ Hội</div>
+            <div className="text-gray-600 text-sm">Hội</div>
           </div>
         </Card>
         <Card>
           <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600">
-              {stats.BAN_PHUC_VU || 0}
-            </div>
-            <div className="text-gray-600 text-sm">Ban phục vụ</div>
+            <div className="text-3xl font-bold text-orange-600">{stats.DOI || 0}</div>
+            <div className="text-gray-600 text-sm">Đội</div>
+          </div>
+        </Card>
+        <Card>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-purple-600">{stats.CLB || 0}</div>
+            <div className="text-gray-600 text-sm">CLB</div>
+          </div>
+        </Card>
+        <Card>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-red-600">{stats.BAN || 0}</div>
+            <div className="text-gray-600 text-sm">Ban</div>
           </div>
         </Card>
       </div>

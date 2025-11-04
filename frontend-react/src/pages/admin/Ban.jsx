@@ -16,7 +16,9 @@ const LOAI_BAN_OPTIONS = [
   { value: '', label: 'Tất cả' },
   { value: 'DOAN', label: 'Đoàn' },
   { value: 'HOI', label: 'Hội' },
-  { value: 'DOI_CLB_BAN', label: 'Đội/CLB/Ban' },
+  { value: 'DOI', label: 'Đội' },
+  { value: 'CLB', label: 'CLB' },
+  { value: 'BAN', label: 'Ban' },
 ];
 
 const getBadgeVariant = (loaiBan) => {
@@ -25,6 +27,12 @@ const getBadgeVariant = (loaiBan) => {
       return 'info';
     case 'HOI':
       return 'success';
+    case 'DOI':
+      return 'warning';
+    case 'CLB':
+      return 'warning';
+    case 'BAN':
+      return 'warning';
     case 'DOI_CLB_BAN':
       return 'warning';
     default:
@@ -197,11 +205,11 @@ const Ban = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <div className="text-center">
             <div className="text-3xl font-bold text-primary">{stats.total || 0}</div>
-            <div className="text-gray-600 text-sm">Tổng ban</div>
+            <div className="text-gray-600 text-sm">Tổng cộng</div>
           </div>
         </Card>
         <Card>
@@ -218,10 +226,20 @@ const Ban = () => {
         </Card>
         <Card>
           <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600">
-              {stats.DOI_CLB_BAN || 0}
-            </div>
-            <div className="text-gray-600 text-sm">Đội/CLB/Ban</div>
+            <div className="text-3xl font-bold text-orange-600">{stats.DOI || 0}</div>
+            <div className="text-gray-600 text-sm">Đội</div>
+          </div>
+        </Card>
+        <Card>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-purple-600">{stats.CLB || 0}</div>
+            <div className="text-gray-600 text-sm">CLB</div>
+          </div>
+        </Card>
+        <Card>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-red-600">{stats.BAN || 0}</div>
+            <div className="text-gray-600 text-sm">Ban</div>
           </div>
         </Card>
       </div>

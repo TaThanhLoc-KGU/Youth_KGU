@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { toast } from 'react-toastify';
 import { ChevronRight, ChevronLeft, Plus, Trash2 } from 'lucide-react';
+import api from '../../services/api';
 import bchService from '../../services/bchService';
 import chucVuService from '../../services/chucVuService';
-import studentService from '../../services/studentService';
-import giangvienService from '../../services/giangvienService';
-import chuyenVienService from '../../services/chuyenVienService';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
@@ -41,13 +39,31 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
   const { data: chucVuList = [] } = useQuery('chuc-vu-for-bch-create', chucVuService.getAll);
 
   // Fetch all students for search
-  const { data: allStudents = [] } = useQuery('students-for-bch-search', studentService.getAll);
+  const { data: allStudents = [] } = useQuery(
+    'students-for-bch-search',
+    async () => {
+      const response = await api.get('/api/sinhvien/active/all');
+      return response.data || [];
+    }
+  );
 
   // Fetch all teachers
-  const { data: allTeachers = [] } = useQuery('teachers-for-bch-search', giangvienService.getAll);
+  const { data: allTeachers = [] } = useQuery(
+    'teachers-for-bch-search',
+    async () => {
+      const response = await api.get('/api/giangvien/active');
+      return response.data || [];
+    }
+  );
 
   // Fetch all chuyen vien
-  const { data: allChuyenVien = [] } = useQuery('chuyenvien-for-bch-search', chuyenVienService.getAll);
+  const { data: allChuyenVien = [] } = useQuery(
+    'chuyenvien-for-bch-search',
+    async () => {
+      const response = await api.get('/api/chuyenvien');
+      return response.data?.data || [];
+    }
+  );
 
   // Create BCH mutation
   const createMutation = useMutation(

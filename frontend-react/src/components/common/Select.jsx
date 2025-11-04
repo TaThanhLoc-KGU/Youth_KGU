@@ -11,6 +11,7 @@ const Select = forwardRef(
       placeholder = 'Chọn...',
       className,
       containerClassName,
+      children,
       ...props
     },
     ref
@@ -37,7 +38,9 @@ const Select = forwardRef(
               {placeholder}
             </option>
           )}
-          {options.map((option) => (
+
+          {/* Ưu tiên children nếu có, nếu không thì dùng options */}
+          {children || options.map((option) => (
             <option key={option.value} value={option.value} disabled={option.disabled}>
               {option.label}
             </option>
