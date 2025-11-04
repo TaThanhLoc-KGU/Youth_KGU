@@ -8,6 +8,7 @@ import Select from '../../components/common/Select';
 import Card from '../../components/common/Card';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
+import { formatDateTime, formatTime } from '../../utils/dateFormat';
 import { toast } from 'react-toastify';
 
 const LogDetail = ({ log, isOpen, onClose }) => {
@@ -37,7 +38,7 @@ const LogDetail = ({ log, isOpen, onClose }) => {
             </div>
             <div>
               <p className="text-xs text-gray-600">Timestamp</p>
-              <p className="text-sm">{new Date(log.createdAt).toLocaleString('vi-VN')}</p>
+              <p className="text-sm">{formatDateTime(log.createdAt)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600">User</p>
@@ -258,7 +259,7 @@ const Logs = () => {
                         </Badge>
                         <span className="text-xs text-gray-600 font-medium">{log.module}</span>
                         <span className="text-xs text-gray-500">
-                          {new Date(log.createdAt).toLocaleTimeString('vi-VN')}
+                          {formatTime(log.createdAt)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-900 truncate">{log.message}</p>

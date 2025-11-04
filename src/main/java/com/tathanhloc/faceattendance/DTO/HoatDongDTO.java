@@ -25,6 +25,8 @@ public class HoatDongDTO {
     private LocalTime thoiGianKetThuc;
     private Integer thoiGianTreToiDa;
     private Integer thoiGianToiThieu;
+    private Integer choPhepCheckInSom;
+    private Boolean yeuCauCheckOut;
 
     private String diaDiem;
     private String maPhong;

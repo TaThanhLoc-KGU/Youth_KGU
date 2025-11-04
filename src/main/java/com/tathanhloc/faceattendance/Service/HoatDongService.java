@@ -347,6 +347,12 @@ public class HoatDongService {
                 .capDo(entity.getCapDo())
                 .ngayToChuc(entity.getNgayToChuc())
                 .gioToChuc(entity.getGioToChuc())
+                .thoiGianBatDau(entity.getThoiGianBatDau())
+                .thoiGianKetThuc(entity.getThoiGianKetThuc())
+                .thoiGianTreToiDa(entity.getThoiGianTreToiDa())
+                .thoiGianToiThieu(entity.getThoiGianToiThieu())
+                .choPhepCheckInSom(entity.getChoPhepCheckInSom())
+                .yeuCauCheckOut(entity.getYeuCauCheckOut())
                 .diaDiem(entity.getDiaDiem())
                 .maPhong(entity.getPhongHoc() != null ? entity.getPhongHoc().getMaPhong() : null)
                 .tenPhong(entity.getPhongHoc() != null ? entity.getPhongHoc().getTenPhong() : null)
@@ -379,6 +385,12 @@ public class HoatDongService {
                 .capDo(dto.getCapDo())
                 .ngayToChuc(dto.getNgayToChuc())
                 .gioToChuc(dto.getGioToChuc())
+                .thoiGianBatDau(dto.getThoiGianBatDau())
+                .thoiGianKetThuc(dto.getThoiGianKetThuc())
+                .thoiGianTreToiDa(dto.getThoiGianTreToiDa())
+                .thoiGianToiThieu(dto.getThoiGianToiThieu())
+                .choPhepCheckInSom(dto.getChoPhepCheckInSom())
+                .yeuCauCheckOut(dto.getYeuCauCheckOut())
                 .diaDiem(dto.getDiaDiem())
                 .soLuongToiDa(dto.getSoLuongToiDa())
                 .diemRenLuyen(dto.getDiemRenLuyen())
@@ -415,6 +427,12 @@ public class HoatDongService {
         if (dto.getCapDo() != null) entity.setCapDo(dto.getCapDo());
         if (dto.getNgayToChuc() != null) entity.setNgayToChuc(dto.getNgayToChuc());
         if (dto.getGioToChuc() != null) entity.setGioToChuc(dto.getGioToChuc());
+        if (dto.getThoiGianBatDau() != null) entity.setThoiGianBatDau(dto.getThoiGianBatDau());
+        if (dto.getThoiGianKetThuc() != null) entity.setThoiGianKetThuc(dto.getThoiGianKetThuc());
+        if (dto.getThoiGianTreToiDa() != null) entity.setThoiGianTreToiDa(dto.getThoiGianTreToiDa());
+        if (dto.getThoiGianToiThieu() != null) entity.setThoiGianToiThieu(dto.getThoiGianToiThieu());
+        if (dto.getChoPhepCheckInSom() != null) entity.setChoPhepCheckInSom(dto.getChoPhepCheckInSom());
+        if (dto.getYeuCauCheckOut() != null) entity.setYeuCauCheckOut(dto.getYeuCauCheckOut());
         if (dto.getDiaDiem() != null) entity.setDiaDiem(dto.getDiaDiem());
         if (dto.getSoLuongToiDa() != null) entity.setSoLuongToiDa(dto.getSoLuongToiDa());
         if (dto.getDiemRenLuyen() != null) entity.setDiemRenLuyen(dto.getDiemRenLuyen());

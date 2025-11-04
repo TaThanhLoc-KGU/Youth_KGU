@@ -1,6 +1,7 @@
 import { Edit, Mail, Phone, Calendar, User, Users } from 'lucide-react';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
+import { formatDate } from '../../utils/dateFormat';
 
 const StudentDetail = ({ student, onEdit, onClose }) => {
   if (!student) return null;
@@ -55,7 +56,7 @@ const StudentDetail = ({ student, onEdit, onClose }) => {
         <InfoRow
           icon={Calendar}
           label="Ngày sinh"
-          value={student.ngaySinh ? new Date(student.ngaySinh).toLocaleDateString('vi-VN') : '-'}
+          value={student.ngaySinh ? formatDate(student.ngaySinh) : '-'}
         />
         <InfoRow icon={Mail} label="Email" value={student.email} />
         <InfoRow icon={Phone} label="Số điện thoại" value={student.sdt} />
@@ -63,7 +64,7 @@ const StudentDetail = ({ student, onEdit, onClose }) => {
         <InfoRow
           icon={Calendar}
           label="Ngày tạo"
-          value={student.createdAt ? new Date(student.createdAt).toLocaleDateString('vi-VN') : '-'}
+          value={student.createdAt ? formatDate(student.createdAt) : '-'}
         />
       </div>
 

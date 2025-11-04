@@ -10,6 +10,7 @@ import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import ActivityRegistrationModal from '../../components/student/ActivityRegistrationModal';
 import Loading from '../../components/common/Loading';
+import { formatDate } from '../../utils/dateFormat';
 import {
   ACTIVITY_STATUS_LABELS,
   ACTIVITY_TYPE_LABELS,
@@ -182,7 +183,7 @@ const StudentActivities = () => {
                     <div className="flex items-center gap-2 text-gray-600">
                       <Calendar className="w-4 h-4" />
                       <span>
-                        {new Date(activity.ngayToChuc).toLocaleDateString('vi-VN')}
+                        {formatDate(activity.ngayToChuc)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">

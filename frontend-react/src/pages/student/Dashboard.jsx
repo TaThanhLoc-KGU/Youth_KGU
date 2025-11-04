@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, Activity, Award, Clock } from 'lucide-react';
 import activityService from '../../services/activityService';
 import Loading from '../../components/common/Loading';
+import { formatDate } from '../../utils/dateFormat';
 import { ACTIVITY_STATUS_COLORS, ACTIVITY_STATUS_LABELS } from '../../utils/constants';
 
 const StudentDashboard = () => {
@@ -109,7 +110,7 @@ const StudentDashboard = () => {
                       {activity.tenHoatDong}
                     </h4>
                     <p className="text-sm text-gray-600">
-                      {new Date(activity.ngayToChuc).toLocaleDateString('vi-VN')}
+                      {formatDate(activity.ngayToChuc)}
                     </p>
                   </div>
                   <span className={`badge ${ACTIVITY_STATUS_COLORS[activity.trangThai]}`}>

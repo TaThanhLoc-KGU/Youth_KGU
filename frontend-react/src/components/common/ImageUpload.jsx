@@ -1,159 +1,107 @@
 import { useState, useRef } from 'react';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 import clsx from 'clsx';
-import Button from './Button';
 
 const ImageUpload = ({
-  value,
-  onChange,
-  onRemove,
-  maxSize = 5, // MB
+  label = 'Hình ảnh',
+  value = '',
+  onChange = () => {},
+  error = '',
   accept = 'image/*',
-  label = 'Tải ảnh lên',
-  helperText,
-  error,
-  preview = true,
-  className,
+  containerClassName = '',
 }) => {
-  const [dragActive, setDragActive] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(value || null);
-  const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [preview, setPreview] = useState(value || '');
+  const [fileName, setFileName] = useState('');
 
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  };
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    const files = e.dataTransfer.files;
-    if (files && files[0]) {
-      handleFile(files[0]);
-    }
-  };
-
-  const handleChange = (e) => {
-    const files = e.target.files;
-    if (files && files[0]) {
-      handleFile(files[0]);
-    }
-  };
-
-  const handleFile = (file) => {
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Vui lòng chọn file ảnh!');
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('Kích thước file không được vượt quá 5MB');
       return;
     }
 
-    // Validate file size
-    const sizeMB = file.size / 1024 / 1024;
-    if (sizeMB > maxSize) {
-      alert(`Kích thước file không được vượt quá ${maxSize}MB!`);
-      return;
-    }
-
-    // Create preview
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreviewUrl(reader.result);
+    reader.onload = (event) => {
+      const base64String = event.target?.result;
+      setPreview(base64String);
+      setFileName(file.name);
+      onChange({
+        target: {
+          name: 'hinhAnhPoster',
+          value: base64String,
+        },
+      });
     };
     reader.readAsDataURL(file);
-
-    // Call onChange with file
-    if (onChange) {
-      onChange(file);
-    }
   };
 
   const handleRemove = () => {
-    setPreviewUrl(null);
-    if (inputRef.current) {
-      inputRef.current.value = '';
+    setPreview('');
+    setFileName('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-    if (onRemove) {
-      onRemove();
-    }
-    if (onChange) {
-      onChange(null);
-    }
-  };
-
-  const handleClick = () => {
-    inputRef.current?.click();
+    onChange({
+      target: {
+        name: 'hinhAnhPoster',
+        value: '',
+      },
+    });
   };
 
   return (
-    <div className={clsx('w-full', className)}>
-      {label && <label className="form-label">{label}</label>}
+    <div className={clsx('w-full', containerClassName)}>
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label}
+        </label>
+      )}
 
-      {previewUrl && preview ? (
-        <div className="relative inline-block">
+      {preview ? (
+        <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
           <img
-            src={previewUrl}
+            src={preview}
             alt="Preview"
-            className="w-full max-w-md h-auto rounded-lg border-2 border-gray-300"
+            className="w-full h-48 object-cover"
           />
           <button
-            onClick={handleRemove}
-            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
             type="button"
+            onClick={handleRemove}
+            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
+          {fileName && (
+            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 truncate">
+              {fileName}
+            </div>
+          )}
         </div>
       ) : (
         <div
-          onClick={handleClick}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          className={clsx(
-            'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all',
-            dragActive
-              ? 'border-primary bg-primary-50'
-              : 'border-gray-300 hover:border-primary hover:bg-gray-50',
-            error && 'border-red-500'
-          )}
+          onClick={() => fileInputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
         >
-          <input
-            ref={inputRef}
-            type="file"
-            accept={accept}
-            onChange={handleChange}
-            className="hidden"
-          />
-          <div className="flex flex-col items-center gap-2">
-            {previewUrl ? (
-              <ImageIcon className="w-12 h-12 text-primary" />
-            ) : (
-              <Upload className="w-12 h-12 text-gray-400" />
-            )}
-            <div>
-              <p className="text-sm font-medium text-gray-700">
-                Nhấp để chọn hoặc kéo thả ảnh vào đây
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                PNG, JPG, GIF tối đa {maxSize}MB
-              </p>
-            </div>
-          </div>
+          <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+          <p className="text-sm font-medium text-gray-700">Tải lên hình ảnh</p>
+          <p className="text-xs text-gray-500 mt-1">Nhấp để chọn hoặc kéo thả file</p>
+          <p className="text-xs text-gray-400 mt-1">Tối đa 5MB</p>
         </div>
       )}
 
-      {error && <p className="form-error">{error}</p>}
-      {helperText && !error && (
-        <p className="mt-1 text-xs text-gray-500">{helperText}</p>
-      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
     </div>
   );
 };

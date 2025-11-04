@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download } from 'lucide-react';
 import activityService from '../../services/activityService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
@@ -9,14 +9,19 @@ import SearchInput from '../../components/common/SearchInput';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
-import ActivityForm from '../../components/admin/ActivityForm';
+import Card from '../../components/common/Card';
+import ActivityForm from '../../components/activity/ActivityForm';
+import ActivityCard from '../../components/activity/ActivityCard';
 import ActivityDetail from '../../components/admin/ActivityDetail';
+import { formatDate } from '../../utils/dateFormat';
 import {
-  ACTIVITY_STATUS_LABELS,
-  ACTIVITY_STATUS_COLORS,
-  ACTIVITY_TYPE_LABELS,
-  ACTIVITY_LEVEL_LABELS
-} from '../../utils/constants';
+  LOAI_HOAT_DONG_OPTIONS,
+  CAP_DO_OPTIONS,
+  TRANG_THAI_OPTIONS,
+  getLoaiHoatDongLabel,
+  getTrangThaiLabel,
+  getTrangThaiBadgeVariant,
+} from '../../constants/activityConstants';
 
 const Activities = () => {
   const queryClient = useQueryClient();
@@ -65,7 +70,7 @@ const Activities = () => {
       render: (value, row) => (
         <div>
           <div className="font-medium text-gray-900">{value}</div>
-          <div className="text-xs text-gray-500">{ACTIVITY_TYPE_LABELS[row.loaiHoatDong]}</div>
+          <div className="text-xs text-gray-500">{getLoaiHoatDongLabel(row.loaiHoatDong)}</div>
         </div>
       ),
     },
@@ -73,7 +78,7 @@ const Activities = () => {
       header: 'Ngày tổ chức',
       accessor: 'ngayToChuc',
       width: '120px',
-      render: (value) => new Date(value).toLocaleDateString('vi-VN'),
+      render: (value) => formatDate(value),
     },
     {
       header: 'Địa điểm',
@@ -85,7 +90,7 @@ const Activities = () => {
       accessor: 'capDo',
       width: '100px',
       render: (value) => (
-        <span className="text-xs">{ACTIVITY_LEVEL_LABELS[value]}</span>
+        <span className="text-xs">{value}</span>
       ),
     },
     {
@@ -93,8 +98,8 @@ const Activities = () => {
       accessor: 'trangThai',
       width: '140px',
       render: (value) => (
-        <Badge variant={value === 'MO_DANG_KY' ? 'success' : 'info'}>
-          {ACTIVITY_STATUS_LABELS[value]}
+        <Badge variant={getTrangThaiBadgeVariant(value)}>
+          {getTrangThaiLabel(value)}
         </Badge>
       ),
     },
@@ -184,63 +189,52 @@ const Activities = () => {
       </div>
 
       {/* Filters */}
-      <div className="card">
-        <div className="card-body">
+      <Card>
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <SearchInput
               placeholder="Tìm kiếm hoạt động..."
               value={search}
-              onSearch={setSearch}
+              onChange={setSearch}
               className="md:col-span-2"
             />
             <Select
-              options={[
-                { value: 'all', label: 'Tất cả trạng thái' },
-                { value: 'MO_DANG_KY', label: 'Mở đăng ký' },
-                { value: 'DANG_DIEN_RA', label: 'Đang diễn ra' },
-                { value: 'DA_KET_THUC', label: 'Đã kết thúc' },
-              ]}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-            />
+            >
+              <option value="">Tất cả trạng thái</option>
+              {TRANG_THAI_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </Select>
             <Button
               variant="outline"
               icon={RefreshCw}
               onClick={() => refetch()}
-              fullWidth
             >
               Làm mới
             </Button>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Table */}
-      <div className="card">
+      <Card>
         <Table
           columns={columns}
           data={activitiesData?.content || []}
-          isLoading={isLoading}
-          onRowClick={handleView}
+          loading={isLoading}
         />
-        {activitiesData && (
-          <Table.Pagination
-            currentPage={activitiesData.number}
-            totalPages={activitiesData.totalPages}
-            pageSize={activitiesData.size}
-            totalElements={activitiesData.totalElements}
-            onPageChange={setPage}
-            onPageSizeChange={setSize}
-          />
-        )}
-      </div>
+      </Card>
 
       {/* Create/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={modalMode === 'create' ? 'Tạo hoạt động mới' : 'Chỉnh sửa hoạt động'}
-        size="lg"
+        size="xl"
       >
         <ActivityForm
           initialData={selectedActivity}
@@ -255,7 +249,7 @@ const Activities = () => {
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         title="Chi tiết hoạt động"
-        size="lg"
+        size="xl"
       >
         <ActivityDetail
           activity={selectedActivity}

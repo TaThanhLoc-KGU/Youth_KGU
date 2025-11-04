@@ -13,6 +13,7 @@ import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
+import { formatDate } from '../../utils/dateFormat';
 import { useForm } from 'react-hook-form';
 
 const CreateAccountModal = ({ isOpen, onClose, usersWithoutAccount, userType, onSuccess }) => {
@@ -208,7 +209,7 @@ const Taikhoan = () => {
     {
       header: 'Ngày tạo',
       accessor: 'createdAt',
-      render: (v) => new Date(v).toLocaleDateString('vi-VN'),
+      render: (v) => formatDate(v),
     },
     {
       header: 'Thao tác',

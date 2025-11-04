@@ -72,6 +72,21 @@ public class HoatDong {
     @Column(name = "thoi_gian_toi_thieu")
     private Integer thoiGianToiThieu;
 
+    /**
+     * Cho phép check-in sớm (phút)
+     * VD: 30 - Cho phép check-in sớm 30 phút trước giờ bắt đầu
+     */
+    @Column(name = "cho_phep_check_in_som")
+    @Builder.Default
+    private Integer choPhepCheckInSom = 30;
+
+    /**
+     * Yêu cầu check-out không
+     */
+    @Column(name = "yeu_cau_check_out")
+    @Builder.Default
+    private Boolean yeuCauCheckOut = false;
+
     // ========== BASIC FIELDS ==========
 
     @Column(name = "dia_diem", length = 200)
@@ -115,7 +130,7 @@ public class HoatDong {
     @Column(name = "han_dang_ky")
     private LocalDateTime hanDangKy;
 
-    @Column(name = "hinh_anh_poster", length = 500)
+    @Column(name = "hinh_anh_poster", columnDefinition = "LONGTEXT")
     private String hinhAnhPoster;
 
     @Column(name = "ghi_chu", columnDefinition = "TEXT")
