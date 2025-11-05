@@ -27,8 +27,8 @@ const KhoaHocForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
     },
   });
 
-  const mutation = useMutation(
-    (data) => {
+  const mutation = useMutation({
+    mutationFn: (data) => {
       // Convert boolean to proper format if needed
       const submitData = {
         ...data,
@@ -41,14 +41,13 @@ const KhoaHocForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
         return khoahocService.update(initialData.maKhoahoc, submitData);
       }
     },
-    {
-      onSuccess: () => {
+    onSuccess: () => {
         toast.success(mode === 'create' ? 'Thêm khóa học thành công!' : 'Cập nhật khóa học thành công!');
         onSuccess();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-      },
+    },
     }
   );
 
@@ -111,9 +110,9 @@ const KhoaHoc = () => {
   const [selectedKhoaHoc, setSelectedKhoaHoc] = useState(null);
   const [modalMode, setModalMode] = useState('create');
 
-  const { data: khoahocList = [], isLoading, isError, error, refetch } = useQuery(
-    ['khoahoc', search, statusFilter],
-    async () => {
+  const { data: khoahocList = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['khoahoc', search, statusFilter],
+    queryFn: async () => {
       let result = await khoahocService.getAll();
 
       if (search) {
@@ -129,25 +128,22 @@ const KhoaHoc = () => {
 
       return result;
     },
-    {
-      keepPreviousData: true,
+    keepPreviousData: true,
       retry: 3,
       onError: () => {
         toast.error('Không thể tải danh sách khóa học');
       }
-    }
-  );
+  });
 
-  const deleteMutation = useMutation(
-    (maKhoaHoc) => khoahocService.delete(maKhoaHoc),
-    {
-      onSuccess: () => {
+  const deleteMutation = useMutation({
+    mutationFn: (maKhoaHoc) => khoahocService.delete(maKhoaHoc),
+    onSuccess: () => {
         toast.success('Xóa khóa học thành công!');
-        queryClient.invalidateQueries('khoahoc');
-      },
+        queryClient.invalidateQueries(['khoahoc']);
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Xóa thất bại!');
-      },
+    },
     }
   );
 
@@ -285,7 +281,7 @@ const KhoaHoc = () => {
           mode={modalMode}
           onSuccess={() => {
             setIsModalOpen(false);
-            queryClient.invalidateQueries('khoahoc');
+            queryClient.invalidateQueries(['khoahoc']);
           }}
           onCancel={() => setIsModalOpen(false)}
         />

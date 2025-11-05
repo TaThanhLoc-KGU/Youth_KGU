@@ -25,11 +25,11 @@ const StudentActivities = () => {
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
 
   // Fetch all activities
-  const { data: activities = [], isLoading } = useQuery(
-    ['student-activities', search, statusFilter, typeFilter],
-    () => activityService.getAllNoPagination(),
-    { keepPreviousData: true }
-  );
+  const { data: activities = [], isLoading } = useQuery({
+    queryKey: ['student-activities', search, statusFilter, typeFilter],
+    queryFn: () => activityService.getAllNoPagination(),
+    keepPreviousData: true
+  });
 
   // Filter activities
   const filteredActivities = activities.filter((activity) => {

@@ -20,35 +20,38 @@ const AttendanceReport = () => {
   );
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const { data: lops = [] } = useQuery('lops-for-report', () => lopService.getAll());
+  const { data: lops = [] } = useQuery({
+    queryKey: ['lops-for-report'],
+    queryFn: () => lopService.getAll()
+  });
 
-  const { data: reportData = [], isLoading, refetch } = useQuery(
-    ['attendance-report', lopFilter, startDate, endDate],
-    async () => {
+  const { data: reportData = [], isLoading, refetch } = useQuery({
+    queryKey: ['attendance-report', lopFilter, startDate, endDate],
+    queryFn: async () => {
       if (startDate && endDate) {
         return attendanceService.getByDateRange(startDate, endDate);
       }
       return attendanceService.getReport();
     },
-    { keepPreviousData: true }
-  );
+    keepPreviousData: true
+  });
 
-  const { data: stats = {} } = useQuery(
-    ['attendance-stats', lopFilter, startDate, endDate],
-    () => attendanceService.getStatistics({ maLop: lopFilter, startDate, endDate })
-  );
+  const { data: stats = {} } = useQuery({
+    queryKey: ['attendance-stats', lopFilter, startDate, endDate],
+    queryFn: () => attendanceService.getStatistics({ maLop: lopFilter, startDate, endDate })
+  });
 
-  const { data: trends = [] } = useQuery(
-    ['attendance-trends', startDate, endDate],
-    () => attendanceService.getTrends(
+  const { data: trends = [] } = useQuery({
+    queryKey: ['attendance-trends', startDate, endDate],
+    queryFn: () => attendanceService.getTrends(
       Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))
     )
-  );
+  });
 
-  const { data: rateByClass = [] } = useQuery(
-    'attendance-rate-by-class',
-    () => attendanceService.getRateByClass()
-  );
+  const { data: rateByClass = [] } = useQuery({
+    queryKey: ['attendance-rate-by-class'],
+    queryFn: () => attendanceService.getRateByClass()
+  });
 
   const filteredData = search
     ? reportData.filter(r =>

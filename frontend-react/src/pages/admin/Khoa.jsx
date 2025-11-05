@@ -23,24 +23,23 @@ const KhoaForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
     },
   });
 
-  const mutation = useMutation(
-    (data) => {
+  const mutation = useMutation({
+    mutationFn: (data) => {
       if (mode === 'create') {
         return khoaService.create(data);
       } else {
         return khoaService.update(initialData.maKhoa, data);
       }
     },
-    {
-      onSuccess: () => {
+    onSuccess: () => {
         toast.success(
           mode === 'create' ? 'Thêm khoa thành công!' : 'Cập nhật khoa thành công!'
         );
         onSuccess();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-      },
+    },
     }
   );
 
@@ -85,9 +84,9 @@ const Khoa = () => {
   const [selectedKhoa, setSelectedKhoa] = useState(null);
   const [modalMode, setModalMode] = useState('create');
 
-  const { data: khoaList = [], isLoading, isError, error, refetch } = useQuery(
-    ['khoa', search, statusFilter],
-    async () => {
+  const { data: khoaList = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['khoa', search, statusFilter],
+    queryFn: async () => {
       let result = await khoaService.getAll();
       if (search) {
         result = result.filter(k =>
@@ -101,25 +100,22 @@ const Khoa = () => {
       }
       return result;
     },
-    {
-      keepPreviousData: true,
+    keepPreviousData: true,
       retry: 3,
       onError: (error) => {
         toast.error('Không thể tải danh sách khoa. Vui lòng thử lại.');
       }
-    }
-  );
+  });
 
-  const deleteMutation = useMutation(
-    (maKhoa) => khoaService.delete(maKhoa),
-    {
-      onSuccess: () => {
+  const deleteMutation = useMutation({
+    mutationFn: (maKhoa) => khoaService.delete(maKhoa),
+    onSuccess: () => {
         toast.success('Xóa khoa thành công!');
-        queryClient.invalidateQueries('khoa');
-      },
+        queryClient.invalidateQueries(['khoa']);
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Xóa thất bại!');
-      },
+    },
     }
   );
 
@@ -252,7 +248,7 @@ const Khoa = () => {
           mode={modalMode}
           onSuccess={() => {
             setIsModalOpen(false);
-            queryClient.invalidateQueries('khoa');
+            queryClient.invalidateQueries(['khoa']);
           }}
           onCancel={() => setIsModalOpen(false)}
         />

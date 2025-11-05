@@ -24,19 +24,18 @@ const BCHEditForm = ({ isOpen, bch, onClose, onSuccess }) => {
   const [errors, setErrors] = useState({});
 
   // Update mutation
-  const updateMutation = useMutation(
-    (data) => bchService.update(bch?.maBch, data),
-    {
-      onSuccess: () => {
+  const updateMutation = useMutation({
+    mutationFn: (data) => bchService.update(bch?.maBch, data),
+    onSuccess: () => {
         toast.success('Cập nhật BCH thành công!');
-        queryClient.invalidateQueries('bch');
-        queryClient.invalidateQueries('bch-statistics');
+        queryClient.invalidateQueries(['bch']);
+        queryClient.invalidateQueries(['bch-statistics']);
         onSuccess?.();
         onClose?.();
       },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Cập nhật BCH thất bại!');
-      },
+    },
     }
   );
 
@@ -272,8 +271,8 @@ const BCHEditForm = ({ isOpen, bch, onClose, onSuccess }) => {
         maBch={bch?.maBch}
         onClose={() => setIsChucVuModalOpen(false)}
         onSuccess={() => {
-          queryClient.invalidateQueries('bch');
-          queryClient.invalidateQueries('bch-statistics');
+          queryClient.invalidateQueries(['bch']);
+          queryClient.invalidateQueries(['bch-statistics']);
         }}
       />
     </>

@@ -36,49 +36,51 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
   const [errors, setErrors] = useState({});
 
   // Fetch chuc vu
-  const { data: chucVuList = [] } = useQuery('chuc-vu-for-bch-create', chucVuService.getAll);
+  const { data: chucVuList = [] } = useQuery({
+    queryKey: ['chuc-vu-for-bch-create'],
+    queryFn: chucVuService.getAll
+  });
 
   // Fetch all students for search
-  const { data: allStudents = [] } = useQuery(
-    'students-for-bch-search',
-    async () => {
+  const { data: allStudents = [] } = useQuery({
+    queryKey: ['students-for-bch-search'],
+    queryFn: async () => {
       const response = await api.get('/api/sinhvien/active/all');
       return response.data || [];
     }
-  );
+  });
 
   // Fetch all teachers
-  const { data: allTeachers = [] } = useQuery(
-    'teachers-for-bch-search',
-    async () => {
+  const { data: allTeachers = [] } = useQuery({
+    queryKey: ['teachers-for-bch-search'],
+    queryFn: async () => {
       const response = await api.get('/api/giangvien/active');
       return response.data || [];
     }
-  );
+  });
 
   // Fetch all chuyen vien
-  const { data: allChuyenVien = [] } = useQuery(
-    'chuyenvien-for-bch-search',
-    async () => {
+  const { data: allChuyenVien = [] } = useQuery({
+    queryKey: ['chuyenvien-for-bch-search'],
+    queryFn: async () => {
       const response = await api.get('/api/chuyenvien');
       return response.data?.data || [];
     }
-  );
+  });
 
   // Create BCH mutation
-  const createMutation = useMutation(
-    (data) => bchService.create(data),
-    {
-      onSuccess: () => {
-        toast.success('Tạo BCH thành công!');
-        queryClient.invalidateQueries('bch');
-        queryClient.invalidateQueries('bch-statistics');
+  const createMutation = useMutation({
+    mutationFn: (data) => bchService.create(data),
+    onSuccess: () => {
+      toast.success('Tạo BCH thành công!');
+      queryClient.invalidateQueries({ queryKey: ['bch'] });
+      queryClient.invalidateQueries({ queryKey: ['bch-statistics'] });
         onSuccess?.();
         resetForm();
       },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Tạo BCH thất bại!');
-      },
+    },
     }
   );
 

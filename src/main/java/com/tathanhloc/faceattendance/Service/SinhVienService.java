@@ -66,10 +66,10 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
                 .gioiTinh(sv.getGioiTinh())
                 .ngaySinh(sv.getNgaySinh())
                 .email(sv.getEmail())
-                .sdt(sv.getSdt())                          // ← THÊM DÒNG NÀY
+                .sdt(sv.getSdt())
                 .isActive(sv.getIsActive())
-                .maLop(sv.getLop().getMaLop())
-                .tenLop(sv.getLop().getTenLop())          // ← THÊM DÒNG NÀY
+                .maLop(sv.getLop() != null ? sv.getLop().getMaLop() : null)
+                .tenLop(sv.getLop() != null ? sv.getLop().getTenLop() : null)
                 .build();
     }
 

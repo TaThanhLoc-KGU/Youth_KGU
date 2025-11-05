@@ -13,23 +13,21 @@ const LopExcelImport = ({ onImportSuccess, onCancel }) => {
   const [confirmResult, setConfirmResult] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
 
-  const previewMutation = useMutation(
-    (file) => lopService.previewExcelImport(file),
-    {
-      onSuccess: (result) => {
+  const previewMutation = useMutation({
+    mutationFn: (file) => lopService.previewExcelImport(file),
+    onSuccess: (result) => {
         setPreviewData(result);
         toast.success(`Tải preview thành công`);
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Lỗi tải preview');
-      },
+    },
     }
   );
 
-  const confirmMutation = useMutation(
-    (file) => lopService.confirmExcelImport(file),
-    {
-      onSuccess: (result) => {
+  const confirmMutation = useMutation({
+    mutationFn: (file) => lopService.confirmExcelImport(file),
+    onSuccess: (result) => {
         setConfirmResult(result);
         toast.success(
           `Nhập thành công ${result.successCount} lớp${
@@ -42,7 +40,7 @@ const LopExcelImport = ({ onImportSuccess, onCancel }) => {
       },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Lỗi nhập tệp');
-      },
+    },
     }
   );
 

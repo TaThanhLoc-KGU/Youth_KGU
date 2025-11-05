@@ -13,7 +13,7 @@ import Card from '../../components/common/Card';
 import ActivityForm from '../../components/activity/ActivityForm';
 import ActivityCard from '../../components/activity/ActivityCard';
 import ActivityDetail from '../../components/admin/ActivityDetail';
-import { formatDate } from '../../utils/dateFormat';
+import { formatDate } from '@/utils/dateFormat.js';
 import {
   LOAI_HOAT_DONG_OPTIONS,
   CAP_DO_OPTIONS,
@@ -36,25 +36,23 @@ const Activities = () => {
   const [modalMode, setModalMode] = useState('create');
 
   // Fetch activities with pagination
-  const { data: activitiesData, isLoading, refetch } = useQuery(
-    ['activities', page, size, search, statusFilter],
-    () => activityService.getAllWithPagination({ page, size }),
-    { keepPreviousData: true }
-  );
+  const { data: activitiesData, isLoading, refetch } = useQuery({
+    queryKey: ['activities', page, size, search, statusFilter],
+    queryFn: () => activityService.getAllWithPagination({ page, size }),
+    keepPreviousData: true
+  });
 
   // Delete mutation
-  const deleteMutation = useMutation(
-    (maHoatDong) => activityService.delete(maHoatDong),
-    {
-      onSuccess: () => {
-        toast.success('Xóa hoạt động thành công!');
-        queryClient.invalidateQueries('activities');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Xóa hoạt động thất bại!');
-      },
-    }
-  );
+  const deleteMutation = useMutation({
+    mutationFn: (maHoatDong) => activityService.delete(maHoatDong),
+    onSuccess: () => {
+      toast.success('Xóa hoạt động thành công!');
+      queryClient.invalidateQueries(['activities']);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Xóa hoạt động thất bại!');
+    },
+  });
 
   // Table columns
   const columns = [
@@ -170,7 +168,7 @@ const Activities = () => {
 
   const handleFormSuccess = () => {
     setIsModalOpen(false);
-    queryClient.invalidateQueries('activities');
+    queryClient.invalidateQueries(['activities']);
   };
 
   return (

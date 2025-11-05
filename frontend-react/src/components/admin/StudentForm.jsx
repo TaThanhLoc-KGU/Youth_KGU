@@ -1,5 +1,5 @@
 import { useForm } from 'react-hook-form';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from 'react-query';
 import { toast } from 'react-toastify';
 import { Save, X } from 'lucide-react';
 import studentService from '../../services/studentService';
@@ -30,42 +30,39 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
   });
 
   // Fetch danh sách lớp
-  const { data: classesList = [] } = useQuery(
-    'classes',
-    () => lopService.getAll(),
-    {
-      select: (data) => {
+  const { data: classesList = [] } = useQuery({
+    queryKey: ['classes'],
+    queryFn: () => lopService.getAll(),
+    select: (data) => {
         const list = Array.isArray(data) ? data : data.content || [];
         return list.map(lop => ({
           value: lop.maLop,
           label: `${lop.maLop} - ${lop.tenLop || ''}`
-        }));
+  }));
       }
     }
   );
 
-  const mutation = useMutation(
-    (data) => {
+  const mutation = useMutation({
+    mutationFn: (data) => {
       if (mode === 'create') {
         return studentService.create(data);
       } else {
         return studentService.update(initialData.maSv, data);
       }
     },
-    {
-      onSuccess: () => {
-        toast.success(
-          mode === 'create'
-            ? 'Thêm sinh viên thành công!'
-            : 'Cập nhật sinh viên thành công!'
-        );
-        onSuccess();
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-      },
-    }
-  );
+    onSuccess: () => {
+      toast.success(
+        mode === 'create'
+          ? 'Thêm sinh viên thành công!'
+          : 'Cập nhật sinh viên thành công!'
+      );
+      onSuccess();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
+    },
+  });
 
   const onSubmit = (data) => {
     mutation.mutate(data);

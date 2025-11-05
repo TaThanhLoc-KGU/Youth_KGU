@@ -6,22 +6,38 @@ package com.tathanhloc.faceattendance.Enum;
  */
 public enum VaiTroEnum {
     // ========== NHÓM QUẢN LÝ (Management Group) ==========
+// NHÓM LÃNH ĐẠO ĐOÀN (CHỨC VỤ BẦU CỬ)
 
-    // Quản lý Đoàn (Union Management)
-    CHU_TICH_DOAN("Chủ tịch Đoàn", "QUAN_LY", "DOAN", "CAP_1"),
-    PHO_CHU_TICH_DOAN("Phó chủ tịch Đoàn", "QUAN_LY", "DOAN", "CAP_1"),
-    TONG_THU_KY_DOAN("Tổng thư ký Đoàn", "QUAN_LY", "DOAN", "CAP_2"),
-    THU_KY_DOAN("Thư ký Đoàn", "QUAN_LY", "DOAN", "CAP_2"),
-    TONG_THAM_MUU_DOAN("Tổng tham mưu Đoàn", "QUAN_LY", "DOAN", "CAP_2"),
-    THAM_MUU_DOAN("Tham mưu Đoàn", "QUAN_LY", "DOAN", "CAP_3"),
+    // Cấp 1: Thường trực (Lãnh đạo cao nhất)
+    BI_THU_DOAN("Bí thư Đoàn", "QUAN_LY", "DOAN", "CAP_1"),
+    PHO_BI_THU_DOAN("Phó Bí thư Đoàn", "QUAN_LY", "DOAN", "CAP_1"),
 
-    // Quản lý Hội (Association Management)
+    // Cấp 2: Ban Thường vụ (Lãnh đạo thường xuyên)
+    UY_VIEN_THUONG_VU_DOAN("Ủy viên Ban Thường vụ", "QUAN_LY", "DOAN", "CAP_2"),
+
+    // Cấp 3: Ban Chấp hành (Cơ quan lãnh đạo)
+    UY_VIEN_CHAP_HANH_DOAN("Ủy viên Ban Chấp hành", "QUAN_LY", "DOAN", "CAP_3"),
+
+    // NHÓM HỖ TRỢ, CHUYÊN MÔN (VAI TRÒ CÔNG VIỆC)
+
+    // Có thể hiểu là Cán bộ chuyên trách làm công tác văn phòng, tổng hợp
+    CAN_BO_VAN_PHONG_DOAN("Cán bộ Văn phòng Đoàn", "CHUYEN_MON", "DOAN", "CAP_4"),
+
+    // Nếu bạn vẫn muốn dùng từ "Thư ký" để chỉ người làm công tác giấy tờ
+    THU_KY_HANH_CHINH_DOAN("Thư ký hành chính Đoàn", "CHUYEN_MON", "DOAN", "CAP_4"),
+
+    // NHÓM LÃNH ĐẠO HỘI (CHỨC VỤ BẦU CỬ)
+
+    // CAP_1: Thường trực Hội (Lãnh đạo cao nhất)
     CHU_TICH_HOI("Chủ tịch Hội", "QUAN_LY", "HOI", "CAP_1"),
     PHO_CHU_TICH_HOI("Phó chủ tịch Hội", "QUAN_LY", "HOI", "CAP_1"),
-    TONG_THU_KY_HOI("Tổng thư ký Hội", "QUAN_LY", "HOI", "CAP_2"),
-    THU_KY_HOI("Thư ký Hội", "QUAN_LY", "HOI", "CAP_2"),
-    TONG_THAM_MUU_HOI("Tổng tham mưu Hội", "QUAN_LY", "HOI", "CAP_2"),
-    THAM_MUU_HOI("Tham mưu Hội", "QUAN_LY", "HOI", "CAP_3"),
+
+    // CAP_2: Ban Thư ký (Cơ quan điều hành thường xuyên)
+// Thay vì "Tổng Thư ký", Hội có "Ban Thư ký" và các thành viên gọi là "Ủy viên"
+    UY_VIEN_THU_KY_HOI("Ủy viên Ban Thư ký", "QUAN_LY", "HOI", "CAP_2"),
+
+    // CAP_3: Ban Chấp hành (Cơ quan lãnh đạo)
+    UY_VIEN_CHAP_HANH_HOI("Ủy viên Ban Chấp hành", "QUAN_LY", "HOI", "CAP_3"),
 
     // ========== NHÓM PHỤC VỤ (Service Group) ==========
 
@@ -48,8 +64,8 @@ public enum VaiTroEnum {
     GIANG_VIEN_HUONG_DAN("Giảng viên hướng dẫn", "PHU_VU", "HE_THONG", "CAP_3"),
 
     // Vai trò cũ (backward compatibility)
-    GIANGVIEN("Giảng viên", "PHU_VU", "HE_THONG", "CAP_3"),
-    SINHVIEN("Sinh viên", "THAM_GIA", "HE_THONG", "CAP_4");
+    GIANG_VIEN("Giảng viên", "PHU_VU", "HE_THONG", "CAP_3"),
+    SINH_VIEN("Sinh viên", "THAM_GIA", "HE_THONG", "CAP_4");
 
     private final String tenHienThi;  // Tên hiển thị
     private final String nhomVaiTro;  // Nhóm: QUAN_LY, PHU_VU, THAM_GIA

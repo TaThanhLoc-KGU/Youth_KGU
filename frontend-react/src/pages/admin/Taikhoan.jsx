@@ -26,19 +26,17 @@ const CreateAccountModal = ({ isOpen, onClose, usersWithoutAccount, userType, on
     },
   });
 
-  const mutation = useMutation(
-    (data) => taikhoanService.create(data),
-    {
-      onSuccess: () => {
-        toast.success('Tạo tài khoản thành công!');
-        reset();
-        onSuccess?.();
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-      },
+  const mutation = useMutation({
+    mutationFn: (data) => taikhoanService.create(data),
+    onSuccess: () => {
+      toast.success('Tạo tài khoản thành công!');
+      reset();
+      onSuccess?.();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
     }
-  );
+  });
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tạo tài khoản" size="md">
@@ -95,9 +93,9 @@ const Taikhoan = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createUserType, setCreateUserType] = useState('SINHVIEN');
 
-  const { data: accountList = [], isLoading, refetch } = useQuery(
-    ['taikhoan', search, roleFilter, statusFilter],
-    async () => {
+  const { data: accountList = [], isLoading, refetch } = useQuery({
+    queryKey: ['taikhoan', search, roleFilter, statusFilter],
+    queryFn: async () => {
       let result = await taikhoanService.getAll();
 
       if (search) {
@@ -116,57 +114,57 @@ const Taikhoan = () => {
 
       return result;
     },
-    { keepPreviousData: true }
-  );
+    keepPreviousData: true
+  });
 
-  const { data: studentsWithoutAccount = [] } = useQuery(
-    'students-no-account',
-    () => taikhoanService.getStudentsWithoutAccount()
-  );
+  const { data: studentsWithoutAccount = [] } = useQuery({
+    queryKey: ['students-no-account'],
+    queryFn: () => taikhoanService.getStudentsWithoutAccount()
+  });
 
-  const { data: teachersWithoutAccount = [] } = useQuery(
-    'teachers-no-account',
-    () => taikhoanService.getTeachersWithoutAccount()
-  );
+  const { data: teachersWithoutAccount = [] } = useQuery({
+    queryKey: ['teachers-no-account'],
+    queryFn: () => taikhoanService.getTeachersWithoutAccount()
+  });
 
-  const { data: stats = {} } = useQuery('taikhoan-stats', () => taikhoanService.getStatistics());
+  const { data: stats = {} } = useQuery({
+    queryKey: ['taikhoan-stats'],
+    queryFn: () => taikhoanService.getStatistics()
+  });
 
-  const deleteMutation = useMutation(
-    (id) => taikhoanService.delete(id),
-    {
-      onSuccess: () => {
-        toast.success('Xóa tài khoản thành công!');
-        queryClient.invalidateQueries('taikhoan');
-      },
+  const deleteMutation = useMutation({
+    mutationFn: (id) => taikhoanService.delete(id),
+    onSuccess: () => {
+      toast.success('Xóa tài khoản thành công!');
+      queryClient.invalidateQueries({ queryKey: ['taikhoan'] });
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Xóa thất bại!');
-      },
+    },
     }
   );
 
-  const resetPasswordMutation = useMutation(
-    (id) => taikhoanService.resetPassword(id),
-    {
-      onSuccess: (result) => {
+  const resetPasswordMutation = useMutation({
+    mutationFn: (id) => taikhoanService.resetPassword(id),
+    onSuccess: (result) => {
         toast.success(`Mật khẩu mới: ${result.newPassword || 'Kiểm tra email'}`);
-        queryClient.invalidateQueries('taikhoan');
-      },
+        queryClient.invalidateQueries(['taikhoan']);
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Lỗi reset mật khẩu!');
-      },
+    },
     }
   );
 
-  const toggleStatusMutation = useMutation(
-    (id) => taikhoanService.toggleStatus(id),
-    {
-      onSuccess: () => {
+  const toggleStatusMutation = useMutation({
+    mutationFn: (id) => taikhoanService.toggleStatus(id),
+    onSuccess: () => {
         toast.success('Cập nhật trạng thái thành công!');
-        queryClient.invalidateQueries('taikhoan');
-      },
+        queryClient.invalidateQueries(['taikhoan']);
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Cập nhật thất bại!');
-      },
+    },
     }
   );
 
@@ -379,8 +377,8 @@ const Taikhoan = () => {
         userType={createUserType}
         onSuccess={() => {
           refetch();
-          queryClient.invalidateQueries('students-no-account');
-          queryClient.invalidateQueries('teachers-no-account');
+          queryClient.invalidateQueries(['students-no-account']);
+          queryClient.invalidateQueries(['teachers-no-account']);
         }}
       />
     </div>

@@ -232,6 +232,81 @@ const accountService = {
     } catch (error) {
       throw error.response?.data?.message || 'Lỗi lấy thống kê tổ chức';
     }
+  },
+
+  /**
+   * Tạo tài khoản thủ công (Admin only)
+   * @param {object} data - Thông tin tài khoản
+   * @returns {Promise}
+   */
+  createAccountManually: async (data) => {
+    try {
+      const response = await api.post(ACCOUNT_API.CREATE_MANUAL, {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        hoTen: data.hoTen,
+        soDienThoai: data.soDienThoai,
+        ngaySinh: data.ngaySinh,
+        gioiTinh: data.gioiTinh,
+        vaiTro: data.vaiTro,
+        banChuyenMon: data.banChuyenMon || null,
+        avatar: data.avatar
+      });
+      return response.data.data;
+    } catch (error) {
+      throw error.response?.data?.message || 'Lỗi tạo tài khoản';
+    }
+  },
+
+  /**
+   * Lấy danh sách tất cả tài khoản
+   * @returns {Promise}
+   */
+  getAllAccounts: async () => {
+    try {
+      const response = await api.get('/api/accounts');
+      return response.data.data || [];
+    } catch (error) {
+      throw error.response?.data?.message || 'Lỗi lấy danh sách tài khoản';
+    }
+  },
+
+  /**
+   * Cập nhật tài khoản
+   * @param {number} accountId - ID tài khoản
+   * @param {object} data - Thông tin cập nhật
+   * @returns {Promise}
+   */
+  updateAccount: async (accountId, data) => {
+    try {
+      const response = await api.put(`/api/accounts/${accountId}`, {
+        hoTen: data.hoTen,
+        soDienThoai: data.soDienThoai,
+        ngaySinh: data.ngaySinh,
+        gioiTinh: data.gioiTinh,
+        avatar: data.avatar,
+        vaiTro: data.vaiTro,
+        banChuyenMon: data.banChuyenMon || null
+      });
+      return response.data.data;
+    } catch (error) {
+      throw error.response?.data?.message || 'Lỗi cập nhật tài khoản';
+    }
+  },
+
+  /**
+   * Xóa tài khoản
+   * @param {number} accountId - ID tài khoản
+   * @returns {Promise}
+   */
+  deleteAccount: async (accountId) => {
+    try {
+      await api.delete(`/api/accounts/${accountId}`);
+      return true;
+    } catch (error) {
+      throw error.response?.data?.message || 'Lỗi xóa tài khoản';
+    }
   }
 };
 

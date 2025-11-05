@@ -36,9 +36,9 @@ const BCHForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
   );
 
   // Fetch departments (khoa)
-  const { data: departments = [] } = useQuery(
-    'khoa-list',
-    async () => {
+  const { data: departments = [] } = useQuery({
+    queryKey: ['khoa-list'],
+    queryFn: async () => {
       try {
         // This would call the khoa API, returning a list of departments
         // For now, mock data - replace with actual API call
@@ -54,31 +54,29 @@ const BCHForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
         return [];
       }
     },
-    { staleTime: Infinity }
+    staleTime: Infinity }
   );
 
-  const mutation = useMutation(
-    (data) => {
+  const mutation = useMutation({
+    mutationFn: (data) => {
       if (mode === 'create') {
         return bchService.create(data);
       } else {
         return bchService.update(initialData.maBch, data);
       }
     },
-    {
-      onSuccess: () => {
+    onSuccess: () => {
         toast.success(
           mode === 'create'
             ? 'Thêm thành viên BCH thành công!'
             : 'Cập nhật thành viên BCH thành công!'
         );
         onSuccess();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-      },
-    }
-  );
+    },
+  });
 
   const onSubmit = (data) => {
     // Validate email before submitting

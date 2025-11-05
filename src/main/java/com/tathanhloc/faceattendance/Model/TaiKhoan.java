@@ -2,6 +2,8 @@ package com.tathanhloc.faceattendance.Model;
 
 import com.tathanhloc.faceattendance.Enum.VaiTroEnum;
 import com.tathanhloc.faceattendance.Enum.BanChuyenMonEnum;
+import com.tathanhloc.faceattendance.Converter.VaiTroEnumConverter;
+import com.tathanhloc.faceattendance.Converter.BanChuyenMonEnumConverter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -33,7 +35,7 @@ public class TaiKhoan {
     @Column(name = "username", unique = true, nullable = false)
     private String username;
 
-    @NotBlank(message = "Mật khẩu không được để trống")
+    @NotNull(message = "Mật khẩu không được để trống")
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -45,10 +47,12 @@ public class TaiKhoan {
     @NotNull(message = "Vai trò không được để trống")
     @Enumerated(EnumType.STRING)
     @Column(name = "vai_tro", nullable = false)
+    @Convert(converter = VaiTroEnumConverter.class)
     private VaiTroEnum vaiTro;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "ban_chuyen_mon")
+    @Convert(converter = BanChuyenMonEnumConverter.class)
     private BanChuyenMonEnum banChuyenMon;
 
     @Column(name = "ho_ten")

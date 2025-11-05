@@ -52,9 +52,9 @@ const ChucVu = () => {
   const [modalMode, setModalMode] = useState('create');
 
   // Fetch chuc vu list
-  const { data: chucVuList = [], isLoading, refetch } = useQuery(
-    ['chuc-vu', search, thuocBanFilter],
-    async () => {
+  const { data: chucVuList = [], isLoading, refetch } = useQuery({
+    queryKey: ['chuc-vu', search, thuocBanFilter],
+    queryFn: async () => {
       const allChucVu = await chucVuService.getAll();
 
       let filtered = allChucVu;
@@ -72,29 +72,27 @@ const ChucVu = () => {
 
       return filtered;
     },
-    { keepPreviousData: true }
-  );
+    keepPreviousData: true
+  });
 
   // Fetch statistics
-  const { data: stats = {} } = useQuery(
-    'chuc-vu-statistics',
-    chucVuService.getStatistics
-  );
+  const { data: stats = {} } = useQuery({
+    queryKey: ['chuc-vu-statistics'],
+    queryFn: chucVuService.getStatistics
+  });
 
   // Delete mutation
-  const deleteMutation = useMutation(
-    (maChucVu) => chucVuService.delete(maChucVu),
-    {
-      onSuccess: () => {
-        toast.success('Xóa chức vụ thành công!');
-        queryClient.invalidateQueries('chuc-vu');
-        queryClient.invalidateQueries('chuc-vu-statistics');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Xóa chức vụ thất bại!');
-      },
-    }
-  );
+  const deleteMutation = useMutation({
+    mutationFn: (maChucVu) => chucVuService.delete(maChucVu),
+    onSuccess: () => {
+      toast.success('Xóa chức vụ thành công!');
+      queryClient.invalidateQueries(['chuc-vu']);
+      queryClient.invalidateQueries(['chuc-vu-statistics']);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Xóa chức vụ thất bại!');
+    },
+  });
 
   // Table columns
   const columns = [
@@ -186,8 +184,8 @@ const ChucVu = () => {
 
   const handleSuccess = () => {
     handleModalClose();
-    queryClient.invalidateQueries('chuc-vu');
-    queryClient.invalidateQueries('chuc-vu-statistics');
+    queryClient.invalidateQueries(['chuc-vu']);
+    queryClient.invalidateQueries(['chuc-vu-statistics']);
     toast.success(
       modalMode === 'create'
         ? 'Tạo chức vụ thành công!'

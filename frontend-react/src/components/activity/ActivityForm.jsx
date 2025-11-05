@@ -60,29 +60,27 @@ const ActivityForm = ({
     }
   }, [initialData]);
 
-  const createMutation = useMutation(
-    (data) => activityService.create(data),
-    {
-      onSuccess: () => {
+  const createMutation = useMutation({
+    mutationFn: (data) => activityService.create(data),
+    onSuccess: () => {
         toast.success('Tạo hoạt động thành công!');
         onSuccess();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Tạo hoạt động thất bại!');
-      },
+    },
     }
   );
 
-  const updateMutation = useMutation(
-    (data) => activityService.update(initialData.maHoatDong, data),
-    {
-      onSuccess: () => {
+  const updateMutation = useMutation({
+    mutationFn: (data) => activityService.update(initialData.maHoatDong, data),
+    onSuccess: () => {
         toast.success('Cập nhật hoạt động thành công!');
         onSuccess();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Cập nhật hoạt động thất bại!');
-      },
+    },
     }
   );
 

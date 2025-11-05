@@ -29,52 +29,53 @@ import Badge from '../../components/common/Badge';
 
 const AdminDashboard = () => {
   // Fetch dashboard data
-  const { data: dashboardData, isLoading: isDashboardLoading } = useQuery(
-    'dashboard',
-    dashboardService.getDashboard,
-    { keepPreviousData: true }
-  );
+  const { data: dashboardData, isLoading: isDashboardLoading } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: dashboardService.getDashboard,
+    keepPreviousData: true
+  });
 
   // Fetch student count
-  const { data: studentCount } = useQuery('student-count', () =>
-    dashboardService.getStudentCount?.() || Promise.resolve({ count: 0 })
-  );
+  const { data: studentCount } = useQuery({
+    queryKey: ['student-count'],
+    queryFn: () => dashboardService.getStudentCount?.() || Promise.resolve({ count: 0 })
+  });
 
   // Fetch activity statistics
-  const { data: activityStats } = useQuery(
-    'activity-stats',
-    () => dashboardService.getActivityStatistics?.() || Promise.resolve({})
-  );
+  const { data: activityStats } = useQuery({
+    queryKey: ['activity-stats'],
+    queryFn: () => dashboardService.getActivityStatistics?.() || Promise.resolve({})
+  });
 
   // Fetch activity trends (for line chart)
-  const { data: activityTrends } = useQuery(
-    'activity-trends',
-    dashboardService.getActivityTrends
-  );
+  const { data: activityTrends } = useQuery({
+    queryKey: ['activity-trends'],
+    queryFn: dashboardService.getActivityTrends
+  });
 
   // Fetch participation by faculty (for pie chart)
-  const { data: participationByFaculty } = useQuery(
-    'participation-by-faculty',
-    dashboardService.getParticipationByFaculty
-  );
+  const { data: participationByFaculty } = useQuery({
+    queryKey: ['participation-by-faculty'],
+    queryFn: dashboardService.getParticipationByFaculty
+  });
 
   // Fetch upcoming activities
-  const { data: upcomingActivities } = useQuery(
-    'upcoming-activities',
-    () => dashboardService.getUpcomingActivities(7)
-  );
+  const { data: upcomingActivities } = useQuery({
+    queryKey: ['upcoming-activities'],
+    queryFn: () => dashboardService.getUpcomingActivities(7)
+  });
 
   // Fetch top students
-  const { data: topStudents } = useQuery(
-    'top-students',
-    () => dashboardService.getTopStudents(10)
-  );
+  const { data: topStudents } = useQuery({
+    queryKey: ['top-students'],
+    queryFn: () => dashboardService.getTopStudents(10)
+  });
 
   // Fetch attendance statistics
-  const { data: attendanceStats } = useQuery(
-    'attendance-stats',
-    dashboardService.getAttendanceStatistics
-  );
+  const { data: attendanceStats } = useQuery({
+    queryKey: ['attendance-stats'],
+    queryFn: dashboardService.getAttendanceStatistics
+  });
 
   // Transform data for charts
   const attendanceChartData = activityTrends || [

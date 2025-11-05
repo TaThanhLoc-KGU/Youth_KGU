@@ -54,9 +54,9 @@ const Ban = () => {
   const [modalMode, setModalMode] = useState('create');
 
   // Fetch ban list
-  const { data: banList = [], isLoading, refetch } = useQuery(
-    ['ban', search, loaiBanFilter],
-    async () => {
+  const { data: banList = [], isLoading, refetch } = useQuery({
+    queryKey: ['ban', search, loaiBanFilter],
+    queryFn: async () => {
       const allBan = await banService.getAll();
 
       let filtered = allBan;
@@ -74,29 +74,28 @@ const Ban = () => {
 
       return filtered;
     },
-    { keepPreviousData: true }
+    keepPreviousData: true
+  }
   );
 
   // Fetch statistics
-  const { data: stats = {} } = useQuery(
-    'ban-statistics',
-    banService.getStatistics
-  );
+  const { data: stats = {} } = useQuery({
+    queryKey: ['ban-statistics'],
+    queryFn: banService.getStatistics
+  });
 
   // Delete mutation
-  const deleteMutation = useMutation(
-    (maBan) => banService.delete(maBan),
-    {
-      onSuccess: () => {
+  const deleteMutation = useMutation({
+    mutationFn: (maBan) => banService.delete(maBan),
+    onSuccess: () => {
         toast.success('Xóa ban thành công!');
-        queryClient.invalidateQueries('ban');
-        queryClient.invalidateQueries('ban-statistics');
-      },
+        queryClient.invalidateQueries(['ban']);
+        queryClient.invalidateQueries(['ban-statistics']);
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Xóa ban thất bại!');
-      },
-    }
-  );
+    },
+  });
 
   // Table columns
   const columns = [
@@ -182,8 +181,8 @@ const Ban = () => {
 
   const handleSuccess = () => {
     handleModalClose();
-    queryClient.invalidateQueries('ban');
-    queryClient.invalidateQueries('ban-statistics');
+    queryClient.invalidateQueries(['ban']);
+    queryClient.invalidateQueries(['ban-statistics']);
     toast.success(
       modalMode === 'create'
         ? 'Tạo ban thành công!'

@@ -28,9 +28,9 @@ const BCH = () => {
   const [selectedBCH, setSelectedBCH] = useState(null);
 
   // Fetch BCH list
-  const { data: bchList = [], isLoading, refetch } = useQuery(
-    ['bch', search, nhiemKyFilter, loaiThanhVienFilter],
-    async () => {
+  const { data: bchList = [], isLoading, refetch } = useQuery({
+    queryKey: ['bch', search, nhiemKyFilter, loaiThanhVienFilter],
+    queryFn: async () => {
       let results = [];
       if (search) {
         results = await bchService.search(search);
@@ -47,35 +47,34 @@ const BCH = () => {
 
       return results.filter(bch => bch && bch.hoTen); // Filter null results
     },
-    { keepPreviousData: true }
+    keepPreviousData: true
+  }
   );
 
   // Fetch statistics
-  const { data: stats = {} } = useQuery(
-    'bch-statistics',
-    bchService.getStatistics
-  );
+  const { data: stats = {} } = useQuery({
+    queryKey: ['bch-statistics'],
+    queryFn: bchService.getStatistics
+  });
 
   // Fetch chuc vu for filter options
-  const { data: chucVuList = [] } = useQuery(
-    'chuc-vu-for-filter',
-    chucVuService.getAll
-  );
+  const { data: chucVuList = [] } = useQuery({
+    queryKey: ['chuc-vu-for-filter'],
+    queryFn: chucVuService.getAll
+  });
 
   // Delete mutation
-  const deleteMutation = useMutation(
-    (maBch) => bchService.delete(maBch),
-    {
-      onSuccess: () => {
+  const deleteMutation = useMutation({
+    mutationFn: (maBch) => bchService.delete(maBch),
+    onSuccess: () => {
         toast.success('Xóa BCH thành công!');
-        queryClient.invalidateQueries('bch');
-        queryClient.invalidateQueries('bch-statistics');
-      },
+        queryClient.invalidateQueries(['bch']);
+        queryClient.invalidateQueries(['bch-statistics']);
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Xóa BCH thất bại!');
-      },
-    }
-  );
+    },
+  });
 
   // Table columns
   const columns = [
@@ -246,13 +245,13 @@ const BCH = () => {
   const handleCreateSuccess = () => {
     handleCreateFormClose();
     refetch();
-    queryClient.invalidateQueries('bch-statistics');
+    queryClient.invalidateQueries(['bch-statistics']);
   };
 
   const handleEditSuccess = () => {
     handleEditFormClose();
     refetch();
-    queryClient.invalidateQueries('bch-statistics');
+    queryClient.invalidateQueries(['bch-statistics']);
   };
 
   return (
@@ -368,7 +367,7 @@ const BCH = () => {
         onSuccess={() => {
           handleChucVuModalClose();
           refetch();
-          queryClient.invalidateQueries('bch-statistics');
+          queryClient.invalidateQueries(['bch-statistics']);
         }}
       />
 

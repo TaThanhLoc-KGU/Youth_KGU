@@ -2,6 +2,7 @@ package com.tathanhloc.faceattendance.Service;
 
 import com.tathanhloc.faceattendance.DTO.AccountDTO;
 import com.tathanhloc.faceattendance.DTO.RegisterRequest;
+import com.tathanhloc.faceattendance.DTO.CreateAccountRequest;
 import com.tathanhloc.faceattendance.Enum.VaiTroEnum;
 import com.tathanhloc.faceattendance.Enum.BanChuyenMonEnum;
 import com.tathanhloc.faceattendance.Exception.ResourceNotFoundException;
@@ -329,6 +330,68 @@ public class AccountService {
     }
 
     /**
+     * Tạo tài khoản thủ công (Admin only)
+     * @param request Thông tin tài khoản mới
+     * @return AccountDTO của tài khoản mới tạo
+     */
+    @Transactional
+    public AccountDTO createAccountManually(CreateAccountRequest request) {
+        log.info("Tạo tài khoản thủ công: {}", request.getUsername());
+
+        // Validate email format
+        String emailValidationError = emailValidationService.validateEmailWithMessage(request.getEmail());
+        if (!emailValidationError.isEmpty()) {
+            log.error("Email không hợp lệ: {}", request.getEmail());
+            throw new IllegalArgumentException(emailValidationError);
+        }
+
+        // Kiểm tra username đã tồn tại
+        if (taiKhoanRepository.existsByUsername(request.getUsername())) {
+            log.error("Username đã tồn tại: {}", request.getUsername());
+            throw new IllegalArgumentException("Tên đăng nhập đã tồn tại");
+        }
+
+        // Kiểm tra email đã tồn tại
+        if (taiKhoanRepository.existsByEmail(request.getEmail())) {
+            log.error("Email đã tồn tại: {}", request.getEmail());
+            throw new IllegalArgumentException("Email đã tồn tại");
+        }
+
+        // Convert banChuyenMon từ String sang Enum (nullable)
+        BanChuyenMonEnum banChuyenMon = null;
+        if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().trim().isEmpty()) {
+            try {
+                banChuyenMon = BanChuyenMonEnum.valueOf(request.getBanChuyenMon());
+            } catch (IllegalArgumentException e) {
+                log.warn("Ban chuyên môn không hợp lệ: {}", request.getBanChuyenMon());
+                // Không throw exception, bỏ qua nếu giá trị không hợp lệ
+            }
+        }
+
+        // Tạo tài khoản mới
+        TaiKhoan newAccount = TaiKhoan.builder()
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .hoTen(request.getHoTen())
+                .soDienThoai(request.getSoDienThoai())
+                .ngaySinh(request.getNgaySinh())
+                .gioiTinh(request.getGioiTinh())
+                .avatar(request.getAvatar())
+                .vaiTro(request.getVaiTro())
+                .banChuyenMon(banChuyenMon)
+                .isActive(true)
+                .trangThaiPheDuyet("DA_PHE_DUYET") // Tài khoản thủ công được phê duyệt ngay
+                .ngayPheDuyet(LocalDateTime.now())
+                .build();
+
+        TaiKhoan saved = taiKhoanRepository.save(newAccount);
+        log.info("Tạo tài khoản thủ công thành công: {}", saved.getUsername());
+
+        return toDTO(saved);
+    }
+
+    /**
      * Convert TaiKhoan entity to AccountDTO
      */
     private AccountDTO toDTO(TaiKhoan taiKhoan) {
@@ -350,5 +413,75 @@ public class AccountService {
                 .createdAt(taiKhoan.getCreatedAt())
                 .updatedAt(taiKhoan.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * Lấy danh sách tất cả tài khoản
+     */
+    public List<AccountDTO> getAllAccounts() {
+        log.info("Lấy danh sách tất cả tài khoản");
+        return taiKhoanRepository.findAll().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Cập nhật thông tin tài khoản
+     */
+    @Transactional
+    public AccountDTO updateAccount(Long accountId, AccountDTO request) {
+        log.info("Cập nhật tài khoản ID: {}", accountId);
+
+        TaiKhoan account = taiKhoanRepository.findById(accountId)
+                .orElseThrow(() -> {
+                    log.error("Không tìm thấy tài khoản ID: {}", accountId);
+                    return new ResourceNotFoundException("Tài khoản không tồn tại");
+                });
+
+        // Cập nhật các trường được phép
+        if (request.getHoTen() != null && !request.getHoTen().isBlank()) {
+            account.setHoTen(request.getHoTen());
+        }
+        if (request.getSoDienThoai() != null && !request.getSoDienThoai().isBlank()) {
+            account.setSoDienThoai(request.getSoDienThoai());
+        }
+        if (request.getNgaySinh() != null) {
+            account.setNgaySinh(request.getNgaySinh());
+        }
+        if (request.getGioiTinh() != null && !request.getGioiTinh().isBlank()) {
+            account.setGioiTinh(request.getGioiTinh());
+        }
+        if (request.getAvatar() != null && !request.getAvatar().isBlank()) {
+            account.setAvatar(request.getAvatar());
+        }
+        if (request.getVaiTro() != null) {
+            account.setVaiTro(request.getVaiTro());
+        }
+        if (request.getBanChuyenMon() != null) {
+            account.setBanChuyenMon(request.getBanChuyenMon());
+        }
+
+        account.setUpdatedAt(LocalDateTime.now());
+        TaiKhoan updated = taiKhoanRepository.save(account);
+        log.info("Cập nhật tài khoản thành công: {}", updated.getUsername());
+
+        return toDTO(updated);
+    }
+
+    /**
+     * Xóa tài khoản
+     */
+    @Transactional
+    public void deleteAccount(Long accountId) {
+        log.info("Xóa tài khoản ID: {}", accountId);
+
+        TaiKhoan account = taiKhoanRepository.findById(accountId)
+                .orElseThrow(() -> {
+                    log.error("Không tìm thấy tài khoản ID: {}", accountId);
+                    return new ResourceNotFoundException("Tài khoản không tồn tại");
+                });
+
+        taiKhoanRepository.delete(account);
+        log.info("Xóa tài khoản thành công: {}", account.getUsername());
     }
 }

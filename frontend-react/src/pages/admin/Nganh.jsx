@@ -28,8 +28,8 @@ const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas = 
     },
   });
 
-  const mutation = useMutation(
-    (data) => {
+  const mutation = useMutation({
+    mutationFn: (data) => {
       // Convert isActive to boolean
       const submitData = {
         ...data,
@@ -42,14 +42,13 @@ const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas = 
         return nganhService.update(initialData.maNganh, submitData);
       }
     },
-    {
-      onSuccess: () => {
+    onSuccess: () => {
         toast.success(mode === 'create' ? 'Thêm ngành thành công!' : 'Cập nhật ngành thành công!');
         onSuccess();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-      },
+    },
     }
   );
 
@@ -128,20 +127,18 @@ const Nganh = () => {
   const [selectedNganh, setSelectedNganh] = useState(null);
   const [modalMode, setModalMode] = useState('create');
 
-  const { data: khoas = [], isError: khoasError } = useQuery(
-    'khoa-for-nganh',
-    () => khoaService.getAll(),
-    {
-      retry: 3,
-      onError: () => {
-        toast.error('Không thể tải danh sách khoa');
-      }
+  const { data: khoas = [], isError: khoasError } = useQuery({
+    queryKey: ['khoa-for-nganh'],
+    queryFn: () => khoaService.getAll(),
+    retry: 3,
+    onError: () => {
+      toast.error('Không thể tải danh sách khoa');
     }
-  );
+  });
 
-  const { data: nganhList = [], isLoading, isError, error, refetch } = useQuery(
-    ['nganh', search, khoaFilter, statusFilter],
-    async () => {
+  const { data: nganhList = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['nganh', search, khoaFilter, statusFilter],
+    queryFn: async () => {
       let result = await nganhService.getAll();
 
       if (search) {
@@ -160,27 +157,23 @@ const Nganh = () => {
 
       return result;
     },
-    {
-      keepPreviousData: true,
-      retry: 3,
-      onError: () => {
-        toast.error('Không thể tải danh sách ngành');
-      }
+    keepPreviousData: true,
+    retry: 3,
+    onError: () => {
+      toast.error('Không thể tải danh sách ngành');
     }
-  );
+  });
 
-  const deleteMutation = useMutation(
-    (maNganh) => nganhService.delete(maNganh),
-    {
-      onSuccess: () => {
-        toast.success('Xóa ngành thành công!');
-        queryClient.invalidateQueries('nganh');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Xóa thất bại!');
-      },
-    }
-  );
+  const deleteMutation = useMutation({
+    mutationFn: (maNganh) => nganhService.delete(maNganh),
+    onSuccess: () => {
+      toast.success('Xóa ngành thành công!');
+      queryClient.invalidateQueries(['nganh']);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Xóa thất bại!');
+    },
+  });
 
   const handleExport = async () => {
     try {
@@ -344,7 +337,7 @@ const Nganh = () => {
           khoasError={khoasError}
           onSuccess={() => {
             setIsModalOpen(false);
-            queryClient.invalidateQueries('nganh');
+            queryClient.invalidateQueries(['nganh']);
           }}
           onCancel={() => setIsModalOpen(false)}
         />

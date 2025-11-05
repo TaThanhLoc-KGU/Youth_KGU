@@ -25,46 +25,50 @@ const AddChucVuModal = ({
   const [showBanSelect, setShowBanSelect] = useState(false);
 
   // Fetch chuc vu list
-  const { data: allChucVu = [] } = useQuery('chuc-vu-all', chucVuService.getAll);
+  const { data: allChucVu = [] } = useQuery({
+    queryKey: ['chuc-vu-all'],
+    queryFn: chucVuService.getAll
+  });
 
   // Fetch ban list
-  const { data: allBan = [] } = useQuery('ban-all', banService.getAll);
+  const { data: allBan = [] } = useQuery({
+    queryKey: ['ban-all'],
+    queryFn: banService.getAll
+  });
 
   // Fetch current chuc vu of BCH
-  const { data: currentChucVu = [] } = useQuery(
-    ['bch-chuc-vu', maBch],
-    () => (maBch ? bchService.getChucVuByBCH(maBch) : []),
-    { enabled: !!maBch }
-  );
+  const { data: currentChucVu = [] } = useQuery({
+    queryKey: ['bch-chuc-vu', maBch],
+    queryFn: () => (maBch ? bchService.getChucVuByBCH(maBch) : []),
+    enabled: !!maBch
+  });
 
   // Add chuc vu mutation
-  const addChucVuMutation = useMutation(
-    (data) => bchService.addChucVu(maBch, data),
-    {
-      onSuccess: () => {
-        toast.success('Thêm chức vụ thành công!');
+  const addChucVuMutation = useMutation({
+    mutationFn: (data) => bchService.addChucVu(maBch, data),
+    onSuccess: () => {
+      toast.success('Thêm chức vụ thành công!');
         setSelectedChucVu(null);
         setSelectedBan(null);
         setNgayNhanChuc('');
         onSuccess?.();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Thêm chức vụ thất bại!');
-      },
+    },
     }
   );
 
   // Remove chuc vu mutation
-  const removeChucVuMutation = useMutation(
-    (id) => bchService.removeChucVu(id),
-    {
-      onSuccess: () => {
+  const removeChucVuMutation = useMutation({
+    mutationFn: (id) => bchService.removeChucVu(id),
+    onSuccess: () => {
         toast.success('Xóa chức vụ thành công!');
         onSuccess?.();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Xóa chức vụ thất bại!');
-      },
+    },
     }
   );
 

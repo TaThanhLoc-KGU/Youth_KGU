@@ -29,9 +29,9 @@ const ChuyenVien = () => {
   const [errors, setErrors] = useState({});
 
   // Fetch chuyenvien list
-  const { data: chuyenvienList = [], isLoading, refetch } = useQuery(
-    ['chuyenvien', search],
-    async () => {
+  const { data: chuyenvienList = [], isLoading, refetch } = useQuery({
+    queryKey: ['chuyenvien', search],
+    queryFn: async () => {
       let results = [];
       if (search) {
         results = await chuyenVienService.search(search);
@@ -40,59 +40,56 @@ const ChuyenVien = () => {
       }
       return Array.isArray(results) ? results : [];
     },
-    { keepPreviousData: true }
+    keepPreviousData: true
+  }
   );
 
   // Fetch statistics
-  const { data: stats = {} } = useQuery(
-    'chuyenvien-statistics',
-    chuyenVienService.getStatistics
-  );
+  const { data: stats = {} } = useQuery({
+    queryKey: ['chuyenvien-statistics'],
+    queryFn: chuyenVienService.getStatistics
+  });
 
   // Delete mutation
-  const deleteMutation = useMutation(
-    (id) => chuyenVienService.delete(id),
-    {
-      onSuccess: () => {
+  const deleteMutation = useMutation({
+    mutationFn: (id) => chuyenVienService.delete(id),
+    onSuccess: () => {
         toast.success('Xóa chuyên viên thành công!');
-        queryClient.invalidateQueries('chuyenvien');
-        queryClient.invalidateQueries('chuyenvien-statistics');
-      },
+        queryClient.invalidateQueries(['chuyenvien']);
+        queryClient.invalidateQueries(['chuyenvien-statistics']);
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Xóa chuyên viên thất bại!');
-      },
-    }
-  );
+    },
+  });
 
   // Create mutation
-  const createMutation = useMutation(
-    (data) => chuyenVienService.create(data),
-    {
-      onSuccess: () => {
+  const createMutation = useMutation({
+    mutationFn: (data) => chuyenVienService.create(data),
+    onSuccess: () => {
         toast.success('Tạo chuyên viên thành công!');
-        queryClient.invalidateQueries('chuyenvien');
-        queryClient.invalidateQueries('chuyenvien-statistics');
+        queryClient.invalidateQueries(['chuyenvien']);
+        queryClient.invalidateQueries(['chuyenvien-statistics']);
         handleModalClose();
       },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Tạo chuyên viên thất bại!');
-      },
+    },
     }
   );
 
   // Update mutation
-  const updateMutation = useMutation(
-    (data) => chuyenVienService.update(selectedChuyenVien.id, data),
-    {
-      onSuccess: () => {
+  const updateMutation = useMutation({
+    mutationFn: (data) => chuyenVienService.update(selectedChuyenVien.id, data),
+    onSuccess: () => {
         toast.success('Cập nhật chuyên viên thành công!');
-        queryClient.invalidateQueries('chuyenvien');
-        queryClient.invalidateQueries('chuyenvien-statistics');
+        queryClient.invalidateQueries(['chuyenvien']);
+        queryClient.invalidateQueries(['chuyenvien-statistics']);
         handleModalClose();
       },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Cập nhật chuyên viên thất bại!');
-      },
+    },
     }
   );
 

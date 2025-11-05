@@ -25,22 +25,21 @@ const GiangVienForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoa
     },
   });
 
-  const mutation = useMutation(
-    (data) => {
+  const mutation = useMutation({
+    mutationFn: (data) => {
       if (mode === 'create') {
         return giangvienService.create(data);
       } else {
         return giangvienService.update(initialData.maGv, data);
       }
     },
-    {
-      onSuccess: () => {
+    onSuccess: () => {
         toast.success(mode === 'create' ? 'Thêm giảng viên thành công!' : 'Cập nhật giảng viên thành công!');
         onSuccess();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-      },
+    },
     }
   );
 
@@ -105,11 +104,14 @@ const GiangVien = () => {
   const [selectedGV, setSelectedGV] = useState(null);
   const [modalMode, setModalMode] = useState('create');
 
-  const { data: khoas = [] } = useQuery('khoa-for-gv', () => khoaService.getAll());
+  const { data: khoas = [] } = useQuery({
+    queryKey: ['khoa-for-gv'],
+    queryFn: () => khoaService.getAll()
+  });
 
-  const { data: gvList = [], isLoading, error, refetch } = useQuery(
-    ['giangvien', search, khoaFilter, statusFilter],
-    async () => {
+  const { data: gvList = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['giangvien', search, khoaFilter, statusFilter],
+    queryFn: async () => {
       try {
         const params = {};
         if (search) params.search = search;
@@ -125,41 +127,35 @@ const GiangVien = () => {
         throw error;
       }
     },
-    {
-      keepPreviousData: true,
-      retry: 1,
-      refetchOnWindowFocus: false,
-      onError: (error) => {
-        toast.error('Lỗi tải dữ liệu giảng viên: ' + (error.message || 'Unknown error'));
-      }
+    keepPreviousData: true,
+    retry: 1,
+    refetchOnWindowFocus: false,
+    onError: (error) => {
+      toast.error('Lỗi tải dữ liệu giảng viên: ' + (error.message || 'Unknown error'));
     }
-  );
+  });
 
-  const deleteMutation = useMutation(
-    (maGv) => giangvienService.delete(maGv),
-    {
-      onSuccess: () => {
-        toast.success('Xóa giảng viên thành công!');
-        queryClient.invalidateQueries('giangvien');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Xóa thất bại!');
-      },
+  const deleteMutation = useMutation({
+    mutationFn: (maGv) => giangvienService.delete(maGv),
+    onSuccess: () => {
+      toast.success('Xóa giảng viên thành công!');
+      queryClient.invalidateQueries({ queryKey: ['giangvien'] });
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Xóa thất bại!');
     }
-  );
+  });
 
-  const restoreMutation = useMutation(
-    (maGv) => giangvienService.restore(maGv),
-    {
-      onSuccess: () => {
-        toast.success('Khôi phục giảng viên thành công!');
-        queryClient.invalidateQueries('giangvien');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Khôi phục thất bại!');
-      },
+  const restoreMutation = useMutation({
+    mutationFn: (maGv) => giangvienService.restore(maGv),
+    onSuccess: () => {
+      toast.success('Khôi phục giảng viên thành công!');
+      queryClient.invalidateQueries({ queryKey: ['giangvien'] });
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Khôi phục thất bại!');
     }
-  );
+  });
 
   const columns = [
     {
@@ -325,7 +321,7 @@ const GiangVien = () => {
           khoas={khoas}
           onSuccess={() => {
             setIsModalOpen(false);
-            queryClient.invalidateQueries('giangvien');
+            queryClient.invalidateQueries(['giangvien']);
           }}
           onCancel={() => setIsModalOpen(false)}
         />

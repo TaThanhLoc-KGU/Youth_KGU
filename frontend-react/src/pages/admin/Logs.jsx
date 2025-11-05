@@ -84,9 +84,9 @@ const Logs = () => {
   const [selectedLog, setSelectedLog] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  const { data: logsData = [], isLoading, refetch } = useQuery(
-    ['logs', search, levelFilter, moduleFilter, statusFilter],
-    async () => {
+  const { data: logsData = [], isLoading, refetch } = useQuery({
+    queryKey: ['logs', search, levelFilter, moduleFilter, statusFilter],
+    queryFn: async () => {
       const params = {};
       if (levelFilter) params.level = levelFilter;
       if (moduleFilter) params.module = moduleFilter;
@@ -94,10 +94,13 @@ const Logs = () => {
 
       return logsService.getAll({ ...params, size: 100 });
     },
-    { keepPreviousData: true }
-  );
+    keepPreviousData: true
+  });
 
-  const { data: stats = {} } = useQuery('logs-stats', () => logsService.getStatistics());
+  const { data: stats = {} } = useQuery({
+    queryKey: ['logs-stats'],
+    queryFn: () => logsService.getStatistics()
+  });
 
   const filteredLogs = search
     ? logsData.filter(log =>

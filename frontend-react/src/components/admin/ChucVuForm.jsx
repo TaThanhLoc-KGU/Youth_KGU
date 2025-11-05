@@ -41,30 +41,28 @@ const ChucVuForm = ({
   }, [initialData]);
 
   // Create mutation
-  const createMutation = useMutation(
-    (data) => chucVuService.create(data),
-    {
-      onSuccess: () => {
+  const createMutation = useMutation({
+    mutationFn: (data) => chucVuService.create(data),
+    onSuccess: () => {
         onSuccess();
-      },
+    },
       onError: (error) => {
         const message = error.response?.data?.message || 'Tạo chức vụ thất bại!';
         toast.error(message);
-      },
+    },
     }
   );
 
   // Update mutation
-  const updateMutation = useMutation(
-    (data) => chucVuService.update(initialData.maChucVu, data),
-    {
-      onSuccess: () => {
+  const updateMutation = useMutation({
+    mutationFn: (data) => chucVuService.update(initialData.maChucVu, data),
+    onSuccess: () => {
         onSuccess();
-      },
+    },
       onError: (error) => {
         const message = error.response?.data?.message || 'Cập nhật chức vụ thất bại!';
         toast.error(message);
-      },
+    },
     }
   );
 

@@ -27,26 +27,25 @@ const ActivityForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => 
     },
   });
 
-  const mutation = useMutation(
-    (data) => {
+  const mutation = useMutation({
+    mutationFn: (data) => {
       if (mode === 'create') {
         return activityService.create(data);
       } else {
         return activityService.update(initialData.maHoatDong, data);
       }
     },
-    {
-      onSuccess: () => {
+    onSuccess: () => {
         toast.success(
           mode === 'create'
             ? 'Tạo hoạt động thành công!'
             : 'Cập nhật hoạt động thành công!'
         );
         onSuccess();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-      },
+    },
     }
   );
 

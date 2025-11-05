@@ -13,40 +13,36 @@ const StudentExcelImport = ({ onImportSuccess, onCancel }) => {
   const [confirmResult, setConfirmResult] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
 
-  const previewMutation = useMutation(
-    (file) => studentService.previewExcelImport(file),
-    {
-      onSuccess: (result) => {
-        setPreviewData(result);
-        toast.success(`Tải preview thành công`);
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Lỗi tải preview');
-      },
-    }
-  );
+  const previewMutation = useMutation({
+    mutationFn: (file) => studentService.previewExcelImport(file),
+    onSuccess: (result) => {
+      setPreviewData(result);
+      toast.success(`Tải preview thành công`);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Lỗi tải preview');
+    },
+  });
 
-  const confirmMutation = useMutation(
-    (file) => studentService.confirmExcelImport(file),
-    {
-      onSuccess: (result) => {
-        setConfirmResult(result);
-        const successCount = result.successCount || result.validRows || 0;
-        const failureCount = result.failureCount || result.errorRows || 0;
-        toast.success(
-          `Nhập thành công ${successCount} sinh viên${
-            failureCount > 0 ? `, thất bại ${failureCount}` : ''
-          }`
-        );
-        if (successCount > 0) {
-          onImportSuccess?.();
-        }
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Lỗi nhập tệp');
-      },
-    }
-  );
+  const confirmMutation = useMutation({
+    mutationFn: (file) => studentService.confirmExcelImport(file),
+    onSuccess: (result) => {
+      setConfirmResult(result);
+      const successCount = result.successCount || result.validRows || 0;
+      const failureCount = result.failureCount || result.errorRows || 0;
+      toast.success(
+        `Nhập thành công ${successCount} sinh viên${
+          failureCount > 0 ? `, thất bại ${failureCount}` : ''
+        }`
+      );
+      if (successCount > 0) {
+        onImportSuccess?.();
+      }
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Lỗi nhập tệp');
+    },
+  });
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];

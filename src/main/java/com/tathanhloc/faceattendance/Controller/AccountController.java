@@ -3,7 +3,9 @@ package com.tathanhloc.faceattendance.Controller;
 import com.tathanhloc.faceattendance.DTO.ApiResponse;
 import com.tathanhloc.faceattendance.DTO.AccountDTO;
 import com.tathanhloc.faceattendance.DTO.RegisterRequest;
+import com.tathanhloc.faceattendance.DTO.CreateAccountRequest;
 import com.tathanhloc.faceattendance.Enum.VaiTroEnum;
+import com.tathanhloc.faceattendance.Exception.ResourceNotFoundException;
 import com.tathanhloc.faceattendance.Service.AccountService;
 import com.tathanhloc.faceattendance.Service.StatisticsService;
 import lombok.RequiredArgsConstructor;
@@ -465,6 +467,156 @@ public class AccountController {
             log.error("Lỗi lấy thống kê", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.<Map<String, Long>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
+     * Tạo tài khoản thủ công (Admin only)
+     * POST /api/accounts/create-manual
+     */
+    @PostMapping("/create-manual")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AccountDTO>> createAccountManually(
+            @Valid @RequestBody CreateAccountRequest request) {
+        log.info("POST /api/accounts/create-manual - Tạo tài khoản thủ công: {}", request.getUsername());
+
+        try {
+            AccountDTO newAccount = accountService.createAccountManually(request);
+            log.info("Tạo tài khoản thủ công thành công: {}", newAccount.getUsername());
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(true)
+                            .message("Tạo tài khoản thành công")
+                            .data(newAccount)
+                            .build()
+                    );
+        } catch (IllegalArgumentException e) {
+            log.error("Lỗi tạo tài khoản: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        } catch (Exception e) {
+            log.error("Lỗi tạo tài khoản", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message("Lỗi tạo tài khoản: " + e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
+     * Lấy danh sách tất cả tài khoản (Admin only)
+     * GET /api/accounts
+     */
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<AccountDTO>>> getAllAccounts() {
+        log.info("GET /api/accounts - Lấy danh sách tất cả tài khoản");
+
+        try {
+            List<AccountDTO> accounts = accountService.getAllAccounts();
+            log.info("Lấy danh sách tài khoản thành công, tổng cộng: {} tài khoản", accounts.size());
+
+            return ResponseEntity.ok(
+                    ApiResponse.<List<AccountDTO>>builder()
+                            .success(true)
+                            .message("Lấy danh sách thành công")
+                            .data(accounts)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Lỗi lấy danh sách tài khoản", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<List<AccountDTO>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
+     * Cập nhật thông tin tài khoản (Admin only)
+     * PUT /api/accounts/{accountId}
+     */
+    @PutMapping("/{accountId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AccountDTO>> updateAccount(
+            @PathVariable Long accountId,
+            @RequestBody AccountDTO request) {
+        log.info("PUT /api/accounts/{} - Cập nhật tài khoản", accountId);
+
+        try {
+            AccountDTO updated = accountService.updateAccount(accountId, request);
+            log.info("Cập nhật tài khoản thành công: {}", updated.getUsername());
+
+            return ResponseEntity.ok(
+                    ApiResponse.<AccountDTO>builder()
+                            .success(true)
+                            .message("Cập nhật tài khoản thành công")
+                            .data(updated)
+                            .build()
+            );
+        } catch (ResourceNotFoundException e) {
+            log.error("Không tìm thấy tài khoản ID: {}", accountId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        } catch (Exception e) {
+            log.error("Lỗi cập nhật tài khoản", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
+     * Xóa tài khoản (Admin only)
+     * DELETE /api/accounts/{accountId}
+     */
+    @DeleteMapping("/{accountId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteAccount(@PathVariable Long accountId) {
+        log.info("DELETE /api/accounts/{} - Xóa tài khoản", accountId);
+
+        try {
+            accountService.deleteAccount(accountId);
+            log.info("Xóa tài khoản ID: {} thành công", accountId);
+
+            return ResponseEntity.ok(
+                    ApiResponse.<Void>builder()
+                            .success(true)
+                            .message("Xóa tài khoản thành công")
+                            .build()
+            );
+        } catch (ResourceNotFoundException e) {
+            log.error("Không tìm thấy tài khoản ID: {}", accountId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        } catch (Exception e) {
+            log.error("Lỗi xóa tài khoản", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<Void>builder()
                             .success(false)
                             .message(e.getMessage())
                             .build()

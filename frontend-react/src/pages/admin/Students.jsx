@@ -32,9 +32,18 @@ const Students = () => {
   const [modalMode, setModalMode] = useState('create'); // 'create' | 'edit'
 
   // Fetch dropdown data
-  const { data: classList = [] } = useQuery('classes', () => lopService.getAll());
-  const { data: facultyList = [] } = useQuery('faculties', () => khoaService.getAll());
-  const { data: majorList = [] } = useQuery('majors', () => nganhService.getAll());
+  const { data: classList = [] } = useQuery({
+    queryKey: ['classes'],
+    queryFn: () => lopService.getAll()
+  });
+  const { data: facultyList = [] } = useQuery({
+    queryKey: ['faculties'],
+    queryFn: () => khoaService.getAll()
+  });
+  const { data: majorList = [] } = useQuery({
+    queryKey: ['majors'],
+    queryFn: () => nganhService.getAll()
+  });
 
   // Filter classes by faculty/major for display (client-side filtering)
   const filteredClasses = Array.isArray(classList) ? classList.filter(cls => {
@@ -44,9 +53,9 @@ const Students = () => {
   }) : [];
 
   // Fetch students with pagination and filters
-  const { data: studentsData, isLoading } = useQuery(
-    ['students', page, size, search, statusFilter, classFilter],
-    () => studentService.getAll({
+  const { data: studentsData, isLoading } = useQuery({
+    queryKey: ['students', page, size, search, statusFilter, classFilter],
+    queryFn: () => studentService.getAll({
       page,
       size,
       sortBy: 'maSv',
@@ -55,24 +64,20 @@ const Students = () => {
       maLop: classFilter,
       isActive: statusFilter === 'all' ? null : statusFilter === 'active' ? true : false
     }),
-    {
-      keepPreviousData: true,
-    }
-  );
+    keepPreviousData: true
+  });
 
   // Delete mutation
-  const deleteMutation = useMutation(
-    (id) => studentService.delete(id),
-    {
-      onSuccess: () => {
-        toast.success('Xóa sinh viên thành công!');
-        queryClient.invalidateQueries('students');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Xóa sinh viên thất bại!');
-      },
-    }
-  );
+  const deleteMutation = useMutation({
+    mutationFn: (id) => studentService.delete(id),
+    onSuccess: () => {
+      toast.success('Xóa sinh viên thành công!');
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Xóa sinh viên thất bại!');
+    },
+  });
 
   // Handle row selection
   const handleSelectRow = (maSv) => {
@@ -235,7 +240,7 @@ const Students = () => {
 
   const handleFormSuccess = () => {
     setIsModalOpen(false);
-    queryClient.invalidateQueries('students');
+    queryClient.invalidateQueries(['students']);
   };
 
   const handleExport = async () => {
@@ -487,7 +492,7 @@ const Students = () => {
         <StudentExcelImport
           onImportSuccess={() => {
             setIsImportModalOpen(false);
-            queryClient.invalidateQueries('students');
+            queryClient.invalidateQueries(['students']);
           }}
           onCancel={() => setIsImportModalOpen(false)}
         />

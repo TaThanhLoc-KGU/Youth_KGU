@@ -38,8 +38,8 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
     ? nganhs.filter(n => n.maKhoa === selectedKhoa)
     : [];
 
-  const mutation = useMutation(
-    (data) => {
+  const mutation = useMutation({
+    mutationFn: (data) => {
       // Convert isActive to boolean if it's a string
       const submitData = {
         ...data,
@@ -52,14 +52,13 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
         return lopService.update(initialData.maLop, submitData);
       }
     },
-    {
-      onSuccess: () => {
+    onSuccess: () => {
         toast.success(mode === 'create' ? 'Thêm lớp thành công!' : 'Cập nhật lớp thành công!');
         onSuccess();
-      },
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-      },
+    },
     }
   );
 
@@ -135,25 +134,25 @@ const Lop = () => {
   const [modalMode, setModalMode] = useState('create');
 
   // Fetch all necessary data
-  const { data: khoas = [] } = useQuery(
-    'khoa-all',
-    () => khoaService.getAll(),
-    { retry: 3 }
-  );
-  const { data: nganhs = [] } = useQuery(
-    'nganh-all',
-    () => nganhService.getAll(),
-    { retry: 3 }
-  );
-  const { data: khoahocs = [] } = useQuery(
-    'khoahoc-all',
-    () => khoahocService.getAll(),
-    { retry: 3 }
-  );
+  const { data: khoas = [] } = useQuery({
+    queryKey: ['khoa-all'],
+    queryFn: () => khoaService.getAll(),
+    retry: 3
+  });
+  const { data: nganhs = [] } = useQuery({
+    queryKey: ['nganh-all'],
+    queryFn: () => nganhService.getAll(),
+    retry: 3
+  });
+  const { data: khoahocs = [] } = useQuery({
+    queryKey: ['khoahoc-all'],
+    queryFn: () => khoahocService.getAll(),
+    retry: 3
+  });
 
-  const { data: lopList = [], isLoading, isError, error, refetch } = useQuery(
-    ['lop', search, khoaFilter, nganhFilter, khoahocFilter, statusFilter],
-    async () => {
+  const { data: lopList = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['lop', search, khoaFilter, nganhFilter, khoahocFilter, statusFilter],
+    queryFn: async () => {
       let result = await lopService.getAll();
 
       // Apply filters
@@ -179,38 +178,34 @@ const Lop = () => {
 
       return result;
     },
-    {
-      keepPreviousData: true,
+    keepPreviousData: true,
       retry: 3,
       onError: () => {
         toast.error('Không thể tải danh sách lớp');
       }
-    }
-  );
+  });
 
-  const deleteMutation = useMutation(
-    (maLop) => lopService.delete(maLop),
-    {
-      onSuccess: () => {
+  const deleteMutation = useMutation({
+    mutationFn: (maLop) => lopService.delete(maLop),
+    onSuccess: () => {
         toast.success('Xóa lớp thành công!');
-        queryClient.invalidateQueries('lop');
-      },
+        queryClient.invalidateQueries(['lop']);
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Xóa thất bại!');
-      },
+    },
     }
   );
 
-  const restoreMutation = useMutation(
-    (maLop) => lopService.restore(maLop),
-    {
-      onSuccess: () => {
+  const restoreMutation = useMutation({
+    mutationFn: (maLop) => lopService.restore(maLop),
+    onSuccess: () => {
         toast.success('Khôi phục lớp thành công!');
-        queryClient.invalidateQueries('lop');
-      },
+        queryClient.invalidateQueries(['lop']);
+    },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Khôi phục thất bại!');
-      },
+    },
     }
   );
 
@@ -428,7 +423,7 @@ const Lop = () => {
           khoahocs={khoahocs}
           onSuccess={() => {
             setIsModalOpen(false);
-            queryClient.invalidateQueries('lop');
+            queryClient.invalidateQueries(['lop']);
           }}
           onCancel={() => setIsModalOpen(false)}
         />
@@ -443,7 +438,7 @@ const Lop = () => {
         <LopExcelImport
           onImportSuccess={() => {
             setIsImportModalOpen(false);
-            queryClient.invalidateQueries('lop');
+            queryClient.invalidateQueries(['lop']);
           }}
           onCancel={() => setIsImportModalOpen(false)}
         />

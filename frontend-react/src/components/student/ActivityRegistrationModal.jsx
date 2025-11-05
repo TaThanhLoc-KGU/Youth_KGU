@@ -9,23 +9,21 @@ const ActivityRegistrationModal = ({ activity, onSuccess, onCancel }) => {
   const [agreed, setAgreed] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
 
-  const mutation = useMutation(
-    async () => {
+  const mutation = useMutation({
+    mutationFn: async () => {
       // TODO: Call API to register for activity
       // await activityService.register(activity.maHoatDong);
       // For now, simulate API call
       return new Promise((resolve) => setTimeout(resolve, 1000));
     },
-    {
-      onSuccess: () => {
-        toast.success('Đăng ký hoạt động thành công!');
-        onSuccess();
-      },
-      onError: (error) => {
-        toast.error(error.message || 'Có lỗi xảy ra!');
-      },
-    }
-  );
+    onSuccess: () => {
+      toast.success('Đăng ký hoạt động thành công!');
+      onSuccess();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Có lỗi xảy ra!');
+    },
+  });
 
   const handleRegister = () => {
     if (!agreed) {

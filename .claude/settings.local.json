@@ -2,7 +2,18 @@
   "permissions": {
     "allow": [
       "Bash(node -e:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(powershell -NoProfile -Command:*)",
+      "Bash(git checkout:*)",
+      "Bash(node convert_remaining.js:*)",
+      "Bash(node fix_useMutation.js:*)",
+      "Bash(npm run build:*)",
+      "Bash(node fix_useMutation_improved.js:*)",
+      "Bash(node fix_useQuery.js:*)",
+      "Bash(node fix_useQuery_v2.js:*)",
+      "Bash(node fix_indentation.js:*)",
+      "Bash(node fix_all_indentation.js:*)",
+      "Bash(mvn clean compile:*)"
     ],
     "deny": [],
     "ask": []

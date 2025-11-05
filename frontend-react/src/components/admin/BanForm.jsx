@@ -40,30 +40,28 @@ const BanForm = ({
   }, [initialData]);
 
   // Create mutation
-  const createMutation = useMutation(
-    (data) => banService.create(data),
-    {
-      onSuccess: () => {
+  const createMutation = useMutation({
+    mutationFn: (data) => banService.create(data),
+    onSuccess: () => {
         onSuccess();
-      },
+    },
       onError: (error) => {
         const message = error.response?.data?.message || 'Tạo ban thất bại!';
         toast.error(message);
-      },
+    },
     }
   );
 
   // Update mutation
-  const updateMutation = useMutation(
-    (data) => banService.update(initialData.maBan, data),
-    {
-      onSuccess: () => {
+  const updateMutation = useMutation({
+    mutationFn: (data) => banService.update(initialData.maBan, data),
+    onSuccess: () => {
         onSuccess();
-      },
+    },
       onError: (error) => {
         const message = error.response?.data?.message || 'Cập nhật ban thất bại!';
         toast.error(message);
-      },
+    },
     }
   );
 

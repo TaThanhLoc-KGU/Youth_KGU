@@ -15,9 +15,9 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
   if (!activity) return null;
 
   // Fetch registrations for this activity
-  const { data: registrations, isLoading: isLoadingRegistrations } = useQuery(
-    ['activity-registrations', activity.maHoatDong],
-    async () => {
+  const { data: registrations, isLoading: isLoadingRegistrations } = useQuery({
+    queryKey: ['activity-registrations', activity.maHoatDong],
+    queryFn: async () => {
       try {
         const response = await api.get(`/api/dang-ky/activity/${activity.maHoatDong}`);
         return response.data.data || [];
@@ -26,11 +26,9 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
         return [];
       }
     },
-    {
-      enabled: !!activity.maHoatDong,
+    enabled: !!activity.maHoatDong,
       staleTime: 1000 * 60 * 5, // 5 minutes
-    }
-  );
+  });
 
   const InfoRow = ({ icon: Icon, label, value }) => (
     <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
