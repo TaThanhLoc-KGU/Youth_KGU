@@ -2,17 +2,21 @@ import React, { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import accountService from '../services/accountService';
+import banService from '../services/banService'; // Import banService
 import ImageUpload from '../components/common/ImageUpload';
 import {
   ROLE_LABELS,
-  DEPARTMENT_LABELS,
   GENDER_LABELS,
-  PHONE_PATTERN
+  PHONE_PATTERN,
+  DEPARTMENT_OPTIONS // Import DEPARTMENT_OPTIONS directly
 } from '../constants/accountConstants';
 import { formatDate } from '../utils/dateFormat';
+import useAuthStore from '../stores/authStore';
 
 export default function ProfilePage() {
-  const userId = 1; // Lấy từ auth context trong thực tế
+  const { user: authUser } = useAuthStore();
+  const userId = authUser?.id;
+
   const [isEditing, setIsEditing] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const fileInputRef = useRef(null);
@@ -20,7 +24,15 @@ export default function ProfilePage() {
   // Query: Get Current User
   const { data: user = {}, isLoading } = useQuery({
     queryKey: ['userProfile', userId],
-    queryFn: () => accountService.getAccount(userId)
+    queryFn: () => accountService.getAccount(userId),
+    enabled: !!userId
+  });
+
+  // Query: Get Ban List
+  const { data: banList = [] } = useQuery({
+    queryKey: ['banList'],
+    queryFn: () => banService.getAll(),
+    enabled: isEditing // Only fetch when editing
   });
 
   const {
@@ -69,6 +81,16 @@ export default function ProfilePage() {
             />
           </svg>
           <p className="text-gray-600">Đang tải hồ sơ...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center text-red-600">
+          Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.
         </div>
       </div>
     );
@@ -199,13 +221,13 @@ export default function ProfilePage() {
               {/* Full Name */}
               <div className={`${isEditing ? '' : 'md:col-span-2'}`}>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Họ tên {isEditing && '*'}
+                  Họ tên {isEditing && <span className="text-red-500">*</span>}
                 </label>
                 {isEditing ? (
                   <input
                     type="text"
                     {...register('hoTen', {
-                      required: isEditing ? 'Họ tên không được để trống' : false
+                      required: 'Họ tên không được để trống'
                     })}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.hoTen ? 'border-red-500' : 'border-gray-300'
@@ -227,12 +249,13 @@ export default function ProfilePage() {
               {/* Phone */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Số điện thoại
+                  Số điện thoại {isEditing && <span className="text-red-500">*</span>}
                 </label>
                 {isEditing ? (
                   <input
                     type="tel"
                     {...register('soDienThoai', {
+                      required: 'Số điện thoại không được để trống',
                       pattern: {
                         value: PHONE_PATTERN,
                         message: 'Số điện thoại không hợp lệ'
@@ -258,13 +281,17 @@ export default function ProfilePage() {
               {/* Date of Birth */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Ngày sinh
+                  Ngày sinh {isEditing && <span className="text-red-500">*</span>}
                 </label>
                 {isEditing ? (
                   <input
                     type="date"
-                    {...register('ngaySinh')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    {...register('ngaySinh', {
+                      required: 'Ngày sinh không được để trống'
+                    })}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.ngaySinh ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
                 ) : (
                   <input
@@ -274,17 +301,24 @@ export default function ProfilePage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
                   />
                 )}
+                {errors.ngaySinh && (
+                  <p className="text-red-500 text-sm mt-1">{errors.ngaySinh.message}</p>
+                )}
               </div>
 
               {/* Gender */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Giới tính
+                  Giới tính {isEditing && <span className="text-red-500">*</span>}
                 </label>
                 {isEditing ? (
                   <select
-                    {...register('gioiTinh')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    {...register('gioiTinh', {
+                      required: 'Vui lòng chọn giới tính'
+                    })}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.gioiTinh ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="">-- Chọn giới tính --</option>
                     <option value="NAM">Nam</option>
@@ -302,6 +336,9 @@ export default function ProfilePage() {
                     disabled
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
                   />
+                )}
+                {errors.gioiTinh && (
+                  <p className="text-red-500 text-sm mt-1">{errors.gioiTinh.message}</p>
                 )}
               </div>
             </div>
@@ -335,9 +372,9 @@ export default function ProfilePage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Chọn ban chuyên môn --</option>
-                    {Object.entries(DEPARTMENT_LABELS).map(([key, label]) => (
-                      <option key={key} value={key}>
-                        {label}
+                    {banList.map(ban => (
+                      <option key={ban.maBan} value={ban.maBan}>
+                        {ban.tenBan}
                       </option>
                     ))}
                   </select>
@@ -346,7 +383,7 @@ export default function ProfilePage() {
                     type="text"
                     value={
                       user.banChuyenMon
-                        ? DEPARTMENT_LABELS[user.banChuyenMon]
+                        ? (banList.find(b => b.maBan === user.banChuyenMon)?.tenBan || user.tenBanChuyenMon || user.banChuyenMon)
                         : 'Chưa cập nhật'
                     }
                     disabled

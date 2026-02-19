@@ -130,9 +130,9 @@ public class ChuyenVienService {
         long total = chuyenVienRepository.count();
         long active = chuyenVienRepository.countActive();
 
-        stats.put("totalChuyenVien", total);
-        stats.put("activeChuyenVien", active);
-        stats.put("inactiveChuyenVien", total - active);
+        stats.put("total", total); // Changed from totalChuyenVien to total
+        stats.put("active", active); // Changed from activeChuyenVien to active
+        stats.put("inactive", total - active); // Changed from inactiveChuyenVien to inactive
 
         // Group by khoa if exists
         Map<String, Long> byKhoa = chuyenVienRepository.findByIsActiveTrueOrderByHoTenAsc()

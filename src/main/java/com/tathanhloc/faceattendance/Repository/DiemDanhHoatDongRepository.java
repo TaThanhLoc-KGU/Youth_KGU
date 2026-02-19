@@ -20,6 +20,9 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
 
     Optional<DiemDanhHoatDong> findByMaQRDaQuet(String maQR);
 
+    // Find active session (not checked out) by QR
+    Optional<DiemDanhHoatDong> findByMaQRDaQuetAndThoiGianCheckOutIsNull(String maQR);
+
     @Query("SELECT CASE WHEN COUNT(dd) > 0 THEN true ELSE false END " +
             "FROM DiemDanhHoatDong dd WHERE dd.maQRDaQuet = :maQR " +
             "AND dd.hoatDong.maHoatDong = :maHoatDong")
@@ -27,7 +30,6 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
 
     long countByHoatDongMaHoatDongAndTrangThai(String maHoatDong, TrangThaiThamGiaEnum trangThai);
 
-    // THÊM METHOD NÀY
     long countByHoatDongMaHoatDong(String maHoatDong);
 
     @Query("SELECT dd FROM DiemDanhHoatDong dd WHERE dd.hoatDong.maHoatDong = :maHoatDong " +
@@ -73,7 +75,6 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
     List<DiemDanhHoatDong> findByNguoiCheckInMaBch(String maBch);
     long countByNguoiCheckInMaBch(String maBch);
 
-    // THÊM METHODS NÀY
     @Query("SELECT dd FROM DiemDanhHoatDong dd " +
             "WHERE dd.sinhVien.maSv = :maSv " +
             "AND dd.hoatDong.maHoatDong = :maHoatDong")

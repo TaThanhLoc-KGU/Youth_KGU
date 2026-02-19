@@ -31,6 +31,94 @@ public class AccountController {
     private final StatisticsService statisticsService;
 
     /**
+     * Lấy danh sách tất cả tài khoản (Admin only)
+     */
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<AccountDTO>>> getAllAccounts() {
+        log.info("GET /api/accounts - Lấy danh sách tất cả tài khoản");
+        try {
+            List<AccountDTO> accounts = accountService.getAllAccounts();
+            return ResponseEntity.ok(
+                    ApiResponse.<List<AccountDTO>>builder()
+                            .success(true)
+                            .message("Lấy danh sách tài khoản thành công")
+                            .data(accounts)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Lỗi lấy danh sách tài khoản", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<List<AccountDTO>>builder()
+                            .success(false)
+                            .message("Lỗi lấy danh sách tài khoản: " + e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
+     * Lấy thông tin tài khoản theo ID
+     */
+    @GetMapping("/{accountId}")
+    public ResponseEntity<ApiResponse<AccountDTO>> getAccountById(@PathVariable Long accountId) {
+        log.info("GET /api/accounts/{} - Lấy thông tin tài khoản", accountId);
+        try {
+            AccountDTO account = accountService.getAccountById(accountId);
+            return ResponseEntity.ok(
+                    ApiResponse.<AccountDTO>builder()
+                            .success(true)
+                            .message("Lấy thông tin tài khoản thành công")
+                            .data(account)
+                            .build()
+            );
+        } catch (ResourceNotFoundException e) {
+            log.error("Không tìm thấy tài khoản ID: {}", accountId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        } catch (Exception e) {
+            log.error("Lỗi lấy thông tin tài khoản", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message("Lỗi lấy thông tin tài khoản: " + e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
+     * Lấy danh sách tài khoản chờ phê duyệt (Admin only)
+     */
+    @GetMapping("/pending-approval")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<AccountDTO>>> getPendingApprovalAccounts() {
+        log.info("GET /api/accounts/pending-approval - Lấy danh sách tài khoản chờ phê duyệt");
+        try {
+            List<AccountDTO> pendingAccounts = accountService.getPendingApprovalAccounts();
+            return ResponseEntity.ok(
+                    ApiResponse.<List<AccountDTO>>builder()
+                            .success(true)
+                            .message("Lấy danh sách tài khoản chờ phê duyệt thành công")
+                            .data(pendingAccounts)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Lỗi lấy danh sách tài khoản chờ phê duyệt", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<List<AccountDTO>>builder()
+                            .success(false)
+                            .message("Lỗi lấy danh sách tài khoản chờ phê duyệt: " + e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
      * Đăng ký tài khoản mới (public endpoint)
      */
     @PostMapping("/register")
@@ -126,6 +214,43 @@ public class AccountController {
                     );
         } catch (Exception e) {
             log.error("Lỗi cập nhật tài khoản", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
+     * Cập nhật hồ sơ cá nhân (User)
+     */
+    @PutMapping("/{accountId}/profile")
+    public ResponseEntity<ApiResponse<AccountDTO>> updateProfile(
+            @PathVariable Long accountId,
+            @RequestBody AccountDTO request) {
+        log.info("PUT /api/accounts/{}/profile - Cập nhật hồ sơ cá nhân", accountId);
+
+        try {
+            AccountDTO updated = accountService.updateProfile(accountId, request);
+            return ResponseEntity.ok(
+                    ApiResponse.<AccountDTO>builder()
+                            .success(true)
+                            .message("Cập nhật hồ sơ thành công")
+                            .data(updated)
+                            .build()
+            );
+        } catch (ResourceNotFoundException e) {
+            log.error("Không tìm thấy tài khoản ID: {}", accountId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        } catch (Exception e) {
+            log.error("Lỗi cập nhật hồ sơ", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.<AccountDTO>builder()
                             .success(false)

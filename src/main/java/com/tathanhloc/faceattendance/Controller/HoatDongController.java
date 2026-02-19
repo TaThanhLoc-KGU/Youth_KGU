@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -150,12 +151,10 @@ public class HoatDongController {
     @GetMapping("/date-range")
     @Operation(summary = "Lọc theo khoảng thời gian")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getByDateRange(
-            @RequestParam String startDate,
-            @RequestParam String endDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         log.info("GET /api/hoat-dong/date-range?start={}&end={}", startDate, endDate);
-        LocalDate start = LocalDate.parse(startDate);
-        LocalDate end = LocalDate.parse(endDate);
-        List<HoatDongDTO> activities = hoatDongService.getByDateRange(start, end);
+        List<HoatDongDTO> activities = hoatDongService.getByDateRange(startDate, endDate);
         return ResponseEntity.ok(ApiResponse.success(activities));
     }
 

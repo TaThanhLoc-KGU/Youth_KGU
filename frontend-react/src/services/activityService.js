@@ -129,6 +129,42 @@ const activityService = {
     const response = await api.get('/api/hoat-dong/statistics/by-status');
     return response.data.data;
   },
+
+  // ========== REGISTRATION ==========
+
+  // Register for activity
+  register: async (data) => {
+    const response = await api.post('/api/dang-ky', data);
+    return response.data;
+  },
+
+  // Cancel registration
+  cancelRegistration: async (maSv, maHoatDong) => {
+    const response = await api.delete('/api/dang-ky', {
+      params: { maSv, maHoatDong },
+    });
+    return response.data;
+  },
+
+  // Get registrations by activity
+  getRegistrationsByActivity: async (maHoatDong) => {
+    const response = await api.get(`/api/dang-ky/activity/${maHoatDong}`);
+    return response.data.data;
+  },
+
+  // Get registrations by student
+  getRegistrationsByStudent: async (maSv) => {
+    const response = await api.get(`/api/dang-ky/student/${maSv}`);
+    return response.data.data;
+  },
+
+  // Get QR Code Base64
+  getQRCode: async (maSv, maHoatDong) => {
+    const response = await api.get('/api/dang-ky/qrcode-image', {
+      params: { maSv, maHoatDong },
+    });
+    return response.data.data;
+  },
 };
 
 export default activityService;

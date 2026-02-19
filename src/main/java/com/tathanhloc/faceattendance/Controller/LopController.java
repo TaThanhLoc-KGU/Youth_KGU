@@ -5,6 +5,7 @@ import com.tathanhloc.faceattendance.Service.LopService;
 import com.tathanhloc.faceattendance.Service.LopExcelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -44,12 +45,12 @@ public class LopController {
     }
 
     @PostMapping
-    public LopDTO create(@RequestBody LopDTO dto) {
+    public LopDTO create(@Valid @RequestBody LopDTO dto) {
         return lopService.create(dto);
     }
 
     @PutMapping("/{id}")
-    public LopDTO update(@PathVariable String id, @RequestBody LopDTO dto) {
+    public LopDTO update(@PathVariable String id, @Valid @RequestBody LopDTO dto) {
         return lopService.update(id, dto);
     }
 
@@ -122,17 +123,16 @@ public class LopController {
     @PostMapping("/import-excel/confirm")
     public ResponseEntity<ExcelImportPreviewDTO> confirmExcelImport(@RequestParam MultipartFile file) throws Exception {
         ExcelImportPreviewDTO preview = lopExcelService.previewExcel(file);
-        // Import valid data
+        
+        // Cập nhật: Sử dụng saveAll thay vì vòng lặp để tối ưu hiệu năng
         if (preview.getValidData() != null && !preview.getValidData().isEmpty()) {
-            for (Object item : preview.getValidData()) {
-                try {
-                    if (item instanceof LopDTO) {
-                        LopDTO lopDTO = (LopDTO) item;
-                        lopService.create(lopDTO);
-                    }
-                } catch (Exception e) {
-                    // Log error but continue importing
-                }
+            try {
+                @SuppressWarnings("unchecked")
+                List<LopDTO> validData = (List<LopDTO>)(List<?>) preview.getValidData();
+                // Yêu cầu Service hỗ trợ hàm saveAll hoặc importBatch
+                lopService.saveAll(validData); 
+            } catch (Exception e) {
+                throw new RuntimeException("Lỗi khi lưu dữ liệu hàng loạt: " + e.getMessage());
             }
         }
         return ResponseEntity.ok(preview);

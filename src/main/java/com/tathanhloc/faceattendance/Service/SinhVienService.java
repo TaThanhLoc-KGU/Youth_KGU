@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.repository.JpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -213,5 +214,24 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
         }
 
         return savedList;
+    }
+
+    @Transactional
+    public int updateStatusBatch(List<String> studentIds, Boolean isActive) {
+        int count = 0;
+        for (String id : studentIds) {
+            try {
+                Optional<SinhVien> svOpt = sinhVienRepository.findById(id);
+                if (svOpt.isPresent()) {
+                    SinhVien sv = svOpt.get();
+                    sv.setIsActive(isActive);
+                    sinhVienRepository.save(sv);
+                    count++;
+                }
+            } catch (Exception e) {
+                log.error("Failed to update status for student: " + id, e);
+            }
+        }
+        return count;
     }
 }

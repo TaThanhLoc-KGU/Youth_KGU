@@ -22,5 +22,5 @@ public class AttendanceStatisticsDTO {
     private Double tiLeCoMat;                           // Tỷ lệ có mặt (%)
     private Double tiLeDiemDanhTre;                     // Tỷ lệ điểm danh trễ (%)
     private Map<String, Long> thongKeTheoKhoa;         // Thống kê theo khoa
-    private Map<String, AttendanceByActivityDTO> thongKeTheoHoatDong;  // Thống kê theo hoạt động
+    private Map<String, Object> thongKeTheoHoatDong;  // Thống kê theo hoạt động
 }

@@ -1,7 +1,6 @@
 package com.tathanhloc.faceattendance.DTO;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,8 +15,10 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CheckOutRequest {
 
-    @NotNull(message = "ID điểm danh không được trống")
+    // Có thể dùng ID hoặc QR Code
     private Long diemDanhId;
+
+    private String maQR;
 
     @NotBlank(message = "Mã BCH xác nhận không được trống")
     private String maBchXacNhan;

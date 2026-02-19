@@ -80,7 +80,7 @@ const ChuyenVien = () => {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: (data) => chuyenVienService.update(selectedChuyenVien.id, data),
+    mutationFn: (data) => chuyenVienService.update(selectedChuyenVien.maChuyenVien, data),
     onSuccess: () => {
         toast.success('Cập nhật chuyên viên thành công!');
         queryClient.invalidateQueries(['chuyenvien']);
@@ -206,7 +206,7 @@ const ChuyenVien = () => {
 
   const handleDelete = (chuyenvien) => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa ${chuyenvien.hoTen}?`)) {
-      deleteMutation.mutate(chuyenvien.id);
+      deleteMutation.mutate(chuyenvien.maChuyenVien);
     }
   };
 
@@ -267,13 +267,13 @@ const ChuyenVien = () => {
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 gap-4">
         <Card>
-          <div className="text-center">
+          <div className="text-center p-4">
             <div className="text-3xl font-bold text-purple-600">{stats.total || 0}</div>
             <div className="text-gray-600 text-sm">Tổng chuyên viên</div>
           </div>
         </Card>
         <Card>
-          <div className="text-center">
+          <div className="text-center p-4">
             <div className="text-3xl font-bold text-green-600">
               {stats.active || 0}
             </div>

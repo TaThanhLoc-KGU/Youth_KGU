@@ -86,7 +86,7 @@ public class SinhVienController {
     }
 
 
-    @GetMapping("/active")
+    @GetMapping("/active/all")
     public ResponseEntity<List<SinhVienDTO>> getAllActive() {
         log.info("Lấy danh sách sinh viên đang hoạt động");
         return ResponseEntity.ok(sinhVienService.getAllActive());
@@ -226,20 +226,11 @@ public class SinhVienController {
             int updatedCount = 0;
             List<String> errors = new ArrayList<>();
 
-            for (String maSv : studentIds) {
-                try {
-                    SinhVienDTO sinhVien = sinhVienService.getByMaSv(maSv);
-                    sinhVien.setIsActive(isActive);
-                    sinhVienService.update(maSv, sinhVien);
-                    updatedCount++;
-                } catch (Exception e) {
-                    errors.add("Không thể cập nhật sinh viên " + maSv + ": " + e.getMessage());
-                }
-            }
+            // Cập nhật: Gọi method updateBatch trong service (cần implement trong Service)
+            updatedCount = sinhVienService.updateStatusBatch(studentIds, isActive);
 
             return ResponseEntity.ok(Map.of(
                     "updatedCount", updatedCount,
-                    "totalRequested", studentIds.size(),
                     "errors", errors,
                     "message", "Đã cập nhật " + updatedCount + "/" + studentIds.size() + " sinh viên"
             ));
@@ -253,14 +244,6 @@ public class SinhVienController {
 
     }
 
-    /**
-     * Lấy tất cả sinh viên đang hoạt động (không phân trang)
-     */
-    @GetMapping("/active/all")
-    public ResponseEntity<List<SinhVienDTO>> getAllActiveStudents() {
-        log.info("Lấy tất cả sinh viên đang hoạt động (không phân trang)");
-        return ResponseEntity.ok(sinhVienService.getAllActive());
-    }
     @GetMapping("/count")
     public ResponseEntity<StudentCountDTO> getStudentCount() {
         try {
@@ -403,4 +386,3 @@ public class SinhVienController {
         }
     }
 }
-

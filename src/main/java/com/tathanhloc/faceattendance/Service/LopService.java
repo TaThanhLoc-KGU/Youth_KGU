@@ -7,9 +7,11 @@ import com.tathanhloc.faceattendance.Util.AutoLogUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -83,6 +85,16 @@ public class LopService {
     // Xóa mềm (alias cho softDelete)
     public void delete(String id) {
         softDelete(id);
+    }
+
+    @Transactional
+    public List<LopDTO> saveAll(List<LopDTO> dtoList) {
+        List<Lop> entities = dtoList.stream()
+                .map(this::toEntity)
+                .collect(Collectors.toList());
+        return lopRepository.saveAll(entities).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     private LopDTO toDTO(Lop e) {

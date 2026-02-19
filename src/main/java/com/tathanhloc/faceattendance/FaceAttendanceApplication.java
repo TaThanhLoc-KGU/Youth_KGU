@@ -26,17 +26,24 @@ public class FaceAttendanceApplication {
     @Bean
     CommandLineRunner initAdmin(TaiKhoanRepository taiKhoanRepository, PasswordEncoder passwordEncoder) {
         return args -> {
-            if (taiKhoanRepository.findByUsername("admin").isEmpty()) {
-                TaiKhoan admin = TaiKhoan.builder()
+            TaiKhoan admin = taiKhoanRepository.findByUsername("admin").orElse(null);
+
+            if (admin == null) {
+                admin = TaiKhoan.builder()
                         .username("admin")
-                        .passwordHash(passwordEncoder.encode("admin@123"))
                         .vaiTro(VaiTroEnum.ADMIN)
-                        .isActive(true)
                         .createdAt(LocalDateTime.now())
                         .build();
-                taiKhoanRepository.save(admin);
-                System.out.println("✅ Admin account created successfully!");
             }
+            // Luôn cập nhật mật khẩu và trạng thái hoạt động
+            admin.setPasswordHash(passwordEncoder.encode("admin@123"));
+            admin.setIsActive(true);
+            // Đảm bảo email không trống để tránh lỗi validation
+            if (admin.getEmail() == null || admin.getEmail().isEmpty()) {
+                admin.setEmail("admin@gmail.com");
+            }
+            taiKhoanRepository.save(admin);
+            System.out.println("✅ Admin account created/updated successfully!");
         };
     }
 

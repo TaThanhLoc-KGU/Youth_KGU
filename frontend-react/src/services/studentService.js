@@ -2,46 +2,35 @@ import api from './api';
 
 const studentService = {
   // Get all students with pagination
-  // Get all students with pagination
-getAll: async (params = {}) => {
-  const { 
-    page = 0, 
-    size = 10, 
-    sortBy = 'maSv', 
-    direction = 'asc',
-    search,      // ← Thêm
-    maLop,       // ← Thêm
-    isActive     // ← Thêm
-  } = params;
-  
-  // Tạo object params
-  const queryParams = {
-    page,
-    size,
-    sortBy,
-    direction
-  };
-  
-  // Chỉ thêm nếu có giá trị (tránh gửi undefined)
-  if (search) {
-    queryParams.search = search;
-  }
-  if (maLop) {
-    queryParams.maLop = maLop;
-  }
-  if (isActive !== null && isActive !== undefined) {
-    queryParams.isActive = isActive;
-  }
-  
-  const response = await api.get('/api/sinhvien', {
-    params: queryParams
-  });
-  return response.data;
-},
+  getAll: async (params = {}) => {
+    const { 
+      page = 0, 
+      size = 10, 
+      sortBy = 'maSv', 
+      direction = 'asc',
+      search,
+      maLop,
+      isActive
+    } = params;
+    
+    const queryParams = {
+      page,
+      size,
+      sortBy,
+      direction
+    };
+    
+    if (search) queryParams.search = search;
+    if (maLop) queryParams.maLop = maLop;
+    if (isActive !== null && isActive !== undefined) queryParams.isActive = isActive;
+    
+    const response = await api.get('/api/sinhvien', { params: queryParams });
+    return response.data;
+  },
 
   // Get all active students
   getAllActive: async () => {
-    const response = await api.get('/api/sinhvien/active');
+    const response = await api.get('/api/sinhvien/active/all');
     return response.data;
   },
 
@@ -116,7 +105,6 @@ getAll: async (params = {}) => {
       });
       return response.data?.data || { isValid: false };
     } catch (error) {
-      // If API doesn't exist, validate locally
       const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
       return { isValid: emailRegex.test(email) };
     }

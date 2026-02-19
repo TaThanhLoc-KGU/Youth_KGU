@@ -57,14 +57,15 @@ export default function AccountManagementPage() {
   // Query: Pending Approvals
   const { data: pendingAccounts = [], isLoading: pendingLoading } = useQuery({
     queryKey: ['pendingAccounts'],
-    queryFn: () => accountService.getPendingApprovals()
+    queryFn: () => accountService.getPendingApprovals(),
+    enabled: activeTab === 'pending'
   });
 
   // Query: Search Results
   const { data: searchResults = [], isLoading: searchLoading } = useQuery({
     queryKey: ['searchAccounts', searchKeyword],
     queryFn: () => accountService.searchAccounts(searchKeyword),
-    enabled: searchKeyword.length > 0
+    enabled: activeTab === 'search' && searchKeyword.length > 0
   });
 
   // Mutation: Approve Account
@@ -316,7 +317,13 @@ export default function AccountManagementPage() {
       return;
     }
 
-    createAccountMutation.mutate(createFormData);
+    // Ensure empty string for banChuyenMon is treated as null or empty string, not undefined
+    const dataToSubmit = {
+      ...createFormData,
+      banChuyenMon: createFormData.banChuyenMon || '' // Send empty string if not selected
+    };
+
+    createAccountMutation.mutate(dataToSubmit);
   };
 
   const handleUpdateAccount = () => {
@@ -327,9 +334,15 @@ export default function AccountManagementPage() {
     }
 
     if (selectedAccount) {
+      // Ensure empty string for banChuyenMon is treated as null or empty string
+      const dataToSubmit = {
+        ...editFormData,
+        banChuyenMon: editFormData.banChuyenMon || '' // Send empty string if not selected
+      };
+
       updateAccountMutation.mutate({
         accountId: selectedAccount.id,
-        data: editFormData
+        data: dataToSubmit
       });
     }
   };
@@ -555,12 +568,209 @@ export default function AccountManagementPage() {
         {activeTab === 'create' && (
           <div className="p-6">
             <h2 className="text-xl font-bold mb-6">Tạo tài khoản mới</h2>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
-            >
-              + Tạo tài khoản
-            </button>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {/* Username */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Tên đăng nhập *
+                </label>
+                <input
+                  type="text"
+                  name="username"
+                  value={createFormData.username}
+                  onChange={handleCreateFormChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    createErrors.username ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="username"
+                />
+                {createErrors.username && (
+                  <p className="text-red-500 text-xs mt-1">{createErrors.username}</p>
+                )}
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={createFormData.email}
+                  onChange={handleCreateFormChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    createErrors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="user@vnkgu.edu.vn"
+                />
+                {createErrors.email && (
+                  <p className="text-red-500 text-xs mt-1">{createErrors.email}</p>
+                )}
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Mật khẩu *
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={createFormData.password}
+                  onChange={handleCreateFormChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    createErrors.password ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Nhập mật khẩu"
+                />
+                {createErrors.password && (
+                  <p className="text-red-500 text-xs mt-1">{createErrors.password}</p>
+                )}
+              </div>
+
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Họ tên *
+                </label>
+                <input
+                  type="text"
+                  name="hoTen"
+                  value={createFormData.hoTen}
+                  onChange={handleCreateFormChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    createErrors.hoTen ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Họ và tên"
+                />
+                {createErrors.hoTen && (
+                  <p className="text-red-500 text-xs mt-1">{createErrors.hoTen}</p>
+                )}
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Số điện thoại
+                </label>
+                <input
+                  type="tel"
+                  name="soDienThoai"
+                  value={createFormData.soDienThoai}
+                  onChange={handleCreateFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0987654321"
+                />
+              </div>
+
+              {/* Birth Date */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Ngày sinh
+                </label>
+                <input
+                  type="date"
+                  name="ngaySinh"
+                  value={createFormData.ngaySinh}
+                  onChange={handleCreateFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Gender */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Giới tính
+                </label>
+                <select
+                  name="gioiTinh"
+                  value={createFormData.gioiTinh}
+                  onChange={handleCreateFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Chọn giới tính</option>
+                  <option value={GENDER.MALE}>Nam</option>
+                  <option value={GENDER.FEMALE}>Nữ</option>
+                  <option value={GENDER.OTHER}>Khác</option>
+                </select>
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Vai trò *
+                </label>
+                <select
+                  name="vaiTro"
+                  value={createFormData.vaiTro}
+                  onChange={handleCreateFormChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    createErrors.vaiTro ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Chọn vai trò</option>
+                  {ROLE_OPTIONS.map(role => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
+                {createErrors.vaiTro && (
+                  <p className="text-red-500 text-xs mt-1">{createErrors.vaiTro}</p>
+                )}
+              </div>
+
+              {/* Department */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Ban chuyên môn
+                </label>
+                <select
+                  name="banChuyenMon"
+                  value={createFormData.banChuyenMon}
+                  onChange={handleCreateFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Chọn ban chuyên môn</option>
+                  {DEPARTMENT_OPTIONS.map(dept => (
+                    <option key={dept.value} value={dept.value}>
+                      {dept.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setCreateFormData({
+                    username: '',
+                    email: '',
+                    password: '',
+                    hoTen: '',
+                    soDienThoai: '',
+                    ngaySinh: '',
+                    gioiTinh: '',
+                    vaiTro: '',
+                    banChuyenMon: ''
+                  });
+                  setCreateErrors({});
+                }}
+                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCreateAccount}
+                disabled={createAccountMutation.isPending}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-semibold"
+              >
+                {createAccountMutation.isPending ? 'Đang tạo...' : 'Tạo tài khoản'}
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -4,9 +4,10 @@ import com.tathanhloc.faceattendance.DTO.AccountDTO;
 import com.tathanhloc.faceattendance.DTO.RegisterRequest;
 import com.tathanhloc.faceattendance.DTO.CreateAccountRequest;
 import com.tathanhloc.faceattendance.Enum.VaiTroEnum;
-import com.tathanhloc.faceattendance.Enum.BanChuyenMonEnum;
 import com.tathanhloc.faceattendance.Exception.ResourceNotFoundException;
+import com.tathanhloc.faceattendance.Model.Ban;
 import com.tathanhloc.faceattendance.Model.TaiKhoan;
+import com.tathanhloc.faceattendance.Repository.BanRepository;
 import com.tathanhloc.faceattendance.Repository.TaiKhoanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 public class AccountService {
 
     private final TaiKhoanRepository taiKhoanRepository;
+    private final BanRepository banRepository;
     private final EmailValidationService emailValidationService;
     private final PasswordEncoder passwordEncoder;
 
@@ -172,8 +174,12 @@ public class AccountService {
             account.setAvatar(request.getAvatar());
         }
 
-        if (request.getBanChuyenMon() != null) {
-            account.setBanChuyenMon(request.getBanChuyenMon());
+        if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().isEmpty()) {
+            Ban ban = banRepository.findById(request.getBanChuyenMon())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ban chuyên môn: " + request.getBanChuyenMon()));
+            account.setBanChuyenMon(ban);
+        } else if (request.getBanChuyenMon() == null) {
+            account.setBanChuyenMon(null);
         }
 
         TaiKhoan updated = taiKhoanRepository.save(account);
@@ -262,7 +268,7 @@ public class AccountService {
      * Lấy danh sách tài khoản chờ phê duyệt
      * @return List<AccountDTO>
      */
-    public List<AccountDTO> getAccountsPendingApproval() {
+    public List<AccountDTO> getPendingApprovalAccounts() {
         log.info("Lấy danh sách tài khoản chờ phê duyệt");
 
         return taiKhoanRepository.findByTrangThaiPheDuyetAndIsActiveTrue("CHO_PHE_DUYET")
@@ -357,17 +363,6 @@ public class AccountService {
             throw new IllegalArgumentException("Email đã tồn tại");
         }
 
-        // Convert banChuyenMon từ String sang Enum (nullable)
-        BanChuyenMonEnum banChuyenMon = null;
-        if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().trim().isEmpty()) {
-            try {
-                banChuyenMon = BanChuyenMonEnum.valueOf(request.getBanChuyenMon());
-            } catch (IllegalArgumentException e) {
-                log.warn("Ban chuyên môn không hợp lệ: {}", request.getBanChuyenMon());
-                // Không throw exception, bỏ qua nếu giá trị không hợp lệ
-            }
-        }
-
         // Tạo tài khoản mới
         TaiKhoan newAccount = TaiKhoan.builder()
                 .username(request.getUsername())
@@ -379,11 +374,16 @@ public class AccountService {
                 .gioiTinh(request.getGioiTinh())
                 .avatar(request.getAvatar())
                 .vaiTro(request.getVaiTro())
-                .banChuyenMon(banChuyenMon)
                 .isActive(true)
                 .trangThaiPheDuyet("DA_PHE_DUYET") // Tài khoản thủ công được phê duyệt ngay
                 .ngayPheDuyet(LocalDateTime.now())
                 .build();
+
+        if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().isEmpty()) {
+            Ban ban = banRepository.findById(request.getBanChuyenMon())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ban chuyên môn: " + request.getBanChuyenMon()));
+            newAccount.setBanChuyenMon(ban);
+        }
 
         TaiKhoan saved = taiKhoanRepository.save(newAccount);
         log.info("Tạo tài khoản thủ công thành công: {}", saved.getUsername());
@@ -405,7 +405,8 @@ public class AccountService {
                 .gioiTinh(taiKhoan.getGioiTinh())
                 .avatar(taiKhoan.getAvatar())
                 .vaiTro(taiKhoan.getVaiTro())
-                .banChuyenMon(taiKhoan.getBanChuyenMon())
+                .banChuyenMon(taiKhoan.getBanChuyenMon() != null ? taiKhoan.getBanChuyenMon().getMaBan() : null)
+                .tenBanChuyenMon(taiKhoan.getBanChuyenMon() != null ? taiKhoan.getBanChuyenMon().getTenBan() : null)
                 .trangThaiPheDuyet(taiKhoan.getTrangThaiPheDuyet())
                 .ngayPheDuyet(taiKhoan.getNgayPheDuyet())
                 .ghiChu(taiKhoan.getGhiChu())
@@ -457,8 +458,12 @@ public class AccountService {
         if (request.getVaiTro() != null) {
             account.setVaiTro(request.getVaiTro());
         }
-        if (request.getBanChuyenMon() != null) {
-            account.setBanChuyenMon(request.getBanChuyenMon());
+        if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().isEmpty()) {
+            Ban ban = banRepository.findById(request.getBanChuyenMon())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ban chuyên môn: " + request.getBanChuyenMon()));
+            account.setBanChuyenMon(ban);
+        } else if (request.getBanChuyenMon() == null) {
+            account.setBanChuyenMon(null);
         }
 
         account.setUpdatedAt(LocalDateTime.now());

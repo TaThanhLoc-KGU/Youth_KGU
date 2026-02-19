@@ -1,9 +1,7 @@
 package com.tathanhloc.faceattendance.Model;
 
 import com.tathanhloc.faceattendance.Enum.VaiTroEnum;
-import com.tathanhloc.faceattendance.Enum.BanChuyenMonEnum;
 import com.tathanhloc.faceattendance.Converter.VaiTroEnumConverter;
-import com.tathanhloc.faceattendance.Converter.BanChuyenMonEnumConverter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -50,10 +48,10 @@ public class TaiKhoan {
     @Convert(converter = VaiTroEnumConverter.class)
     private VaiTroEnum vaiTro;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "ban_chuyen_mon")
-    @Convert(converter = BanChuyenMonEnumConverter.class)
-    private BanChuyenMonEnum banChuyenMon;
+    // Thay thế enum BanChuyenMonEnum bằng quan hệ với bảng Ban
+    @ManyToOne
+    @JoinColumn(name = "ma_ban")
+    private Ban banChuyenMon;
 
     @Column(name = "ho_ten")
     private String hoTen;

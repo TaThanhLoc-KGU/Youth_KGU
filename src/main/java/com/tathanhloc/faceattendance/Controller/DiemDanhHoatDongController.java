@@ -28,7 +28,7 @@ public class DiemDanhHoatDongController {
     // ========== QR SCAN ENDPOINTS ==========
 
     @PostMapping("/scan")
-    @Operation(summary = "⭐ Quét QR Code để điểm danh")
+    @Operation(summary = "⭐ Quét QR Code để điểm danh (Check-in)")
     public ResponseEntity<DiemDanhQRResponse> scanQRCode(
             @RequestBody DiemDanhQRRequest request) {
         log.info("POST /api/diem-danh/scan - Scanning QR: {}", request.getMaQR());
@@ -52,14 +52,11 @@ public class DiemDanhHoatDongController {
     }
 
     @PostMapping("/check-out")
-    @Operation(summary = "Check-out khi kết thúc")
+    @Operation(summary = "Check-out khi kết thúc (Dùng ID hoặc QR)")
     public ResponseEntity<ApiResponse<DiemDanhHoatDongDTO>> checkOut(
             @RequestBody CheckOutRequest request) {
-        log.info("POST /api/diem-danh/check-out - ID: {}", request.getDiemDanhId());
-        DiemDanhHoatDongDTO result = diemDanhService.checkOut(
-                request.getDiemDanhId(),
-                request.getMaBchXacNhan()
-        );
+        log.info("POST /api/diem-danh/check-out - ID: {}, QR: {}", request.getDiemDanhId(), request.getMaQR());
+        DiemDanhHoatDongDTO result = diemDanhService.checkOut(request);
         return ResponseEntity.ok(ApiResponse.success("Check-out thành công", result));
     }
 
@@ -138,6 +135,14 @@ public class DiemDanhHoatDongController {
             @PathVariable String maSv) {
         log.info("GET /api/diem-danh/statistics/student/{}", maSv);
         Map<String, Object> stats = diemDanhService.getStudentAttendanceHistory(maSv);
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    @GetMapping("/statistics")
+    @Operation(summary = "Thống kê điểm danh tổng hợp")
+    public ResponseEntity<ApiResponse<AttendanceStatisticsDTO>> getStatisticsOverview() {
+        log.info("GET /api/diem-danh/statistics");
+        AttendanceStatisticsDTO stats = diemDanhService.getAttendanceStatisticsOverview();
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 

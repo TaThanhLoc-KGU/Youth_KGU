@@ -1,7 +1,6 @@
 package com.tathanhloc.faceattendance.DTO;
 
 import com.tathanhloc.faceattendance.Enum.VaiTroEnum;
-import com.tathanhloc.faceattendance.Enum.BanChuyenMonEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -37,7 +36,9 @@ public class AccountDTO {
 
     private VaiTroEnum vaiTro;
 
-    private BanChuyenMonEnum banChuyenMon;
+    private String banChuyenMon; // Mã ban (String) thay vì Enum
+
+    private String tenBanChuyenMon; // Tên ban để hiển thị
 
     private String trangThaiPheDuyet; // CHO_PHE_DUYET, DA_PHE_DUYET, TU_CHOI
 
