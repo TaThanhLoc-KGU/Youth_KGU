@@ -5,6 +5,7 @@ import com.tathanhloc.faceattendance.Enum.*;
 import com.tathanhloc.faceattendance.Service.HoatDongService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -66,7 +67,15 @@ public class HoatDongController {
 
     @PostMapping
     @Operation(summary = "Tạo hoạt động mới")
-    public ResponseEntity<ApiResponse<HoatDongDTO>> create(@RequestBody HoatDongDTO dto) {
+    public ResponseEntity<ApiResponse<HoatDongDTO>> create(@Valid @RequestBody HoatDongDTO dto) {
+        // Validate logic nghiệp vụ: Thời gian kết thúc phải sau thời gian bắt đầu
+        if (dto.getThoiGianBatDau() != null && dto.getThoiGianKetThuc() != null) {
+            if (dto.getThoiGianKetThuc().isBefore(dto.getThoiGianBatDau())) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Thời gian kết thúc không được trước thời gian bắt đầu"));
+            }
+        }
+
         log.info("POST /api/hoat-dong - Create new activity: {}", dto.getMaHoatDong());
         HoatDongDTO created = hoatDongService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -77,7 +86,16 @@ public class HoatDongController {
     @Operation(summary = "Cập nhật hoạt động")
     public ResponseEntity<ApiResponse<HoatDongDTO>> update(
             @PathVariable String maHoatDong,
-            @RequestBody HoatDongDTO dto) {
+            @Valid @RequestBody HoatDongDTO dto) {
+        
+        // Validate logic nghiệp vụ
+        if (dto.getThoiGianBatDau() != null && dto.getThoiGianKetThuc() != null) {
+            if (dto.getThoiGianKetThuc().isBefore(dto.getThoiGianBatDau())) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Thời gian kết thúc không được trước thời gian bắt đầu"));
+            }
+        }
+
         log.info("PUT /api/hoat-dong/{} - Update activity", maHoatDong);
         HoatDongDTO updated = hoatDongService.update(maHoatDong, dto);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", updated));

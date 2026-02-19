@@ -73,6 +73,7 @@ public class DangKyHoatDongService {
                 .build();
 
         // Mã QR sẽ tự động sinh trong @PrePersist
+        dangKy.generateQRCode();
         dangKy = dangKyRepository.save(dangKy);
 
         // 6. Sinh QR Code image
@@ -252,5 +253,26 @@ public class DangKyHoatDongService {
                 .isActive(entity.getIsActive())
                 .daDiemDanh(daDiemDanh)
                 .build();
+    }
+
+    // ========== ALIAS METHODS FOR COMPATIBILITY ==========
+
+    public DangKyHoatDongDTO dangKy(String maSv, String maHoatDong) {
+        DangKyHoatDongRequest request = DangKyHoatDongRequest.builder()
+                .maSv(maSv)
+                .maHoatDong(maHoatDong)
+                .build();
+        return registerActivity(request);
+    }
+
+    public void huyDangKy(String maSv, String maHoatDong) {
+        cancelRegistration(maSv, maHoatDong);
+    }
+
+    public String getQrCodeString(String maSv, String maHoatDong) {
+        DangKyHoatDongId id = new DangKyHoatDongId(maSv, maHoatDong);
+        return dangKyRepository.findById(id)
+                .map(DangKyHoatDong::getMaQR)
+                .orElse(null);
     }
 }

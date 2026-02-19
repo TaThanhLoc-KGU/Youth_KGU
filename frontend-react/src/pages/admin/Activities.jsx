@@ -13,7 +13,8 @@ import Card from '../../components/common/Card';
 import ActivityForm from '../../components/activity/ActivityForm';
 import ActivityCard from '../../components/activity/ActivityCard';
 import ActivityDetail from '../../components/admin/ActivityDetail';
-import { formatDate } from '@/utils/dateFormat.js';
+import { formatDate } from '../../utils/dateFormat';
+import { useNavigate } from 'react-router-dom';
 import {
   LOAI_HOAT_DONG_OPTIONS,
   CAP_DO_OPTIONS,
@@ -24,6 +25,7 @@ import {
 } from '../../constants/activityConstants';
 
 const Activities = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -144,15 +146,18 @@ const Activities = () => {
   ];
 
   const handleCreate = () => {
-    setModalMode('create');
-    setSelectedActivity(null);
-    setIsModalOpen(true);
+    navigate('/admin/activities/create');
   };
 
   const handleEdit = (activity) => {
+    // For now, we can use the modal or navigate to an edit page
+    // If using modal:
     setModalMode('edit');
     setSelectedActivity(activity);
     setIsModalOpen(true);
+    
+    // If you want to navigate to an edit page later:
+    // navigate(`/admin/activities/edit/${activity.maHoatDong}`);
   };
 
   const handleView = (activity) => {

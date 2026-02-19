@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -24,6 +24,7 @@ import AttendanceReport from './pages/admin/AttendanceReport';
 import ChuyenVien from './pages/admin/ChuyenVien';
 import StudentDashboard from './pages/student/Dashboard';
 import Activities from './pages/admin/Activities';
+import CreateHoatDong from './pages/HoatDong/CreateHoatDong'; // Import CreateHoatDong
 import StudentActivities from './pages/student/Activities';
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES } from './utils/constants';
@@ -37,6 +38,21 @@ const ComingSoon = ({ title }) => (
     </div>
   </div>
 );
+
+const NotFound = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+        <p className="text-xl text-gray-600 mb-8">Không tìm thấy trang</p>
+        <button onClick={() => navigate(-1)} className="btn btn-primary">
+          Quay lại
+        </button>
+      </div>
+    </div>
+  );
+};
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -80,6 +96,7 @@ function App() {
           <Route path="teachers" element={<GiangVien />} />
           <Route path="giangvien" element={<GiangVien />} />
           <Route path="activities" element={<Activities />} />
+          <Route path="activities/create" element={<CreateHoatDong />} /> {/* Added route for CreateHoatDong */}
           <Route path="bch" element={<BCH />} />
           <Route path="chuc-vu" element={<ChucVu />} />
           <Route path="ban" element={<Ban />} />
@@ -147,20 +164,7 @@ function App() {
         />
 
         {/* 404 Not Found */}
-        <Route
-          path="*"
-          element={
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-              <div className="text-center">
-                <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-                <p className="text-xl text-gray-600 mb-8">Không tìm thấy trang</p>
-                <a href={ROUTES.LOGIN} className="btn btn-primary">
-                  Về trang đăng nhập
-                </a>
-              </div>
-            </div>
-          }
-        />
+        <Route path="*" element={<NotFound />} />
 
         {/* Home - redirect to login */}
         <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.LOGIN} replace />} />

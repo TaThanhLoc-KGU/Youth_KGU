@@ -45,8 +45,9 @@ const Sidebar = () => {
       { icon: Zap, label: 'Chức vụ', path: ROUTES.ADMIN_CHUC_VU },
       { icon: Building, label: 'Ban/Đội/CLB', path: ROUTES.ADMIN_BAN },
       { icon: ClipboardCheck, label: 'Điểm danh', path: ROUTES.ADMIN_ATTENDANCE },
-      { icon: Award, label: 'Chứng nhận', path: ROUTES.ADMIN_CERTIFICATES },
-      { icon: BarChart3, label: 'Thống kê', path: ROUTES.ADMIN_STATISTICS },
+      // Removed Certificates and Statistics as requested
+      // { icon: Award, label: 'Chứng nhận', path: ROUTES.ADMIN_CERTIFICATES },
+      // { icon: BarChart3, label: 'Thống kê', path: ROUTES.ADMIN_STATISTICS },
       { icon: UserPlus, label: 'Quản lý tài khoản', path: ROUTES.ADMIN_ACCOUNTS },
       { icon: BarChart2, label: 'Thống kê tài khoản', path: ROUTES.ADMIN_ACCOUNT_STATISTICS },
       { icon: User, label: 'Hồ sơ cá nhân', path: ROUTES.PROFILE },
@@ -81,26 +82,26 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-screen bg-white border-r border-gray-200 transition-all duration-300 z-40 ${
+      className={`fixed top-0 left-0 h-screen bg-white border-r border-gray-200 transition-all duration-300 z-40 flex flex-col ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 flex-shrink-0">
         {!isCollapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
               <Building2 className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h1 className="text-sm font-bold text-gray-900">Youth KGU</h1>
-              <p className="text-xs text-gray-500">Quản lý hoạt động</p>
+            <div className="min-w-0">
+              <h1 className="text-sm font-bold text-gray-900 truncate">Youth KGU</h1>
+              <p className="text-xs text-gray-500 truncate">Quản lý hoạt động</p>
             </div>
           </div>
         )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
         >
           <ChevronLeft
             className={`w-5 h-5 text-gray-600 transition-transform ${
@@ -111,7 +112,7 @@ const Sidebar = () => {
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-primary font-semibold text-sm">
@@ -133,8 +134,8 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-4">
+      {/* Navigation - Scrollable Area */}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-4 custom-scrollbar">
         <ul className="space-y-1">
           {currentMenuItems.map((item) => {
             const Icon = item.icon;
@@ -144,7 +145,7 @@ const Sidebar = () => {
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
                     isActive
                       ? 'bg-primary text-white'
                       : 'text-gray-700 hover:bg-gray-100'
@@ -153,7 +154,7 @@ const Sidebar = () => {
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   {!isCollapsed && (
-                    <span className="text-sm font-medium">{item.label}</span>
+                    <span className="text-sm font-medium truncate">{item.label}</span>
                   )}
                 </Link>
               </li>
@@ -163,16 +164,16 @@ const Sidebar = () => {
       </nav>
 
       {/* Logout Button */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 flex-shrink-0">
         <button
           onClick={handleLogout}
-          className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors ${
+          className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors whitespace-nowrap ${
             isCollapsed ? 'justify-center' : ''
           }`}
           title={isCollapsed ? 'Đăng xuất' : ''}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!isCollapsed && <span className="text-sm font-medium">Đăng xuất</span>}
+          {!isCollapsed && <span className="text-sm font-medium truncate">Đăng xuất</span>}
         </button>
       </div>
     </aside>

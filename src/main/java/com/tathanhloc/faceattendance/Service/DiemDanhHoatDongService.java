@@ -370,12 +370,18 @@ public class DiemDanhHoatDongService {
         double presentRate = totalAttendance > 0 ? (double) successful / totalAttendance * 100 : 0;
         double absentRate = totalAttendance > 0 ? (double) absent / totalAttendance * 100 : 0;
 
+        // Thống kê theo khoa (giả định có thể lấy từ sinh viên)
+        // Đây là phần cần query phức tạp hơn, tạm thời trả về map rỗng hoặc query đơn giản
+        Map<String, Long> byFaculty = new HashMap<>();
+        // TODO: Implement query to group by faculty
+
         return AttendanceStatisticsDTO.builder()
                 .tongLuotDiemDanh(totalAttendance)
                 .diemDanhThanhCong(successful)
                 .vangKhongPhep(absent)
                 .tiLeCoMat(Math.round(presentRate * 100.0) / 100.0)
                 .tiLeDiemDanhTre(Math.round(absentRate * 100.0) / 100.0)
+                .thongKeTheoKhoa(byFaculty)
                 .build();
     }
 

@@ -134,6 +134,40 @@ public class DangKyHoatDongController {
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
+    // ========== ALIAS ENDPOINTS FOR COMPATIBILITY ==========
+
+    @PostMapping("/tham-gia")
+    @Operation(summary = "Sinh viên đăng ký tham gia hoạt động (Alias)")
+    public ResponseEntity<ApiResponse<DangKyHoatDongDTO>> dangKyThamGia(@RequestBody Map<String, Object> request) {
+        String maSv = (String) request.get("maSv");
+        String maHoatDong = request.get("maHoatDong").toString();
+        DangKyHoatDongRequest dto = DangKyHoatDongRequest.builder()
+                .maSv(maSv)
+                .maHoatDong(maHoatDong)
+                .build();
+        return register(dto);
+    }
+
+    @PostMapping("/huy")
+    @Operation(summary = "Hủy đăng ký tham gia (Alias)")
+    public ResponseEntity<ApiResponse<Void>> huyDangKy(@RequestBody Map<String, Object> request) {
+        String maSv = (String) request.get("maSv");
+        String maHoatDong = request.get("maHoatDong").toString();
+        return cancel(maSv, maHoatDong);
+    }
+
+    @GetMapping("/qr-code")
+    @Operation(summary = "Lấy chuỗi mã QR để check-in (Alias)")
+    public ResponseEntity<ApiResponse<String>> getQrCode(
+            @RequestParam String maSv,
+            @RequestParam String maHoatDong) {
+        // Trong logic mới, mã QR là chuỗi maHoatDong + maSv
+        // Nhưng nếu cần lấy từ DB để chắc chắn:
+        // String qrString = dangKyService.getQrCodeString(maSv, maHoatDong);
+        // Tạm thời trả về chuỗi format chuẩn
+        return ResponseEntity.ok(ApiResponse.success("Lấy mã QR thành công", maHoatDong + maSv));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("Error in DangKyHoatDongController", e);

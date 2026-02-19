@@ -37,8 +37,6 @@ public interface DangKyHoatDongRepository extends JpaRepository<DangKyHoatDong, 
     List<DangKyHoatDong> findByHoatDongMaHoatDongAndDaXacNhanTrueAndIsActiveTrue(String maHoatDong);
 
     long countByHoatDongMaHoatDongAndDaXacNhanFalseAndIsActiveTrue(String maHoatDong);
-
-    // THÊM METHOD NÀY
     long countByHoatDongMaHoatDongAndDaXacNhanTrueAndIsActiveTrue(String maHoatDong);
 
     @Query("SELECT dk FROM DangKyHoatDong dk " +

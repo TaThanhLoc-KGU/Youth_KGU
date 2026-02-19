@@ -1,10 +1,14 @@
 package com.tathanhloc.faceattendance.Enum;
 
 public enum CapDoEnum {
+    DOAN_TRUONG("Đoàn trường"),
+    HOI_SINH_VIEN("Hội sinh viên"),
     TRUONG("Trường"),
+    PHONG("Phòng"),
     KHOA("Khoa"),
-    NGANH("Ngành"),
-    LOP("Lớp");
+    CHI_DOAN("Chi đoàn"),
+    TINH_DOAN("Tỉnh đoàn"),
+    HOAT_DONG_PHOI_HOP("Hoạt động phối hợp");
 
     private final String displayName;
 

@@ -111,6 +111,7 @@ public class ThongKeController {
         log.info("GET /api/thong-ke/sinh-vien/{}", maSv);
 
         Map<String, Object> stats = diemDanhService.getStudentAttendanceHistory(maSv);
+        @SuppressWarnings("unchecked")
         List<DiemDanhHoatDongDTO> lichSu =
                 (List<DiemDanhHoatDongDTO>) stats.get("danhSach");
         List<DangKyHoatDongDTO> sapToi = dangKyService.getByStudent(maSv);
