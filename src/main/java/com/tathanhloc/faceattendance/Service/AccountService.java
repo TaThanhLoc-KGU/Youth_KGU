@@ -9,6 +9,9 @@ import com.tathanhloc.faceattendance.Model.Ban;
 import com.tathanhloc.faceattendance.Model.TaiKhoan;
 import com.tathanhloc.faceattendance.Repository.BanRepository;
 import com.tathanhloc.faceattendance.Repository.TaiKhoanRepository;
+import com.tathanhloc.faceattendance.Repository.SinhVienRepository;
+import com.tathanhloc.faceattendance.Repository.GiangVienRepository;
+import com.tathanhloc.faceattendance.Repository.ChuyenVienRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,7 +19,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -32,6 +41,9 @@ public class AccountService {
     private final BanRepository banRepository;
     private final EmailValidationService emailValidationService;
     private final PasswordEncoder passwordEncoder;
+    private final SinhVienRepository sinhVienRepository;
+    private final GiangVienRepository giangVienRepository;
+    private final ChuyenVienRepository chuyenVienRepository;
 
     /**
      * Đăng ký tài khoản mới
@@ -488,5 +500,78 @@ public class AccountService {
 
         taiKhoanRepository.delete(account);
         log.info("Xóa tài khoản thành công: {}", account.getUsername());
+    }
+
+    /**
+     * Lấy danh sách sinh viên / giảng viên / chuyên viên chưa có tài khoản.
+     * type: SINH_VIEN | GIANG_VIEN | CHUYEN_VIEN
+     */
+    public List<Map<String, Object>> getWithoutAccount(String type) {
+        switch (type.toUpperCase()) {
+            case "SINH_VIEN": {
+                Set<String> linked = new HashSet<>(taiKhoanRepository.findAllLinkedSinhVienIds());
+                return sinhVienRepository.findAll().stream()
+                        .filter(sv -> !linked.contains(sv.getMaSv()))
+                        .map(sv -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("ma", sv.getMaSv());
+                            m.put("hoTen", sv.getHoTen());
+                            m.put("email", sv.getEmail());
+                            return m;
+                        }).collect(Collectors.toList());
+            }
+            case "GIANG_VIEN": {
+                Set<String> linked = new HashSet<>(taiKhoanRepository.findAllLinkedGiangVienIds());
+                return giangVienRepository.findAll().stream()
+                        .filter(gv -> !linked.contains(gv.getMaGv()))
+                        .map(gv -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("ma", gv.getMaGv());
+                            m.put("hoTen", gv.getHoTen());
+                            m.put("email", gv.getEmail());
+                            return m;
+                        }).collect(Collectors.toList());
+            }
+            case "CHUYEN_VIEN": {
+                Set<String> linked = new HashSet<>(taiKhoanRepository.findAllLinkedChuyenVienIds());
+                return chuyenVienRepository.findAll().stream()
+                        .filter(cv -> !linked.contains(cv.getMaChuyenVien()))
+                        .map(cv -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("ma", cv.getMaChuyenVien());
+                            m.put("hoTen", cv.getHoTen());
+                            m.put("email", cv.getEmail());
+                            return m;
+                        }).collect(Collectors.toList());
+            }
+            default:
+                throw new IllegalArgumentException("Loại không hợp lệ: " + type);
+        }
+    }
+
+    /**
+     * Tạo hàng loạt tài khoản — bỏ qua các bản ghi lỗi, trả về kết quả tổng hợp.
+     */
+    @Transactional
+    public Map<String, Object> bulkCreateAccounts(List<CreateAccountRequest> requests) {
+        int created = 0;
+        int errors = 0;
+        List<String> errorMessages = new ArrayList<>();
+
+        for (CreateAccountRequest req : requests) {
+            try {
+                createAccountManually(req);
+                created++;
+            } catch (Exception e) {
+                errors++;
+                errorMessages.add(req.getUsername() + ": " + e.getMessage());
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("created", created);
+        result.put("errors", errors);
+        result.put("errorMessages", errorMessages);
+        return result;
     }
 }

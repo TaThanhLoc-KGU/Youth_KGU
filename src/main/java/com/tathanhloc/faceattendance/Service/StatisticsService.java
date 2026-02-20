@@ -2,7 +2,8 @@ package com.tathanhloc.faceattendance.Service;
 
 import com.tathanhloc.faceattendance.DTO.StatisticsDTO;
 import com.tathanhloc.faceattendance.Enum.VaiTroEnum;
-import com.tathanhloc.faceattendance.Enum.BanChuyenMonEnum;
+import com.tathanhloc.faceattendance.Model.Ban;
+import com.tathanhloc.faceattendance.Repository.BanRepository;
 import com.tathanhloc.faceattendance.Repository.TaiKhoanRepository;
 import com.tathanhloc.faceattendance.Repository.HoatDongRepository;
 import com.tathanhloc.faceattendance.Repository.DangKyHoatDongRepository;
@@ -29,6 +30,7 @@ public class StatisticsService {
     private final HoatDongRepository hoatDongRepository;
     private final DangKyHoatDongRepository dangKyHoatDongRepository;
     private final DiemDanhHoatDongRepository diemDanhHoatDongRepository;
+    private final BanRepository banRepository;
 
     /**
      * Lấy thống kê toàn bộ hệ thống
@@ -86,7 +88,7 @@ public class StatisticsService {
 
         Map<String, Long> statistics = new LinkedHashMap<>();
 
-        for (BanChuyenMonEnum ban : BanChuyenMonEnum.values()) {
+        for (Ban ban : banRepository.findAll()) {
             long count = taiKhoanRepository.countByBanChuyenMon(ban);
             if (count > 0) {
                 statistics.put(ban.getTenBan(), count);
@@ -204,25 +206,6 @@ public class StatisticsService {
         statistics.put("newAccountsInPeriod", newAccounts);
 
         return statistics;
-    }
-
-    /**
-     * Xuất báo cáo hoạt động theo ban
-     * @param ban Ban chuyên môn
-     * @return Map<String, Object> báo cáo chi tiết
-     */
-    public Map<String, Object> getActivityReportByDepartment(BanChuyenMonEnum ban) {
-        log.info("Xuất báo cáo hoạt động ban: {}", ban.getTenBan());
-
-        Map<String, Object> report = new LinkedHashMap<>();
-
-        report.put("ban", ban.getTenBan());
-        report.put("thuocToChuc", ban.getThuocToChuc());
-
-        var memberCount = taiKhoanRepository.countByBanChuyenMon(ban);
-        report.put("memberCount", memberCount);
-
-        return report;
     }
 
     /**

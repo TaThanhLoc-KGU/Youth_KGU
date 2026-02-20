@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -258,6 +259,72 @@ public class AccountController {
                             .build()
                     );
         }
+    }
+
+    /**
+     * Tạo tài khoản thủ công (Admin only) — POST /api/accounts/create-manual
+     */
+    @PostMapping("/create-manual")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AccountDTO>> createAccountManually(
+            @Valid @RequestBody CreateAccountRequest request) {
+        log.info("POST /api/accounts/create-manual - Tạo tài khoản thủ công: {}", request.getUsername());
+        try {
+            AccountDTO created = accountService.createAccountManually(request);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(true)
+                            .message("Tạo tài khoản thành công")
+                            .data(created)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            log.error("Lỗi tạo tài khoản thủ công: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build());
+        } catch (Exception e) {
+            log.error("Lỗi tạo tài khoản thủ công", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message("Lỗi tạo tài khoản: " + e.getMessage())
+                            .build());
+        }
+    }
+
+    /**
+     * Lấy danh sách sinh viên / giảng viên / chuyên viên chưa có tài khoản
+     * type: SINH_VIEN | GIANG_VIEN | CHUYEN_VIEN
+     */
+    @GetMapping("/without-account/{type}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getWithoutAccount(
+            @PathVariable String type) {
+        log.info("GET /api/accounts/without-account/{}", type);
+        List<Map<String, Object>> result = accountService.getWithoutAccount(type);
+        return ResponseEntity.ok(ApiResponse.<List<Map<String, Object>>>builder()
+                .success(true)
+                .message("Lấy danh sách thành công")
+                .data(result)
+                .build());
+    }
+
+    /**
+     * Tạo hàng loạt tài khoản — POST /api/accounts/bulk-create
+     */
+    @PostMapping("/bulk-create")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> bulkCreate(
+            @RequestBody List<CreateAccountRequest> requests) {
+        log.info("POST /api/accounts/bulk-create - {} accounts", requests.size());
+        Map<String, Object> result = accountService.bulkCreateAccounts(requests);
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .success(true)
+                .message("Tạo hàng loạt hoàn tất")
+                .data(result)
+                .build());
     }
 
     /**

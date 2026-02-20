@@ -22,6 +22,7 @@ import Taikhoan from './pages/admin/Taikhoan';
 import Logs from './pages/admin/Logs';
 import AttendanceReport from './pages/admin/AttendanceReport';
 import ChuyenVien from './pages/admin/ChuyenVien';
+import SettingsPage from './pages/admin/SettingsPage';
 import StudentDashboard from './pages/student/Dashboard';
 import Activities from './pages/admin/Activities';
 import CreateHoatDong from './pages/HoatDong/CreateHoatDong'; // Import CreateHoatDong
@@ -110,7 +111,7 @@ function App() {
           <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
           <Route path="accounts" element={<AccountManagementPage />} />
           <Route path="account-statistics" element={<DashboardStatisticsPage />} />
-          <Route path="settings" element={<ComingSoon title="Cài đặt" />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
 
         {/* Student Routes */}

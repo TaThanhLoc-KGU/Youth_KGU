@@ -1,7 +1,7 @@
 import api from './api';
 
 const logsService = {
-  // Get all logs with pagination
+  // Lấy danh sách nhật ký (mặc định 100 bản ghi mới nhất)
   getAll: async (params = {}) => {
     try {
       const response = await api.get('/api/logs', { params });
@@ -12,7 +12,7 @@ const logsService = {
     }
   },
 
-  // Get log by ID
+  // Lấy chi tiết một nhật ký
   getById: async (id) => {
     try {
       const response = await api.get(`/api/logs/${id}`);
@@ -23,12 +23,11 @@ const logsService = {
     }
   },
 
-  // Search logs
-  search: async (keyword) => {
+  // Tìm kiếm / lọc nhật ký
+  // Params: module, action, userId, startTime, endTime, keyword, page, size
+  search: async (params = {}) => {
     try {
-      const response = await api.get('/api/logs/search', {
-        params: { keyword },
-      });
+      const response = await api.get('/api/logs/search', { params });
       return response.data?.data || [];
     } catch (error) {
       console.error('Error searching logs:', error);
@@ -36,64 +35,7 @@ const logsService = {
     }
   },
 
-  // Filter logs
-  filter: async (params = {}) => {
-    try {
-      const response = await api.get('/api/logs/filter', { params });
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error filtering logs:', error);
-      return [];
-    }
-  },
-
-  // Get logs by level
-  getByLevel: async (level) => {
-    try {
-      const response = await api.get(`/api/logs/level/${level}`);
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching logs by level:', error);
-      return [];
-    }
-  },
-
-  // Get logs by module
-  getByModule: async (module) => {
-    try {
-      const response = await api.get(`/api/logs/module/${module}`);
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching logs by module:', error);
-      return [];
-    }
-  },
-
-  // Get logs by date range
-  getByDateRange: async (startDate, endDate) => {
-    try {
-      const response = await api.get('/api/logs/date-range', {
-        params: { startDate, endDate },
-      });
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching logs by date range:', error);
-      return [];
-    }
-  },
-
-  // Get logs by status
-  getByStatus: async (status) => {
-    try {
-      const response = await api.get(`/api/logs/status/${status}`);
-      return response.data?.data || [];
-    } catch (error) {
-      console.error('Error fetching logs by status:', error);
-      return [];
-    }
-  },
-
-  // Get log statistics
+  // Thống kê nhật ký
   getStatistics: async () => {
     try {
       const response = await api.get('/api/logs/statistics');
@@ -104,53 +46,33 @@ const logsService = {
     }
   },
 
-  // Get recent logs (last 24 hours)
-  getRecent: async (hours = 24) => {
+  // Lấy danh sách modules
+  getModules: async () => {
     try {
-      const response = await api.get('/api/logs/recent', {
-        params: { hours },
-      });
+      const response = await api.get('/api/logs/modules');
       return response.data?.data || [];
     } catch (error) {
-      console.error('Error fetching recent logs:', error);
       return [];
     }
   },
 
-  // Get error logs
-  getErrors: async () => {
+  // Lấy danh sách loại thao tác
+  getActions: async () => {
     try {
-      const response = await api.get('/api/logs/errors');
+      const response = await api.get('/api/logs/actions');
       return response.data?.data || [];
     } catch (error) {
-      console.error('Error fetching error logs:', error);
       return [];
     }
   },
 
-  // Delete old logs
-  deleteOlderThan: async (days) => {
+  // Xóa nhật ký cũ
+  deleteOlderThan: async (days = 30) => {
     try {
-      const response = await api.delete('/api/logs/cleanup', {
-        params: { days },
-      });
-      return response.data?.data;
-    } catch (error) {
-      console.error('Error deleting old logs:', error);
-      throw error;
-    }
-  },
-
-  // Export logs to CSV
-  exportToCSV: async (params = {}) => {
-    try {
-      const response = await api.get('/api/logs/export/csv', {
-        params,
-        responseType: 'blob',
-      });
+      const response = await api.delete('/api/logs/cleanup', { params: { daysToKeep: days } });
       return response.data;
     } catch (error) {
-      console.error('Error exporting logs:', error);
+      console.error('Error deleting old logs:', error);
       throw error;
     }
   },

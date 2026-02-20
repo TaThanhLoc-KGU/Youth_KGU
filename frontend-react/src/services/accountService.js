@@ -307,6 +307,34 @@ const accountService = {
     } catch (error) {
       throw error.response?.data?.message || 'Lỗi xóa tài khoản';
     }
+  },
+
+  /**
+   * Lấy danh sách sinh viên/giảng viên/chuyên viên chưa có tài khoản
+   * @param {string} type - SINH_VIEN | GIANG_VIEN | CHUYEN_VIEN
+   * @returns {Promise<Array>}
+   */
+  getWithoutAccount: async (type) => {
+    try {
+      const response = await api.get(`/api/accounts/without-account/${type}`);
+      return response.data?.data || [];
+    } catch (error) {
+      throw error.response?.data?.message || 'Lỗi lấy danh sách';
+    }
+  },
+
+  /**
+   * Tạo hàng loạt tài khoản
+   * @param {Array} requests - Danh sách CreateAccountRequest
+   * @returns {Promise<Object>} - { created, errors, errorMessages }
+   */
+  bulkCreate: async (requests) => {
+    try {
+      const response = await api.post('/api/accounts/bulk-create', requests);
+      return response.data?.data || {};
+    } catch (error) {
+      throw error.response?.data?.message || 'Lỗi tạo hàng loạt tài khoản';
+    }
   }
 };
 

@@ -2,7 +2,6 @@ package com.tathanhloc.faceattendance.Aspect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tathanhloc.faceattendance.Service.SystemLogService;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -11,13 +10,13 @@ import org.aspectj.lang.annotation.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.HashMap;
+import java.util.Map;
 
 @Aspect
 @Component
@@ -28,7 +27,70 @@ public class LoggingAspect {
     private final SystemLogService logService;
     private final ObjectMapper objectMapper;
 
-    // Custom annotation for method logging
+    // Mapping tên Service → mã module dùng trong log
+    private static final Map<String, String> MODULE_CODES = new HashMap<>();
+    // Mapping tên Service → tên tiếng Việt để hiển thị trong message
+    private static final Map<String, String> MODULE_LABELS = new HashMap<>();
+
+    static {
+        MODULE_CODES.put("HoatDong",            "HOAT_DONG");
+        MODULE_CODES.put("SinhVien",             "SINH_VIEN");
+        MODULE_CODES.put("TaiKhoan",             "TAI_KHOAN");
+        MODULE_CODES.put("GiangVien",            "GIANG_VIEN");
+        MODULE_CODES.put("ChucVu",               "CHUC_VU");
+        MODULE_CODES.put("Khoa",                 "KHOA");
+        MODULE_CODES.put("Lop",                  "LOP");
+        MODULE_CODES.put("Ban",                  "BAN");
+        MODULE_CODES.put("BCHDoanHoi",           "BCH");
+        MODULE_CODES.put("DiemDanh",             "DIEM_DANH");
+        MODULE_CODES.put("DiemDanhHoatDong",     "DIEM_DANH");
+        MODULE_CODES.put("DangKyHoatDong",       "DANG_KY");
+        MODULE_CODES.put("ChungNhan",            "CHUNG_NHAN");
+        MODULE_CODES.put("ChungNhanHoatDong",    "CHUNG_NHAN");
+        MODULE_CODES.put("PhanCong",             "PHAN_CONG");
+        MODULE_CODES.put("PhanCongDiemDanh",     "PHAN_CONG");
+        MODULE_CODES.put("NamHoc",               "NAM_HOC");
+        MODULE_CODES.put("HocKy",                "HOC_KY");
+        MODULE_CODES.put("HocKyNamHoc",          "HOC_KY");
+        MODULE_CODES.put("KhoaHoc",              "KHOA_HOC");
+        MODULE_CODES.put("Nganh",                "NGANH");
+        MODULE_CODES.put("PhongHoc",             "PHONG_HOC");
+        MODULE_CODES.put("ChuyenVien",           "CHUYEN_VIEN");
+        MODULE_CODES.put("Settings",             "SETTINGS");
+        MODULE_CODES.put("RefreshToken",         "AUTHENTICATION");
+
+        MODULE_LABELS.put("HoatDong",            "hoạt động");
+        MODULE_LABELS.put("SinhVien",            "sinh viên");
+        MODULE_LABELS.put("TaiKhoan",            "tài khoản");
+        MODULE_LABELS.put("GiangVien",           "giảng viên");
+        MODULE_LABELS.put("ChucVu",              "chức vụ");
+        MODULE_LABELS.put("Khoa",                "khoa");
+        MODULE_LABELS.put("Lop",                 "lớp");
+        MODULE_LABELS.put("Ban",                 "ban");
+        MODULE_LABELS.put("BCHDoanHoi",          "BCH Đoàn - Hội");
+        MODULE_LABELS.put("DiemDanh",            "điểm danh");
+        MODULE_LABELS.put("DiemDanhHoatDong",    "điểm danh hoạt động");
+        MODULE_LABELS.put("DangKyHoatDong",      "đăng ký hoạt động");
+        MODULE_LABELS.put("ChungNhan",           "chứng nhận");
+        MODULE_LABELS.put("ChungNhanHoatDong",   "chứng nhận hoạt động");
+        MODULE_LABELS.put("PhanCong",            "phân công");
+        MODULE_LABELS.put("PhanCongDiemDanh",    "phân công điểm danh");
+        MODULE_LABELS.put("NamHoc",              "năm học");
+        MODULE_LABELS.put("HocKy",               "học kỳ");
+        MODULE_LABELS.put("HocKyNamHoc",         "học kỳ - năm học");
+        MODULE_LABELS.put("KhoaHoc",             "khóa học");
+        MODULE_LABELS.put("Nganh",               "ngành");
+        MODULE_LABELS.put("PhongHoc",            "phòng học");
+        MODULE_LABELS.put("ChuyenVien",          "chuyên viên");
+        MODULE_LABELS.put("Settings",            "phân quyền");
+    }
+
+    // =================== Annotation @LogActivity ===================
+
+    /**
+     * Đặt trên method cụ thể để log thao tác người dùng một cách tường minh.
+     * Ví dụ: @LogActivity(module = "HOAT_DONG", action = "DUYET", description = "Duyệt hoạt động")
+     */
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface LogActivity {
@@ -36,213 +98,156 @@ public class LoggingAspect {
         String action() default "";
         String description() default "";
         boolean logParameters() default false;
-        boolean logResult() default false;
-        boolean logPerformance() default true;
     }
 
-    // Log all controller methods
-    @Around("execution(* com.tathanhloc.faceattendance.Controller.*.*(..))")
-    public Object logControllerMethods(ProceedingJoinPoint joinPoint) throws Throwable {
-        long startTime = System.currentTimeMillis();
-        String className = joinPoint.getTarget().getClass().getSimpleName();
-        String methodName = joinPoint.getSignature().getName();
+    // =================== AOP: Explicit annotation logging ===================
 
-        try {
-            Object result = joinPoint.proceed();
-            long duration = System.currentTimeMillis() - startTime;
-
-            // Log successful API calls
-            logService.logPerformance(
-                    "API",
-                    String.format("%s.%s", className, methodName),
-                    String.format("API call completed successfully"),
-                    duration
-            );
-
-            return result;
-
-        } catch (Exception e) {
-            long duration = System.currentTimeMillis() - startTime;
-
-            // Log failed API calls
-            logService.logError(
-                    "API",
-                    String.format("%s.%s", className, methodName),
-                    String.format("API call failed: %s", e.getMessage()),
-                    getStackTrace(e)
-            );
-
-            throw e;
-        }
-    }
-
-    // Log service layer operations with custom annotation
     @Around("@annotation(logActivity)")
     public Object logAnnotatedMethods(ProceedingJoinPoint joinPoint, LogActivity logActivity) throws Throwable {
-        long startTime = System.currentTimeMillis();
-        String className = joinPoint.getTarget().getClass().getSimpleName();
+        String className  = joinPoint.getTarget().getClass().getSimpleName();
         String methodName = joinPoint.getSignature().getName();
 
-        String module = logActivity.module().isEmpty() ? className : logActivity.module();
-        String action = logActivity.action().isEmpty() ? methodName : logActivity.action();
-        String description = logActivity.description().isEmpty() ?
-                String.format("Executed %s.%s", className, methodName) : logActivity.description();
+        String module      = logActivity.module().isEmpty() ? className : logActivity.module();
+        String action      = logActivity.action().isEmpty() ? methodName.toUpperCase() : logActivity.action();
+        String baseDesc    = logActivity.description().isEmpty()
+                ? String.format("Thực hiện %s", methodName) : logActivity.description();
 
-        // Get current user info
-        String[] userInfo = getCurrentUserInfo();
-        String userId = userInfo[0];
-        String userName = userInfo[1];
+        String[] userInfo  = getCurrentUserInfo();
+        String userId      = userInfo[0];
+        String userName    = userInfo[1];
+        String displayName = resolveDisplayName(userId, userName);
+
+        String description = baseDesc;
+        if (logActivity.logParameters() && joinPoint.getArgs().length > 0) {
+            description += " | Tham số: " + serializeParameters(joinPoint.getArgs());
+        }
 
         try {
-            // Log method parameters if requested
-            if (logActivity.logParameters() && joinPoint.getArgs().length > 0) {
-                String params = serializeParameters(joinPoint.getArgs());
-                description += " with parameters: " + params;
-            }
-
             Object result = joinPoint.proceed();
-            long duration = System.currentTimeMillis() - startTime;
-
-            // Log result if requested
-            if (logActivity.logResult() && result != null) {
-                String resultStr = serializeObject(result);
-                description += " -> Result: " + resultStr;
-            }
-
-            // Log performance if requested
-            if (logActivity.logPerformance()) {
-                logService.logPerformance(module, action, description, duration);
-            } else {
-                logService.logUserAction(module, action, description, userId, userName);
-            }
-
+            logService.logUserAction(module, action, displayName + " — " + description, userId, userName);
             return result;
-
         } catch (Exception e) {
-            long duration = System.currentTimeMillis() - startTime;
-
-            logService.logError(
-                    module,
-                    action,
-                    String.format("%s failed: %s", description, e.getMessage()),
-                    getStackTrace(e)
-            );
-
+            logService.logError(module, action,
+                    displayName + " — " + description + " thất bại: " + e.getMessage(),
+                    truncateStackTrace(e));
             throw e;
         }
     }
 
-    // Log authentication events
-    @AfterReturning(pointcut = "execution(* org.springframework.security.authentication.AuthenticationManager.authenticate(..))", returning = "authentication")
+    // =================== AOP: Authentication events ===================
+
+    @AfterReturning(
+        pointcut  = "execution(* org.springframework.security.authentication.AuthenticationManager.authenticate(..))",
+        returning = "authentication"
+    )
     public void logSuccessfulAuthentication(Authentication authentication) {
         if (authentication != null && authentication.isAuthenticated()) {
-            logService.logAuthentication(
-                    "LOGIN_SUCCESS",
-                    authentication.getName(),
-                    getUserDisplayName(authentication),
-                    true,
-                    "User logged in successfully"
-            );
+            String name = authentication.getName();
+            logService.logAuthentication("LOGIN_SUCCESS", name, name, true,
+                    name + " đã đăng nhập thành công");
         }
     }
 
-    @AfterThrowing(pointcut = "execution(* org.springframework.security.authentication.AuthenticationManager.authenticate(..))", throwing = "ex")
+    @AfterThrowing(
+        pointcut = "execution(* org.springframework.security.authentication.AuthenticationManager.authenticate(..))",
+        throwing = "ex"
+    )
     public void logFailedAuthentication(JoinPoint joinPoint, Exception ex) {
-        Object[] args = joinPoint.getArgs();
-        String username = args.length > 0 && args[0] instanceof Authentication ?
-                ((Authentication) args[0]).getName() : "unknown";
-
-        logService.logAuthentication(
-                "LOGIN_FAILED",
-                username,
-                username,
-                false,
-                "Authentication failed: " + ex.getMessage()
-        );
+        Object[] args    = joinPoint.getArgs();
+        String username  = args.length > 0 && args[0] instanceof Authentication
+                ? ((Authentication) args[0]).getName() : "unknown";
+        logService.logAuthentication("LOGIN_FAILED", username, username, false,
+                username + " đăng nhập thất bại");
     }
 
-    // Log data modification operations
-    @AfterReturning(pointcut = "execution(* com.tathanhloc.faceattendance.Service.*.create(..))")
+    // =================== AOP: CRUD trên Service layer ===================
+
+    @AfterReturning("execution(* com.tathanhloc.faceattendance.Service.*.create(..))")
     public void logCreateOperations(JoinPoint joinPoint) {
-        logDataOperation(joinPoint, "CREATE");
+        logDataOperation(joinPoint, "CREATE", "tạo mới");
     }
 
-    @AfterReturning(pointcut = "execution(* com.tathanhloc.faceattendance.Service.*.update(..))")
+    @AfterReturning("execution(* com.tathanhloc.faceattendance.Service.*.update(..))")
     public void logUpdateOperations(JoinPoint joinPoint) {
-        logDataOperation(joinPoint, "UPDATE");
+        logDataOperation(joinPoint, "UPDATE", "cập nhật");
     }
 
-    @AfterReturning(pointcut = "execution(* com.tathanhloc.faceattendance.Service.*.delete(..))")
+    @AfterReturning("execution(* com.tathanhloc.faceattendance.Service.*.delete(..))")
     public void logDeleteOperations(JoinPoint joinPoint) {
-        logDataOperation(joinPoint, "DELETE");
+        logDataOperation(joinPoint, "DELETE", "xóa");
     }
 
-    private void logDataOperation(JoinPoint joinPoint, String operation) {
-        String className = joinPoint.getTarget().getClass().getSimpleName();
-        String methodName = joinPoint.getSignature().getName();
-        String entityType = className.replace("Service", "");
+    /**
+     * Tạo log thao tác dữ liệu dạng: "Nguyễn Văn A đã tạo mới hoạt động [ABC123]"
+     */
+    private void logDataOperation(JoinPoint joinPoint, String operation, String actionLabel) {
+        String className   = joinPoint.getTarget().getClass().getSimpleName();
+        String entityType  = className.replace("Service", "");
 
-        String[] userInfo = getCurrentUserInfo();
-        String userId = userInfo[0];
-        String userName = userInfo[1];
+        // Bỏ qua các service nội bộ không cần log
+        if (entityType.equalsIgnoreCase("SystemLog")
+                || entityType.equalsIgnoreCase("RefreshToken")
+                || entityType.equalsIgnoreCase("Mail")) {
+            return;
+        }
 
-        // Get entity ID from method parameters
-        String entityId = getEntityIdFromArgs(joinPoint.getArgs());
+        String moduleCode  = MODULE_CODES.getOrDefault(entityType, entityType.toUpperCase());
+        String entityLabel = MODULE_LABELS.getOrDefault(entityType, entityType.toLowerCase());
 
-        logService.logUserAction(
-                entityType.toUpperCase(),
-                operation,
-                String.format("%s %s [%s]", operation, entityType, entityId),
-                userId,
-                userName
-        );
+        String[] userInfo  = getCurrentUserInfo();
+        String userId      = userInfo[0];
+        String userName    = userInfo[1];
+        String displayName = resolveDisplayName(userId, userName);
+
+        String entityId    = extractEntityId(joinPoint.getArgs());
+        String message     = (entityId != null)
+                ? displayName + " đã " + actionLabel + " " + entityLabel + " [" + entityId + "]"
+                : displayName + " đã " + actionLabel + " " + entityLabel;
+
+        logService.logUserAction(moduleCode, operation, message, userId, userName);
     }
 
-    // Helper methods
+    // =================== Helper methods ===================
+
     private String[] getCurrentUserInfo() {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-                String userId = auth.getName();
-                String userName = getUserDisplayName(auth);
-                return new String[]{userId, userName};
+            if (auth != null && auth.isAuthenticated()
+                    && !"anonymousUser".equals(auth.getPrincipal())) {
+                return new String[]{auth.getName(), auth.getName()};
             }
         } catch (Exception e) {
-            log.debug("Could not get current user info: {}", e.getMessage());
+            log.debug("Cannot get current user: {}", e.getMessage());
         }
         return new String[]{null, null};
     }
 
-    private String getUserDisplayName(Authentication auth) {
-        try {
-            // Try to get display name from user details
-            if (auth.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
-                // You might need to cast to your custom UserDetails implementation
-                return auth.getName(); // or extract from custom user details
-            }
-        } catch (Exception e) {
-            log.debug("Could not get user display name: {}", e.getMessage());
-        }
-        return auth.getName();
+    private String resolveDisplayName(String userId, String userName) {
+        if (userName != null && !userName.isBlank()) return userName;
+        if (userId  != null && !userId.isBlank())   return userId;
+        return "Hệ thống";
     }
 
-    private String getEntityIdFromArgs(Object[] args) {
-        if (args.length > 0) {
-            Object firstArg = args[0];
-            if (firstArg instanceof String || firstArg instanceof Number) {
-                return firstArg.toString();
-            }
-            // Try to get ID from DTO objects
+    /**
+     * Lấy ID thực thể từ tham số đầu tiên của method (String/Number trực tiếp, hoặc qua getter).
+     */
+    private String extractEntityId(Object[] args) {
+        if (args == null || args.length == 0) return null;
+        Object first = args[0];
+        if (first == null) return null;
+        if (first instanceof String)  return (String) first;
+        if (first instanceof Number)  return first.toString();
+        // Thử các getter phổ biến
+        for (String getter : new String[]{
+                "getId", "getMaHoatDong", "getMaSv", "getMaGv", "getMaChucVu",
+                "getMaKhoa", "getMaLop", "getMaBan", "getMaNganh", "getMaPhong",
+                "getMaKhoaHoc", "getMaHocKy", "getMaNamHoc"}) {
             try {
-                if (firstArg.getClass().getMethod("getId") != null) {
-                    Object id = firstArg.getClass().getMethod("getId").invoke(firstArg);
-                    return id != null ? id.toString() : "unknown";
-                }
-            } catch (Exception e) {
-                // Ignore
-            }
+                Object val = first.getClass().getMethod(getter).invoke(first);
+                if (val != null) return val.toString();
+            } catch (Exception ignored) {}
         }
-        return "unknown";
+        return null;
     }
 
     private String serializeParameters(Object[] args) {
@@ -250,57 +255,27 @@ public class LoggingAspect {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < args.length; i++) {
                 if (i > 0) sb.append(", ");
-                sb.append(serializeObject(args[i]));
+                if (args[i] == null) { sb.append("null"); continue; }
+                if (args[i] instanceof String || args[i] instanceof Number || args[i] instanceof Boolean) {
+                    sb.append(args[i]);
+                } else {
+                    String json = objectMapper.writeValueAsString(args[i]);
+                    sb.append(json.length() > 80 ? json.substring(0, 80) + "..." : json);
+                }
             }
             return sb.toString();
         } catch (Exception e) {
-            return "Could not serialize parameters";
+            return "...";
         }
     }
 
-    private String serializeObject(Object obj) {
-        try {
-            if (obj == null) return "null";
-            if (obj instanceof String) return "\"" + obj + "\"";
-            if (obj instanceof Number || obj instanceof Boolean) return obj.toString();
-
-            // For complex objects, serialize to JSON (truncated)
-            String json = objectMapper.writeValueAsString(obj);
-            return json.length() > 200 ? json.substring(0, 200) + "..." : json;
-        } catch (Exception e) {
-            return obj.getClass().getSimpleName() + "@" + obj.hashCode();
-        }
-    }
-
-    private String getStackTrace(Exception e) {
+    private String truncateStackTrace(Exception e) {
         StringBuilder sb = new StringBuilder();
         sb.append(e.getMessage()).append("\n");
-
-        for (StackTraceElement element : e.getStackTrace()) {
-            sb.append(element.toString()).append("\n");
-            if (sb.length() > 2000) { // Limit stack trace length
-                sb.append("... (truncated)");
-                break;
-            }
+        for (StackTraceElement el : e.getStackTrace()) {
+            sb.append(el.toString()).append("\n");
+            if (sb.length() > 2000) { sb.append("... (truncated)"); break; }
         }
-
         return sb.toString();
-    }
-
-    private String getClientIpAddress() {
-        try {
-            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            if (attributes != null) {
-                HttpServletRequest request = attributes.getRequest();
-                String xForwardedFor = request.getHeader("X-Forwarded-For");
-                if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-                    return xForwardedFor.split(",")[0].trim();
-                }
-                return request.getRemoteAddr();
-            }
-        } catch (Exception e) {
-            log.debug("Could not get client IP: {}", e.getMessage());
-        }
-        return "unknown";
     }
 }

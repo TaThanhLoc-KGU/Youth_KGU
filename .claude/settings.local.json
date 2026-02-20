@@ -17,5 +17,9 @@
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "youth-kgu-files"
+  ],
+  "enableAllProjectMcpServers": true
 }

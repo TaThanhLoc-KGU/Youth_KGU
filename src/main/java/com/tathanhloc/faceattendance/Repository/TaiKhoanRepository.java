@@ -1,8 +1,8 @@
 package com.tathanhloc.faceattendance.Repository;
 
 import com.tathanhloc.faceattendance.Model.TaiKhoan;
+import com.tathanhloc.faceattendance.Model.Ban;
 import com.tathanhloc.faceattendance.Enum.VaiTroEnum;
-import com.tathanhloc.faceattendance.Enum.BanChuyenMonEnum;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,8 +24,8 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
     List<TaiKhoan> findByVaiTroAndIsActiveTrue(VaiTroEnum vaiTro);
 
     // ========== Tìm kiếm theo ban chuyên môn ==========
-    List<TaiKhoan> findByBanChuyenMon(BanChuyenMonEnum banChuyenMon);
-    List<TaiKhoan> findByBanChuyenMonAndIsActiveTrue(BanChuyenMonEnum banChuyenMon);
+    List<TaiKhoan> findByBanChuyenMon(Ban banChuyenMon);
+    List<TaiKhoan> findByBanChuyenMonAndIsActiveTrue(Ban banChuyenMon);
 
     // ========== Tìm kiếm theo trạng thái phê duyệt ==========
     List<TaiKhoan> findByTrangThaiPheDuyet(String trangThaiPheDuyet);
@@ -49,7 +49,17 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
     long countByVaiTro(VaiTroEnum vaiTro);
     long countByVaiTroAndIsActiveTrue(VaiTroEnum vaiTro);
     long countByTrangThaiPheDuyet(String trangThaiPheDuyet);
-    long countByBanChuyenMon(BanChuyenMonEnum banChuyenMon);
+    long countByBanChuyenMon(Ban banChuyenMon);
     long countByIsActiveTrue();
     long countByIsActiveFalse();
+
+    // ========== Lấy mã liên kết cho getWithoutAccount ==========
+    @Query("SELECT tk.sinhVien.maSv FROM TaiKhoan tk WHERE tk.sinhVien IS NOT NULL")
+    List<String> findAllLinkedSinhVienIds();
+
+    @Query("SELECT tk.giangVien.maGv FROM TaiKhoan tk WHERE tk.giangVien IS NOT NULL")
+    List<String> findAllLinkedGiangVienIds();
+
+    @Query("SELECT tk.chuyenVien.maChuyenVien FROM TaiKhoan tk WHERE tk.chuyenVien IS NOT NULL")
+    List<String> findAllLinkedChuyenVienIds();
 }
