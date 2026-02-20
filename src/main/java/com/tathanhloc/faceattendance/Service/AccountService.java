@@ -14,8 +14,11 @@ import com.tathanhloc.faceattendance.Repository.GiangVienRepository;
 import com.tathanhloc.faceattendance.Repository.ChuyenVienRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -44,6 +47,10 @@ public class AccountService {
     private final SinhVienRepository sinhVienRepository;
     private final GiangVienRepository giangVienRepository;
     private final ChuyenVienRepository chuyenVienRepository;
+
+    @Autowired
+    @Lazy
+    private AccountService accountServiceSelf;
 
     /**
      * Đăng ký tài khoản mới
@@ -550,7 +557,17 @@ public class AccountService {
     }
 
     /**
+     * Tạo một tài khoản đơn lẻ trong transaction riêng biệt (REQUIRES_NEW)
+     * Được gọi từ bulkCreateAccounts thông qua proxy để tách transaction
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public AccountDTO createSingleAccountForBulk(CreateAccountRequest request) {
+        return createAccountManually(request);
+    }
+
+    /**
      * Tạo hàng loạt tài khoản — bỏ qua các bản ghi lỗi, trả về kết quả tổng hợp.
+     * Mỗi account được tạo trong transaction riêng biệt.
      */
     @Transactional
     public Map<String, Object> bulkCreateAccounts(List<CreateAccountRequest> requests) {
@@ -560,11 +577,11 @@ public class AccountService {
 
         for (CreateAccountRequest req : requests) {
             try {
-                createAccountManually(req);
+                accountServiceSelf.createSingleAccountForBulk(req);
                 created++;
             } catch (Exception e) {
                 errors++;
-                errorMessages.add(req.getUsername() + ": " + e.getMessage());
+                errorMessages.add((req.getUsername() != null ? req.getUsername() : "?") + ": " + e.getMessage());
             }
         }
 

@@ -8,9 +8,9 @@ import {
   ROLE_LABELS,
   GENDER_LABELS,
   ROLE_OPTIONS,
-  DEPARTMENT_OPTIONS,
   GENDER
 } from '../../constants/accountConstants';
+import api from '../../services/api';
 import { formatDate } from '../../utils/dateFormat';
 
 // ---- minimal log display helpers ----
@@ -30,8 +30,8 @@ const MODULE_LABELS = {
 };
 
 const DEFAULT_ROLE_FOR_TYPE = {
-  SINH_VIEN: 'SINHVIEN',
-  GIANG_VIEN: 'GIANGVIEN',
+  SINH_VIEN: 'SINH_VIEN',
+  GIANG_VIEN: 'GIANG_VIEN',
   CHUYEN_VIEN: 'CAN_BO_VAN_PHONG_DOAN',
 };
 
@@ -96,6 +96,11 @@ export default function AccountManagementPage() {
     queryKey: ['accountHistory', historyAccount?.username],
     queryFn: () => logsService.search({ userId: historyAccount.username, size: 50 }),
     enabled: showHistoryModal && historyAccount !== null
+  });
+
+  const { data: banList = [] } = useQuery({
+    queryKey: ['banList'],
+    queryFn: () => api.get('/api/ban').then(r => r.data?.data || r.data || [])
   });
 
   // =================== Mutations ===================
@@ -312,7 +317,7 @@ export default function AccountManagementPage() {
         password: defaultPassword,
         hoTen: e.hoTen,
         vaiTro: DEFAULT_ROLE_FOR_TYPE[sourceType],
-        banChuyenMon: ''
+        banChuyenMon: null
       };
     });
     setBulkCreateResult(null);
@@ -563,8 +568,10 @@ export default function AccountManagementPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ban chuyên môn</label>
                 <select name="banChuyenMon" value={createFormData.banChuyenMon} onChange={handleCreateFormChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Chọn ban chuyên môn</option>
-                  {DEPARTMENT_OPTIONS.map(dept => <option key={dept.value} value={dept.value}>{dept.label}</option>)}
+                  <option value="">Không chọn</option>
+                  {banList.map(ban => (
+                    <option key={ban.maBan} value={ban.maBan}>{ban.tenBan}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -805,8 +812,10 @@ export default function AccountManagementPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ban chuyên môn</label>
                 <select name="banChuyenMon" value={editFormData.banChuyenMon} onChange={handleEditFormChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Chọn ban chuyên môn</option>
-                  {DEPARTMENT_OPTIONS.map(dept => <option key={dept.value} value={dept.value}>{dept.label}</option>)}
+                  <option value="">Không chọn</option>
+                  {banList.map(ban => (
+                    <option key={ban.maBan} value={ban.maBan}>{ban.tenBan}</option>
+                  ))}
                 </select>
               </div>
             </div>

@@ -49,8 +49,8 @@ public class VaiTroEnumConverter implements AttributeConverter<VaiTroEnum, Strin
         java.util.Map.entry("THANH_VIEN_HOI", "THANH_VIEN_HOI"),
         java.util.Map.entry("ADMIN", "ADMIN"),
         java.util.Map.entry("GIANG_VIEN_HUONG_DAN", "GIANG_VIEN_HUONG_DAN"),
-        java.util.Map.entry("GIANGVIEN", "GIANGVIEN"),
-        java.util.Map.entry("SINHVIEN", "SINHVIEN")
+        java.util.Map.entry("GIANGVIEN", "GIANG_VIEN"),
+        java.util.Map.entry("SINHVIEN", "SINH_VIEN")
     );
 
     @Override

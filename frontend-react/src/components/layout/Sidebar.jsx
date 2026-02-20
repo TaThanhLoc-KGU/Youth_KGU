@@ -20,6 +20,7 @@ import {
   User,
   UserPlus,
   BarChart2,
+  ScrollText,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES } from '../../utils/constants';
@@ -51,6 +52,7 @@ const Sidebar = () => {
       { icon: UserPlus, label: 'Quản lý tài khoản', path: ROUTES.ADMIN_ACCOUNTS },
       { icon: BarChart2, label: 'Thống kê tài khoản', path: ROUTES.ADMIN_ACCOUNT_STATISTICS },
       { icon: User, label: 'Hồ sơ cá nhân', path: ROUTES.PROFILE },
+      { icon: ScrollText, label: 'System Log', path: '/admin/system-log' },
       { icon: Settings, label: 'Cài đặt', path: ROUTES.ADMIN_SETTINGS },
     ],
     [ROLES.BCH]: [

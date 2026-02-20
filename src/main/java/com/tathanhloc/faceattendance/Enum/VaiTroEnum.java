@@ -1,5 +1,8 @@
 package com.tathanhloc.faceattendance.Enum;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.Map;
+
 /**
  * Enum để quản lý vai trò của người dùng trong hệ thống
  * Gồm 3 nhóm chính: Quản Lý, Phục Vụ, Tham Gia
@@ -125,25 +128,46 @@ public enum VaiTroEnum {
     }
 
     /**
-     * Lấy vai trò từ tên
+     * Backward compatibility - lấy vai trò từ giá trị cũ hoặc từ Jackson deserialization
      */
+    @JsonCreator
+    public static VaiTroEnum fromValue(String value) {
+        if (value == null) return null;
+        
+        // Normalize: chuyển về UPPER_CASE và thay space thành underscore
+        String normalized = value.replace(" ", "_").toUpperCase();
+        
+        // Mapping các giá trị cũ sang mới
+        Map<String, String> aliases = Map.of(
+            "GIANGVIEN", "GIANG_VIEN",
+            "SINHVIEN", "SINH_VIEN"
+        );
+        String mapped = aliases.getOrDefault(normalized, normalized);
+        
+        try {
+            return VaiTroEnum.valueOf(mapped);
+        } catch (IllegalArgumentException e) {
+            // Nếu vẫn không tìm thấy, thử tìm bằng tên hiển thị
+            for (VaiTroEnum vaiTro : VaiTroEnum.values()) {
+                if (vaiTro.getTenHienThi().equalsIgnoreCase(value)) {
+                    return vaiTro;
+                }
+            }
+            throw new IllegalArgumentException("Giá trị không hợp lệ: " + value);
+        }
+    }
+
+    /**
+     * Backward compatibility - lấy vai trò từ tên
+     *
+     * @deprecated Dùng fromValue thay vào
+     */
+    @Deprecated
     public static VaiTroEnum fromName(String name) {
         try {
             return VaiTroEnum.valueOf(name.toUpperCase());
         } catch (IllegalArgumentException e) {
             return null;
         }
-    }
-
-    /**
-     * Backward compatibility - lấy vai trò từ giá trị cũ
-     */
-    public static VaiTroEnum fromValue(String value) {
-        for (VaiTroEnum vaiTro : VaiTroEnum.values()) {
-            if (vaiTro.getTenHienThi().equalsIgnoreCase(value)) {
-                return vaiTro;
-            }
-        }
-        throw new IllegalArgumentException("Giá trị không hợp lệ: " + value);
     }
 }
