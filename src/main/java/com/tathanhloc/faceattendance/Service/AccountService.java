@@ -6,14 +6,17 @@ import com.tathanhloc.faceattendance.DTO.CreateAccountRequest;
 import com.tathanhloc.faceattendance.Enum.VaiTroEnum;
 import com.tathanhloc.faceattendance.Exception.ResourceNotFoundException;
 import com.tathanhloc.faceattendance.Model.Ban;
+import com.tathanhloc.faceattendance.Model.SystemLog;
 import com.tathanhloc.faceattendance.Model.TaiKhoan;
 import com.tathanhloc.faceattendance.Repository.BanRepository;
 import com.tathanhloc.faceattendance.Repository.TaiKhoanRepository;
 import com.tathanhloc.faceattendance.Repository.SinhVienRepository;
 import com.tathanhloc.faceattendance.Repository.GiangVienRepository;
 import com.tathanhloc.faceattendance.Repository.ChuyenVienRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -47,6 +50,8 @@ public class AccountService {
     private final SinhVienRepository sinhVienRepository;
     private final GiangVienRepository giangVienRepository;
     private final ChuyenVienRepository chuyenVienRepository;
+    private final SystemLogService systemLogService;
+    private final HttpServletRequest request;
 
     @Autowired
     @Lazy
@@ -126,6 +131,7 @@ public class AccountService {
 
         TaiKhoan updated = taiKhoanRepository.save(account);
         log.info("Phê duyệt tài khoản thành công: {}", updated.getUsername());
+        systemLogService.log("TAI_KHOAN", "APPROVE_ACCOUNT", String.valueOf(updated.getId()), updated.getUsername(), "TaiKhoan", String.valueOf(updated.getId()), "Phê duyệt tài khoản", SystemLog.LogLevel.INFO, "SUCCESS", null, null, request);
 
         return toDTO(updated);
     }
@@ -152,6 +158,7 @@ public class AccountService {
 
         TaiKhoan updated = taiKhoanRepository.save(account);
         log.info("Từ chối tài khoản thành công: {}", updated.getUsername());
+        systemLogService.log("TAI_KHOAN", "REJECT_ACCOUNT", String.valueOf(updated.getId()), updated.getUsername(), "TaiKhoan", String.valueOf(updated.getId()), "Từ chối tài khoản", SystemLog.LogLevel.INFO, "SUCCESS", null, null, request);
 
         return toDTO(updated);
     }
@@ -406,6 +413,7 @@ public class AccountService {
 
         TaiKhoan saved = taiKhoanRepository.save(newAccount);
         log.info("Tạo tài khoản thủ công thành công: {}", saved.getUsername());
+        systemLogService.log("TAI_KHOAN", "CREATE_ACCOUNT_MANUALLY", String.valueOf(saved.getId()), saved.getUsername(), "TaiKhoan", String.valueOf(saved.getId()), "Tạo tài khoản thủ công", SystemLog.LogLevel.INFO, "SUCCESS", null, null, this.request);
 
         return toDTO(saved);
     }
@@ -414,6 +422,17 @@ public class AccountService {
      * Convert TaiKhoan entity to AccountDTO
      */
     private AccountDTO toDTO(TaiKhoan taiKhoan) {
+        Ban ban = null;
+        try {
+            ban = taiKhoan.getBanChuyenMon();
+            // Force initialize nếu cần
+            if (ban != null) {
+                Hibernate.initialize(ban);
+            }
+        } catch (Exception e) {
+            log.warn("Cannot initialize banChuyenMon for account {}", taiKhoan.getId());
+        }
+
         return AccountDTO.builder()
                 .id(taiKhoan.getId())
                 .username(taiKhoan.getUsername())
@@ -424,8 +443,8 @@ public class AccountService {
                 .gioiTinh(taiKhoan.getGioiTinh())
                 .avatar(taiKhoan.getAvatar())
                 .vaiTro(taiKhoan.getVaiTro())
-                .banChuyenMon(taiKhoan.getBanChuyenMon() != null ? taiKhoan.getBanChuyenMon().getMaBan() : null)
-                .tenBanChuyenMon(taiKhoan.getBanChuyenMon() != null ? taiKhoan.getBanChuyenMon().getTenBan() : null)
+                .banChuyenMon(ban != null ? ban.getMaBan() : null)
+                .tenBanChuyenMon(ban != null ? ban.getTenBan() : null)
                 .trangThaiPheDuyet(taiKhoan.getTrangThaiPheDuyet())
                 .ngayPheDuyet(taiKhoan.getNgayPheDuyet())
                 .ghiChu(taiKhoan.getGhiChu())
@@ -507,6 +526,7 @@ public class AccountService {
 
         taiKhoanRepository.delete(account);
         log.info("Xóa tài khoản thành công: {}", account.getUsername());
+        systemLogService.log("TAI_KHOAN", "DELETE_ACCOUNT", String.valueOf(account.getId()), account.getUsername(), "TaiKhoan", String.valueOf(account.getId()), "Xóa tài khoản", SystemLog.LogLevel.INFO, "SUCCESS", null, null, request);
     }
 
     /**
@@ -589,6 +609,7 @@ public class AccountService {
         result.put("created", created);
         result.put("errors", errors);
         result.put("errorMessages", errorMessages);
+        systemLogService.log("TAI_KHOAN", "BULK_CREATE_ACCOUNTS", null, null, "TaiKhoan", null, "Tạo hàng loạt " + created + " tài khoản, lỗi " + errors, SystemLog.LogLevel.INFO, "SUCCESS", null, null, request);
         return result;
     }
 }

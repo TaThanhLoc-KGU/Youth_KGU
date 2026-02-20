@@ -6,6 +6,7 @@ import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
 import com.tathanhloc.faceattendance.Security.CustomUserDetails;
 import com.tathanhloc.faceattendance.Security.JwtService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -35,41 +36,52 @@ public class AuthService {
     private final BCHDoanHoiRepository bchRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
+    private final SystemLogService systemLogService;
+    private final HttpServletRequest request;
+
 
     /**
      * Đăng nhập
      */
     @Transactional
-    public AuthResponse login(AuthRequest request) {
-        log.info("Login attempt for user: {}", request.getUsername());
+    public AuthResponse login(AuthRequest authRequest) {
+        log.info("Login attempt for user: {}", authRequest.getUsername());
+        try {
+            // Authenticate
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            authRequest.getUsername(),
+                            authRequest.getPassword()
+                    )
+            );
 
-        // Authenticate
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
+            // Load user details
+            CustomUserDetails userDetails = (CustomUserDetails) userDetailsService
+                    .loadUserByUsername(authRequest.getUsername());
 
-        // Load user details
-        CustomUserDetails userDetails = (CustomUserDetails) userDetailsService
-                .loadUserByUsername(request.getUsername());
+            // Generate tokens
+            String token = jwtService.generateToken(userDetails);
+            String refreshToken = jwtService.generateRefreshToken(userDetails);
 
-        // Generate tokens
-        String token = jwtService.generateToken(userDetails);
-        String refreshToken = jwtService.generateRefreshToken(userDetails);
+            // Build user info
+            UserDTO userDTO = buildUserDTO(userDetails.getTaiKhoan());
 
-        // Build user info
-        UserDTO userDTO = buildUserDTO(userDetails.getTaiKhoan());
+            log.info("Login successful for user: {}", authRequest.getUsername());
+            systemLogService.log("AUTHENTICATION", "LOGIN_SUCCESS", userDetails.getUsername(), userDTO.getHoTen(),
+                    "Đăng nhập thành công", SystemLog.LogLevel.INFO, "SUCCESS", request);
 
-        log.info("Login successful for user: {}", request.getUsername());
-
-        return AuthResponse.builder()
-                .accessToken(token)
-                .refreshToken(refreshToken)
-                .tokenType("Bearer")
-                .user(userDTO)
-                .build();
+            return AuthResponse.builder()
+                    .accessToken(token)
+                    .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .user(userDTO)
+                    .build();
+        } catch (Exception e) {
+            log.error("Login failed for user: {}", authRequest.getUsername(), e);
+            systemLogService.log("AUTHENTICATION", "LOGIN_FAILED", authRequest.getUsername(), null,
+                    "Đăng nhập thất bại: " + e.getMessage(), SystemLog.LogLevel.WARN, "FAILED", request);
+            throw e;
+        }
     }
 
     /**
@@ -107,15 +119,18 @@ public class AuthService {
         // Load linked entities if provided
         SinhVien sinhVien = null;
         GiangVien giangVien = null;
+        String hoTen = null;
 
         if (dto.getMaSv() != null) {
             sinhVien = sinhVienRepository.findById(dto.getMaSv())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên: " + dto.getMaSv()));
+            hoTen = sinhVien.getHoTen();
         }
 
         if (dto.getMaGv() != null) {
             giangVien = giangVienRepository.findById(dto.getMaGv())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy giảng viên: " + dto.getMaGv()));
+            hoTen = giangVien.getHoTen();
         }
 
         // Create account
@@ -135,6 +150,10 @@ public class AuthService {
         sendWelcomeEmail(saved);
 
         log.info("Account registered successfully: {}", dto.getUsername());
+        systemLogService.log("AUTHENTICATION", "REGISTER", dto.getUsername(), hoTen,
+                "TaiKhoan", String.valueOf(saved.getId()), "Đăng ký tài khoản mới",
+                SystemLog.LogLevel.INFO, "SUCCESS", null, null, request);
+
 
         return toDTO(saved);
     }

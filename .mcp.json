@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "youth-kgu-files": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "D:/Youth_KGU"
+      ]
+    }
+  }
+}

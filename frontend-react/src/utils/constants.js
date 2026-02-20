@@ -132,6 +132,7 @@ export const ROUTES = {
   ADMIN_SETTINGS: '/admin/settings',
   ADMIN_ACCOUNTS: '/admin/accounts',
   ADMIN_ACCOUNT_STATISTICS: '/admin/account-statistics',
+  ADMIN_SYSTEM_LOG: '/admin/system-log',
 
   // User routes
   PROFILE: '/profile',

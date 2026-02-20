@@ -38,3 +38,4 @@ src.zip
 
 ### log ###
 logs
+/node_modules/

@@ -181,7 +181,7 @@ const Logs = () => {
     return p;
   }, [moduleFilter, actionFilter, debouncedSearch]);
 
-  const { data: logs = [], isLoading, refetch } = useQuery({
+  const { data: logsData, isLoading, refetch } = useQuery({
     queryKey: ['logs', moduleFilter, actionFilter, debouncedSearch],
     queryFn:  () => {
       const p = buildParams();
@@ -190,6 +190,9 @@ const Logs = () => {
     },
     keepPreviousData: true,
   });
+
+  // Ensure logs is always an array
+  const logs = Array.isArray(logsData) ? logsData : (logsData?.content || []);
 
   const { data: stats = {} } = useQuery({
     queryKey: ['logs-stats'],

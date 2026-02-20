@@ -92,11 +92,14 @@ export default function AccountManagementPage() {
     enabled: activeTab === 'bulk'
   });
 
-  const { data: historyLogs = [], isLoading: historyLoading } = useQuery({
+  const { data: historyLogsData, isLoading: historyLoading } = useQuery({
     queryKey: ['accountHistory', historyAccount?.username],
     queryFn: () => logsService.search({ userId: historyAccount.username, size: 50 }),
     enabled: showHistoryModal && historyAccount !== null
   });
+
+  // Ensure historyLogs is always an array
+  const historyLogs = Array.isArray(historyLogsData) ? historyLogsData : (historyLogsData?.content || []);
 
   const { data: banList = [] } = useQuery({
     queryKey: ['banList'],
@@ -194,11 +197,12 @@ export default function AccountManagementPage() {
     onSuccess: (result) => {
       setBulkCreateResult(result);
       setSelectedMas(new Set());
-      queryClient.invalidateQueries({ queryKey: ['withoutAccount'] });
+      queryClient.invalidateQueries({ queryKey: ['withoutAccount', sourceType] });
       queryClient.invalidateQueries({ queryKey: ['allAccounts'] });
     },
     onError: (error) => {
-      setBulkCreateResult({ error: error || 'Lỗi tạo hàng loạt' });
+      const msg = error?.response?.data?.message || error?.message || 'Lỗi tạo hàng loạt';
+      setBulkCreateResult({ error: msg });
     }
   });
 
@@ -310,10 +314,10 @@ export default function AccountManagementPage() {
     const selected = withoutList.filter(e => selectedMas.has(e.ma));
     const requests = selected.map(e => {
       const emailOk = e.email && /^[A-Za-z0-9+_.-]+@vnkgu\.edu\.vn$/i.test(e.email);
-      const email = emailOk ? e.email : `${e.ma.toLowerCase().replace(/[^a-z0-9]/g, '')}@vnkgu.edu.vn`;
+      const generatedEmail = emailOk ? e.email : `${e.ma.toLowerCase().replace(/[^a-z0-9]/g, '')}@vnkgu.edu.vn`;
       return {
         username: e.ma,
-        email,
+        email: generatedEmail,
         password: defaultPassword,
         hoTen: e.hoTen,
         vaiTro: DEFAULT_ROLE_FOR_TYPE[sourceType],

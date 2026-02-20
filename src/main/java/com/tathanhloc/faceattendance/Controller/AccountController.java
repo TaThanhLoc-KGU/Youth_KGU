@@ -59,6 +59,33 @@ public class AccountController {
     }
 
     /**
+     * Tìm kiếm tài khoản (Admin only)
+     */
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<AccountDTO>>> searchAccounts(@RequestParam String keyword) {
+        log.info("GET /api/accounts/search?keyword={}", keyword);
+        try {
+            List<AccountDTO> accounts = accountService.searchAccounts(keyword);
+            return ResponseEntity.ok(
+                    ApiResponse.<List<AccountDTO>>builder()
+                            .success(true)
+                            .message("Tìm kiếm tài khoản thành công")
+                            .data(accounts)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Lỗi tìm kiếm tài khoản", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<List<AccountDTO>>builder()
+                            .success(false)
+                            .message("Lỗi tìm kiếm tài khoản: " + e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
      * Lấy thông tin tài khoản theo ID
      */
     @GetMapping("/{accountId}")

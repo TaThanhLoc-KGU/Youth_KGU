@@ -4,7 +4,7 @@ const logsService = {
   // Lấy danh sách nhật ký (mặc định 100 bản ghi mới nhất)
   getAll: async (params = {}) => {
     try {
-      const response = await api.get('/api/logs', { params });
+      const response = await api.get('/api/admin/logs', { params });
       return response.data?.data || [];
     } catch (error) {
       console.error('Error fetching logs:', error);
@@ -15,7 +15,7 @@ const logsService = {
   // Lấy chi tiết một nhật ký
   getById: async (id) => {
     try {
-      const response = await api.get(`/api/logs/${id}`);
+      const response = await api.get(`/api/admin/logs/${id}`);
       return response.data?.data;
     } catch (error) {
       console.error('Error fetching log:', error);
@@ -27,7 +27,7 @@ const logsService = {
   // Params: module, action, userId, startTime, endTime, keyword, page, size
   search: async (params = {}) => {
     try {
-      const response = await api.get('/api/logs/search', { params });
+      const response = await api.get('/api/admin/logs', { params });
       return response.data?.data || [];
     } catch (error) {
       console.error('Error searching logs:', error);
@@ -38,7 +38,7 @@ const logsService = {
   // Thống kê nhật ký
   getStatistics: async () => {
     try {
-      const response = await api.get('/api/logs/statistics');
+      const response = await api.get('/api/admin/logs/statistics');
       return response.data?.data || {};
     } catch (error) {
       console.error('Error fetching log statistics:', error);
@@ -49,7 +49,7 @@ const logsService = {
   // Lấy danh sách modules
   getModules: async () => {
     try {
-      const response = await api.get('/api/logs/modules');
+      const response = await api.get('/api/admin/logs/modules');
       return response.data?.data || [];
     } catch (error) {
       return [];
@@ -59,7 +59,7 @@ const logsService = {
   // Lấy danh sách loại thao tác
   getActions: async () => {
     try {
-      const response = await api.get('/api/logs/actions');
+      const response = await api.get('/api/admin/logs/actions');
       return response.data?.data || [];
     } catch (error) {
       return [];
@@ -69,7 +69,7 @@ const logsService = {
   // Xóa nhật ký cũ
   deleteOlderThan: async (days = 30) => {
     try {
-      const response = await api.delete('/api/logs/cleanup', { params: { daysToKeep: days } });
+      const response = await api.delete('/api/admin/logs/cleanup', { params: { daysToKeep: days } });
       return response.data;
     } catch (error) {
       console.error('Error deleting old logs:', error);

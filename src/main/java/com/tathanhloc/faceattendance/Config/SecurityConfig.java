@@ -28,7 +28,6 @@ import java.util.Arrays;
 /**
  * Security Configuration cho Activity Attendance System
  * Roles: ADMIN, BCH, SINHVIEN
- * ⚠️ PERMIT ALL MODE - CHỈ DÙNG ĐỂ TEST
  */
 @Configuration
 @EnableWebSecurity
@@ -45,7 +44,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()  // ✅ CHO PHÉP TẤT CẢ REQUEST
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/admin/logs/**").hasRole("ADMIN")
+                        .requestMatchers("/api/permissions/**").hasRole("ADMIN")
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)

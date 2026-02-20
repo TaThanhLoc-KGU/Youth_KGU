@@ -19,8 +19,8 @@ import Lop from './pages/admin/Lop';
 import KhoaHoc from './pages/admin/KhoaHoc';
 import GiangVien from './pages/admin/GiangVien';
 import Taikhoan from './pages/admin/Taikhoan';
-import Logs from './pages/admin/Logs';
 import SystemLogPage from './pages/admin/SystemLogPage';
+import SettingsPermissionsPage from './pages/admin/SettingsPermissionsPage';
 import AttendanceReport from './pages/admin/AttendanceReport';
 import ChuyenVien from './pages/admin/ChuyenVien';
 import SettingsPage from './pages/admin/SettingsPage';
@@ -107,13 +107,13 @@ function App() {
           <Route path="lop" element={<Lop />} />
           <Route path="khoahoc" element={<KhoaHoc />} />
           <Route path="chuyenvien" element={<ChuyenVien />} />
-          <Route path="logs" element={<Logs />} />
+          <Route path="logs" element={<SystemLogPage />} />
           <Route path="system-log" element={<SystemLogPage />} />
           <Route path="attendance" element={<AttendanceReport />} />
           <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
           <Route path="accounts" element={<AccountManagementPage />} />
           <Route path="account-statistics" element={<DashboardStatisticsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings" element={<SettingsPermissionsPage />} />
         </Route>
 
         {/* Student Routes */}
