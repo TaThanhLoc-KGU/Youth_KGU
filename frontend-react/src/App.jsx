@@ -1,0 +1,181 @@
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import ProtectedRoute from './components/common/ProtectedRoute';
+import MainLayout from './components/layout/MainLayout';
+import Login from './pages/auth/Login';
+import RegisterPage from './pages/RegisterPage';
+import ProfilePage from './pages/ProfilePage';
+import AccountManagementPage from './pages/admin/AccountManagementPage';
+import DashboardStatisticsPage from './pages/admin/DashboardStatisticsPage';
+import AdminDashboard from './pages/admin/Dashboard';
+import Students from './pages/admin/Students';
+import BCH from './pages/admin/BCH';
+import ChucVu from './pages/admin/ChucVu';
+import Ban from './pages/admin/Ban';
+import Khoa from './pages/admin/Khoa';
+import Nganh from './pages/admin/Nganh';
+import Lop from './pages/admin/Lop';
+import KhoaHoc from './pages/admin/KhoaHoc';
+import GiangVien from './pages/admin/GiangVien';
+import Taikhoan from './pages/admin/Taikhoan';
+import SystemLogPage from './pages/admin/SystemLogPage';
+import SettingsPermissionsPage from './pages/admin/SettingsPermissionsPage';
+import AttendanceReport from './pages/admin/AttendanceReport';
+import ChuyenVien from './pages/admin/ChuyenVien';
+import SettingsPage from './pages/admin/SettingsPage';
+import StudentDashboard from './pages/student/Dashboard';
+import Activities from './pages/admin/Activities';
+import CreateHoatDong from './pages/HoatDong/CreateHoatDong'; // Import CreateHoatDong
+import ActivityAttendancePage from './pages/admin/ActivityAttendancePage'; // Import ActivityAttendancePage
+import StudentActivities from './pages/student/Activities';
+import useAuthStore from './stores/authStore';
+import { ROUTES, ROLES } from './utils/constants';
+
+// Placeholder components for routes not yet implemented
+const ComingSoon = ({ title }) => (
+  <div className="flex items-center justify-center h-96">
+    <div className="text-center">
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
+      <p className="text-gray-600">Tính năng đang được phát triển...</p>
+    </div>
+  </div>
+);
+
+const NotFound = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+        <p className="text-xl text-gray-600 mb-8">Không tìm thấy trang</p>
+        <button onClick={() => navigate(-1)} className="btn btn-primary">
+          Quay lại
+        </button>
+      </div>
+    </div>
+  );
+};
+
+function App() {
+  const { checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    // Check authentication status on app load
+    checkAuth();
+  }, [checkAuth]);
+
+  return (
+    <ErrorBoundary>
+      <Routes>
+        {/* Public Routes */}
+        <Route path={ROUTES.LOGIN} element={<Login />} />
+        <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+
+        {/* Profile Route - Accessible by all authenticated users */}
+        <Route
+          path={ROUTES.PROFILE}
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.BCH, ROLES.SINHVIEN]}>
+              <MainLayout title="Hồ sơ cá nhân" />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<ProfilePage />} />
+        </Route>
+
+        {/* Admin Routes */}
+        <Route
+          path={ROUTES.ADMIN}
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+              <MainLayout title="Admin" />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to={ROUTES.ADMIN_DASHBOARD} replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="students" element={<Students />} />
+          <Route path="teachers" element={<GiangVien />} />
+          <Route path="giangvien" element={<GiangVien />} />
+          <Route path="activities" element={<Activities />} />
+          <Route path="activities/create" element={<CreateHoatDong />} />
+          <Route path="activities/:id/attendance" element={<ActivityAttendancePage />} /> {/* Added route for ActivityAttendancePage */}
+          <Route path="bch" element={<BCH />} />
+          <Route path="chuc-vu" element={<ChucVu />} />
+          <Route path="ban" element={<Ban />} />
+          <Route path="khoa" element={<Khoa />} />
+          <Route path="nganh" element={<Nganh />} />
+          <Route path="lop" element={<Lop />} />
+          <Route path="khoahoc" element={<KhoaHoc />} />
+          <Route path="chuyenvien" element={<ChuyenVien />} />
+          <Route path="logs" element={<SystemLogPage />} />
+          <Route path="system-log" element={<SystemLogPage />} />
+          <Route path="attendance" element={<AttendanceReport />} />
+          <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
+          <Route path="accounts" element={<AccountManagementPage />} />
+          <Route path="account-statistics" element={<DashboardStatisticsPage />} />
+          <Route path="settings" element={<SettingsPermissionsPage />} />
+        </Route>
+
+        {/* Student Routes */}
+        <Route
+          path={ROUTES.STUDENT}
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SINHVIEN]}>
+              <MainLayout title="Student" />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to={ROUTES.STUDENT_DASHBOARD} replace />} />
+          <Route path="dashboard" element={<StudentDashboard />} />
+          <Route path="activities" element={<StudentActivities />} />
+          <Route path="registrations" element={<ComingSoon title="Đăng ký của tôi" />} />
+          <Route path="certificates" element={<ComingSoon title="Chứng nhận" />} />
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
+
+        {/* BCH Routes */}
+        <Route
+          path={ROUTES.BCH}
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.BCH]}>
+              <MainLayout title="BCH" />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to={ROUTES.BCH_DASHBOARD} replace />} />
+          <Route path="dashboard" element={<ComingSoon title="BCH Dashboard" />} />
+          <Route path="activities" element={<Activities />} />
+          <Route path="attendance" element={<ComingSoon title="Điểm danh" />} />
+          <Route path="scan-qr" element={<ComingSoon title="Quét QR" />} />
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
+
+        {/* Unauthorized */}
+        <Route
+          path="/unauthorized"
+          element={
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+              <div className="text-center">
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">403</h1>
+                <p className="text-xl text-gray-600 mb-8">Bạn không có quyền truy cập trang này</p>
+                <a href={ROUTES.LOGIN} className="btn btn-primary">
+                  Về trang đăng nhập
+                </a>
+              </div>
+            </div>
+          }
+        />
+
+        {/* 404 Not Found */}
+        <Route path="*" element={<NotFound />} />
+
+        {/* Home - redirect to login */}
+        <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.LOGIN} replace />} />
+      </Routes>
+    </ErrorBoundary>
+  );
+}
+
+export default App;
