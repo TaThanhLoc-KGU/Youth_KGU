@@ -1,1 +1,0 @@
-git config --global --add safe.directory D:/Youth_KGU
