@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList } from 'lucide-react';
 import activityService from '../../services/activityService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
@@ -106,7 +106,7 @@ const Activities = () => {
     {
       header: 'Thao tác',
       accessor: 'actions',
-      width: '150px',
+      width: '180px',
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <Button
@@ -118,6 +118,17 @@ const Activities = () => {
               handleView(row);
             }}
             title="Xem chi tiết"
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={ClipboardList}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/admin/activities/${row.maHoatDong}/attendance`);
+            }}
+            title="Danh sách điểm danh"
+            className="text-blue-600 hover:text-blue-700"
           />
           <Button
             size="sm"

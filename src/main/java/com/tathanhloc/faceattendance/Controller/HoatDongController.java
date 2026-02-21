@@ -239,6 +239,15 @@ public class HoatDongController {
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
+    @GetMapping("/{maHoatDong}/attendance-status")
+    @Operation(summary = "Lấy danh sách trạng thái điểm danh của sinh viên trong hoạt động")
+    public ResponseEntity<ApiResponse<List<DiemDanhStatusDTO>>> getAttendanceStatusList(
+            @PathVariable String maHoatDong) {
+        log.info("GET /api/hoat-dong/{}/attendance-status", maHoatDong);
+        List<DiemDanhStatusDTO> list = hoatDongService.getAttendanceStatusList(maHoatDong);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
     // ========== ERROR HANDLING ==========
 
     @ExceptionHandler(Exception.class)

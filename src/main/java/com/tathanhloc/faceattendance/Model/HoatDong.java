@@ -115,7 +115,7 @@ public class HoatDong {
     private Nganh nganh;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "trang_thai", nullable = false)
+    @Column(name = "trang_thai", nullable = false, length = 50)
     @Builder.Default
     private TrangThaiHoatDongEnum trangThai = TrangThaiHoatDongEnum.SAP_DIEN_RA;
 

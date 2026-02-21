@@ -1,5 +1,6 @@
 package com.tathanhloc.faceattendance.Service;
 
+import com.tathanhloc.faceattendance.DTO.DiemDanhStatusDTO;
 import com.tathanhloc.faceattendance.DTO.HoatDongDTO;
 import com.tathanhloc.faceattendance.Enum.*;
 import com.tathanhloc.faceattendance.Model.*;
@@ -332,6 +333,54 @@ public class HoatDongService {
                 Math.round((double) totalPoints / hoatDongRepository.findByIsActiveTrue().size() * 100.0) / 100.0);
 
         return overview;
+    }
+
+    /**
+     * Lấy danh sách chi tiết trạng thái điểm danh của từng sinh viên trong một hoạt động
+     */
+    @Transactional(readOnly = true)
+    public List<DiemDanhStatusDTO> getAttendanceStatusList(String maHoatDong) {
+        log.debug("Getting attendance status list for activity: {}", maHoatDong);
+
+        // 1. Lấy danh sách đăng ký
+        List<DangKyHoatDong> dangKyList = dangKyRepository.findByHoatDongMaHoatDongAndIsActiveTrue(maHoatDong);
+        
+        // 2. Lấy danh sách đã điểm danh
+        List<DiemDanhHoatDong> diemDanhList = diemDanhRepository.findByHoatDongMaHoatDong(maHoatDong);
+        
+        // Map để tra cứu nhanh thông tin điểm danh theo mã SV
+        Map<String, DiemDanhHoatDong> diemDanhMap = diemDanhList.stream()
+                .collect(Collectors.toMap(dd -> dd.getSinhVien().getMaSv(), dd -> dd));
+
+        // 3. Merge thông tin
+        return dangKyList.stream().map(dk -> {
+            String maSv = dk.getSinhVien().getMaSv();
+            DiemDanhHoatDong dd = diemDanhMap.get(maSv);
+            
+            DiemDanhStatusDTO dto = DiemDanhStatusDTO.builder()
+                    .maSv(maSv)
+                    .hoTen(dk.getSinhVien().getHoTen())
+                    .lop(dk.getSinhVien().getLop() != null ? dk.getSinhVien().getLop().getTenLop() : null)
+                    .maQR(dk.getMaQR())
+                    .ngayDangKy(dk.getNgayDangKy())
+                    .daDiemDanh(dd != null)
+                    .build();
+            
+            if (dd != null) {
+                dto.setThoiGianCheckIn(dd.getThoiGianCheckIn());
+                dto.setThoiGianCheckOut(dd.getThoiGianCheckOut());
+                dto.setTrangThaiCheckIn(dd.getTrangThaiCheckIn() != null ? dd.getTrangThaiCheckIn().name() : null);
+                dto.setTrangThaiCheckOut(dd.getTrangThaiCheckOut() != null ? dd.getTrangThaiCheckOut().name() : null);
+                dto.setTrangThaiThamGia(dd.getTrangThai() != null ? dd.getTrangThai().name() : null);
+                dto.setSoPhutTre(dd.getSoPhutTre());
+                dto.setSoPhutVeSom(dd.getSoPhutVeSom());
+                dto.setGhiChu(dd.getGhiChu());
+            } else {
+                dto.setTrangThaiThamGia("CHUA_DIEM_DANH");
+            }
+            
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     // ========== MAPPING METHODS ==========

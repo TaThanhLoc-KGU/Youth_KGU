@@ -45,4 +45,9 @@ public class CreateAccountRequest {
 
     // Nullable - sử dụng String để tránh lỗi JSON parsing khi gửi empty string
     private String banChuyenMon;
+
+    // Liên kết với đối tượng người dùng (nullable - chỉ set khi tạo từ danh sách)
+    private String maSv;
+    private String maGv;
+    private String maChuyenVien;
 }

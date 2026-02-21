@@ -97,7 +97,7 @@ public class AccountService {
                 .soDienThoai(request.getSoDienThoai())
                 .ngaySinh(request.getNgaySinh())
                 .gioiTinh(request.getGioiTinh())
-                .vaiTro(VaiTroEnum.THANH_VIEN_DOAN) // Default role
+                .vaiTro(VaiTroEnum.SINH_VIEN) // Default role changed to SINH_VIEN
                 .trangThaiPheDuyet("CHO_PHE_DUYET") // Pending approval
                 .isActive(true)
                 .createdAt(LocalDateTime.now())
@@ -409,6 +409,17 @@ public class AccountService {
             Ban ban = banRepository.findById(request.getBanChuyenMon())
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ban chuyên môn: " + request.getBanChuyenMon()));
             newAccount.setBanChuyenMon(ban);
+        }
+
+        // Liên kết với đối tượng người dùng (GiangVien / SinhVien / ChuyenVien)
+        if (request.getMaGv() != null && !request.getMaGv().isEmpty()) {
+            giangVienRepository.findById(request.getMaGv()).ifPresent(newAccount::setGiangVien);
+        }
+        if (request.getMaSv() != null && !request.getMaSv().isEmpty()) {
+            sinhVienRepository.findById(request.getMaSv()).ifPresent(newAccount::setSinhVien);
+        }
+        if (request.getMaChuyenVien() != null && !request.getMaChuyenVien().isEmpty()) {
+            chuyenVienRepository.findById(request.getMaChuyenVien()).ifPresent(newAccount::setChuyenVien);
         }
 
         TaiKhoan saved = taiKhoanRepository.save(newAccount);

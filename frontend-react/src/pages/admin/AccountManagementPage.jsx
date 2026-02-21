@@ -32,7 +32,7 @@ const MODULE_LABELS = {
 const DEFAULT_ROLE_FOR_TYPE = {
   SINH_VIEN: 'SINH_VIEN',
   GIANG_VIEN: 'GIANG_VIEN',
-  CHUYEN_VIEN: 'CAN_BO_VAN_PHONG_DOAN',
+  CHUYEN_VIEN: 'CHUYEN_VIEN',
 };
 
 export default function AccountManagementPage() {
@@ -321,7 +321,10 @@ export default function AccountManagementPage() {
         password: defaultPassword,
         hoTen: e.hoTen,
         vaiTro: DEFAULT_ROLE_FOR_TYPE[sourceType],
-        banChuyenMon: null
+        banChuyenMon: null,
+        maSv: sourceType === 'SINH_VIEN' ? e.ma : null,
+        maGv: sourceType === 'GIANG_VIEN' ? e.ma : null,
+        maChuyenVien: sourceType === 'CHUYEN_VIEN' ? e.ma : null,
       };
     });
     setBulkCreateResult(null);

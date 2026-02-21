@@ -5,6 +5,7 @@ public enum TrangThaiHoatDongEnum {
     DANG_MO_DANG_KY("Đang mở đăng ký"),
     DANG_DIEN_RA("Đang diễn ra"),
     DA_HOAN_THANH("Đã hoàn thành"),
+    DA_KET_THUC("Đã kết thúc"),
     DA_HUY("Đã hủy");
 
     private final String displayName;

@@ -27,6 +27,7 @@ import SettingsPage from './pages/admin/SettingsPage';
 import StudentDashboard from './pages/student/Dashboard';
 import Activities from './pages/admin/Activities';
 import CreateHoatDong from './pages/HoatDong/CreateHoatDong'; // Import CreateHoatDong
+import ActivityAttendancePage from './pages/admin/ActivityAttendancePage'; // Import ActivityAttendancePage
 import StudentActivities from './pages/student/Activities';
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES } from './utils/constants';
@@ -98,7 +99,8 @@ function App() {
           <Route path="teachers" element={<GiangVien />} />
           <Route path="giangvien" element={<GiangVien />} />
           <Route path="activities" element={<Activities />} />
-          <Route path="activities/create" element={<CreateHoatDong />} /> {/* Added route for CreateHoatDong */}
+          <Route path="activities/create" element={<CreateHoatDong />} />
+          <Route path="activities/:id/attendance" element={<ActivityAttendancePage />} /> {/* Added route for ActivityAttendancePage */}
           <Route path="bch" element={<BCH />} />
           <Route path="chuc-vu" element={<ChucVu />} />
           <Route path="ban" element={<Ban />} />

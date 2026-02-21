@@ -20,10 +20,10 @@ public interface BCHDoanHoiRepository extends JpaRepository<BCHDoanHoi, String> 
     boolean existsByGiangVienMaGvAndIsActiveTrue(String maGv);
     boolean existsByChuyenVienMaChuyenVienAndIsActiveTrue(String maChuyenVien);
 
-    // Tìm BCH theo thành viên
-    Optional<BCHDoanHoi> findBySinhVienMaSvAndIsActiveTrue(String maSv);
-    Optional<BCHDoanHoi> findByGiangVienMaGvAndIsActiveTrue(String maGv);
-    Optional<BCHDoanHoi> findByChuyenVienMaChuyenVienAndIsActiveTrue(String maChuyenVien);
+    // Tìm BCH theo thành viên (trả về List để hỗ trợ nhiều nhiệm kỳ active)
+    List<BCHDoanHoi> findBySinhVienMaSvAndIsActiveTrue(String maSv);
+    List<BCHDoanHoi> findByGiangVienMaGvAndIsActiveTrue(String maGv);
+    List<BCHDoanHoi> findByChuyenVienMaChuyenVienAndIsActiveTrue(String maChuyenVien);
 
     @Query("SELECT COUNT(b) FROM BCHDoanHoi b WHERE b.isActive = true")
     long countActive();

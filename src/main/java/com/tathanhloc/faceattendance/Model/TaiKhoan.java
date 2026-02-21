@@ -43,7 +43,6 @@ public class TaiKhoan {
     private String email;
 
     @NotNull(message = "Vai trò không được để trống")
-    @Enumerated(EnumType.STRING)
     @Column(name = "vai_tro", nullable = false)
     @Convert(converter = VaiTroEnumConverter.class)
     private VaiTroEnum vaiTro;

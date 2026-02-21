@@ -28,84 +28,32 @@ export const ORGANIZATION_LABELS = {
   HE_THONG: 'Hệ thống'
 };
 
-// ========== MANAGEMENT ROLES - UNION (ĐOÀN) ==========
-// Cấp 1: Thường trực (Lãnh đạo cao nhất)
-export const ROLE_BI_THU_DOAN = 'BI_THU_DOAN';
-export const ROLE_PHO_BI_THU_DOAN = 'PHO_BI_THU_DOAN';
-
-// Cấp 2: Ban Thường vụ (Lãnh đạo thường xuyên)
-export const ROLE_UY_VIEN_THUONG_VU_DOAN = 'UY_VIEN_THUONG_VU_DOAN';
-
-// Cấp 3: Ban Chấp hành (Cơ quan lãnh đạo)
-export const ROLE_UY_VIEN_CHAP_HANH_DOAN = 'UY_VIEN_CHAP_HANH_DOAN';
-
-// Cấp 4: Chuyên môn
-export const ROLE_CAN_BO_VAN_PHONG_DOAN = 'CAN_BO_VAN_PHONG_DOAN';
-export const ROLE_THU_KY_HANH_CHINH_DOAN = 'THU_KY_HANH_CHINH_DOAN';
-
-// ========== MANAGEMENT ROLES - ASSOCIATION (HỘI) ==========
-// Cấp 1: Thường trực (Lãnh đạo cao nhất)
-export const ROLE_CHU_TICH_HOI = 'CHU_TICH_HOI';
-export const ROLE_PHO_CHU_TICH_HOI = 'PHO_CHU_TICH_HOI';
-
-// Cấp 2: Ban Thư ký (Cơ quan điều hành thường xuyên)
-export const ROLE_UY_VIEN_THU_KY_HOI = 'UY_VIEN_THU_KY_HOI';
-
-// Cấp 3: Ban Chấp hành (Cơ quan lãnh đạo)
-export const ROLE_UY_VIEN_CHAP_HANH_HOI = 'UY_VIEN_CHAP_HANH_HOI';
-
-// ========== SERVICE ROLES - UNION (PHỤC VỤ ĐOÀN) ==========
-export const ROLE_TRUONG_BAN_DOAN = 'TRUONG_BAN_DOAN';
-export const ROLE_PHO_TRUONG_BAN_DOAN = 'PHO_TRUONG_BAN_DOAN';
-export const ROLE_UV_BAN_DOAN = 'UV_BAN_DOAN';
-
-// ========== SERVICE ROLES - ASSOCIATION (PHỤC VỤ HỘI) ==========
-export const ROLE_TRUONG_BAN_HOI = 'TRUONG_BAN_HOI';
-export const ROLE_PHO_TRUONG_BAN_HOI = 'PHO_TRUONG_BAN_HOI';
-export const ROLE_UV_BAN_HOI = 'UV_BAN_HOI';
-
-// ========== PARTICIPATION ROLES ==========
-export const ROLE_THANH_VIEN_DOAN = 'THANH_VIEN_DOAN';
-export const ROLE_THANH_VIEN_HOI = 'THANH_VIEN_HOI';
-
-// ========== SPECIAL ROLES ==========
+// ========== SYSTEM ROLES (VAI TRÒ HỆ THỐNG) ==========
 export const ROLE_ADMIN = 'ADMIN';
-export const ROLE_GIANG_VIEN_HUONG_DAN = 'GIANG_VIEN_HUONG_DAN';
-export const ROLE_GIANGVIEN = 'GIANGVIEN';
-export const ROLE_SINHVIEN = 'SINHVIEN';
+export const ROLE_GIANG_VIEN = 'GIANG_VIEN';
+export const ROLE_SINH_VIEN = 'SINH_VIEN';
+export const ROLE_CHUYEN_VIEN = 'CHUYEN_VIEN';
+
+// ========== EFFECTIVE ROLES (VAI TRÒ HIỆU LỰC) ==========
+export const ROLE_MANAGER = 'MANAGER';
+export const ROLE_STAFF = 'STAFF';
+
+// Backward compatibility aliases
+export const ROLE_GIANGVIEN = 'GIANG_VIEN';
+export const ROLE_SINHVIEN = 'SINH_VIEN';
 
 export const ROLE_LABELS = {
-  // Management - Union (Đoàn)
-  BI_THU_DOAN: 'Bí thư Đoàn',
-  PHO_BI_THU_DOAN: 'Phó Bí thư Đoàn',
-  UY_VIEN_THUONG_VU_DOAN: 'Ủy viên Ban Thường vụ',
-  UY_VIEN_CHAP_HANH_DOAN: 'Ủy viên Ban Chấp hành',
-  CAN_BO_VAN_PHONG_DOAN: 'Cán bộ Văn phòng Đoàn',
-  THU_KY_HANH_CHINH_DOAN: 'Thư ký hành chính Đoàn',
+  // System Roles
+  ADMIN: 'Quản trị viên',
+  GIANG_VIEN: 'Giảng viên',
+  SINH_VIEN: 'Sinh viên',
+  CHUYEN_VIEN: 'Chuyên viên',
 
-  // Management - Association (Hội)
-  CHU_TICH_HOI: 'Chủ tịch Hội',
-  PHO_CHU_TICH_HOI: 'Phó chủ tịch Hội',
-  UY_VIEN_THU_KY_HOI: 'Ủy viên Ban Thư ký',
-  UY_VIEN_CHAP_HANH_HOI: 'Ủy viên Ban Chấp hành',
+  // Effective Roles
+  MANAGER: 'Quản lý',
+  STAFF: 'Nhân viên hỗ trợ',
 
-  // Service - Union
-  TRUONG_BAN_DOAN: 'Trưởng Ban Đoàn',
-  PHO_TRUONG_BAN_DOAN: 'Phó Trưởng Ban Đoàn',
-  UV_BAN_DOAN: 'Ủy viên Ban Đoàn',
-
-  // Service - Association
-  TRUONG_BAN_HOI: 'Trưởng Ban Hội',
-  PHO_TRUONG_BAN_HOI: 'Phó Trưởng Ban Hội',
-  UV_BAN_HOI: 'Ủy viên Ban Hội',
-
-  // Participation
-  THANH_VIEN_DOAN: 'Thành viên Đoàn',
-  THANH_VIEN_HOI: 'Thành viên Hội',
-
-  // Special
-  ADMIN: 'Admin',
-  GIANG_VIEN_HUONG_DAN: 'Giảng viên hướng dẫn',
+  // Legacy aliases (mapped to new labels)
   GIANGVIEN: 'Giảng viên',
   SINHVIEN: 'Sinh viên'
 };
@@ -225,38 +173,10 @@ export const ACCOUNT_API = {
 // ========== ROLE OPTIONS FOR DROPDOWNS ==========
 
 export const ROLE_OPTIONS = [
-  // Management - Union (Đoàn)
-  { value: 'BI_THU_DOAN', label: 'Bí thư Đoàn', group: 'Quản lý - Đoàn' },
-  { value: 'PHO_BI_THU_DOAN', label: 'Phó Bí thư Đoàn', group: 'Quản lý - Đoàn' },
-  { value: 'UY_VIEN_THUONG_VU_DOAN', label: 'Ủy viên Ban Thường vụ', group: 'Quản lý - Đoàn' },
-  { value: 'UY_VIEN_CHAP_HANH_DOAN', label: 'Ủy viên Ban Chấp hành', group: 'Quản lý - Đoàn' },
-  { value: 'CAN_BO_VAN_PHONG_DOAN', label: 'Cán bộ Văn phòng Đoàn', group: 'Quản lý - Đoàn' },
-  { value: 'THU_KY_HANH_CHINH_DOAN', label: 'Thư ký hành chính Đoàn', group: 'Quản lý - Đoàn' },
-
-  // Management - Association (Hội)
-  { value: 'CHU_TICH_HOI', label: 'Chủ tịch Hội', group: 'Quản lý - Hội' },
-  { value: 'PHO_CHU_TICH_HOI', label: 'Phó chủ tịch Hội', group: 'Quản lý - Hội' },
-  { value: 'UY_VIEN_THU_KY_HOI', label: 'Ủy viên Ban Thư ký', group: 'Quản lý - Hội' },
-  { value: 'UY_VIEN_CHAP_HANH_HOI', label: 'Ủy viên Ban Chấp hành', group: 'Quản lý - Hội' },
-
-  // Service - Union (Phục vụ Đoàn)
-  { value: 'TRUONG_BAN_DOAN', label: 'Trưởng Ban Đoàn', group: 'Phục vụ - Đoàn' },
-  { value: 'PHO_TRUONG_BAN_DOAN', label: 'Phó Trưởng Ban Đoàn', group: 'Phục vụ - Đoàn' },
-  { value: 'UV_BAN_DOAN', label: 'Ủy viên Ban Đoàn', group: 'Phục vụ - Đoàn' },
-
-  // Service - Association (Phục vụ Hội)
-  { value: 'TRUONG_BAN_HOI', label: 'Trưởng Ban Hội', group: 'Phục vụ - Hội' },
-  { value: 'PHO_TRUONG_BAN_HOI', label: 'Phó Trưởng Ban Hội', group: 'Phục vụ - Hội' },
-  { value: 'UV_BAN_HOI', label: 'Ủy viên Ban Hội', group: 'Phục vụ - Hội' },
-
-  // Participation
-  { value: 'THANH_VIEN_DOAN', label: 'Thành viên Đoàn', group: 'Thành viên' },
-  { value: 'THANH_VIEN_HOI', label: 'Thành viên Hội', group: 'Thành viên' },
-
-  // Special
-  { value: 'GIANG_VIEN_HUONG_DAN', label: 'Giảng viên hướng dẫn', group: 'Đặc biệt' },
-  { value: 'GIANGVIEN', label: 'Giảng viên', group: 'Đặc biệt' },
-  { value: 'SINHVIEN', label: 'Sinh viên', group: 'Đặc biệt' }
+  { value: 'ADMIN', label: 'Quản trị viên', group: 'Hệ thống' },
+  { value: 'GIANG_VIEN', label: 'Giảng viên', group: 'Hệ thống' },
+  { value: 'SINH_VIEN', label: 'Sinh viên', group: 'Hệ thống' },
+  { value: 'CHUYEN_VIEN', label: 'Chuyên viên', group: 'Hệ thống' }
 ];
 
 // ========== DEPARTMENT OPTIONS FOR DROPDOWNS ==========

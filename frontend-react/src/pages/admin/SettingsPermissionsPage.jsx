@@ -1,17 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Shield, CheckSquare, Square, Lock, AlertTriangle, Eye } from 'lucide-react';
+import { Shield, Lock, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
 import permissionService from '../../services/permissionService';
 import accountService from '../../services/accountService';
 import chucVuService from '../../services/chucVuService';
 import useAuthStore from '../../stores/authStore';
 import {
-  PERMISSION_LABELS,
-  PERMISSION_GROUPS,
   NHOM_VAI_TRO_LABELS,
   NHOM_VAI_TRO_COLORS,
-  TO_CHUC_LABELS,
 } from '../../constants/permissionConstants';
 
 // Modal xác nhận mật khẩu
@@ -51,30 +48,6 @@ function PasswordConfirmModal({ onConfirm, onCancel, title }) {
   );
 }
 
-// Helper: Map quyền theo chức vụ (Logic frontend để hiển thị)
-const getQuyenByChucVu = (chucVu) => {
-  if (!chucVu) return [];
-  
-  const { thuocBan, thuTu } = chucVu;
-  const isQuanLy = thuocBan === 'DOAN' || thuocBan === 'HOI';
-  const capCao = (thuTu || 99) <= 2;
-
-  const base = ['DANG_NHAP', 'DOI_MAT_KHAU', 'XEM_HOAT_DONG'];
-
-  if (isQuanLy && capCao) {
-    return [...base, 'QUAN_LY_HOAT_DONG', 'DUYET_HOAT_DONG', 'DIEM_DANH',
-                     'PHAN_CONG_DIEM_DANH', 'QUAN_LY_DANG_KY', 'XEM_BAO_CAO', 'XUAT_BAO_CAO'];
-  }
-  if (isQuanLy && !capCao) {
-    return [...base, 'TAO_HOAT_DONG', 'DIEM_DANH', 'QUAN_LY_DANG_KY', 'XEM_BAO_CAO'];
-  }
-  // PHU_VU (Ban/Đội/CLB)
-  if (capCao) {
-    return [...base, 'TAO_HOAT_DONG', 'DIEM_DANH', 'PHAN_CONG_DIEM_DANH', 'XEM_DANH_SACH_DANG_KY'];
-  }
-  return [...base, 'DIEM_DANH', 'XEM_DANH_SACH_DANG_KY'];
-};
-
 const THUOC_BAN_LABELS = {
   DOAN: 'Đoàn Thanh niên',
   HOI: 'Hội Sinh viên',
@@ -84,101 +57,102 @@ const THUOC_BAN_LABELS = {
   KHAC: 'Khác',
 };
 
-// Tab 1: Phân quyền nhóm vai trò (Dynamic from ChucVu)
+// Tab 1: Phân quyền nhóm theo Chức vụ (đọc/ghi từ role_permissions, role_name = maChucVu)
 function RolePermissionsTab() {
-  const [selectedChucVu, setSelectedChucVu] = useState('');
+  const [selectedChucVuMa, setSelectedChucVuMa] = useState('');
   const [localSelected, setLocalSelected] = useState(new Set());
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const queryClient = useQueryClient();
 
-  // Load danh sách chức vụ
+  // Danh sách chức vụ từ DB
   const { data: danhSachChucVu = [], isLoading: loadingChucVu } = useQuery({
     queryKey: ['chuc-vu-all'],
     queryFn: chucVuService.getAll,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Load tất cả quyền (để hiển thị checkbox)
-  const { data: allPermissions = {} } = useQuery({
+  // Tất cả permissions từ DB, nhóm theo category
+  const { data: allPermissions = {}, isLoading: loadingPerms } = useQuery({
     queryKey: ['allPermissions'],
     queryFn: () => api.get('/api/permissions/all').then(r => r.data?.data || {}),
   });
 
-  // Load quyền hiện tại của chức vụ (từ API backend nếu có, hoặc dùng logic frontend tạm thời)
-  // Hiện tại backend chưa có API get permissions by chucVu, nên ta dùng logic frontend `getQuyenByChucVu`
-  // Khi nào backend có API, ta sẽ thay thế đoạn này.
-  
-  const selectedChucVuInfo = useMemo(() => 
-    danhSachChucVu.find(cv => cv.maChucVu === selectedChucVu), 
-  [danhSachChucVu, selectedChucVu]);
+  // Permission IDs đang được gán cho chức vụ đang chọn (role_name = maChucVu)
+  const { data: chucVuPermIds = [], isLoading: loadingChucVuPerms } = useQuery({
+    queryKey: ['rolePermissions', selectedChucVuMa],
+    queryFn: () => permissionService.getRolePermissions(selectedChucVuMa),
+    enabled: !!selectedChucVuMa,
+  });
 
+  // Sync localSelected khi chuyển chức vụ
+  // FIX: Added JSON.stringify(chucVuPermIds) to dependency array to prevent infinite loop
+  // when chucVuPermIds is a new array reference but same content
   React.useEffect(() => {
-    if (selectedChucVuInfo) {
-      // Giả lập load quyền từ backend
-      const permissions = getQuyenByChucVu(selectedChucVuInfo);
-      // Cần map permission names sang IDs. 
-      // Vì allPermissions là Map<Category, List<Permission>>, ta cần flatten nó để tìm ID.
-      const permIds = new Set();
-      Object.values(allPermissions).flat().forEach(p => {
-        if (permissions.includes(p.name)) {
-          permIds.add(p.id);
-        }
-      });
-      setLocalSelected(permIds);
-    } else {
-      setLocalSelected(new Set());
+    if (chucVuPermIds) {
+      setLocalSelected(new Set(chucVuPermIds));
     }
-  }, [selectedChucVuInfo, allPermissions]);
-
-  // Nhóm chức vụ theo thuocBan
-  const nhomChucVu = useMemo(() => {
-    return danhSachChucVu.reduce((acc, cv) => {
-      const nhom = cv.thuocBan || 'KHAC';
-      if (!acc[nhom]) acc[nhom] = [];
-      acc[nhom].push(cv);
-      return acc;
-    }, {});
-  }, [danhSachChucVu]);
+  }, [JSON.stringify(chucVuPermIds)]);
 
   const saveMutation = useMutation({
     mutationFn: ({ adminUsername, adminPassword }) =>
-      // Lưu ý: Backend cần endpoint update quyền theo chức vụ. 
-      // Hiện tại dùng tạm endpoint role cũ nhưng truyền maChucVu làm roleName (cần backend hỗ trợ hoặc sửa lại)
-      // Tạm thời: Log ra console vì chưa có API backend chuẩn cho việc này.
-      new Promise((resolve) => {
-        console.log('Saving permissions for chucVu:', selectedChucVu, [...localSelected]);
-        setTimeout(resolve, 1000);
-      }),
+      permissionService.updateRolePermissions(selectedChucVuMa, [...localSelected], adminUsername, adminPassword),
     onSuccess: () => {
-      setSuccess('Cập nhật quyền chức vụ thành công (Giả lập)!');
-      setShowConfirm(false); setError('');
+      setSuccess('Cập nhật quyền chức vụ thành công!');
+      setShowConfirm(false);
+      setError('');
+      queryClient.invalidateQueries({ queryKey: ['rolePermissions', selectedChucVuMa] });
       setTimeout(() => setSuccess(''), 3000);
     },
-    onError: e => { setError('Lỗi cập nhật'); setShowConfirm(false); }
+    onError: e => {
+      setError(e?.response?.data?.message || 'Lỗi cập nhật');
+      setShowConfirm(false);
+    },
   });
 
-  const toggle = (id) => setLocalSelected(prev => {
-    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
-  });
+  const toggle = (id) => {
+    setLocalSelected(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
+
+  const isDirty = selectedChucVuMa &&
+    JSON.stringify([...localSelected].sort((a, b) => a - b)) !==
+    JSON.stringify([...chucVuPermIds].sort((a, b) => a - b));
+
+  // Group chức vụ theo thuocBan cho optgroup
+  const nhomChucVu = danhSachChucVu.reduce((acc, cv) => {
+    const nhom = cv.thuocBan || 'KHAC';
+    if (!acc[nhom]) acc[nhom] = [];
+    acc[nhom].push(cv);
+    return acc;
+  }, {});
+
+  const selectedInfo = danhSachChucVu.find(cv => cv.maChucVu === selectedChucVuMa);
 
   return (
-    <div className="grid grid-cols-4 gap-6">
-      <div className="col-span-1 bg-white rounded-xl border p-4">
-        <h3 className="font-semibold text-gray-700 mb-3">Chọn chức vụ</h3>
+    <div className="bg-white rounded-xl border p-6 space-y-5">
+      <div>
+        <h3 className="font-bold text-gray-800 mb-1">Phân quyền theo chức vụ</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Cấu hình quyền mặc định cho từng chức vụ BCH. Tài khoản giữ chức vụ sẽ kế thừa các quyền được tích.
+          Admin có thể cấp thêm/thu hồi riêng lẻ ở tab <strong>Phân quyền tài khoản</strong>.
+        </p>
+
         {loadingChucVu ? (
-          <div className="text-sm text-gray-500">Đang tải danh sách...</div>
+          <div className="text-gray-400 text-sm">Đang tải danh sách chức vụ...</div>
         ) : (
-          <select 
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={selectedChucVu} 
-            onChange={(e) => setSelectedChucVu(e.target.value)}
-          >
+          <select
+            className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={selectedChucVuMa}
+            onChange={e => { setSelectedChucVuMa(e.target.value); setError(''); setSuccess(''); }}>
             <option value="">-- Chọn chức vụ --</option>
-            {Object.entries(nhomChucVu).map(([thuocBan, chucVuList]) => (
+            {Object.entries(nhomChucVu).map(([thuocBan, list]) => (
               <optgroup key={thuocBan} label={THUOC_BAN_LABELS[thuocBan] || thuocBan}>
-                {chucVuList
+                {[...list]
                   .sort((a, b) => (a.thuTu || 99) - (b.thuTu || 99))
                   .map(cv => (
                     <option key={cv.maChucVu} value={cv.maChucVu}>
@@ -189,69 +163,95 @@ function RolePermissionsTab() {
             ))}
           </select>
         )}
-        
-        {selectedChucVuInfo && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm">
-            <p className="font-semibold text-blue-800">{selectedChucVuInfo.tenChucVu}</p>
-            <p className="text-blue-600 text-xs mt-1">{THUOC_BAN_LABELS[selectedChucVuInfo.thuocBan]}</p>
-            <p className="text-gray-500 text-xs mt-2">{selectedChucVuInfo.moTa || 'Không có mô tả'}</p>
-          </div>
-        )}
       </div>
 
-      <div className="col-span-3">
-        <div className="bg-white rounded-xl border p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-800">
-              Quyền của chức vụ: <span className="text-blue-600">{selectedChucVuInfo?.tenChucVu || '...'}</span>
-            </h3>
-            <button onClick={() => setShowConfirm(true)} disabled={!selectedChucVu}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 disabled:bg-gray-300">
-              <Shield className="w-4 h-4" /> Lưu thay đổi
-            </button>
-          </div>
-
-          {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{success}</div>}
-          {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
-
-          {Object.entries(allPermissions).map(([category, perms]) => (
-            <div key={category} className="mb-5">
-              <h4 className="font-semibold text-gray-600 text-sm uppercase tracking-wide mb-2 border-b pb-1">{category}</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {perms.map(p => (
-                  <label key={p.id} className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <button type="button" onClick={() => toggle(p.id)} className="mt-0.5 flex-shrink-0">
-                      {localSelected.has(p.id)
-                        ? <CheckSquare className="w-5 h-5 text-blue-600" />
-                        : <Square className="w-5 h-5 text-gray-300" />}
-                    </button>
-                    <div>
-                      <div className="text-sm font-medium text-gray-800">{p.description}</div>
-                      <div className="text-xs text-gray-400 font-mono">{p.name}</div>
-                    </div>
-                  </label>
-                ))}
-              </div>
+      {selectedChucVuMa && (
+        <>
+          {selectedInfo && (
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                {selectedInfo.tenChucVu}
+              </span>
+              <span className="text-sm text-gray-500">
+                {THUOC_BAN_LABELS[selectedInfo.thuocBan] || selectedInfo.thuocBan}
+                {selectedInfo.thuTu ? ` · Thứ tự ${selectedInfo.thuTu}` : ''}
+              </span>
             </div>
-          ))}
+          )}
+
+          {(loadingPerms || loadingChucVuPerms) && (
+            <div className="text-gray-400 text-sm">Đang tải danh sách quyền...</div>
+          )}
+
+          {!loadingPerms && !loadingChucVuPerms && (
+            <>
+              {success && (
+                <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{success}</div>
+              )}
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
+              )}
+
+              {Object.entries(allPermissions).map(([category, perms]) => (
+                <div key={category} className="mb-4">
+                  <h4 className="font-semibold text-gray-600 text-sm uppercase tracking-wide mb-2 border-b pb-1">
+                    {category}
+                  </h4>
+                  <div className="grid grid-cols-1 gap-1">
+                    {perms.map(p => (
+                      <label key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={localSelected.has(p.id)}
+                          onChange={() => toggle(p.id)}
+                          className="w-4 h-4 text-blue-600 rounded"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-gray-800">{p.description}</span>
+                          <span className="ml-2 text-xs text-gray-400 font-mono">{p.name}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex justify-end pt-2 border-t">
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  disabled={!isDirty || saveMutation.isPending}
+                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-semibold flex items-center gap-2 text-sm">
+                  <Shield className="w-4 h-4" />
+                  {saveMutation.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {!selectedChucVuMa && !loadingChucVu && (
+        <div className="text-center py-12 text-gray-400">
+          <Shield className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>Chọn một chức vụ để cấu hình quyền mặc định</p>
         </div>
-      </div>
+      )}
 
       {showConfirm && (
         <PasswordConfirmModal
-          title={`Cập nhật quyền cho chức vụ "${selectedChucVuInfo?.tenChucVu}"`}
+          title={`Cập nhật quyền chức vụ: ${selectedInfo?.tenChucVu || selectedChucVuMa}`}
           onConfirm={(u, p) => saveMutation.mutate({ adminUsername: u, adminPassword: p })}
-          onCancel={() => setShowConfirm(false)} />
+          onCancel={() => setShowConfirm(false)}
+        />
       )}
     </div>
   );
 }
 
-// Tab 2: Xem & phân quyền tài khoản cụ thể
+// Tab 2: Cấp thêm quyền đặc biệt cho tài khoản (dựa trên quyền chức vụ từ role_permissions)
 function AccountPermissionsTab() {
   const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [localGrant, setLocalGrant] = useState(new Set());
-  const [localRevoke, setLocalRevoke] = useState(new Set());
+  const [extraGrantIds, setExtraGrantIds] = useState(new Set());
   const [ghiChu, setGhiChu] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -260,43 +260,70 @@ function AccountPermissionsTab() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
-  // Danh sách tài khoản
   const { data: accounts = [] } = useQuery({
     queryKey: ['allAccounts'],
     queryFn: () => accountService.getAllAccounts(),
   });
 
-  // Quyền tổng hợp của tài khoản được chọn
   const { data: permData, isLoading: permLoading, error: permError } = useQuery({
     queryKey: ['accountPermissions', selectedAccountId],
     queryFn: () => permissionService.getAccountPermissions(Number(selectedAccountId)),
     enabled: !!selectedAccountId,
   });
 
-  // All permissions for override UI
   const { data: allPermissions = {} } = useQuery({
     queryKey: ['allPermissions'],
     queryFn: () => api.get('/api/permissions/all').then(r => r.data?.data || {}),
   });
 
-  React.useEffect(() => {
-    if (permData?.overrideMap) {
-      const grants = new Set();
-      const revokes = new Set();
-      Object.entries(permData.overrideMap).forEach(([idStr, isGranted]) => {
-        const id = parseInt(idStr);
-        if (isGranted) grants.add(id); else revokes.add(id);
-      });
-      setLocalGrant(grants); setLocalRevoke(revokes);
-    } else {
-      setLocalGrant(new Set()); setLocalRevoke(new Set());
-    }
+  // Map: permission name → id (để tìm ID từ quyenTuChucVu)
+  const permNameToId = React.useMemo(() => {
+    const map = {};
+    Object.values(allPermissions).flat().forEach(p => { map[p.name] = p.id; });
+    return map;
+  }, [allPermissions]);
+
+  // Set IDs của quyền đã được cấu hình cho chức vụ (khoá, không thể bỏ)
+  const basePermIds = React.useMemo(() => {
+    const names = Array.isArray(permData?.quyenTuChucVu) ? permData.quyenTuChucVu : [];
+    return new Set(names.map(name => permNameToId[name]).filter(Boolean));
+  }, [permData, permNameToId]);
+
+  // Lưu bản gốc extras từ overrideMap để so sánh isDirty
+  const originalExtras = React.useMemo(() => {
+    const grants = new Set();
+    Object.entries(permData?.overrideMap || {}).forEach(([idStr, isGranted]) => {
+      if (isGranted) grants.add(parseInt(idStr));
+    });
+    return grants;
   }, [permData]);
+
+  // FIX: Added JSON.stringify(originalExtras) to dependency array to prevent infinite loop
+  React.useEffect(() => {
+    setExtraGrantIds(new Set(originalExtras));
+    setGhiChu('');
+    setError('');
+    setSuccess('');
+  }, [JSON.stringify([...originalExtras])]);
+
+  const toggleExtra = (id) => {
+    if (basePermIds.has(id)) return; // quyền từ chức vụ không được chỉnh
+    setExtraGrantIds(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
+
+  const isDirty =
+    JSON.stringify([...extraGrantIds].sort((a, b) => a - b)) !==
+    JSON.stringify([...originalExtras].sort((a, b) => a - b));
 
   const saveMutation = useMutation({
     mutationFn: ({ adminUsername, adminPassword }) =>
       api.put(`/api/permissions/account/${selectedAccountId}`, {
-        grantIds: [...localGrant], revokeIds: [...localRevoke],
+        grantIds: [...extraGrantIds],
+        revokeIds: [],
         ghiChu, adminUsername, adminPassword, grantedBy: user?.id
       }),
     onSuccess: () => {
@@ -305,7 +332,7 @@ function AccountPermissionsTab() {
       queryClient.invalidateQueries({ queryKey: ['accountPermissions', selectedAccountId] });
       setTimeout(() => setSuccess(''), 3000);
     },
-    onError: e => { setError(e.response?.data?.message || 'Lỗi'); setShowConfirm(false); }
+    onError: e => { setError(e?.response?.data?.message || 'Lỗi'); setShowConfirm(false); }
   });
 
   const resetMutation = useMutation({
@@ -314,38 +341,29 @@ function AccountPermissionsTab() {
         data: { adminUsername, adminPassword }
       }),
     onSuccess: () => {
-      setSuccess('Reset quyền về mặc định nhóm thành công!');
-      setShowResetConfirm(false); setLocalGrant(new Set()); setLocalRevoke(new Set());
+      setSuccess('Đã xóa quyền đặc biệt. Tài khoản chỉ còn quyền từ chức vụ.');
+      setShowResetConfirm(false);
       queryClient.invalidateQueries({ queryKey: ['accountPermissions', selectedAccountId] });
       setTimeout(() => setSuccess(''), 3000);
     },
-    onError: e => { setError(e.response?.data?.message || 'Lỗi'); setShowResetConfirm(false); }
+    onError: e => { setError(e?.response?.data?.message || 'Lỗi'); setShowResetConfirm(false); }
   });
-
-  const toggleGrant = (id) => {
-    setLocalGrant(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-    setLocalRevoke(prev => { const n = new Set(prev); n.delete(id); return n; });
-  };
-  const toggleRevoke = (id) => {
-    setLocalRevoke(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-    setLocalGrant(prev => { const n = new Set(prev); n.delete(id); return n; });
-  };
 
   return (
     <div className="space-y-5">
       {/* Chọn tài khoản */}
       <div className="bg-white rounded-xl border p-5">
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Chọn tài khoản để xem/cấu hình quyền
+          Chọn tài khoản để cấu hình quyền
         </label>
         <select
           className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={selectedAccountId}
-          onChange={e => { setSelectedAccountId(e.target.value); setError(''); setSuccess(''); }}>
+          onChange={e => { setSelectedAccountId(e.target.value); }}>
           <option value="">-- Chọn tài khoản --</option>
           {accounts.map(acc => (
             <option key={acc.id} value={acc.id}>
-              {acc.hoTen || acc.username} ({acc.username})
+              {acc.hoTen || acc.username} ({acc.username}) — {acc.vaiTro}
             </option>
           ))}
         </select>
@@ -353,7 +371,7 @@ function AccountPermissionsTab() {
 
       {selectedAccountId && (
         <>
-          {permLoading && <div className="text-gray-500 text-sm">Đang tải...</div>}
+          {permLoading && <div className="text-gray-500 text-sm p-4">Đang tải...</div>}
           {permError && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">Lỗi: {permError.message}</div>}
 
           {permData && (
@@ -379,7 +397,6 @@ function AccountPermissionsTab() {
                     <span className={`inline-block px-2 py-1 text-xs rounded-full font-semibold ${
                       NHOM_VAI_TRO_COLORS[permData.nhomVaiTro] || 'bg-gray-100 text-gray-700'}`}>
                       {NHOM_VAI_TRO_LABELS[permData.nhomVaiTro] || permData.nhomVaiTro}
-                      {permData.toChuc && ` — ${TO_CHUC_LABELS[permData.toChuc] || permData.toChuc}`}
                     </span>
                   </div>
                 </div>
@@ -390,16 +407,15 @@ function AccountPermissionsTab() {
                       <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full font-semibold">
                         ✓ Ban Chấp Hành
                       </span>
-                      <span className="text-sm text-gray-500">— có thêm quyền từ chức vụ đang giữ</span>
+                      <span className="text-sm text-gray-500">— quyền 🔒 từ chức vụ không thể bỏ chọn</span>
                     </>
                   ) : (
                     <span className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full">
-                      Thành viên thường
+                      Thành viên thường — chưa có chức vụ BCH
                     </span>
                   )}
                 </div>
 
-                {/* Danh sách chức vụ BCH */}
                 {permData.laBCH && permData.danhSachChucVu?.length > 0 && (
                   <div className="mt-4">
                     <p className="text-xs text-gray-500 mb-2">Chức vụ đang giữ:</p>
@@ -408,7 +424,6 @@ function AccountPermissionsTab() {
                         <div key={i} className="border border-blue-200 bg-blue-50 rounded-lg px-3 py-1.5">
                           <p className="font-semibold text-blue-800 text-sm">{cv.tenChucVu}</p>
                           {cv.tenBan && <p className="text-xs text-blue-600">{cv.tenBan}</p>}
-                          <p className="text-xs text-gray-400">{cv.thuocBan}</p>
                         </div>
                       ))}
                     </div>
@@ -416,114 +431,83 @@ function AccountPermissionsTab() {
                 )}
               </div>
 
-              {/* Quyền hiệu lực (read-only view) */}
-              <div className="bg-white rounded-xl border p-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <Eye className="w-5 h-5 text-blue-600" />
-                  <h2 className="text-lg font-bold">Quyền hiệu lực</h2>
-                </div>
-                <p className="text-sm text-gray-500 mb-4">
-                  Tổng hợp từ vai trò{permData.laBCH ? ' + chức vụ BCH' : ''}.
-                  {(permData.overrideMap && Object.keys(permData.overrideMap).length > 0) ? ' Có override cá nhân.' : ''}
-                </p>
-                {PERMISSION_GROUPS.map(group => (
-                  <div key={group.label} className="mb-5">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b pb-1">{group.label}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {group.permissions.map(perm => {
-                        const coQuyen = Array.isArray(permData.quyenTongHop)
-                          ? permData.quyenTongHop.includes(perm)
-                          : permData.quyenTongHop instanceof Set
-                            ? permData.quyenTongHop.has(perm)
-                            : false;
-                        const tuChucVu = Array.isArray(permData.quyenTuChucVu)
-                          ? permData.quyenTuChucVu.includes(perm)
-                          : false;
-                        return (
-                          <div key={perm} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
-                            coQuyen ? 'bg-green-50' : 'bg-gray-50 opacity-60'}`}>
-                            <span className="text-base">{coQuyen ? '✅' : '⬜'}</span>
-                            <span className={coQuyen ? 'text-gray-800' : 'text-gray-400'}>
-                              {PERMISSION_LABELS[perm] || perm}
-                            </span>
-                            {tuChucVu && (
-                              <span className="ml-auto text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">BCH</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Override cá nhân */}
+              {/* Phân quyền đặc biệt */}
               {Object.keys(allPermissions).length > 0 && (
                 <div className="bg-white rounded-xl border p-6">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-1">
                     <div>
                       <h2 className="text-lg font-bold text-gray-800">
-                        Override quyền: <span className="text-blue-600">{permData.hoTen || permData.username}</span>
+                        Cấp quyền đặc biệt: <span className="text-blue-600">{permData.hoTen || permData.username}</span>
                       </h2>
-                      <p className="text-sm text-gray-500">
-                        Vai trò: {permData.tenVaiTro || permData.vaiTro} ({permData.nhomVaiTro})
-                        {permData.laBCH && permData.danhSachChucVu?.length > 0 && (
-                          <span className="ml-2 text-purple-600">
-                            · BCH: {permData.danhSachChucVu.map(cv => cv.tenChucVu).join(', ')}
-                          </span>
-                        )}
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        Quyền <span className="font-medium">🔒 khoá</span> từ nhóm chức vụ — không thể bỏ chọn.
+                        Tích thêm những quyền còn lại để cấp đặc biệt cho tài khoản này.
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 ml-4 shrink-0">
                       <button onClick={() => setShowResetConfirm(true)}
                         className="px-3 py-2 border border-orange-300 text-orange-600 rounded-lg hover:bg-orange-50 text-sm font-semibold">
-                        Reset về nhóm
+                        Xóa quyền đặc biệt
                       </button>
                       <button onClick={() => setShowConfirm(true)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 text-sm">
-                        <Shield className="w-4 h-4" /> Lưu phân quyền
+                        disabled={!isDirty || saveMutation.isPending}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-semibold flex items-center gap-2 text-sm">
+                        <Shield className="w-4 h-4" />
+                        {saveMutation.isPending ? 'Đang lưu...' : 'Lưu'}
                       </button>
                     </div>
                   </div>
 
-                  {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{success}</div>}
-                  {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
+                  {success && <div className="mt-3 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{success}</div>}
+                  {error && <div className="mt-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
 
-                  <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-                    <strong>Hướng dẫn:</strong> ✅ Cấp thêm quyền | ❌ Thu hồi quyền | ⬜ Theo nhóm (mặc định)
-                  </div>
-
-                  <div className="mb-4">
+                  <div className="mt-4 mb-4">
                     <label className="block text-sm font-semibold text-gray-700 mb-1">Ghi chú lý do phân quyền</label>
                     <input value={ghiChu} onChange={e => setGhiChu(e.target.value)}
-                      placeholder="Ví dụ: BCH ủy quyền quản lý hoạt động..."
+                      placeholder="Ví dụ: BCH ủy quyền thêm chức năng xuất báo cáo..."
                       className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
 
                   {Object.entries(allPermissions).map(([category, perms]) => (
                     <div key={category} className="mb-5">
-                      <h4 className="font-semibold text-gray-600 text-sm uppercase tracking-wide mb-2 border-b pb-1">{category}</h4>
+                      <h4 className="font-semibold text-gray-600 text-sm uppercase tracking-wide mb-2 border-b pb-1">
+                        {category}
+                      </h4>
                       <div className="grid grid-cols-1 gap-1">
-                        {perms.map(p => (
-                          <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
-                            <div className="flex-1">
-                              <span className="text-sm font-medium text-gray-800">{p.description}</span>
-                              <span className="ml-2 text-xs text-gray-400 font-mono">{p.name}</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <button onClick={() => toggleGrant(p.id)}
-                                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
-                                  localGrant.has(p.id) ? 'bg-green-600 text-white' : 'border text-gray-400 hover:border-green-400 hover:text-green-600'}`}>
-                                ✅ Cấp
-                              </button>
-                              <button onClick={() => toggleRevoke(p.id)}
-                                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
-                                  localRevoke.has(p.id) ? 'bg-red-600 text-white' : 'border text-gray-400 hover:border-red-400 hover:text-red-600'}`}>
-                                ❌ Thu hồi
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                        {perms.map(p => {
+                          const isBase = basePermIds.has(p.id);
+                          const isExtra = extraGrantIds.has(p.id);
+                          return (
+                            <label key={p.id}
+                              className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
+                                isBase
+                                  ? 'bg-blue-50 cursor-default'
+                                  : 'hover:bg-gray-50 cursor-pointer'
+                              }`}>
+                              <input
+                                type="checkbox"
+                                checked={isBase || isExtra}
+                                disabled={isBase}
+                                onChange={() => toggleExtra(p.id)}
+                                className="w-4 h-4 text-blue-600 rounded"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-medium text-gray-800">{p.description}</span>
+                                <span className="ml-2 text-xs text-gray-400 font-mono">{p.name}</span>
+                              </div>
+                              {isBase && (
+                                <span className="shrink-0 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                  🔒 Từ chức vụ
+                                </span>
+                              )}
+                              {isExtra && !isBase && (
+                                <span className="shrink-0 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                  + Đặc biệt
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -534,15 +518,18 @@ function AccountPermissionsTab() {
         </>
       )}
 
-      {showConfirm && <PasswordConfirmModal
-        title={`Phân quyền tài khoản ID #${selectedAccountId}`}
-        onConfirm={(u, p) => saveMutation.mutate({ adminUsername: u, adminPassword: p })}
-        onCancel={() => setShowConfirm(false)} />}
-
-      {showResetConfirm && <PasswordConfirmModal
-        title={`Reset quyền tài khoản ID #${selectedAccountId} về mặc định nhóm`}
-        onConfirm={(u, p) => resetMutation.mutate({ adminUsername: u, adminPassword: p })}
-        onCancel={() => setShowResetConfirm(false)} />}
+      {showConfirm && permData && (
+        <PasswordConfirmModal
+          title={`Cấp quyền đặc biệt cho: ${permData.hoTen || permData.username}`}
+          onConfirm={(u, p) => saveMutation.mutate({ adminUsername: u, adminPassword: p })}
+          onCancel={() => setShowConfirm(false)} />
+      )}
+      {showResetConfirm && permData && (
+        <PasswordConfirmModal
+          title={`Xóa toàn bộ quyền đặc biệt của: ${permData.hoTen || permData.username}`}
+          onConfirm={(u, p) => resetMutation.mutate({ adminUsername: u, adminPassword: p })}
+          onCancel={() => setShowResetConfirm(false)} />
+      )}
     </div>
   );
 }

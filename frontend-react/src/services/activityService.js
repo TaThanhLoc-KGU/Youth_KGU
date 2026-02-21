@@ -130,6 +130,12 @@ const activityService = {
     return response.data.data;
   },
 
+  // Get attendance status list
+  getAttendanceStatusList: async (maHoatDong) => {
+    const response = await api.get(`/api/hoat-dong/${maHoatDong}/attendance-status`);
+    return response.data.data;
+  },
+
   // ========== REGISTRATION ==========
 
   // Register for activity
