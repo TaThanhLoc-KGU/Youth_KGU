@@ -89932,3 +89932,2564 @@ Caused by: java.sql.SQLException: Can't create table `face_attendance_activity`.
         hd1_0.ngay_to_chuc desc 
     limit
         ?
+2026-02-21 20:25:20 [MessageBroker-1] INFO  o.s.w.s.c.WebSocketMessageBrokerStats - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+2026-02-21 20:25:22 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/hoat-dong/KH0012026
+2026-02-21 20:25:22 [http-nio-8080-exec-8] DEBUG o.s.security.web.FilterChainProxy - Securing PUT /api/hoat-dong/KH0012026
+2026-02-21 20:25:22 [http-nio-8080-exec-8] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:25:22 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:25:22 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:25:22 [http-nio-8080-exec-8] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:25:22 [http-nio-8080-exec-8] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:25:22 [http-nio-8080-exec-8] DEBUG o.s.security.web.FilterChainProxy - Secured PUT /api/hoat-dong/KH0012026
+2026-02-21 20:25:22 [http-nio-8080-exec-8] INFO  c.t.f.Controller.HoatDongController - PUT /api/hoat-dong/KH0012026 - Update activity
+2026-02-21 20:25:22 [http-nio-8080-exec-8] INFO  c.t.f.Service.HoatDongService - Updating activity: KH0012026
+2026-02-21 20:25:22 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        n1_0.ma_nganh,
+        n1_0.is_active,
+        n1_0.ma_khoa,
+        n1_0.ten_nganh,
+        hd1_0.ngay_to_chuc,
+        npt1_0.ma_bch,
+        npt1_0.ma_chuyen_vien,
+        npt1_0.created_at,
+        npt1_0.ma_gv,
+        npt1_0.hinh_anh,
+        npt1_0.is_active,
+        npt1_0.loai_thanh_vien,
+        npt1_0.ngay_bat_dau,
+        npt1_0.ngay_ket_thuc,
+        npt1_0.nhiem_ky,
+        npt1_0.ma_sv,
+        npt1_0.updated_at,
+        ph1_0.ma_phong,
+        ph1_0.is_active,
+        ph1_0.loai_phong,
+        ph1_0.mo_ta,
+        ph1_0.suc_chua,
+        ph1_0.tang,
+        ph1_0.ten_phong,
+        ph1_0.thiet_bi,
+        ph1_0.toa_nha,
+        ph1_0.trang_thai,
+        ph1_0.vi_tri,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=hd1_0.ma_khoa 
+    left join
+        nganh n1_0 
+            on n1_0.ma_nganh=hd1_0.ma_nganh 
+    left join
+        bch_doan_hoi npt1_0 
+            on npt1_0.ma_bch=hd1_0.ma_bch_phu_trach 
+    left join
+        phonghoc ph1_0 
+            on ph1_0.ma_phong=hd1_0.ma_phong 
+    where
+        hd1_0.ma_hoat_dong=?
+2026-02-21 20:25:22 [http-nio-8080-exec-8] INFO  c.t.f.Service.HoatDongService - Activity updated successfully: KH0012026
+2026-02-21 20:25:22 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    update
+        hoat_dong 
+    set
+        cap_do=?,
+        cho_phep_check_in_som=?,
+        cho_phep_dang_ky=?,
+        dia_diem=?,
+        diem_ren_luyen=?,
+        ghi_chu=?,
+        gio_to_chuc=?,
+        han_dang_ky=?,
+        hinh_anh_poster=?,
+        is_active=?,
+        ma_khoa=?,
+        loai_hoat_dong=?,
+        mo_ta=?,
+        ma_nganh=?,
+        ngay_to_chuc=?,
+        ma_bch_phu_trach=?,
+        ma_phong=?,
+        so_luong_toi_da=?,
+        ten_hoat_dong=?,
+        thoi_gian_bat_dau=?,
+        thoi_gian_ket_thuc=?,
+        thoi_gian_toi_thieu=?,
+        thoi_gian_tre_toi_da=?,
+        trang_thai=?,
+        updated_at=?,
+        yeu_cau_check_out=?,
+        yeu_cau_diem_danh=? 
+    where
+        ma_hoat_dong=?
+2026-02-21 20:25:22 [SimpleAsyncTaskExecutor-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        system_log
+        (action, created_at, duration_ms, entity_id, entity_type, error_details, ip_address, log_level, message, module, new_value, old_value, request_method, request_url, session_id, status, user_agent, user_id, user_name) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-02-21 20:25:22 [http-nio-8080-exec-9] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/hoat-dong/page?page=0&size=10&sortBy=ngayToChuc&sortDir=desc
+2026-02-21 20:25:22 [http-nio-8080-exec-10] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/hoat-dong/page?page=0&size=10&sortBy=ngayToChuc&sortDir=desc
+2026-02-21 20:25:22 [http-nio-8080-exec-10] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:25:22 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:25:22 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:25:22 [http-nio-8080-exec-10] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:25:22 [http-nio-8080-exec-10] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:25:22 [http-nio-8080-exec-10] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/hoat-dong/page?page=0&size=10&sortBy=ngayToChuc&sortDir=desc
+2026-02-21 20:25:22 [http-nio-8080-exec-10] INFO  c.t.f.Controller.HoatDongController - GET /api/hoat-dong/page - page=0, size=10
+2026-02-21 20:25:22 [http-nio-8080-exec-10] DEBUG c.t.f.Service.HoatDongService - Getting all activities with pagination
+2026-02-21 20:25:22 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.is_active=? 
+    order by
+        hd1_0.ngay_to_chuc desc 
+    limit
+        ?
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/thong-ke/dashboard
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/thong-ke/hoat-dong/statistics
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/sinhvien/count
+2026-02-21 20:26:33 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/thong-ke/activity-trends
+2026-02-21 20:26:33 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/hoat-dong/upcoming?days=7
+2026-02-21 20:26:33 [http-nio-8080-exec-4] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/thong-ke/participation-by-faculty
+2026-02-21 20:26:33 [http-nio-8080-exec-9] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/thong-ke/attendance-statistics
+2026-02-21 20:26:33 [http-nio-8080-exec-8] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/thong-ke/top-students?limit=10
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/sinhvien/count
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/thong-ke/hoat-dong/statistics
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/thong-ke/dashboard
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/thong-ke/activity-trends
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/hoat-dong/upcoming?days=7
+2026-02-21 20:26:33 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/thong-ke/participation-by-faculty
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:26:33 [http-nio-8080-exec-6] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:26:33 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:26:33 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/sinhvien/count
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/thong-ke/hoat-dong/statistics
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/thong-ke/dashboard
+2026-02-21 20:26:33 [http-nio-8080-exec-6] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:26:33 [http-nio-8080-exec-2] INFO  c.t.f.Controller.ThongKeController - GET /api/thong-ke/dashboard
+2026-02-21 20:26:33 [http-nio-8080-exec-10] INFO  c.t.f.Controller.ThongKeController - GET /api/thong-ke/hoat-dong/statistics
+2026-02-21 20:26:33 [http-nio-8080-exec-1] INFO  c.t.f.Controller.SinhVienController - Lấy thống kê số lượng sinh viên
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG c.t.f.Service.HoatDongService - Getting overall activity statistics
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        sinhvien sv1_0
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.trang_thai,
+        count(hd1_0.ma_hoat_dong) 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.is_active=1 
+    group by
+        hd1_0.trang_thai
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.trang_thai,
+        count(hd1_0.ma_hoat_dong) 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.is_active=1 
+    group by
+        hd1_0.trang_thai
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:26:33 [http-nio-8080-exec-6] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/thong-ke/activity-trends
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/hoat-dong/upcoming?days=7
+2026-02-21 20:26:33 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/thong-ke/participation-by-faculty
+2026-02-21 20:26:33 [http-nio-8080-exec-6] INFO  c.t.f.Controller.ThongKeController - GET /api/thong-ke/participation-by-faculty
+2026-02-21 20:26:33 [http-nio-8080-exec-5] INFO  c.t.f.Controller.HoatDongController - GET /api/hoat-dong/upcoming
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG c.t.f.Service.HoatDongService - Getting upcoming activities
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        count(sv1_0.ma_sv) 
+    from
+        sinhvien sv1_0 
+    where
+        sv1_0.is_active
+2026-02-21 20:26:33 [http-nio-8080-exec-3] INFO  c.t.f.Controller.ThongKeController - GET /api/thong-ke/activity-trends?months=6
+2026-02-21 20:26:33 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.ngay_to_chuc>? 
+        and hd1_0.is_active=1 
+    order by
+        hd1_0.ngay_to_chuc
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG c.t.f.Service.HoatDongService - Getting activities from 2025-09-01 to 2025-09-30
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        count(bh1_0.ma_bch) 
+    from
+        bch_doan_hoi bh1_0 
+    where
+        bh1_0.is_active=1
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.ngay_to_chuc between ? and ? 
+        and hd1_0.is_active=1 
+    order by
+        hd1_0.ngay_to_chuc
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.loai_hoat_dong=?
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        sv1_0.ma_sv,
+        sv1_0.email,
+        sv1_0.gioi_tinh,
+        sv1_0.ho_ten,
+        sv1_0.is_active,
+        sv1_0.ma_lop,
+        sv1_0.ngay_sinh,
+        sv1_0.sdt 
+    from
+        sinhvien sv1_0
+2026-02-21 20:26:33 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        l1_0.ma_lop,
+        l1_0.is_active,
+        kh1_0.ma_khoahoc,
+        kh1_0.is_active,
+        kh1_0.nam_bat_dau,
+        kh1_0.nam_ket_thuc,
+        kh1_0.ten_khoahoc,
+        mk1_0.ma_khoa,
+        mk1_0.is_active,
+        mk1_0.ten_khoa,
+        n1_0.ma_nganh,
+        n1_0.is_active,
+        n1_0.ma_khoa,
+        n1_0.ten_nganh,
+        l1_0.ten_lop 
+    from
+        lop l1_0 
+    left join
+        khoahoc kh1_0 
+            on kh1_0.ma_khoahoc=l1_0.ma_khoahoc 
+    left join
+        khoa mk1_0 
+            on mk1_0.ma_khoa=l1_0.ma_khoa 
+    left join
+        nganh n1_0 
+            on n1_0.ma_nganh=l1_0.ma_nganh 
+    where
+        l1_0.ma_lop=?
+2026-02-21 20:26:33 [http-nio-8080-exec-4] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/thong-ke/top-students?limit=10
+2026-02-21 20:26:33 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/thong-ke/attendance-statistics
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.loai_hoat_dong=?
+2026-02-21 20:26:33 [http-nio-8080-exec-7] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:26:33 [http-nio-8080-exec-4] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.loai_hoat_dong=?
+2026-02-21 20:26:33 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:26:33 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG c.t.f.Service.HoatDongService - Getting upcoming activities
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG c.t.f.Service.HoatDongService - Getting activities from 2025-10-01 to 2025-10-31
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.ngay_to_chuc between ? and ? 
+        and hd1_0.is_active=1 
+    order by
+        hd1_0.ngay_to_chuc
+2026-02-21 20:26:33 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.ngay_to_chuc>? 
+        and hd1_0.is_active=1 
+    order by
+        hd1_0.ngay_to_chuc
+2026-02-21 20:26:33 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.loai_hoat_dong=?
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG c.t.f.Service.HoatDongService - Getting activities from 2025-11-01 to 2025-11-30
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.ngay_to_chuc between ? and ? 
+        and hd1_0.is_active=1 
+    order by
+        hd1_0.ngay_to_chuc
+2026-02-21 20:26:33 [http-nio-8080-exec-4] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.loai_hoat_dong=?
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG c.t.f.Service.HoatDongService - Getting activities from 2025-12-01 to 2025-12-31
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.ngay_to_chuc between ? and ? 
+        and hd1_0.is_active=1 
+    order by
+        hd1_0.ngay_to_chuc
+2026-02-21 20:26:33 [http-nio-8080-exec-4] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:26:33 [http-nio-8080-exec-4] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/thong-ke/top-students?limit=10
+2026-02-21 20:26:33 [http-nio-8080-exec-4] INFO  c.t.f.Controller.ThongKeController - GET /api/thong-ke/top-students?limit=10
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.loai_hoat_dong=?
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG c.t.f.Service.HoatDongService - Getting activities from 2026-01-01 to 2026-01-31
+2026-02-21 20:26:33 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.ngay_to_chuc between ? and ? 
+        and hd1_0.is_active=1 
+    order by
+        hd1_0.ngay_to_chuc
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.loai_hoat_dong=?
+2026-02-21 20:26:33 [http-nio-8080-exec-7] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG c.t.f.Service.HoatDongService - Getting activities from 2026-02-01 to 2026-02-28
+2026-02-21 20:26:33 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.ngay_to_chuc between ? and ? 
+        and hd1_0.is_active=1 
+    order by
+        hd1_0.ngay_to_chuc
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.loai_hoat_dong=?
+2026-02-21 20:26:33 [http-nio-8080-exec-7] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:26:33 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/thong-ke/attendance-statistics
+2026-02-21 20:26:33 [http-nio-8080-exec-7] INFO  c.t.f.Controller.ThongKeController - GET /api/thong-ke/attendance-statistics
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.loai_hoat_dong=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.cap_do=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.cap_do=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.cap_do=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.cap_do=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.cap_do=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.cap_do=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.cap_do=?
+2026-02-21 20:26:33 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.cap_do=?
+2026-02-21 20:26:34 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.is_active
+2026-02-21 20:26:34 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        dang_ky_hoat_dong dkhd1_0 
+    left join
+        hoat_dong hd1_0 
+            on hd1_0.ma_hoat_dong=dkhd1_0.ma_hoat_dong 
+    where
+        hd1_0.ma_hoat_dong=? 
+        and dkhd1_0.is_active
+2026-02-21 20:26:34 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.is_active
+2026-02-21 20:26:34 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        count(ddhd1_0.id) 
+    from
+        diem_danh_hoat_dong ddhd1_0 
+    left join
+        hoat_dong hd1_0 
+            on hd1_0.ma_hoat_dong=ddhd1_0.ma_hoat_dong 
+    where
+        hd1_0.ma_hoat_dong=?
+2026-02-21 20:26:34 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.is_active
+2026-02-21 20:26:34 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.is_active
+2026-02-21 20:26:34 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        hd1_0.ma_hoat_dong,
+        hd1_0.cap_do,
+        hd1_0.cho_phep_check_in_som,
+        hd1_0.cho_phep_dang_ky,
+        hd1_0.created_at,
+        hd1_0.dia_diem,
+        hd1_0.diem_ren_luyen,
+        hd1_0.ghi_chu,
+        hd1_0.gio_to_chuc,
+        hd1_0.han_dang_ky,
+        hd1_0.hinh_anh_poster,
+        hd1_0.is_active,
+        hd1_0.ma_khoa,
+        hd1_0.loai_hoat_dong,
+        hd1_0.mo_ta,
+        hd1_0.ma_nganh,
+        hd1_0.ngay_to_chuc,
+        hd1_0.ma_bch_phu_trach,
+        hd1_0.ma_phong,
+        hd1_0.so_luong_toi_da,
+        hd1_0.ten_hoat_dong,
+        hd1_0.thoi_gian_bat_dau,
+        hd1_0.thoi_gian_ket_thuc,
+        hd1_0.thoi_gian_toi_thieu,
+        hd1_0.thoi_gian_tre_toi_da,
+        hd1_0.trang_thai,
+        hd1_0.updated_at,
+        hd1_0.yeu_cau_check_out,
+        hd1_0.yeu_cau_diem_danh 
+    from
+        hoat_dong hd1_0 
+    where
+        hd1_0.is_active
+2026-02-21 20:36:02 [http-nio-8080-exec-4] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/auth/logout
+2026-02-21 20:36:02 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Securing POST /api/auth/logout
+2026-02-21 20:36:02 [http-nio-8080-exec-7] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:36:02 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:36:02 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:36:02 [http-nio-8080-exec-7] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:36:02 [http-nio-8080-exec-7] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:36:02 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Secured POST /api/auth/logout
+2026-02-21 20:36:02 [http-nio-8080-exec-7] INFO  c.t.f.Controller.AuthController - User logged out: admin
+2026-02-21 20:40:37 [http-nio-8080-exec-10] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/auth/login
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Securing POST /api/auth/login
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Secured POST /api/auth/login
+2026-02-21 20:40:37 [http-nio-8080-exec-6] INFO  c.t.f.Service.AuthService - Login attempt for user: admin
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG o.s.s.a.d.DaoAuthenticationProvider - Authenticated user
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:40:37 [http-nio-8080-exec-6] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:40:37 [SimpleAsyncTaskExecutor-3] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        system_log
+        (action, created_at, duration_ms, entity_id, entity_type, error_details, ip_address, log_level, message, module, new_value, old_value, request_method, request_url, session_id, status, user_agent, user_id, user_name) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-02-21 20:40:37 [SimpleAsyncTaskExecutor-4] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        system_log
+        (action, created_at, duration_ms, entity_id, entity_type, error_details, ip_address, log_level, message, module, new_value, old_value, request_method, request_url, session_id, status, user_agent, user_id, user_name) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-02-21 20:40:37 [http-nio-8080-exec-6] INFO  c.t.f.Service.AuthService - Login successful for user: admin
+2026-02-21 20:40:37 [SimpleAsyncTaskExecutor-5] ERROR c.t.f.Service.SystemLogService - Lỗi ghi system log
+java.lang.IllegalStateException: No thread-bound request found: Are you referring to request attributes outside of an actual web request, or processing a request outside of the originally receiving thread? If you are actually operating within a web request and still receive this message, your code is probably running outside of DispatcherServlet: In this case, use RequestContextListener or RequestContextFilter to expose the current request.
+	at org.springframework.web.context.request.RequestContextHolder.currentRequestAttributes(RequestContextHolder.java:131)
+	at org.springframework.web.context.support.WebApplicationContextUtils.currentRequestAttributes(WebApplicationContextUtils.java:313)
+	at org.springframework.web.context.support.WebApplicationContextUtils$RequestObjectFactory.getObject(WebApplicationContextUtils.java:329)
+	at org.springframework.web.context.support.WebApplicationContextUtils$RequestObjectFactory.getObject(WebApplicationContextUtils.java:324)
+	at org.springframework.beans.factory.support.AutowireUtils$ObjectFactoryDelegatingInvocationHandler.invoke(AutowireUtils.java:323)
+	at jdk.proxy2/jdk.proxy2.$Proxy198.getHeader(Unknown Source)
+	at com.tathanhloc.faceattendance.Service.SystemLogService.getClientIp(SystemLogService.java:131)
+	at com.tathanhloc.faceattendance.Service.SystemLogService.log(SystemLogService.java:35)
+	at com.tathanhloc.faceattendance.Service.SystemLogService.log(SystemLogService.java:78)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:114)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.lang.Thread.run(Thread.java:1447)
+2026-02-21 20:40:40 [http-nio-8080-exec-8] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/lop
+2026-02-21 20:40:40 [http-nio-8080-exec-5] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/khoa
+2026-02-21 20:40:40 [http-nio-8080-exec-1] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/nganh
+2026-02-21 20:40:40 [http-nio-8080-exec-2] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/sinhvien?page=0&size=10&sortBy=maSv&direction=asc
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/lop
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/nganh
+2026-02-21 20:40:40 [http-nio-8080-exec-4] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/khoa
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:40:40 [http-nio-8080-exec-3] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/sinhvien?page=0&size=10&sortBy=maSv&direction=asc
+2026-02-21 20:40:40 [http-nio-8080-exec-4] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:40:40 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:40:40 [http-nio-8080-exec-3] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:40:40 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:40:40 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:40:40 [http-nio-8080-exec-4] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:40:40 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:40:40 [http-nio-8080-exec-3] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:40:40 [http-nio-8080-exec-4] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:40:40 [http-nio-8080-exec-4] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/khoa
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/nganh
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/lop
+2026-02-21 20:40:40 [http-nio-8080-exec-3] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:40:40 [http-nio-8080-exec-3] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/sinhvien?page=0&size=10&sortBy=maSv&direction=asc
+2026-02-21 20:40:40 [http-nio-8080-exec-7] INFO  c.t.f.Controller.NganhController - Lấy danh sách ngành đang hoạt động
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        l1_0.ma_lop,
+        l1_0.is_active,
+        l1_0.ma_khoahoc,
+        l1_0.ma_khoa,
+        l1_0.ma_nganh,
+        l1_0.ten_lop 
+    from
+        lop l1_0 
+    where
+        l1_0.is_active
+2026-02-21 20:40:40 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa 
+    from
+        khoa k1_0
+2026-02-21 20:40:40 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        sv1_0.ma_sv,
+        sv1_0.email,
+        sv1_0.gioi_tinh,
+        sv1_0.ho_ten,
+        sv1_0.is_active,
+        sv1_0.ma_lop,
+        sv1_0.ngay_sinh,
+        sv1_0.sdt 
+    from
+        sinhvien sv1_0
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG c.t.f.Service.NganhService - Lấy danh sách ngành đang hoạt động từ database
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        kh1_0.ma_khoahoc,
+        kh1_0.is_active,
+        kh1_0.nam_bat_dau,
+        kh1_0.nam_ket_thuc,
+        kh1_0.ten_khoahoc 
+    from
+        khoahoc kh1_0 
+    where
+        kh1_0.ma_khoahoc=?
+2026-02-21 20:40:40 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        l1_0.ma_lop,
+        l1_0.is_active,
+        kh1_0.ma_khoahoc,
+        kh1_0.is_active,
+        kh1_0.nam_bat_dau,
+        kh1_0.nam_ket_thuc,
+        kh1_0.ten_khoahoc,
+        mk1_0.ma_khoa,
+        mk1_0.is_active,
+        mk1_0.ten_khoa,
+        n1_0.ma_nganh,
+        n1_0.is_active,
+        n1_0.ma_khoa,
+        n1_0.ten_nganh,
+        l1_0.ten_lop 
+    from
+        lop l1_0 
+    left join
+        khoahoc kh1_0 
+            on kh1_0.ma_khoahoc=l1_0.ma_khoahoc 
+    left join
+        khoa mk1_0 
+            on mk1_0.ma_khoa=l1_0.ma_khoa 
+    left join
+        nganh n1_0 
+            on n1_0.ma_nganh=l1_0.ma_nganh 
+    where
+        l1_0.ma_lop=?
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        n1_0.ma_nganh,
+        n1_0.is_active,
+        n1_0.ma_khoa,
+        n1_0.ten_nganh 
+    from
+        nganh n1_0
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa 
+    from
+        khoa k1_0 
+    where
+        k1_0.ma_khoa=?
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        n1_0.ma_nganh,
+        n1_0.is_active,
+        n1_0.ma_khoa,
+        n1_0.ten_nganh 
+    from
+        nganh n1_0 
+    where
+        n1_0.ma_nganh=?
+2026-02-21 20:40:40 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        kh1_0.ma_khoahoc,
+        kh1_0.is_active,
+        kh1_0.nam_bat_dau,
+        kh1_0.nam_ket_thuc,
+        kh1_0.ten_khoahoc 
+    from
+        khoahoc kh1_0 
+    where
+        kh1_0.ma_khoahoc=?
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa 
+    from
+        khoa k1_0 
+    where
+        k1_0.ma_khoa=?
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        count(sv1_0.ma_sv) 
+    from
+        sinhvien sv1_0 
+    join
+        lop l1_0 
+            on l1_0.ma_lop=sv1_0.ma_lop 
+    where
+        l1_0.ma_nganh=? 
+        and sv1_0.is_active=1 
+        and l1_0.is_active=1
+2026-02-21 20:40:40 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        count(sv1_0.ma_sv) 
+    from
+        sinhvien sv1_0 
+    join
+        lop l1_0 
+            on l1_0.ma_lop=sv1_0.ma_lop 
+    where
+        l1_0.ma_nganh=? 
+        and sv1_0.is_active=1 
+        and l1_0.is_active=1
+2026-02-21 20:40:42 [http-nio-8080-exec-10] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/admin/logs?module=&action=&userId=&logLevel=&status=&from=&to=&page=0&size=50
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/admin/logs?module=&action=&userId=&logLevel=&status=&from=&to=&page=0&size=50
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/admin/logs?module=&action=&userId=&logLevel=&status=&from=&to=&page=0&size=50
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG o.s.s.a.m.AuthorizationManagerBeforeMethodInterceptor - Authorizing method invocation ReflectiveMethodInvocation: public org.springframework.http.ResponseEntity com.tathanhloc.faceattendance.Controller.SystemLogController.search(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,int); target is of class [com.tathanhloc.faceattendance.Controller.SystemLogController]
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG o.s.s.a.m.AuthorizationManagerBeforeMethodInterceptor - Authorized method invocation ReflectiveMethodInvocation: public org.springframework.http.ResponseEntity com.tathanhloc.faceattendance.Controller.SystemLogController.search(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,int); target is of class [com.tathanhloc.faceattendance.Controller.SystemLogController]
+2026-02-21 20:40:42 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        sl1_0.id,
+        sl1_0.action,
+        sl1_0.created_at,
+        sl1_0.duration_ms,
+        sl1_0.entity_id,
+        sl1_0.entity_type,
+        sl1_0.error_details,
+        sl1_0.ip_address,
+        sl1_0.log_level,
+        sl1_0.message,
+        sl1_0.module,
+        sl1_0.new_value,
+        sl1_0.old_value,
+        sl1_0.request_method,
+        sl1_0.request_url,
+        sl1_0.session_id,
+        sl1_0.status,
+        sl1_0.user_agent,
+        sl1_0.user_id,
+        sl1_0.user_name 
+    from
+        system_log sl1_0 
+    where
+        (
+            ? is null 
+            or sl1_0.module=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.action=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.user_id=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.log_level=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.status=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.created_at>=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.created_at<=?
+        ) 
+    order by
+        sl1_0.created_at desc 
+    limit
+        ?
+2026-02-21 20:42:37 [http-nio-8080-exec-4] DEBUG o.s.security.web.FilterChainProxy - Securing OPTIONS /api/admin/logs?module=&action=&userId=&logLevel=&status=&from=&to=&page=0&size=50
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG o.s.security.web.FilterChainProxy - Securing GET /api/admin/logs?module=&action=&userId=&logLevel=&status=&from=&to=&page=0&size=50
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG c.t.f.S.CustomUserDetailsService - Loading user by username: admin
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        tk1_0.id,
+        tk1_0.avatar,
+        tk1_0.ma_ban,
+        tk1_0.ma_cv,
+        tk1_0.created_at,
+        tk1_0.email,
+        tk1_0.ghi_chu,
+        tk1_0.ma_gv,
+        tk1_0.gioi_tinh,
+        tk1_0.ho_ten,
+        tk1_0.is_active,
+        tk1_0.ngay_phe_duyet,
+        tk1_0.ngay_sinh,
+        tk1_0.password_hash,
+        tk1_0.ma_sv,
+        tk1_0.so_dien_thoai,
+        tk1_0.trang_thai_phe_duyet,
+        tk1_0.updated_at,
+        tk1_0.username,
+        tk1_0.vai_tro 
+    from
+        taikhoan tk1_0 
+    where
+        tk1_0.username=?
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        b1_0.ma_ban,
+        b1_0.is_active,
+        k1_0.ma_khoa,
+        k1_0.is_active,
+        k1_0.ten_khoa,
+        b1_0.loai_ban,
+        b1_0.mo_ta,
+        b1_0.ten_ban 
+    from
+        ban b1_0 
+    left join
+        khoa k1_0 
+            on k1_0.ma_khoa=b1_0.ma_khoa 
+    where
+        b1_0.ma_ban=?
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG c.t.f.S.CustomUserDetailsService - User loaded successfully: admin with role: ADMIN
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG c.t.f.S.JwtAuthenticationFilter - User admin authenticated successfully
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG o.s.security.web.FilterChainProxy - Secured GET /api/admin/logs?module=&action=&userId=&logLevel=&status=&from=&to=&page=0&size=50
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG o.s.s.a.m.AuthorizationManagerBeforeMethodInterceptor - Authorizing method invocation ReflectiveMethodInvocation: public org.springframework.http.ResponseEntity com.tathanhloc.faceattendance.Controller.SystemLogController.search(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,int); target is of class [com.tathanhloc.faceattendance.Controller.SystemLogController]
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG o.s.s.a.m.AuthorizationManagerBeforeMethodInterceptor - Authorized method invocation ReflectiveMethodInvocation: public org.springframework.http.ResponseEntity com.tathanhloc.faceattendance.Controller.SystemLogController.search(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,int); target is of class [com.tathanhloc.faceattendance.Controller.SystemLogController]
+2026-02-21 20:42:37 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        sl1_0.id,
+        sl1_0.action,
+        sl1_0.created_at,
+        sl1_0.duration_ms,
+        sl1_0.entity_id,
+        sl1_0.entity_type,
+        sl1_0.error_details,
+        sl1_0.ip_address,
+        sl1_0.log_level,
+        sl1_0.message,
+        sl1_0.module,
+        sl1_0.new_value,
+        sl1_0.old_value,
+        sl1_0.request_method,
+        sl1_0.request_url,
+        sl1_0.session_id,
+        sl1_0.status,
+        sl1_0.user_agent,
+        sl1_0.user_id,
+        sl1_0.user_name 
+    from
+        system_log sl1_0 
+    where
+        (
+            ? is null 
+            or sl1_0.module=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.action=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.user_id=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.log_level=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.status=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.created_at>=?
+        ) 
+        and (
+            ? is null 
+            or sl1_0.created_at<=?
+        ) 
+    order by
+        sl1_0.created_at desc 
+    limit
+        ?
