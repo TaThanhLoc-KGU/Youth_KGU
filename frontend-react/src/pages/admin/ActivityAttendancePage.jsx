@@ -19,10 +19,49 @@ import {
   Loader2,
   AlertTriangle,
   Users,
+  StopCircle,
+  LogOut,
+  Video,
 } from 'lucide-react';
 import activityService from '../../services/activityService';
 import diemDanhService from '../../services/diemDanhService';
 import { format } from 'date-fns';
+
+// ─── Geolocation helper ──────────────────────────────────────────────────────
+function getBrowserLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      () => resolve(null),
+      { timeout: 5000 }
+    );
+  });
+}
+
+// ─── Checkout window helper ───────────────────────────────────────────────────
+function isCheckoutWindowOpen(activity) {
+  if (!activity) return false;
+  const allowedMinutes = activity.thoiGianChoPhepCheckOut ?? 30;
+
+  // Early termination
+  if (activity.ketThucSom && activity.thoiGianKetThucThucTe) {
+    const earlyEnd = new Date(activity.thoiGianKetThucThucTe);
+    const deadline = new Date(earlyEnd.getTime() + allowedMinutes * 60000);
+    const now = new Date();
+    return now >= earlyEnd && now < deadline;
+  }
+
+  // Normal end
+  if (!activity.ngayToChuc || !activity.thoiGianKetThuc) return false;
+  const now = new Date();
+  const actDate = new Date(activity.ngayToChuc);
+  if (now.toDateString() !== actDate.toDateString()) return false;
+  const [endH, endM] = activity.thoiGianKetThuc.split(':').map(Number);
+  const endMs = endH * 60 + endM;
+  const nowMs = now.getHours() * 60 + now.getMinutes();
+  return nowMs > endMs && nowMs < endMs + allowedMinutes;
+}
 
 // ─── Time window helper ─────────────────────────────────────────────────────
 function isAttendanceWindowOpen(activity) {
@@ -67,7 +106,7 @@ function getWindowMessage(activity) {
 }
 
 // ─── QR Scanner Component ────────────────────────────────────────────────────
-function QRScannerPanel({ maHoatDong, onClose, onResult }) {
+function QRScannerPanel({ maHoatDong, onClose, onResult, scanMode = 'CHECK_IN' }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -75,17 +114,47 @@ function QRScannerPanel({ maHoatDong, onClose, onResult }) {
   const cooldownRef = useRef(new Set());
   const [cameraError, setCameraError] = useState(null);
   const [isStarting, setIsStarting] = useState(true);
-  const [lastScan, setLastScan] = useState(null); // { success, message, hoTen, time }
+  const [lastScan, setLastScan] = useState(null);
+  const [cameras, setCameras] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState('');
 
   const stopCamera = useCallback(() => {
     if (animRef.current) cancelAnimationFrame(animRef.current);
     if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
   }, []);
+
+  const startCamera = useCallback(async (deviceId) => {
+    stopCamera();
+    setIsStarting(true);
+    setCameraError(null);
+    try {
+      const constraints = {
+        video: {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setIsStarting(false);
+      scanLoop();
+    } catch (e) {
+      setCameraError(e.name === 'NotAllowedError' ? 'Không được phép truy cập camera. Hãy cấp quyền camera.' : 'Không thể mở camera: ' + e.message);
+      setIsStarting(false);
+    }
+  }, [stopCamera]); // Removed scanLoop from dependencies
 
   const scanLoop = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    if (!video || !canvas || !streamRef.current) return;
 
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
       canvas.width = video.videoWidth;
@@ -99,19 +168,21 @@ function QRScannerPanel({ maHoatDong, onClose, onResult }) {
 
       if (code && code.data && !cooldownRef.current.has(code.data)) {
         cooldownRef.current.add(code.data);
-        // Remove from cooldown after 4s so the same QR can be re-scanned if needed
         setTimeout(() => cooldownRef.current.delete(code.data), 4000);
         handleQRDetected(code.data);
       }
     }
-
     animRef.current = requestAnimationFrame(scanLoop);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maHoatDong]);
+  }, []); // Removed handleQRDetected from dependencies
 
   const handleQRDetected = async (maQR) => {
     try {
-      const result = await diemDanhService.scanQR(maQR, { thietBi: 'Web Browser - Admin' });
+      const location = await getBrowserLocation();
+      const result = await diemDanhService.scanQR(maQR, {
+        thietBi: 'Web Browser - Admin',
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
+      });
       const scanInfo = {
         success: result.success,
         message: result.message,
@@ -134,29 +205,32 @@ function QRScannerPanel({ maHoatDong, onClose, onResult }) {
   };
 
   useEffect(() => {
-    let mounted = true;
-    const startCamera = async () => {
+    const getCameras = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
-        if (!mounted) { stream.getTracks().forEach((t) => t.stop()); return; }
-        streamRef.current = stream;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setIsStarting(false);
-        scanLoop();
+        await navigator.mediaDevices.getUserMedia({ video: true }); // Request permission
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter((device) => device.kind === 'videoinput');
+        setCameras(videoDevices);
+        if (videoDevices.length > 0) {
+          const preferredCamera = videoDevices.find(d => d.label.toLowerCase().includes('back')) || videoDevices[0];
+          setSelectedCameraId(preferredCamera.deviceId);
+        }
       } catch (e) {
-        if (mounted) setCameraError(e.name === 'NotAllowedError' ? 'Không được phép truy cập camera. Hãy cấp quyền camera.' : 'Không thể mở camera: ' + e.message);
-        setIsStarting(false);
+        setCameraError('Không thể truy cập camera. Vui lòng cấp quyền và thử lại.');
       }
     };
-    startCamera();
+    getCameras();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCameraId) {
+      startCamera(selectedCameraId);
+    }
     return () => {
-      mounted = false;
       stopCamera();
     };
-  }, [scanLoop, stopCamera]);
+  }, [selectedCameraId, startCamera, stopCamera]);
+
 
   return (
     <div className="bg-gray-900 rounded-xl overflow-hidden">
@@ -180,7 +254,6 @@ function QRScannerPanel({ maHoatDong, onClose, onResult }) {
           muted
           style={{ display: cameraError ? 'none' : 'block', maxHeight: 400 }}
         />
-        {/* Scan overlay frame */}
         {!cameraError && !isStarting && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-52 h-52 border-2 border-green-400 rounded-lg opacity-80" style={{
@@ -191,6 +264,31 @@ function QRScannerPanel({ maHoatDong, onClose, onResult }) {
         <canvas ref={canvasRef} className="hidden" />
       </div>
 
+      {/* Camera Selector */}
+      {cameras.length > 1 && (
+        <div className="px-4 pt-3">
+          <div className="relative">
+            <Video className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <select
+              value={selectedCameraId}
+              onChange={(e) => setSelectedCameraId(e.target.value)}
+              className="w-full bg-gray-800 text-white border border-gray-700 rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {cameras.map((camera) => (
+                <option key={camera.deviceId} value={camera.deviceId}>
+                  {camera.label || `Camera ${cameras.indexOf(camera) + 1}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Mode indicator */}
+      <div className={`px-4 py-2 text-xs font-semibold text-center ${scanMode === 'CHECK_OUT' ? 'bg-orange-800 text-orange-200' : 'bg-indigo-800 text-indigo-200'}`}>
+        {scanMode === 'CHECK_OUT' ? '⬅ Chế độ CHECK-OUT' : '➡ Chế độ CHECK-IN'}
+      </div>
+
       {/* Last scan result */}
       <div className="p-4 min-h-[80px]">
         {lastScan ? (
@@ -199,7 +297,7 @@ function QRScannerPanel({ maHoatDong, onClose, onResult }) {
               ? <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0 text-green-400" />
               : <XCircle className="w-5 h-5 mt-0.5 flex-shrink-0 text-red-400" />}
             <div>
-              <p className="font-semibold text-sm">{lastScan.success ? '✓ Điểm danh thành công' : '✗ Thất bại'}</p>
+              <p className="font-semibold text-sm">{lastScan.success ? `✓ ${scanMode === 'CHECK_OUT' ? 'Check-out' : 'Check-in'} thành công` : '✗ Thất bại'}</p>
               {lastScan.hoTen && <p className="text-xs mt-0.5">{lastScan.hoTen} {lastScan.maSv ? `(${lastScan.maSv})` : ''}</p>}
               <p className="text-xs mt-0.5 opacity-75">{lastScan.message} — {lastScan.time}</p>
             </div>
@@ -218,12 +316,13 @@ function QRScannerPanel({ maHoatDong, onClose, onResult }) {
           onClick={() => { stopCamera(); onClose(); }}
           className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
         >
-          <CameraOff className="w-4 h-4" /> Dừng quét QR
+          <CameraOff className="w-4 h-4" /> Dừng quét
         </button>
       </div>
     </div>
   );
 }
+
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function ActivityAttendancePage() {
@@ -233,10 +332,11 @@ export default function ActivityAttendancePage() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
-  const [mode, setMode] = useState('VIEW'); // VIEW | QR | MANUAL
+  const [mode, setMode] = useState('VIEW'); // VIEW | QR | MANUAL | CHECKOUT
   const [selectedSvs, setSelectedSvs] = useState(new Set());
   const [manualNote, setManualNote] = useState('');
   const [qrScanCount, setQrScanCount] = useState(0);
+  const [checkoutScanCount, setCheckoutScanCount] = useState(0);
 
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data: activity, isLoading: loadingActivity } = useQuery({
@@ -256,7 +356,42 @@ export default function ActivityAttendancePage() {
     enabled: mode === 'MANUAL',
   });
 
+  const { data: checkedInList = [], refetch: refetchCheckedIn } = useQuery({
+    queryKey: ['checked-in', id],
+    queryFn: () => diemDanhService.getCheckedIn(id),
+    enabled: mode === 'CHECKOUT' || mode === 'CHECKOUT_MANUAL',
+  });
+
   // ── Mutations ─────────────────────────────────────────────────────────────
+  const earlyTerminateMutation = useMutation({
+    mutationFn: () => activityService.earlyTerminate(id),
+    onSuccess: () => {
+      toast.success('Đã kết thúc sớm hoạt động. Cửa sổ checkout mở!');
+      queryClient.invalidateQueries({ queryKey: ['activity', id] });
+    },
+    onError: (err) => toast.error('Lỗi kết thúc sớm: ' + err.message),
+  });
+
+  const manualCheckOutMutation = useMutation({
+    mutationFn: ({ maSvList }) => {
+      const idMap = {};
+      checkedInList.forEach((s) => { idMap[s.maSv] = s.id; });
+      return Promise.all(
+        maSvList.map((maSv) =>
+          diemDanhService.checkOut({ diemDanhId: idMap[maSv] })
+        )
+      );
+    },
+    onSuccess: () => {
+      toast.success('Checkout thủ công thành công!');
+      setSelectedSvs(new Set());
+      setMode('VIEW');
+      queryClient.invalidateQueries({ queryKey: ['attendance-status', id] });
+      queryClient.invalidateQueries({ queryKey: ['checked-in', id] });
+    },
+    onError: (err) => toast.error('Lỗi checkout thủ công: ' + err.message),
+  });
+
   const manualCheckInMutation = useMutation({
     mutationFn: ({ maSvList, ghiChu }) => diemDanhService.manualCheckInBulk(id, maSvList, ghiChu),
     onSuccess: (results) => {
@@ -275,6 +410,8 @@ export default function ActivityAttendancePage() {
   // ── Derived state ─────────────────────────────────────────────────────────
   const windowOpen = useMemo(() => isAttendanceWindowOpen(activity), [activity]);
   const windowMsg = useMemo(() => getWindowMessage(activity), [activity]);
+  const checkoutWindowOpen = useMemo(() => isCheckoutWindowOpen(activity), [activity]);
+  const isEarlyTerminateAvailable = activity?.trangThai === 'DANG_DIEN_RA' && !activity?.ketThucSom;
 
   const stats = useMemo(() => ({
     total: attendanceList.length,
@@ -297,10 +434,14 @@ export default function ActivityAttendancePage() {
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleQRResult = useCallback((scanInfo) => {
     if (scanInfo.success) {
-      setQrScanCount((c) => c + 1);
+      if (mode === 'CHECKOUT') {
+        setCheckoutScanCount((c) => c + 1);
+      } else {
+        setQrScanCount((c) => c + 1);
+      }
       queryClient.invalidateQueries({ queryKey: ['attendance-status', id] });
     }
-  }, [queryClient, id]);
+  }, [queryClient, id, mode]);
 
   const handleToggleSv = (maSv) => {
     setSelectedSvs((prev) => {
@@ -330,6 +471,21 @@ export default function ActivityAttendancePage() {
       setSelectedSvs(new Set());
       refetchNotCheckedIn();
     }
+    if (newMode === 'CHECKOUT' || newMode === 'CHECKOUT_MANUAL') {
+      setSelectedSvs(new Set());
+      refetchCheckedIn();
+    }
+  };
+
+  const handleEarlyTerminate = () => {
+    if (window.confirm('Bạn có chắc muốn kết thúc sớm hoạt động này?\nCửa sổ checkout sẽ mở ngay sau đó.')) {
+      earlyTerminateMutation.mutate();
+    }
+  };
+
+  const handleConfirmManualCheckout = () => {
+    if (selectedSvs.size === 0) { toast.warn('Chưa chọn sinh viên nào'); return; }
+    manualCheckOutMutation.mutate({ maSvList: [...selectedSvs] });
   };
 
   if (loadingActivity || loadingList) {
@@ -391,9 +547,33 @@ export default function ActivityAttendancePage() {
         </div>
       </div>
 
+      {/* ── Early Terminate Button ── */}
+      {isEarlyTerminateAvailable && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleEarlyTerminate}
+            disabled={earlyTerminateMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-sm font-semibold shadow transition-colors"
+          >
+            {earlyTerminateMutation.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <StopCircle className="w-4 h-4" />}
+            Kết thúc sớm hoạt động
+          </button>
+        </div>
+      )}
+
+      {/* Checkout window indicator */}
+      {checkoutWindowOpen && (
+        <div className="flex items-center gap-2 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl text-orange-700 text-sm font-medium">
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          <span>Cửa sổ checkout đang mở — Sinh viên có thể quét QR để check-out!</span>
+        </div>
+      )}
+
       {/* ── Action Buttons ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* QR Scan Button */}
+        {/* QR Scan Button (Check-in) */}
         <div>
           <button
             onClick={() => handleSwitchMode('QR')}
@@ -407,7 +587,7 @@ export default function ActivityAttendancePage() {
             }`}
           >
             {mode === 'QR' ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
-            {mode === 'QR' ? 'Đang quét QR — Nhấn để dừng' : 'Điểm danh bằng QR'}
+            {mode === 'QR' ? 'Đang quét QR (Check-in) — Nhấn để dừng' : 'Quét QR Check-in/Check-out'}
             {mode === 'QR' && qrScanCount > 0 && (
               <span className="ml-1 bg-white text-indigo-700 rounded-full text-xs font-bold px-2 py-0.5">
                 {qrScanCount}
@@ -441,13 +621,139 @@ export default function ActivityAttendancePage() {
         </div>
       </div>
 
-      {/* ── QR Scanner Panel ── */}
+      {/* ── Checkout Buttons (visible when checkout window is open) ── */}
+      {checkoutWindowOpen && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* QR Checkout Button */}
+          <button
+            onClick={() => handleSwitchMode('CHECKOUT')}
+            className={`w-full py-4 px-5 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all border-2 ${
+              mode === 'CHECKOUT'
+                ? 'bg-orange-700 border-orange-700 text-white shadow-lg'
+                : 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600 shadow-md'
+            }`}
+          >
+            {mode === 'CHECKOUT' ? <CameraOff className="w-5 h-5" /> : <LogOut className="w-5 h-5" />}
+            {mode === 'CHECKOUT' ? 'Đang quét QR (Check-out) — Nhấn để dừng' : 'Quét QR Check-out'}
+            {mode === 'CHECKOUT' && checkoutScanCount > 0 && (
+              <span className="ml-1 bg-white text-orange-700 rounded-full text-xs font-bold px-2 py-0.5">
+                {checkoutScanCount}
+              </span>
+            )}
+          </button>
+
+          {/* Manual Checkout Button */}
+          <button
+            onClick={() => handleSwitchMode('CHECKOUT_MANUAL')}
+            className={`w-full py-4 px-5 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all border-2 ${
+              mode === 'CHECKOUT_MANUAL'
+                ? 'bg-amber-700 border-amber-700 text-white shadow-lg'
+                : 'bg-amber-500 border-amber-500 text-white hover:bg-amber-600 shadow-md'
+            }`}
+          >
+            <UserCheck className="w-5 h-5" />
+            {mode === 'CHECKOUT_MANUAL' ? 'Đang checkout thủ công — Nhấn để đóng' : 'Checkout thủ công'}
+          </button>
+        </div>
+      )}
+
+      {/* ── QR Scanner Panel (Check-in) ── */}
       {mode === 'QR' && (
         <QRScannerPanel
           maHoatDong={id}
           onClose={() => setMode('VIEW')}
           onResult={handleQRResult}
+          scanMode="CHECK_IN"
         />
+      )}
+
+      {/* ── QR Scanner Panel (Check-out) ── */}
+      {mode === 'CHECKOUT' && (
+        <QRScannerPanel
+          maHoatDong={id}
+          onClose={() => setMode('VIEW')}
+          onResult={handleQRResult}
+          scanMode="CHECK_OUT"
+        />
+      )}
+
+      {/* ── Manual Checkout Panel ── */}
+      {mode === 'CHECKOUT_MANUAL' && (
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b bg-orange-50 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <LogOut className="w-5 h-5 text-orange-600" />
+              <h3 className="font-semibold text-orange-800">Checkout thủ công</h3>
+              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                {checkedInList.filter((s) => !s.thoiGianCheckOut).length} sinh viên chưa checkout
+              </span>
+            </div>
+            <span className="text-sm text-orange-700 font-medium">Đã chọn: {selectedSvs.size}</span>
+          </div>
+
+          {checkedInList.filter((s) => !s.thoiGianCheckOut).length === 0 ? (
+            <div className="py-12 text-center text-gray-400">
+              <CheckCircle className="w-10 h-10 mx-auto mb-2 text-green-300" />
+              <p>Tất cả sinh viên đã checkout!</p>
+            </div>
+          ) : (
+            <>
+              <div className="px-5 py-3 border-b bg-gray-50">
+                <button
+                  onClick={() => {
+                    const notCheckedOut = checkedInList.filter((s) => !s.thoiGianCheckOut).map((s) => s.maSv);
+                    if (selectedSvs.size === notCheckedOut.length) {
+                      setSelectedSvs(new Set());
+                    } else {
+                      setSelectedSvs(new Set(notCheckedOut));
+                    }
+                  }}
+                  className="flex items-center gap-2 text-sm text-gray-700 hover:text-orange-700 font-medium"
+                >
+                  <Square className="w-4 h-4" /> Chọn tất cả
+                </button>
+              </div>
+              <div className="divide-y max-h-72 overflow-y-auto">
+                {checkedInList.filter((s) => !s.thoiGianCheckOut).map((sv) => (
+                  <label
+                    key={sv.maSv}
+                    className={`flex items-center gap-4 px-5 py-3 cursor-pointer transition-colors ${
+                      selectedSvs.has(sv.maSv) ? 'bg-orange-50' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSvs.has(sv.maSv)}
+                      onChange={() => {
+                        setSelectedSvs((prev) => {
+                          const next = new Set(prev);
+                          next.has(sv.maSv) ? next.delete(sv.maSv) : next.add(sv.maSv);
+                          return next;
+                        });
+                      }}
+                      className="w-4 h-4 accent-orange-600"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">{sv.hoTenSinhVien}</p>
+                      <p className="text-xs text-gray-500">{sv.maSv}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div className="px-5 py-4 border-t bg-gray-50">
+                <button
+                  onClick={handleConfirmManualCheckout}
+                  disabled={selectedSvs.size === 0 || manualCheckOutMutation.isPending}
+                  className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2"
+                >
+                  {manualCheckOutMutation.isPending
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang xử lý...</>
+                    : <><LogOut className="w-4 h-4" /> Xác nhận checkout {selectedSvs.size > 0 ? `(${selectedSvs.size} SV)` : ''}</>}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* ── Manual Attendance Panel ── */}

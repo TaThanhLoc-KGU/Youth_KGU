@@ -54,6 +54,20 @@ const diemDanhService = {
     return response.data.data; // Map<maSv, result>
   },
 
+  // Check-out (dùng QR hoặc ID)
+  checkOut: async (data) => {
+    const response = await api.post('/api/diem-danh/check-out', {
+      diemDanhId: data.diemDanhId || null,
+      maQR: data.maQR || null,
+      maBchXacNhan: data.maBchXacNhan || null,
+      ghiChu: data.ghiChu || null,
+      latitude: data.latitude || null,
+      longitude: data.longitude || null,
+      thietBi: data.thietBi || 'Web Browser',
+    });
+    return response.data.data;
+  },
+
   // Thống kê điểm danh theo hoạt động
   getStatistics: async (maHoatDong) => {
     const response = await api.get(`/api/diem-danh/statistics/${maHoatDong}`);

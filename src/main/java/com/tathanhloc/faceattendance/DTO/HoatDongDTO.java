@@ -28,6 +28,16 @@ public class HoatDongDTO {
     private Integer choPhepCheckInSom;
     private Boolean yeuCauCheckOut;
 
+    // Location
+    private Double viDo;
+    private Double kinhDo;
+    private Integer khoangCachToiDa;
+
+    // Early termination
+    private Boolean ketThucSom;
+    private LocalDateTime thoiGianKetThucThucTe;
+    private Integer thoiGianChoPhepCheckOut;
+
     private String diaDiem;
     private String maPhong;
     private String tenPhong;

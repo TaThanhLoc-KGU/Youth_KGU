@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -34,8 +35,8 @@ public class DiemDanhHoatDongService {
     // ========== QR CODE ATTENDANCE ==========
 
     /**
-     * CHỨC NĂNG CHÍNH: Quét QR Code để điểm danh (Check-in)
-     * Workflow: Validate QR → Check đã quét → Tạo bản ghi điểm danh
+     * CHỨC NĂNG CHÍNH: Quét QR Code — tự động nhận biết check-in hay checkout.
+     * Workflow: Validate QR → Kiểm tra ngày → Kiểm tra vị trí → Xác định mode → Xử lý
      */
     @Transactional
     public DiemDanhQRResponse scanQRCode(DiemDanhQRRequest request) {
@@ -61,79 +62,220 @@ public class DiemDanhHoatDongService {
                 return DiemDanhQRResponse.failed("Hoạt động này không yêu cầu điểm danh");
             }
 
-            // STEP 4: Kiểm tra đã quét chưa
-            boolean daQuet = diemDanhRepository.isQRAlreadyUsed(request.getMaQR(), hoatDong.getMaHoatDong());
-            if (daQuet) {
-                return DiemDanhQRResponse.failed("Mã QR này đã được quét rồi");
+            // STEP 4a: Kiểm tra ngày — QR chỉ hợp lệ đúng ngày sự kiện
+            LocalDate today = LocalDate.now();
+            if (hoatDong.getNgayToChuc() != null && !today.equals(hoatDong.getNgayToChuc())) {
+                return DiemDanhQRResponse.failed("QR chỉ hợp lệ vào ngày " + hoatDong.getNgayToChuc());
             }
 
-            // STEP 5: Validate người xác nhận (BCH)
-            BCHDoanHoi nguoiXacNhan = null;
-            if (request.getMaBchXacNhan() != null) {
-                nguoiXacNhan = bchRepository.findById(request.getMaBchXacNhan())
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy BCH"));
-            }
-
-            // STEP 6: Logic Check-in Time
-            LocalDateTime now = LocalDateTime.now();
-            LocalTime checkInTime = now.toLocalTime();
-            TrangThaiCheckInEnum trangThaiCheckIn = TrangThaiCheckInEnum.DUNG_GIO;
-            int soPhutTre = 0;
-
-            if (hoatDong.getThoiGianBatDau() != null) {
-                // Kiểm tra có được check-in sớm không
-                if (hoatDong.getChoPhepCheckInSom() != null) {
-                    LocalTime earliestCheckIn = hoatDong.getThoiGianBatDau().minusMinutes(hoatDong.getChoPhepCheckInSom());
-                    if (checkInTime.isBefore(earliestCheckIn)) {
-                        return DiemDanhQRResponse.failed("Chưa đến giờ check-in (Sớm nhất: " + earliestCheckIn + ")");
-                    }
+            // STEP 4b: Kiểm tra vị trí (nếu được cấu hình)
+            if (hoatDong.getViDo() != null && hoatDong.getKinhDo() != null && hoatDong.getKhoangCachToiDa() != null) {
+                if (request.getLatitude() == null || request.getLongitude() == null) {
+                    return DiemDanhQRResponse.failed("Cần cung cấp vị trí để điểm danh tại địa điểm này");
                 }
-
-                // Kiểm tra trễ
-                if (checkInTime.isAfter(hoatDong.getThoiGianBatDau())) {
-                    long minutesLate = ChronoUnit.MINUTES.between(hoatDong.getThoiGianBatDau(), checkInTime);
-                    soPhutTre = (int) minutesLate;
-
-                    if (hoatDong.getThoiGianTreToiDa() != null && minutesLate > hoatDong.getThoiGianTreToiDa()) {
-                        trangThaiCheckIn = TrangThaiCheckInEnum.TRE_QUA_GIO;
-                        // Có thể từ chối check-in nếu quá trễ
-                        // return DiemDanhQRResponse.failed("Đã quá giờ check-in cho phép");
-                    } else {
-                        trangThaiCheckIn = TrangThaiCheckInEnum.TRE_CHAP_NHAN;
-                    }
+                double distance = calculateDistance(
+                        request.getLatitude(), request.getLongitude(),
+                        hoatDong.getViDo(), hoatDong.getKinhDo());
+                if (distance > hoatDong.getKhoangCachToiDa()) {
+                    return DiemDanhQRResponse.failed(String.format(
+                            "Vị trí quá xa địa điểm tổ chức (%.0f m, tối đa %d m)", distance, hoatDong.getKhoangCachToiDa()));
                 }
             }
 
-            // STEP 7: Tạo bản ghi điểm danh
-            DiemDanhHoatDong diemDanh = DiemDanhHoatDong.builder()
-                    .hoatDong(hoatDong)
-                    .sinhVien(dangKy.getSinhVien())
-                    .maQRDaQuet(request.getMaQR())
-                    .trangThai(TrangThaiThamGiaEnum.DA_THAM_GIA) // Tạm thời set là đã tham gia
-                    .thoiGianCheckIn(now)
-                    .trangThaiCheckIn(trangThaiCheckIn)
-                    .soPhutTre(soPhutTre)
-                    .nguoiCheckIn(nguoiXacNhan)
-                    .thietBiQuet(request.getThietBi())
-                    .latitude(request.getLatitude())
-                    .longitude(request.getLongitude())
-                    .ghiChu(request.getGhiChu())
-                    .build();
+            // STEP 5: Kiểm tra trạng thái điểm danh hiện tại
+            LocalTime now = LocalTime.now();
+            Optional<DiemDanhHoatDong> existingOpt = diemDanhRepository
+                    .findBySinhVienMaSvAndHoatDongMaHoatDong(dangKy.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
+            boolean alreadyCheckedIn = existingOpt.isPresent();
 
-            diemDanh = diemDanhRepository.save(diemDanh);
+            // STEP 6: Xác định mode dựa theo cửa sổ thời gian
+            if (isInCheckoutWindow(hoatDong, today, now)) {
+                // Checkout mode
+                if (!alreadyCheckedIn) {
+                    return DiemDanhQRResponse.failed("Bạn chưa check-in hoạt động này");
+                }
+                DiemDanhHoatDong diemDanh = existingOpt.get();
+                if (diemDanh.getThoiGianCheckOut() != null) {
+                    return DiemDanhQRResponse.failed("Bạn đã check-out rồi");
+                }
+                return processCheckoutByQR(request, diemDanh, hoatDong);
+            }
 
-            log.info("QR scan successful: student={}, activity={}",
-                    dangKy.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
+            if (isInCheckInWindow(hoatDong, today, now)) {
+                // Check-in mode
+                if (alreadyCheckedIn) {
+                    return DiemDanhQRResponse.failed("Mã QR này đã được quét rồi (đã check-in)");
+                }
+                return processCheckInByQR(request, dangKy, hoatDong, now);
+            }
 
-            return DiemDanhQRResponse.success(
-                    "Điểm danh thành công",
-                    toDTO(diemDanh)
-            );
+            return DiemDanhQRResponse.failed("Ngoài thời gian điểm danh");
 
         } catch (Exception e) {
             log.error("Error processing QR scan: {}", request.getMaQR(), e);
             return DiemDanhQRResponse.failed("Lỗi: " + e.getMessage());
         }
+    }
+
+    /**
+     * Xử lý check-in qua QR (tách ra từ scanQRCode).
+     */
+    private DiemDanhQRResponse processCheckInByQR(DiemDanhQRRequest request, DangKyHoatDong dangKy,
+                                                   HoatDong hoatDong, LocalTime checkInTime) {
+        BCHDoanHoi nguoiXacNhan = null;
+        if (request.getMaBchXacNhan() != null) {
+            nguoiXacNhan = bchRepository.findById(request.getMaBchXacNhan()).orElse(null);
+        }
+
+        TrangThaiCheckInEnum trangThaiCheckIn = TrangThaiCheckInEnum.DUNG_GIO;
+        int soPhutTre = 0;
+
+        if (hoatDong.getThoiGianBatDau() != null) {
+            if (hoatDong.getChoPhepCheckInSom() != null) {
+                LocalTime earliestCheckIn = hoatDong.getThoiGianBatDau().minusMinutes(hoatDong.getChoPhepCheckInSom());
+                if (checkInTime.isBefore(earliestCheckIn)) {
+                    return DiemDanhQRResponse.failed("Chưa đến giờ check-in (Sớm nhất: " + earliestCheckIn + ")");
+                }
+            }
+            if (checkInTime.isAfter(hoatDong.getThoiGianBatDau())) {
+                long minutesLate = ChronoUnit.MINUTES.between(hoatDong.getThoiGianBatDau(), checkInTime);
+                soPhutTre = (int) minutesLate;
+                if (hoatDong.getThoiGianTreToiDa() != null && minutesLate > hoatDong.getThoiGianTreToiDa()) {
+                    trangThaiCheckIn = TrangThaiCheckInEnum.TRE_QUA_GIO;
+                } else {
+                    trangThaiCheckIn = TrangThaiCheckInEnum.TRE_CHAP_NHAN;
+                }
+            }
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        // Nếu không yêu cầu checkout, set DA_THAM_GIA ngay; ngược lại đợi checkout
+        TrangThaiThamGiaEnum trangThai = Boolean.TRUE.equals(hoatDong.getYeuCauCheckOut())
+                ? TrangThaiThamGiaEnum.DANG_KY
+                : TrangThaiThamGiaEnum.DA_THAM_GIA;
+
+        DiemDanhHoatDong diemDanh = DiemDanhHoatDong.builder()
+                .hoatDong(hoatDong)
+                .sinhVien(dangKy.getSinhVien())
+                .maQRDaQuet(request.getMaQR())
+                .trangThai(trangThai)
+                .thoiGianCheckIn(now)
+                .trangThaiCheckIn(trangThaiCheckIn)
+                .soPhutTre(soPhutTre)
+                .nguoiCheckIn(nguoiXacNhan)
+                .thietBiQuet(request.getThietBi())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .ghiChu(request.getGhiChu())
+                .build();
+
+        diemDanh = diemDanhRepository.save(diemDanh);
+        log.info("Check-in successful: student={}, activity={}", dangKy.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
+        return DiemDanhQRResponse.success("Check-in thành công", toDTO(diemDanh));
+    }
+
+    /**
+     * Xử lý checkout qua QR.
+     */
+    private DiemDanhQRResponse processCheckoutByQR(DiemDanhQRRequest request,
+                                                    DiemDanhHoatDong diemDanh, HoatDong hoatDong) {
+        LocalDateTime now = LocalDateTime.now();
+
+        BCHDoanHoi nguoiCheckOut = null;
+        if (request.getMaBchXacNhan() != null) {
+            nguoiCheckOut = bchRepository.findById(request.getMaBchXacNhan()).orElse(null);
+        }
+
+        diemDanh.setThoiGianCheckOut(now);
+        diemDanh.setNguoiCheckOut(nguoiCheckOut);
+        diemDanh.setTrangThai(TrangThaiThamGiaEnum.DA_THAM_GIA);
+
+        long minutesParticipated = ChronoUnit.MINUTES.between(diemDanh.getThoiGianCheckIn(), now);
+        diemDanh.setTongThoiGianThamGia((int) minutesParticipated);
+
+        TrangThaiCheckOutEnum trangThaiCheckOut = TrangThaiCheckOutEnum.HOAN_THANH;
+        int soPhutVeSom = 0;
+
+        if (hoatDong.getThoiGianToiThieu() != null) {
+            diemDanh.setDatThoiGianToiThieu(minutesParticipated >= hoatDong.getThoiGianToiThieu());
+            if (minutesParticipated < hoatDong.getThoiGianToiThieu()) {
+                trangThaiCheckOut = TrangThaiCheckOutEnum.VE_SOM_QUA_SUA;
+            }
+        } else {
+            diemDanh.setDatThoiGianToiThieu(true);
+        }
+
+        if (hoatDong.getThoiGianKetThuc() != null) {
+            LocalTime checkOutTime = now.toLocalTime();
+            if (checkOutTime.isBefore(hoatDong.getThoiGianKetThuc())) {
+                long minutesEarly = ChronoUnit.MINUTES.between(checkOutTime, hoatDong.getThoiGianKetThuc());
+                soPhutVeSom = (int) minutesEarly;
+                trangThaiCheckOut = minutesEarly > 30
+                        ? TrangThaiCheckOutEnum.VE_SOM_QUA_SUA
+                        : TrangThaiCheckOutEnum.VE_SOM_CHAP_NHAN;
+            }
+        }
+
+        diemDanh.setTrangThaiCheckOut(trangThaiCheckOut);
+        diemDanh.setSoPhutVeSom(soPhutVeSom);
+
+        diemDanh = diemDanhRepository.save(diemDanh);
+        log.info("QR checkout successful: student={}, activity={}", diemDanh.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
+        return DiemDanhQRResponse.success("Check-out thành công", toDTO(diemDanh));
+    }
+
+    /**
+     * Kiểm tra có trong cửa sổ check-in không.
+     */
+    private boolean isInCheckInWindow(HoatDong hoatDong, LocalDate today, LocalTime now) {
+        if (Boolean.TRUE.equals(hoatDong.getKetThucSom())) return false;
+        if (hoatDong.getNgayToChuc() != null && !today.equals(hoatDong.getNgayToChuc())) return false;
+        if (hoatDong.getThoiGianBatDau() == null) return true;
+
+        LocalTime earliest = hoatDong.getThoiGianBatDau()
+                .minusMinutes(hoatDong.getChoPhepCheckInSom() != null ? hoatDong.getChoPhepCheckInSom() : 0);
+        if (now.isBefore(earliest)) return false;
+        if (hoatDong.getThoiGianKetThuc() != null && now.isAfter(hoatDong.getThoiGianKetThuc())) return false;
+        return true;
+    }
+
+    /**
+     * Kiểm tra có trong cửa sổ checkout không.
+     */
+    private boolean isInCheckoutWindow(HoatDong hoatDong, LocalDate today, LocalTime now) {
+        int allowedMinutes = hoatDong.getThoiGianChoPhepCheckOut() != null
+                ? hoatDong.getThoiGianChoPhepCheckOut() : 30;
+
+        // Early termination → checkout window from actual end time
+        if (Boolean.TRUE.equals(hoatDong.getKetThucSom()) && hoatDong.getThoiGianKetThucThucTe() != null) {
+            LocalDateTime earlyEnd = hoatDong.getThoiGianKetThucThucTe();
+            LocalDateTime deadline = earlyEnd.plusMinutes(allowedMinutes);
+            LocalDateTime nowDt = LocalDateTime.of(today, now);
+            return !nowDt.isBefore(earlyEnd) && nowDt.isBefore(deadline);
+        }
+
+        // Normal end: same day, after thoiGianKetThuc, within window
+        if (today.equals(hoatDong.getNgayToChuc()) && hoatDong.getThoiGianKetThuc() != null) {
+            if (now.isAfter(hoatDong.getThoiGianKetThuc())) {
+                LocalTime deadline = hoatDong.getThoiGianKetThuc().plusMinutes(allowedMinutes);
+                return now.isBefore(deadline);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Tính khoảng cách Haversine (mét) giữa 2 tọa độ.
+     */
+    private double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+        final int R = 6371000;
+        double latRad = Math.toRadians(lat2 - lat1);
+        double lngRad = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(latRad / 2) * Math.sin(latRad / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lngRad / 2) * Math.sin(lngRad / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     /**
@@ -216,6 +358,12 @@ public class DiemDanhHoatDongService {
         diemDanh.setNguoiCheckOut(nguoiCheckOut);
         if (request.getGhiChu() != null) {
             diemDanh.setGhiChu(request.getGhiChu());
+        }
+        if (request.getLatitude() != null) {
+            diemDanh.setLatitude(request.getLatitude());
+        }
+        if (request.getLongitude() != null) {
+            diemDanh.setLongitude(request.getLongitude());
         }
 
         // Tính toán thời gian tham gia

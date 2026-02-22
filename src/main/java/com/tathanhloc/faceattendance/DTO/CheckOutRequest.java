@@ -24,4 +24,8 @@ public class CheckOutRequest {
     private String maBchXacNhan;
 
     private String ghiChu;
+
+    private Double latitude;
+    private Double longitude;
+    private String thietBi;
 }

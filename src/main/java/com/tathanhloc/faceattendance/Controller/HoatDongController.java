@@ -210,6 +210,14 @@ public class HoatDongController {
         return ResponseEntity.ok(ApiResponse.success("Đã hoàn thành hoạt động", null));
     }
 
+    @PostMapping("/{maHoatDong}/ket-thuc-som")
+    @Operation(summary = "Kết thúc sớm hoạt động")
+    public ResponseEntity<ApiResponse<HoatDongDTO>> earlyTerminate(@PathVariable String maHoatDong) {
+        log.info("POST /api/hoat-dong/{}/ket-thuc-som", maHoatDong);
+        HoatDongDTO updated = hoatDongService.earlyTerminate(maHoatDong);
+        return ResponseEntity.ok(ApiResponse.success("Đã kết thúc sớm hoạt động", updated));
+    }
+
     @PostMapping("/{maHoatDong}/cancel")
     @Operation(summary = "Hủy hoạt động")
     public ResponseEntity<ApiResponse<Void>> cancelActivity(
