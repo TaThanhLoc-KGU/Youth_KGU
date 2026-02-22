@@ -254,13 +254,19 @@ public class DangKyHoatDongService {
         }
 
         // Check if already checked in + lấy thời gian điểm danh
+        // Nếu yeuCauCheckOut=true thì cần cả checkout mới tính daDiemDanh
         boolean daDiemDanh = false;
         java.time.LocalDateTime thoiGianDiemDanh = null;
         if (maSv != null && maHoatDong != null) {
             var diemDanhOpt = diemDanhRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, maHoatDong);
             if (diemDanhOpt.isPresent()) {
-                daDiemDanh = true;
-                thoiGianDiemDanh = diemDanhOpt.get().getThoiGianCheckIn();
+                var dd = diemDanhOpt.get();
+                boolean requireCheckout = entity.getHoatDong() != null
+                        && Boolean.TRUE.equals(entity.getHoatDong().getYeuCauCheckOut());
+                if (!requireCheckout || dd.getThoiGianCheckOut() != null) {
+                    daDiemDanh = true;
+                }
+                thoiGianDiemDanh = dd.getThoiGianCheckIn();
             }
         }
 

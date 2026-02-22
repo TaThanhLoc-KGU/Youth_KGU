@@ -246,17 +246,37 @@ const MyActivities = () => {
                     </span>
 
                     <div className="flex items-center gap-2">
-                      {/* QR Code button */}
-                      {reg.maQR && (
-                        <button
-                          onClick={() => handleShowQR(reg)}
-                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
-                          title="Xem QR điểm danh"
-                        >
-                          <QrCode className="w-3.5 h-3.5" />
-                          QR Code
-                        </button>
-                      )}
+                      {/* QR Code button — chỉ active đúng ngày sự kiện */}
+                      {reg.maQR && (() => {
+                        const today = new Date();
+                        const actDate = reg.ngayToChuc ? new Date(reg.ngayToChuc) : null;
+                        const isEventDay = actDate &&
+                          today.getFullYear() === actDate.getFullYear() &&
+                          today.getMonth() === actDate.getMonth() &&
+                          today.getDate() === actDate.getDate();
+                        const isFuture = actDate && today < actDate;
+                        const qrDisabled = !isEventDay;
+                        const qrTitle = isFuture
+                          ? `QR mở vào ngày ${formatDate(reg.ngayToChuc)}`
+                          : isEventDay
+                          ? 'Xem QR điểm danh'
+                          : 'Sự kiện đã kết thúc';
+                        return (
+                          <button
+                            onClick={() => !qrDisabled && handleShowQR(reg)}
+                            disabled={qrDisabled}
+                            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 border rounded-lg transition-colors ${
+                              qrDisabled
+                                ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'
+                                : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                            }`}
+                            title={qrTitle}
+                          >
+                            <QrCode className="w-3.5 h-3.5" />
+                            QR Code
+                          </button>
+                        );
+                      })()}
 
                       {/* Cancel button - only if not attended */}
                       {!reg.daDiemDanh && (

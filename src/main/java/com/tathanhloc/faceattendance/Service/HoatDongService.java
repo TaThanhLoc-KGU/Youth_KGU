@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -392,6 +393,102 @@ public class HoatDongService {
         }).collect(Collectors.toList());
     }
 
+    // ========== EARLY TERMINATION ==========
+
+    @Transactional
+    public HoatDongDTO earlyTerminate(String maHoatDong) {
+        log.info("Early terminating activity: {}", maHoatDong);
+
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        hoatDong.setKetThucSom(true);
+        hoatDong.setThoiGianKetThucThucTe(LocalDateTime.now());
+        hoatDong = hoatDongRepository.save(hoatDong);
+
+        log.info("Activity early terminated: {}", maHoatDong);
+        return toDTO(hoatDong);
+    }
+
+    // ========== AUTO STATUS COMPUTATION ==========
+
+    /**
+     * Tính trạng thái tự động dựa trên thời gian hiện tại.
+     * DA_HUY / DA_HOAN_THANH → giữ nguyên (manual override).
+     */
+    public TrangThaiHoatDongEnum computeTrangThai(HoatDong hoatDong) {
+        TrangThaiHoatDongEnum stored = hoatDong.getTrangThai();
+
+        // Manual overrides stay unchanged
+        if (stored == TrangThaiHoatDongEnum.DA_HUY || stored == TrangThaiHoatDongEnum.DA_HOAN_THANH) {
+            return stored;
+        }
+
+        // Early termination flag
+        if (Boolean.TRUE.equals(hoatDong.getKetThucSom())) {
+            return TrangThaiHoatDongEnum.DA_KET_THUC;
+        }
+
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
+        LocalDate ngayToChuc = hoatDong.getNgayToChuc();
+
+        if (ngayToChuc != null) {
+            // Past day → DA_KET_THUC
+            if (today.isAfter(ngayToChuc)) {
+                return TrangThaiHoatDongEnum.DA_KET_THUC;
+            }
+            // Same day
+            if (today.equals(ngayToChuc)) {
+                // After end time → DA_KET_THUC
+                if (hoatDong.getThoiGianKetThuc() != null && now.isAfter(hoatDong.getThoiGianKetThuc())) {
+                    return TrangThaiHoatDongEnum.DA_KET_THUC;
+                }
+                // After start time → DANG_DIEN_RA
+                if (hoatDong.getThoiGianBatDau() != null && !now.isBefore(hoatDong.getThoiGianBatDau())) {
+                    return TrangThaiHoatDongEnum.DANG_DIEN_RA;
+                }
+            }
+        }
+
+        // Registration open → DANG_MO_DANG_KY
+        if (Boolean.TRUE.equals(hoatDong.getChoPhepDangKy())) {
+            if (hoatDong.getHanDangKy() == null || LocalDateTime.now().isBefore(hoatDong.getHanDangKy())) {
+                return TrangThaiHoatDongEnum.DANG_MO_DANG_KY;
+            }
+        }
+
+        return TrangThaiHoatDongEnum.SAP_DIEN_RA;
+    }
+
+    /**
+     * Kiểm tra cửa sổ checkout còn mở không (dùng chung với DiemDanhService).
+     */
+    public boolean isInCheckoutWindow(HoatDong hoatDong) {
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
+        int allowedMinutes = hoatDong.getThoiGianChoPhepCheckOut() != null
+                ? hoatDong.getThoiGianChoPhepCheckOut() : 30;
+
+        // Early termination → check window from thoiGianKetThucThucTe
+        if (Boolean.TRUE.equals(hoatDong.getKetThucSom()) && hoatDong.getThoiGianKetThucThucTe() != null) {
+            LocalDateTime earlyEnd = hoatDong.getThoiGianKetThucThucTe();
+            LocalDateTime deadline = earlyEnd.plusMinutes(allowedMinutes);
+            LocalDateTime nowDt = LocalDateTime.of(today, now);
+            return !nowDt.isBefore(earlyEnd) && nowDt.isBefore(deadline);
+        }
+
+        // Normal end: same day, after thoiGianKetThuc
+        if (today.equals(hoatDong.getNgayToChuc()) && hoatDong.getThoiGianKetThuc() != null) {
+            if (now.isAfter(hoatDong.getThoiGianKetThuc())) {
+                LocalTime deadline = hoatDong.getThoiGianKetThuc().plusMinutes(allowedMinutes);
+                return now.isBefore(deadline);
+            }
+        }
+
+        return false;
+    }
+
     // ========== VALIDATION HELPERS ==========
 
     private void validateDiemRenLuyen(HoatDongDTO dto) {
@@ -427,6 +524,12 @@ public class HoatDongService {
                 .thoiGianToiThieu(entity.getThoiGianToiThieu())
                 .choPhepCheckInSom(entity.getChoPhepCheckInSom())
                 .yeuCauCheckOut(entity.getYeuCauCheckOut())
+                .viDo(entity.getViDo())
+                .kinhDo(entity.getKinhDo())
+                .khoangCachToiDa(entity.getKhoangCachToiDa())
+                .ketThucSom(entity.getKetThucSom())
+                .thoiGianKetThucThucTe(entity.getThoiGianKetThucThucTe())
+                .thoiGianChoPhepCheckOut(entity.getThoiGianChoPhepCheckOut())
                 .diaDiem(entity.getDiaDiem())
                 .maPhong(entity.getPhongHoc() != null ? entity.getPhongHoc().getMaPhong() : null)
                 .tenPhong(entity.getPhongHoc() != null ? entity.getPhongHoc().getTenPhong() : null)
@@ -445,7 +548,7 @@ public class HoatDongService {
                 .soHocKy(entity.getSoHocKy())
                 .maNamHoc(entity.getNamHoc() != null ? entity.getNamHoc().getMaNamHoc() : null)
                 .tenNamHoc(entity.getNamHoc() != null ? entity.getNamHoc().getTenNamHoc() : null)
-                .trangThai(entity.getTrangThai())
+                .trangThai(computeTrangThai(entity))
                 .yeuCauDiemDanh(entity.getYeuCauDiemDanh())
                 .choPhepDangKy(entity.getChoPhepDangKy())
                 .hanDangKy(entity.getHanDangKy())
@@ -472,6 +575,12 @@ public class HoatDongService {
                 .thoiGianToiThieu(dto.getThoiGianToiThieu())
                 .choPhepCheckInSom(dto.getChoPhepCheckInSom())
                 .yeuCauCheckOut(dto.getYeuCauCheckOut())
+                .viDo(dto.getViDo())
+                .kinhDo(dto.getKinhDo())
+                .khoangCachToiDa(dto.getKhoangCachToiDa())
+                .ketThucSom(dto.getKetThucSom() != null ? dto.getKetThucSom() : false)
+                .thoiGianKetThucThucTe(dto.getThoiGianKetThucThucTe())
+                .thoiGianChoPhepCheckOut(dto.getThoiGianChoPhepCheckOut() != null ? dto.getThoiGianChoPhepCheckOut() : 30)
                 .diaDiem(dto.getDiaDiem())
                 .soLuongToiDa(dto.getSoLuongToiDa())
                 .diemRenLuyen(dto.getDiemRenLuyen())
@@ -535,6 +644,10 @@ public class HoatDongService {
         if (dto.getThoiGianToiThieu() != null) entity.setThoiGianToiThieu(dto.getThoiGianToiThieu());
         if (dto.getChoPhepCheckInSom() != null) entity.setChoPhepCheckInSom(dto.getChoPhepCheckInSom());
         if (dto.getYeuCauCheckOut() != null) entity.setYeuCauCheckOut(dto.getYeuCauCheckOut());
+        if (dto.getViDo() != null) entity.setViDo(dto.getViDo());
+        if (dto.getKinhDo() != null) entity.setKinhDo(dto.getKinhDo());
+        if (dto.getKhoangCachToiDa() != null) entity.setKhoangCachToiDa(dto.getKhoangCachToiDa());
+        if (dto.getThoiGianChoPhepCheckOut() != null) entity.setThoiGianChoPhepCheckOut(dto.getThoiGianChoPhepCheckOut());
         if (dto.getDiaDiem() != null) entity.setDiaDiem(dto.getDiaDiem());
         if (dto.getSoLuongToiDa() != null) entity.setSoLuongToiDa(dto.getSoLuongToiDa());
         if (dto.getDiemRenLuyen() != null) entity.setDiemRenLuyen(dto.getDiemRenLuyen());

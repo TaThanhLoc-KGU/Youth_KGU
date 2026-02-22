@@ -28,6 +28,7 @@ export const TRANG_THAI_HOAT_DONG = {
   SAP_DIEN_RA: { value: 'SAP_DIEN_RA', label: 'Sắp diễn ra', color: '#3B82F6', badge: 'info' },
   DANG_MO_DANG_KY: { value: 'DANG_MO_DANG_KY', label: 'Đang mở đăng ký', color: '#10B981', badge: 'success' },
   DANG_DIEN_RA: { value: 'DANG_DIEN_RA', label: 'Đang diễn ra', color: '#F59E0B', badge: 'warning' },
+  DA_KET_THUC: { value: 'DA_KET_THUC', label: 'Đã kết thúc', color: '#9CA3AF', badge: 'secondary' },
   DA_HOAN_THANH: { value: 'DA_HOAN_THANH', label: 'Đã hoàn thành', color: '#6B7280', badge: 'secondary' },
   DA_HUY: { value: 'DA_HUY', label: 'Đã hủy', color: '#EF4444', badge: 'danger' },
 };

@@ -116,6 +116,12 @@ const activityService = {
     return response.data;
   },
 
+  // Early terminate activity
+  earlyTerminate: async (maHoatDong) => {
+    const response = await api.post(`/api/hoat-dong/${maHoatDong}/ket-thuc-som`);
+    return response.data;
+  },
+
   // Cancel activity
   cancel: async (maHoatDong, reason) => {
     const response = await api.post(`/api/hoat-dong/${maHoatDong}/cancel`, null, {

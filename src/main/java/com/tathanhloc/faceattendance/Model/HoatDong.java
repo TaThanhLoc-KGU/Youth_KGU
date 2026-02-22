@@ -164,6 +164,48 @@ public class HoatDong {
     @Column(name = "han_dang_ky")
     private LocalDateTime hanDangKy;
 
+    // ========== LOCATION FIELDS ==========
+
+    /**
+     * Vĩ độ (latitude) địa điểm tổ chức
+     */
+    @Column(name = "vi_do")
+    private Double viDo;
+
+    /**
+     * Kinh độ (longitude) địa điểm tổ chức
+     */
+    @Column(name = "kinh_do")
+    private Double kinhDo;
+
+    /**
+     * Khoảng cách tối đa cho phép check-in (mét, null = không kiểm tra)
+     */
+    @Column(name = "khoang_cach_toi_da")
+    private Integer khoangCachToiDa;
+
+    // ========== EARLY TERMINATION ==========
+
+    /**
+     * Flag kết thúc sớm (default false)
+     */
+    @Column(name = "ket_thuc_som")
+    @Builder.Default
+    private Boolean ketThucSom = false;
+
+    /**
+     * Thời điểm kết thúc sớm thực tế
+     */
+    @Column(name = "thoi_gian_ket_thuc_thuc_te")
+    private LocalDateTime thoiGianKetThucThucTe;
+
+    /**
+     * Số phút cho phép checkout sau khi kết thúc (default 30)
+     */
+    @Column(name = "thoi_gian_cho_phep_check_out")
+    @Builder.Default
+    private Integer thoiGianChoPhepCheckOut = 30;
+
     @Column(name = "hinh_anh_poster", columnDefinition = "LONGTEXT")
     private String hinhAnhPoster;
 
