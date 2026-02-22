@@ -7,6 +7,12 @@ const activityService = {
     return response.data.data;
   },
 
+  // Alias for compatibility
+  getAllNoPagination: async () => {
+    const response = await api.get('/api/hoat-dong');
+    return response.data.data;
+  },
+
   // Get activities with pagination
   getAllWithPagination: async (params = {}) => {
     const { page = 0, size = 10, sortBy = 'ngayToChuc', sortDir = 'desc' } = params;
@@ -133,6 +139,12 @@ const activityService = {
   // Get attendance status list
   getAttendanceStatusList: async (maHoatDong) => {
     const response = await api.get(`/api/hoat-dong/${maHoatDong}/attendance-status`);
+    return response.data.data;
+  },
+
+  // Get current academic year & semester info
+  getCurrentAcademicInfo: async () => {
+    const response = await api.get('/api/hoat-dong/academic-info');
     return response.data.data;
   },
 

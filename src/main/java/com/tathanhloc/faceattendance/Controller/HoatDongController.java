@@ -248,6 +248,14 @@ public class HoatDongController {
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
+    @GetMapping("/academic-info")
+    @Operation(summary = "Lấy thông tin học kỳ và năm học hiện tại")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentAcademicInfo() {
+        log.info("GET /api/hoat-dong/academic-info");
+        Map<String, Object> info = hoatDongService.getCurrentAcademicInfo();
+        return ResponseEntity.ok(ApiResponse.success(info));
+    }
+
     // ========== ERROR HANDLING ==========
 
     @ExceptionHandler(Exception.class)

@@ -102,6 +102,25 @@ public class HoatDong {
     @Column(name = "diem_ren_luyen")
     private Integer diemRenLuyen;
 
+    /**
+     * Mã danh mục điểm rèn luyện (I, II, III, IV, V, VI)
+     * Theo quy chế đánh giá rèn luyện sinh viên của trường
+     */
+    @Column(name = "ma_danh_muc_ren_luyen", length = 10)
+    private String maDanhMucRenLuyen;
+
+    /**
+     * Mã tiêu chí điểm rèn luyện (1.1, 2.1, 3.4, ...)
+     */
+    @Column(name = "ma_tieu_chi_ren_luyen", length = 20)
+    private String maTieuChiRenLuyen;
+
+    /**
+     * Điểm tối đa của tiêu chí được chọn (cache để hiển thị nhanh)
+     */
+    @Column(name = "diem_toi_da_tieu_chi")
+    private Integer diemToiDaTieuChi;
+
     @ManyToOne
     @JoinColumn(name = "ma_bch_phu_trach")
     private BCHDoanHoi nguoiPhuTrach;
@@ -113,6 +132,21 @@ public class HoatDong {
     @ManyToOne
     @JoinColumn(name = "ma_nganh")
     private Nganh nganh;
+
+    // ========== HỌC KỲ & NĂM HỌC ==========
+
+    /**
+     * Số thứ tự học kỳ trong năm học (1, 2 hoặc 3)
+     */
+    @Column(name = "so_hoc_ky")
+    private Integer soHocKy;
+
+    /**
+     * Năm học mà hoạt động thuộc về (FK → nam_hoc)
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ma_nam_hoc")
+    private NamHoc namHoc;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "trang_thai", nullable = false, length = 50)

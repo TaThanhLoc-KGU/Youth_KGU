@@ -32,13 +32,26 @@ public class HoatDongDTO {
     private String maPhong;
     private String tenPhong;
     private Integer soLuongToiDa;
+    private Long soNguoiDangKy; // Số người đã đăng ký (tính từ bảng dang_ky_hoat_dong)
+
+    // Điểm rèn luyện & tiêu chí
     private Integer diemRenLuyen;
+    private String maDanhMucRenLuyen;
+    private String maTieuChiRenLuyen;
+    private Integer diemToiDaTieuChi;
+
     private String maBchPhuTrach;
     private String tenNguoiPhuTrach;
     private String maKhoa;
     private String tenKhoa;
     private String maNganh;
     private String tenNganh;
+
+    // Học kỳ & Năm học
+    private Integer soHocKy;
+    private String maNamHoc;
+    private String tenNamHoc;
+
     private TrangThaiHoatDongEnum trangThai;
     private Boolean yeuCauDiemDanh;
     private Boolean choPhepDangKy;

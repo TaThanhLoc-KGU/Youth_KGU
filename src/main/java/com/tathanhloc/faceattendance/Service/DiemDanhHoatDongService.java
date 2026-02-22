@@ -387,6 +387,68 @@ public class DiemDanhHoatDongService {
 
     // ========== ADMIN OPERATIONS ==========
 
+    /**
+     * Điểm danh thủ công hàng loạt (admin/BCH tích chọn sinh viên)
+     * Trả về map: maSv -> kết quả (SUCCESS hoặc lý do thất bại)
+     */
+    @Transactional
+    public Map<String, String> manualCheckInBulk(ManualCheckInRequest request) {
+        log.info("Manual bulk check-in: activity={}, students={}", request.getMaHoatDong(), request.getMaSvList().size());
+
+        HoatDong hoatDong = hoatDongRepository.findById(request.getMaHoatDong())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + request.getMaHoatDong()));
+
+        BCHDoanHoi nguoiCheckIn = null;
+        if (request.getMaBchXacNhan() != null) {
+            nguoiCheckIn = bchRepository.findById(request.getMaBchXacNhan()).orElse(null);
+        }
+
+        Map<String, String> results = new LinkedHashMap<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (String maSv : request.getMaSvList()) {
+            try {
+                // Kiểm tra đã có bản ghi chưa
+                Optional<DiemDanhHoatDong> existingOpt = diemDanhRepository
+                        .findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, request.getMaHoatDong());
+                if (existingOpt.isPresent()) {
+                    results.put(maSv, "ALREADY_CHECKED_IN");
+                    continue;
+                }
+
+                SinhVien sinhVien = sinhVienRepository.findById(maSv).orElse(null);
+                if (sinhVien == null) {
+                    results.put(maSv, "STUDENT_NOT_FOUND");
+                    continue;
+                }
+
+                DiemDanhHoatDong diemDanh = DiemDanhHoatDong.builder()
+                        .hoatDong(hoatDong)
+                        .sinhVien(sinhVien)
+                        .maQRDaQuet("MANUAL")
+                        .trangThai(TrangThaiThamGiaEnum.DA_THAM_GIA)
+                        .thoiGianCheckIn(now)
+                        .trangThaiCheckIn(TrangThaiCheckInEnum.DUNG_GIO)
+                        .soPhutTre(0)
+                        .nguoiCheckIn(nguoiCheckIn)
+                        .ghiChu(request.getGhiChu() != null ? request.getGhiChu() : "Điểm danh thủ công")
+                        .build();
+
+                diemDanhRepository.save(diemDanh);
+                results.put(maSv, "SUCCESS");
+                log.info("Manual check-in OK: student={}, activity={}", maSv, request.getMaHoatDong());
+
+            } catch (Exception e) {
+                log.error("Manual check-in failed for student {}: {}", maSv, e.getMessage());
+                results.put(maSv, "ERROR: " + e.getMessage());
+            }
+        }
+
+        log.info("Manual bulk check-in done: {}/{} succeeded",
+                results.values().stream().filter("SUCCESS"::equals).count(), request.getMaSvList().size());
+        return results;
+    }
+
     @Transactional
     public void markAbsent(String maSv, String maHoatDong, String ghiChu) {
         log.info("Marking student as absent: student={}, activity={}", maSv, maHoatDong);

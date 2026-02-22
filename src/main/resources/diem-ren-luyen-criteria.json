@@ -1,0 +1,145 @@
+[
+  {
+    "id": "I",
+    "danh_muc": "Ý thức tham gia học tập",
+    "danh_muc_day_du": "ĐÁNH GIÁ VỀ Ý THỨC THAM GIA HỌC TẬP (0-20 điểm)",
+    "tong_diem_toi_da": 20,
+    "tieu_chi": [
+      {
+        "id": "1.1",
+        "noi_dung": "Kết quả học tập trong học kỳ",
+        "diem_toi_da": 20,
+        "chi_tiet": [
+          { "id": "1.1.KHA", "noi_dung": "Khá", "diem": 10 },
+          { "id": "1.1.GIOI", "noi_dung": "Giỏi", "diem": 15 },
+          { "id": "1.1.XUAT_SAC", "noi_dung": "Xuất sắc", "diem": 20 }
+        ]
+      },
+      {
+        "id": "1.2",
+        "noi_dung": "Điểm trung bình học kỳ tăng so với học kỳ trước (SV học kỳ I năm 1 được tính)",
+        "diem_toi_da": 5
+      },
+      {
+        "id": "1.3",
+        "noi_dung": "Tham gia hoạt động học thuật, nghiên cứu khoa học (có minh chứng)",
+        "diem_toi_da": 5
+      }
+    ]
+  },
+  {
+    "id": "II",
+    "danh_muc": "Ý thức chấp hành nội quy, quy chế",
+    "danh_muc_day_du": "ĐÁNH GIÁ VỀ Ý THỨC CHẤP HÀNH CÁC NỘI QUY, QUY CHẾ, QUY ĐỊNH TRONG NHÀ TRƯỜNG (0-25 điểm)",
+    "tong_diem_toi_da": 25,
+    "tieu_chi": [
+      {
+        "id": "2.1",
+        "noi_dung": "Không vi phạm nội quy, quy chế trong Nhà trường; đóng học phí đúng hạn, xác nhận học phần đúng tiến độ, tuân thủ quy chế thi (vi phạm trừ 5đ/lần)",
+        "diem_toi_da": 15
+      },
+      {
+        "id": "2.2",
+        "noi_dung": "Không vi phạm tệ nạn xã hội, an toàn giao thông, không hút thuốc",
+        "diem_toi_da": 10
+      }
+    ]
+  },
+  {
+    "id": "III",
+    "danh_muc": "Hoạt động chính trị xã hội, văn nghệ, thể thao",
+    "danh_muc_day_du": "ĐÁNH GIÁ VỀ Ý THỨC THAM GIA CÁC HOẠT ĐỘNG CHÍNH TRỊ XÃ HỘI, VĂN HÓA, VĂN NGHỆ, THỂ THAO, PHÒNG CHỐNG TỘI PHẠM VÀ CÁC TỆ NẠN XÃ HỘI (0-20 điểm)",
+    "tong_diem_toi_da": 20,
+    "tieu_chi": [
+      {
+        "id": "3.1",
+        "noi_dung": "Tham gia hoạt động công ích, phòng chống tệ nạn, tình nguyện, mùa hè xanh, tiếp sức mùa thi (cộng 5đ/hoạt động có minh chứng)",
+        "diem_toi_da": 10
+      },
+      {
+        "id": "3.2",
+        "noi_dung": "Thành viên đội văn hóa, văn nghệ, thể thao, câu lạc bộ cấp Khoa",
+        "diem_toi_da": 5
+      },
+      {
+        "id": "3.3",
+        "noi_dung": "Thành viên đội văn hóa, văn nghệ, thể thao, câu lạc bộ cấp Trường",
+        "diem_toi_da": 10
+      },
+      {
+        "id": "3.4",
+        "noi_dung": "Tham gia, cổ vũ hoạt động do Khoa/Trường phát động; tham dự chương trình, hội nghị của Khoa/Trường (cộng 5đ hoặc 3đ/hoạt động có minh chứng)",
+        "diem_toi_da": 15
+      }
+    ]
+  },
+  {
+    "id": "IV",
+    "danh_muc": "Ý thức công dân trong quan hệ cộng đồng",
+    "danh_muc_day_du": "ĐÁNH GIÁ VỀ Ý THỨC CÔNG DÂN TRONG QUAN HỆ VỚI CỘNG ĐỒNG (0-25 điểm)",
+    "tong_diem_toi_da": 25,
+    "tieu_chi": [
+      {
+        "id": "4.1",
+        "noi_dung": "Chấp hành chủ trương, đường lối Đảng, pháp luật Nhà nước; tham gia bảo hiểm y tế theo quy định",
+        "diem_toi_da": 15
+      },
+      {
+        "id": "4.2",
+        "noi_dung": "Hòa đồng, nhiệt tình giúp đỡ bạn bè; xây dựng đoàn kết, không gây mất đoàn kết nội bộ",
+        "diem_toi_da": 3
+      },
+      {
+        "id": "4.3",
+        "noi_dung": "Tham gia hoạt động cộng đồng tại địa phương (có minh chứng trong học kỳ)",
+        "diem_toi_da": 2
+      },
+      {
+        "id": "4.4",
+        "noi_dung": "Tham gia hiến máu nhân đạo (có giấy chứng nhận)",
+        "diem_toi_da": 5
+      }
+    ]
+  },
+  {
+    "id": "V",
+    "danh_muc": "Công tác cán bộ lớp, đoàn thể, thành tích đặc biệt",
+    "danh_muc_day_du": "ĐÁNH GIÁ VỀ Ý THỨC VÀ KẾT QUẢ KHI THAM GIA CÔNG TÁC CÁN BỘ LỚP, CÁC ĐOÀN THỂ, TỔ CHỨC TRONG NHÀ TRƯỜNG HOẶC ĐẠT THÀNH TÍCH ĐẶC BIỆT (0-10 điểm)",
+    "tong_diem_toi_da": 10,
+    "tieu_chi": [
+      {
+        "id": "5.1",
+        "noi_dung": "Là ban cán sự lớp/lớp học phần; Thành viên BCH Đoàn-Hội, Đội TNXK hoàn thành nhiệm vụ; Thành viên Ban Chủ nhiệm CLB",
+        "diem_toi_da": 5
+      },
+      {
+        "id": "5.2",
+        "noi_dung": "Tham gia đầy đủ các buổi sinh hoạt lớp",
+        "diem_toi_da": 5
+      }
+    ]
+  },
+  {
+    "id": "VI",
+    "danh_muc": "Điểm cộng ngoài khung",
+    "danh_muc_day_du": "ĐIỂM CỘNG NGOÀI KHUNG (0-30 điểm)",
+    "tong_diem_toi_da": 30,
+    "tieu_chi": [
+      {
+        "id": "6.1",
+        "noi_dung": "Đạt giải khuyến khích trở lên trong hoạt động học thuật, NCKH, văn hóa, văn nghệ, TDTT từ cấp Trường trở lên (có minh chứng)",
+        "diem_toi_da": 10
+      },
+      {
+        "id": "6.2",
+        "noi_dung": "Đạt danh hiệu \"Sinh viên 5 tốt\" cấp Trường trở lên (có minh chứng bằng Quyết định)",
+        "diem_toi_da": 10
+      },
+      {
+        "id": "6.3",
+        "noi_dung": "Có thành tích tiêu biểu xuất sắc (SV tự minh chứng; điểm chính thức do hội đồng cấp trường quyết định)",
+        "diem_toi_da": 10
+      }
+    ]
+  }
+]

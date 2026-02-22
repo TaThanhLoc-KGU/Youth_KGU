@@ -27,7 +27,7 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
       }
     },
     enabled: !!activity.maHoatDong,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   const InfoRow = ({ icon: Icon, label, value }) => (
@@ -84,7 +84,7 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
         <InfoRow
           icon={Users}
           label="Số người đăng ký"
-          value={`${activity.soNguoiDangKy || 0} / ${activity.soLuongToiDa ?? 'Không giới hạn'}`}
+          value={`${registrations?.length ?? 0} / ${activity.soLuongToiDa ?? 'Không giới hạn'}`}
         />
         <InfoRow
           icon={Type}
@@ -92,22 +92,6 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
           value={getCapDoLabel(activity.capDo)}
         />
       </div>
-
-      {/* Statistics */}
-      {activity.soNguoiDangKy !== undefined && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{activity.soNguoiDangKy || 0}</div>
-            <div className="text-sm text-blue-700 mt-1">Người đã đăng ký</div>
-          </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {activity.soLuongToiDa - (activity.soNguoiDangKy || 0)}
-            </div>
-            <div className="text-sm text-green-700 mt-1">Chỗ còn trống</div>
-          </div>
-        </div>
-      )}
 
       {/* Registrations */}
       <div className="border-t pt-6">
@@ -118,29 +102,29 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
             <span className="ml-2 text-gray-600">Đang tải...</span>
           </div>
         ) : registrations && registrations.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-96">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 bg-white z-10">
                 <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 w-12">STT</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Mã SV</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900">Tên</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900">Tên Sinh Viên</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Email</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900">Lớp</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Ngày đăng ký</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
                 {registrations.map((reg, idx) => (
-                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-600">{reg.maSV || reg.maSinhVien || '-'}</td>
-                    <td className="py-3 px-4 text-gray-900 font-medium">{reg.tenSV || reg.tenSinhVien || '-'}</td>
-                    <td className="py-3 px-4 text-gray-600">{reg.email || '-'}</td>
-                    <td className="py-3 px-4 text-gray-600">{reg.tenLop || '-'}</td>
-                    <td className="py-3 px-4 text-gray-600">{formatDate(reg.ngayDangKy || reg.createdAt)}</td>
+                  <tr key={reg.maQR || idx} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-600 text-center">{idx + 1}</td>
+                    <td className="py-3 px-4 text-gray-600 font-mono">{reg.maSv || '-'}</td>
+                    <td className="py-3 px-4 text-gray-900 font-medium">{reg.hoTenSinhVien || '-'}</td>
+                    <td className="py-3 px-4 text-gray-600">{reg.emailSinhVien || '-'}</td>
+                    <td className="py-3 px-4 text-gray-600">{formatDateTime(reg.ngayDangKy)}</td>
                     <td className="py-3 px-4">
-                      <Badge variant={reg.trangThai === 'DA_THAM_GIA' ? 'success' : 'info'}>
-                        {reg.trangThai === 'DA_THAM_GIA' ? 'Đã tham gia' : 'Đã đăng ký'}
+                      <Badge variant={reg.daDiemDanh ? 'success' : 'info'}>
+                        {reg.daDiemDanh ? 'Đã tham gia' : 'Đã đăng ký'}
                       </Badge>
                     </td>
                   </tr>

@@ -65,10 +65,10 @@ const Sidebar = () => {
     ],
     [ROLES.SINHVIEN]: [
       { icon: LayoutDashboard, label: 'Dashboard', path: ROUTES.STUDENT_DASHBOARD },
-      { icon: Activity, label: 'Hoạt động', path: ROUTES.STUDENT_ACTIVITIES },
-      { icon: ClipboardCheck, label: 'Đăng ký của tôi', path: ROUTES.STUDENT_REGISTRATIONS },
-      { icon: Award, label: 'Chứng nhận', path: ROUTES.STUDENT_CERTIFICATES },
-      { icon: Users, label: 'Hồ sơ', path: ROUTES.STUDENT_PROFILE },
+      { icon: Calendar, label: 'Đăng ký hoạt động', path: ROUTES.STUDENT_REGISTER_ACTIVITIES },
+      { icon: ClipboardCheck, label: 'Hoạt động của tôi', path: ROUTES.STUDENT_MY_ACTIVITIES },
+      { icon: BarChart3, label: 'Điểm rèn luyện', path: ROUTES.STUDENT_TRAINING_POINTS },
+      { icon: User, label: 'Hồ sơ cá nhân', path: ROUTES.STUDENT_PROFILE },
     ],
   };
 

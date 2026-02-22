@@ -31,14 +31,14 @@ public class SystemLogService {
             String requestMethod = null;
             String requestUrl = null;
 
-            if (request != null) {
-                ipAddress = getClientIp(request);
-                userAgent = request.getHeader("User-Agent");
-                requestMethod = request.getMethod();
-                requestUrl = request.getRequestURI();
-            } else {
-                // Try to get request from context if not provided
-                try {
+            // Request access may fail in async threads - always wrap with try-catch
+            try {
+                if (request != null) {
+                    ipAddress = getClientIp(request);
+                    userAgent = request.getHeader("User-Agent");
+                    requestMethod = request.getMethod();
+                    requestUrl = request.getRequestURI();
+                } else {
                     ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
                     if (attributes != null) {
                         HttpServletRequest currentRequest = attributes.getRequest();
@@ -47,9 +47,9 @@ public class SystemLogService {
                         requestMethod = currentRequest.getMethod();
                         requestUrl = currentRequest.getRequestURI();
                     }
-                } catch (Exception e) {
-                    // Ignore if no request context
                 }
+            } catch (IllegalStateException e) {
+                // HttpServletRequest proxy is not accessible from async thread - skip request info
             }
 
             SystemLog entry = SystemLog.builder()

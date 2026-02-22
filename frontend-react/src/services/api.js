@@ -48,8 +48,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401 and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // If 401, not a login request, and not already retrying
+    if (
+      error.response?.status === 401 &&
+      originalRequest.url !== '/api/auth/login' &&
+      !originalRequest._retry
+    ) {
       originalRequest._retry = true;
 
       try {
@@ -85,7 +89,7 @@ api.interceptors.response.use(
     // Handle other errors
     const errorMessage = error.response?.data?.message || error.message || 'Đã xảy ra lỗi';
 
-    // Don't show toast for certain status codes
+    // Don't show toast for certain status codes or for login failures (handled in component)
     if (error.response?.status !== 401) {
       toast.error(errorMessage);
     }

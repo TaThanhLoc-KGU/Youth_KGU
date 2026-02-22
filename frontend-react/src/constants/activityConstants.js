@@ -63,6 +63,18 @@ export const getTrangThaiColor = (value) => {
   return TRANG_THAI_HOAT_DONG[value]?.color || '#6B7280';
 };
 
+// Học kỳ
+export const HOC_KY_OPTIONS = [
+  { value: 1, label: 'Học kỳ 1 (Tháng 8 – 11)' },
+  { value: 2, label: 'Học kỳ 2 (Tháng 12 – 3)' },
+  { value: 3, label: 'Học kỳ 3 (Tháng 3 – 6)' },
+];
+
+export const getHocKyLabel = (soHocKy) => {
+  const found = HOC_KY_OPTIONS.find((o) => o.value === soHocKy);
+  return found ? found.label : `Học kỳ ${soHocKy}`;
+};
+
 // Time constants
 export const DEFAULT_CHECK_IN_EARLY = 30; // phút
 export const DEFAULT_MAX_LATE_TIME = 15; // phút

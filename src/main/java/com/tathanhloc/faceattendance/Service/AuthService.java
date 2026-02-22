@@ -288,6 +288,18 @@ public class AuthService {
                 builder.maKhoa(gv.getKhoa().getMaKhoa())
                         .tenKhoa(gv.getKhoa().getTenKhoa());
             }
+        } else if (VaiTroEnum.SINH_VIEN.equals(taiKhoan.getVaiTro())) {
+            // Tài khoản sinh viên chưa được link trực tiếp: username chính là maSv
+            String maSv = taiKhoan.getUsername();
+            builder.linkedEntityId(maSv).linkedEntityType("SINH_VIEN");
+            // Thử tìm thêm thông tin từ bảng SinhVien
+            sinhVienRepository.findById(maSv).ifPresent(sv -> {
+                builder.hoTen(sv.getHoTen()).email(sv.getEmail());
+                if (sv.getLop() != null) {
+                    builder.maLop(sv.getLop().getMaLop()).tenLop(sv.getLop().getTenLop());
+                }
+            });
+            log.info("SINH_VIEN account '{}' has no linked SinhVien entity; using username as linkedEntityId", maSv);
         }
 
         return builder.build();

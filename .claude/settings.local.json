@@ -13,13 +13,23 @@
       "Bash(node fix_useQuery_v2.js:*)",
       "Bash(node fix_indentation.js:*)",
       "Bash(node fix_all_indentation.js:*)",
-      "Bash(mvn clean compile:*)"
+      "Bash(mvn clean compile:*)",
+      "mcp__youth-kgu-files__directory_tree",
+      "mcp__youth-kgu-files__list_directory",
+      "mcp__youth-kgu-files__read_text_file",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "mcp__youth-kgu-files__list_allowed_directories",
+      "Bash(cd:*)",
+      "mcp__youth-kgu-files__search_files",
+      "Bash(cd \"D:\\\\Youth_KGU\\\\frontend-react\" && npm install jsqr --save 2>&1)",
+      "Bash(cd \"D:\\\\Youth_KGU\\\\frontend-react\" && npm install jsqr --save --legacy-peer-deps 2>&1)"
     ],
     "deny": [],
     "ask": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "youth-kgu-files"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

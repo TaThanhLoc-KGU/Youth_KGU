@@ -100,6 +100,16 @@ public class DiemDanhHoatDongController {
 
     // ========== ADMIN ENDPOINTS ==========
 
+    @PostMapping("/manual")
+    @Operation(summary = "Điểm danh thủ công hàng loạt (Admin/BCH)")
+    public ResponseEntity<ApiResponse<Map<String, String>>> manualCheckIn(
+            @RequestBody ManualCheckInRequest request) {
+        log.info("POST /api/diem-danh/manual - activity={}, count={}",
+                request.getMaHoatDong(), request.getMaSvList() == null ? 0 : request.getMaSvList().size());
+        Map<String, String> results = diemDanhService.manualCheckInBulk(request);
+        return ResponseEntity.ok(ApiResponse.success("Điểm danh thủ công hoàn tất", results));
+    }
+
     @PostMapping("/mark-absent")
     @Operation(summary = "Đánh dấu vắng mặt (Admin)")
     public ResponseEntity<ApiResponse<Void>> markAbsent(

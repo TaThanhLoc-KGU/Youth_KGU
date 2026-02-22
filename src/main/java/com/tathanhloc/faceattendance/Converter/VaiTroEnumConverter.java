@@ -26,16 +26,17 @@ public class VaiTroEnumConverter implements AttributeConverter<VaiTroEnum, Strin
         // Các chức vụ cụ thể (Bí thư, Chủ tịch...) sẽ được map về vai trò gốc (SINH_VIEN/GIANG_VIEN)
         // Quyền hạn sẽ được tính toán lại dựa trên bảng ChucVu
         
-        String normalized = dbData.toUpperCase();
+        String normalized = dbData.toUpperCase().trim();
 
-        if (normalized.contains("ADMIN")) return VaiTroEnum.ADMIN;
-        if (normalized.contains("GIANG_VIEN") || normalized.contains("GV")) return VaiTroEnum.GIANG_VIEN;
-        if (normalized.contains("CHUYEN_VIEN") || normalized.contains("CV")) return VaiTroEnum.CHUYEN_VIEN;
+        if (normalized.equals("ADMIN") || normalized.equals("QUAN_TRI")) return VaiTroEnum.ADMIN;
+        if (normalized.equals("BCH")) return VaiTroEnum.BCH;
+        if (normalized.equals("SINH_VIEN")) return VaiTroEnum.SINH_VIEN;
+        if (normalized.contains("GIANG_VIEN") || normalized.equals("GV")) return VaiTroEnum.GIANG_VIEN;
+        if (normalized.contains("CHUYEN_VIEN") || normalized.equals("CV")) return VaiTroEnum.CHUYEN_VIEN;
         if (normalized.equals("MANAGER")) return VaiTroEnum.MANAGER;
         if (normalized.equals("STAFF")) return VaiTroEnum.STAFF;
 
-        // Mặc định tất cả các chức vụ cũ (Bí thư, Chủ tịch, Trưởng ban...) map về SINH_VIEN
-        // Vì đây là vai trò gốc của tài khoản.
+        // Mặc định: các giá trị không xác định → SINH_VIEN
         return VaiTroEnum.SINH_VIEN;
     }
 }

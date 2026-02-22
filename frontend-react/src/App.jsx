@@ -25,6 +25,10 @@ import AttendanceReport from './pages/admin/AttendanceReport';
 import ChuyenVien from './pages/admin/ChuyenVien';
 import SettingsPage from './pages/admin/SettingsPage';
 import StudentDashboard from './pages/student/Dashboard';
+import StudentRegisterActivities from './pages/student/RegisterActivities';
+import StudentMyActivities from './pages/student/MyActivities';
+import StudentTrainingPoints from './pages/student/TrainingPoints';
+import StudentProfile from './pages/student/Profile';
 import Activities from './pages/admin/Activities';
 import CreateHoatDong from './pages/HoatDong/CreateHoatDong'; // Import CreateHoatDong
 import ActivityAttendancePage from './pages/admin/ActivityAttendancePage'; // Import ActivityAttendancePage
@@ -130,9 +134,12 @@ function App() {
           <Route index element={<Navigate to={ROUTES.STUDENT_DASHBOARD} replace />} />
           <Route path="dashboard" element={<StudentDashboard />} />
           <Route path="activities" element={<StudentActivities />} />
+          <Route path="register-activities" element={<StudentRegisterActivities />} />
+          <Route path="my-activities" element={<StudentMyActivities />} />
+          <Route path="training-points" element={<StudentTrainingPoints />} />
           <Route path="registrations" element={<ComingSoon title="Đăng ký của tôi" />} />
           <Route path="certificates" element={<ComingSoon title="Chứng nhận" />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route path="profile" element={<StudentProfile />} />
         </Route>
 
         {/* BCH Routes */}

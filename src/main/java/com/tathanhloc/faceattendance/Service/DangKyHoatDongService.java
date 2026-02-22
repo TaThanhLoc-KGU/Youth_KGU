@@ -56,10 +56,12 @@ public class DangKyHoatDongService {
             throw new RuntimeException("Sinh viên đã đăng ký hoạt động này");
         }
 
-        // 4. Kiểm tra số lượng
-        long currentRegistrations = dangKyRepository.countByHoatDongMaHoatDongAndIsActiveTrue(request.getMaHoatDong());
-        if (currentRegistrations >= hoatDong.getSoLuongToiDa()) {
-            throw new RuntimeException("Hoạt động đã đủ số lượng");
+        // 4. Kiểm tra số lượng (chỉ khi soLuongToiDa > 0; 0 = không giới hạn)
+        if (hoatDong.getSoLuongToiDa() != null && hoatDong.getSoLuongToiDa() > 0) {
+            long currentRegistrations = dangKyRepository.countByHoatDongMaHoatDongAndIsActiveTrue(request.getMaHoatDong());
+            if (currentRegistrations >= hoatDong.getSoLuongToiDa()) {
+                throw new RuntimeException("Hoạt động đã đủ số lượng");
+            }
         }
 
         // 5. Tạo đăng ký
@@ -231,20 +233,45 @@ public class DangKyHoatDongService {
     private DangKyHoatDongDTO toDTO(DangKyHoatDong entity) {
         if (entity == null) return null;
 
-        // Check if already checked in
-        boolean daDiemDanh = diemDanhRepository.existsBySinhVienMaSvAndHoatDongMaHoatDong(
-                entity.getId().getMaSv(),
-                entity.getId().getMaHoatDong()
-        );
+        // Lấy maSv an toàn: ưu tiên từ embedded ID, fallback sang sinhVien PK
+        String maSv = (entity.getId() != null) ? entity.getId().getMaSv() : null;
+        if (maSv == null && entity.getSinhVien() != null) {
+            maSv = entity.getSinhVien().getMaSv();
+        }
+
+        String maHoatDong = (entity.getId() != null) ? entity.getId().getMaHoatDong() : null;
+
+        // Thông tin sinh viên (null-safe)
+        String hoTenSinhVien = null;
+        String emailSinhVien = null;
+        String tenLop = null;
+        if (entity.getSinhVien() != null) {
+            hoTenSinhVien = entity.getSinhVien().getHoTen();
+            emailSinhVien = entity.getSinhVien().getEmail();
+            if (entity.getSinhVien().getLop() != null) {
+                tenLop = entity.getSinhVien().getLop().getTenLop();
+            }
+        }
+
+        // Check if already checked in + lấy thời gian điểm danh
+        boolean daDiemDanh = false;
+        java.time.LocalDateTime thoiGianDiemDanh = null;
+        if (maSv != null && maHoatDong != null) {
+            var diemDanhOpt = diemDanhRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, maHoatDong);
+            if (diemDanhOpt.isPresent()) {
+                daDiemDanh = true;
+                thoiGianDiemDanh = diemDanhOpt.get().getThoiGianCheckIn();
+            }
+        }
 
         return DangKyHoatDongDTO.builder()
-                .maSv(entity.getId().getMaSv())
-                .hoTenSinhVien(entity.getSinhVien().getHoTen())
-                .emailSinhVien(entity.getSinhVien().getEmail())
-                .tenLop(entity.getSinhVien().getLop().getTenLop())
-                .maHoatDong(entity.getId().getMaHoatDong())
-                .tenHoatDong(entity.getHoatDong().getTenHoatDong())
-                .ngayToChuc(entity.getHoatDong().getNgayToChuc())
+                .maSv(maSv)
+                .hoTenSinhVien(hoTenSinhVien)
+                .emailSinhVien(emailSinhVien)
+                .tenLop(tenLop)
+                .maHoatDong(maHoatDong)
+                .tenHoatDong(entity.getHoatDong() != null ? entity.getHoatDong().getTenHoatDong() : null)
+                .ngayToChuc(entity.getHoatDong() != null ? entity.getHoatDong().getNgayToChuc() : null)
                 .maQR(entity.getMaQR())
                 .qrCodeImagePath(entity.getQrCodeImagePath())
                 .ngayDangKy(entity.getNgayDangKy())
@@ -252,6 +279,7 @@ public class DangKyHoatDongService {
                 .daXacNhan(entity.getDaXacNhan())
                 .isActive(entity.getIsActive())
                 .daDiemDanh(daDiemDanh)
+                .thoiGianDiemDanh(thoiGianDiemDanh)
                 .build();
     }
 

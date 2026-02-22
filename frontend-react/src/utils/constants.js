@@ -1,8 +1,10 @@
-// User Roles
+// User Roles - must match backend VaiTroEnum names exactly
 export const ROLES = {
   ADMIN: 'ADMIN',
-  BCH: 'BCH',
-  SINHVIEN: 'SINHVIEN',
+  BCH: 'BCH',            // VaiTroEnum.BCH
+  SINHVIEN: 'SINH_VIEN', // VaiTroEnum.SINH_VIEN (with underscore!)
+  GIANG_VIEN: 'GIANG_VIEN',
+  CHUYEN_VIEN: 'CHUYEN_VIEN',
 };
 
 // Activity Status
@@ -144,6 +146,9 @@ export const ROUTES = {
   STUDENT_REGISTRATIONS: '/student/registrations',
   STUDENT_CERTIFICATES: '/student/certificates',
   STUDENT_PROFILE: '/student/profile',
+  STUDENT_REGISTER_ACTIVITIES: '/student/register-activities',
+  STUDENT_MY_ACTIVITIES: '/student/my-activities',
+  STUDENT_TRAINING_POINTS: '/student/training-points',
 
   // BCH routes
   BCH: '/bch',

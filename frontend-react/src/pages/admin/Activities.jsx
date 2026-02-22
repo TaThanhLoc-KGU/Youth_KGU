@@ -22,7 +22,9 @@ import {
   getLoaiHoatDongLabel,
   getTrangThaiLabel,
   getTrangThaiBadgeVariant,
+  getHocKyLabel,
 } from '../../constants/activityConstants';
+import { findTieuChi } from '../../constants/renLuyenCriteria';
 
 const Activities = () => {
   const navigate = useNavigate();
@@ -81,6 +83,25 @@ const Activities = () => {
       render: (value) => formatDate(value),
     },
     {
+      header: 'Học kỳ – Năm học',
+      accessor: 'soHocKy',
+      width: '160px',
+      render: (value, row) => (
+        <div className="text-xs">
+          {value ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium border border-indigo-200">
+              HK{value}
+            </span>
+          ) : (
+            <span className="text-gray-400">–</span>
+          )}
+          {row.tenNamHoc && (
+            <div className="text-gray-500 mt-0.5 truncate max-w-[140px]">{row.tenNamHoc}</div>
+          )}
+        </div>
+      ),
+    },
+    {
       header: 'Địa điểm',
       accessor: 'diaDiem',
       render: (value) => value || '-',
@@ -91,6 +112,30 @@ const Activities = () => {
       width: '100px',
       render: (value) => (
         <span className="text-xs">{value}</span>
+      ),
+    },
+    {
+      header: 'Điểm RL',
+      accessor: 'diemRenLuyen',
+      width: '110px',
+      render: (value, row) => (
+        <div className="text-xs">
+          {value != null ? (
+            <>
+              <span className="font-semibold text-indigo-700 text-sm">{value}đ</span>
+              {row.maTieuChiRenLuyen && (
+                <div className="text-gray-500 mt-0.5">
+                  TC {row.maTieuChiRenLuyen}
+                  {row.diemToiDaTieuChi && (
+                    <span className="text-gray-400">/{row.diemToiDaTieuChi}</span>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="text-gray-400">–</span>
+          )}
+        </div>
       ),
     },
     {

@@ -1,13 +1,8 @@
 package com.tathanhloc.faceattendance.DataLoader;
 
-import com.tathanhloc.faceattendance.Model.Ban;
-import com.tathanhloc.faceattendance.Model.ChucVu;
-import com.tathanhloc.faceattendance.Model.Permission;
-import com.tathanhloc.faceattendance.Model.RolePermission;
-import com.tathanhloc.faceattendance.Repository.BanRepository;
-import com.tathanhloc.faceattendance.Repository.ChucVuRepository;
-import com.tathanhloc.faceattendance.Repository.PermissionRepository;
-import com.tathanhloc.faceattendance.Repository.RolePermissionRepository;
+import com.tathanhloc.faceattendance.Model.*;
+import com.tathanhloc.faceattendance.Repository.*;
+import com.tathanhloc.faceattendance.Util.AcademicCalendarUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -15,6 +10,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 
@@ -27,6 +23,9 @@ public class DataInitializer implements ApplicationRunner {
     private final ChucVuRepository chucVuRepository;
     private final PermissionRepository permissionRepository;
     private final RolePermissionRepository rolePermissionRepository;
+    private final NamHocRepository namHocRepository;
+    private final HocKyRepository hocKyRepository;
+    private final HocKyNamHocRepository hocKyNamHocRepository;
 
     @Override
     @Transactional
@@ -37,6 +36,7 @@ public class DataInitializer implements ApplicationRunner {
         initializeChucVu();
         initializePermissions();
         initializeRolePermissions();
+        initializeNamHocAndHocKy();
 
         log.info("System data initialization completed!");
     }
@@ -224,5 +224,107 @@ public class DataInitializer implements ApplicationRunner {
                 rolePermissionRepository.insertRolePermission(roleName, permission.getId());
             });
         }
+    }
+
+    /**
+     * Khởi tạo dữ liệu Năm học và Học kỳ theo lịch của trường KGU.
+     * Chỉ thêm dữ liệu nếu chưa tồn tại để tránh lỗi trùng lặp.
+     */
+    private void initializeNamHocAndHocKy() {
+        // Khởi tạo năm học 2024-2025
+        initSingleNamHoc(2024);
+        // Khởi tạo năm học 2025-2026 (năm hiện tại)
+        initSingleNamHoc(2025);
+        // Khởi tạo năm học 2026-2027 (năm tới)
+        initSingleNamHoc(2026);
+        log.info("NamHoc & HocKy data initialized successfully");
+    }
+
+    private void initSingleNamHoc(int startYear) {
+        int endYear = startYear + 1;
+        String maNamHoc = "NH" + startYear + "-" + endYear;
+        String tenNamHoc = "Năm học " + startYear + "-" + endYear;
+
+        // Bỏ qua nếu đã tồn tại
+        if (namHocRepository.existsById(maNamHoc)) {
+            log.info("NamHoc {} already exists, skipping", maNamHoc);
+            return;
+        }
+
+        log.info("Initializing NamHoc {} ...", maNamHoc);
+
+        // Tính ngày của các học kỳ
+        LocalDate hk1Start = AcademicCalendarUtil.getNgayBatDauHK1(startYear);
+        LocalDate hk1End   = AcademicCalendarUtil.getNgayKetThucHK1(startYear);
+        LocalDate hk2Start = AcademicCalendarUtil.getNgayBatDauHK2(startYear);
+        LocalDate hk2End   = AcademicCalendarUtil.getNgayKetThucHK2(startYear);
+        LocalDate hk3Start = AcademicCalendarUtil.getNgayBatDauHK3(startYear);
+        LocalDate hk3End   = AcademicCalendarUtil.getNgayKetThucHK3(startYear);
+
+        // Xác định năm học hiện tại để đánh dấu isCurrent
+        boolean isCurrentYear = maNamHoc.equals(AcademicCalendarUtil.getCurrentMaNamHoc());
+
+        // Lưu NamHoc
+        NamHoc namHoc = NamHoc.builder()
+                .maNamHoc(maNamHoc)
+                .tenNamHoc(tenNamHoc)
+                .ngayBatDau(hk1Start)
+                .ngayKetThuc(hk3End)
+                .moTa("Năm học " + startYear + "-" + endYear + " của trường KGU (3 học kỳ)")
+                .isActive(true)
+                .isCurrent(isCurrentYear)
+                .build();
+        namHocRepository.save(namHoc);
+
+        // Lưu 3 HocKy
+        String[] maHKs = {
+            "HK1-" + startYear + "-" + endYear,
+            "HK2-" + startYear + "-" + endYear,
+            "HK3-" + startYear + "-" + endYear
+        };
+        String[] tenHKs = {"Học kỳ 1", "Học kỳ 2", "Học kỳ 3"};
+        LocalDate[] starts = {hk1Start, hk2Start, hk3Start};
+        LocalDate[] ends   = {hk1End,   hk2End,   hk3End};
+        String[] moTas = {
+            "HK1 " + tenNamHoc + ": 15 tuần (14 tuần học+thi, 1 tuần nghỉ)",
+            "HK2 " + tenNamHoc + ": 17 tuần (15 tuần học+thi, 2 tuần nghỉ Tết)",
+            "HK3 " + tenNamHoc + ": 14 tuần (13 tuần học+thi)"
+        };
+
+        for (int i = 0; i < 3; i++) {
+            int soHocKy = i + 1;
+            String maHocKy = maHKs[i];
+
+            // Bỏ qua nếu đã tồn tại
+            if (hocKyRepository.existsById(maHocKy)) {
+                continue;
+            }
+
+            // Xác định học kỳ hiện tại
+            boolean isCurrentHK = isCurrentYear
+                    && (soHocKy == AcademicCalendarUtil.getCurrentSoHocKy());
+
+            HocKy hocKy = HocKy.builder()
+                    .maHocKy(maHocKy)
+                    .tenHocKy(tenHKs[i])
+                    .ngayBatDau(starts[i])
+                    .ngayKetThuc(ends[i])
+                    .moTa(moTas[i])
+                    .isActive(true)
+                    .isCurrent(isCurrentHK)
+                    .build();
+            hocKyRepository.save(hocKy);
+
+            // Lưu bảng trung gian HocKyNamHoc
+            hocKyNamHocRepository.save(HocKyNamHoc.builder()
+                    .hocKy(hocKy)
+                    .namHoc(namHoc)
+                    .thuTu(soHocKy)
+                    .isActive(true)
+                    .build());
+        }
+
+        log.info("NamHoc {} initialized: HK1={}->{}, HK2={}->{}, HK3={}->{}",
+                maNamHoc, hk1Start, hk1End, hk2Start, hk2End, hk3Start, hk3End);
     }
 }

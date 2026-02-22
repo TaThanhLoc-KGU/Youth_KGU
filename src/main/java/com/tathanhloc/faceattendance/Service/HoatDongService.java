@@ -5,6 +5,7 @@ import com.tathanhloc.faceattendance.DTO.HoatDongDTO;
 import com.tathanhloc.faceattendance.Enum.*;
 import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
+import com.tathanhloc.faceattendance.Util.AcademicCalendarUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,6 +33,8 @@ public class HoatDongService {
     private final PhongHocRepository phongHocRepository;
     private final DangKyHoatDongRepository dangKyRepository;
     private final DiemDanhHoatDongRepository diemDanhRepository;
+    private final NamHocRepository namHocRepository;
+    private final DiemRenLuyenCriteriaService criteriaService;
 
     // ========== CRUD OPERATIONS ==========
 
@@ -61,10 +64,13 @@ public class HoatDongService {
     public HoatDongDTO create(HoatDongDTO dto) {
         log.info("Creating new activity: {}", dto.getMaHoatDong());
 
-        // Validate
+        // Validate mã hoạt động
         if (hoatDongRepository.existsById(dto.getMaHoatDong())) {
             throw new RuntimeException("Mã hoạt động đã tồn tại: " + dto.getMaHoatDong());
         }
+
+        // Validate điểm rèn luyện so với tiêu chí
+        validateDiemRenLuyen(dto);
 
         HoatDong hoatDong = toEntity(dto);
         hoatDong.setIsActive(true);
@@ -80,6 +86,9 @@ public class HoatDongService {
 
         HoatDong existing = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        // Validate điểm rèn luyện so với tiêu chí
+        validateDiemRenLuyen(dto);
 
         updateEntity(existing, dto);
         existing = hoatDongRepository.save(existing);
@@ -383,10 +392,26 @@ public class HoatDongService {
         }).collect(Collectors.toList());
     }
 
+    // ========== VALIDATION HELPERS ==========
+
+    private void validateDiemRenLuyen(HoatDongDTO dto) {
+        if (dto.getMaTieuChiRenLuyen() != null && dto.getDiemRenLuyen() != null) {
+            if (!criteriaService.isDiemHopLe(dto.getMaTieuChiRenLuyen(), dto.getDiemRenLuyen())) {
+                int max = criteriaService.getDiemToiDa(dto.getMaTieuChiRenLuyen());
+                throw new RuntimeException(
+                    String.format("Điểm rèn luyện %d vượt quá mức tối đa %d của tiêu chí %s",
+                        dto.getDiemRenLuyen(), max, dto.getMaTieuChiRenLuyen())
+                );
+            }
+        }
+    }
+
     // ========== MAPPING METHODS ==========
 
     private HoatDongDTO toDTO(HoatDong entity) {
         if (entity == null) return null;
+
+        long soNguoiDangKy = dangKyRepository.countByHoatDongMaHoatDongAndIsActiveTrue(entity.getMaHoatDong());
 
         return HoatDongDTO.builder()
                 .maHoatDong(entity.getMaHoatDong())
@@ -406,13 +431,20 @@ public class HoatDongService {
                 .maPhong(entity.getPhongHoc() != null ? entity.getPhongHoc().getMaPhong() : null)
                 .tenPhong(entity.getPhongHoc() != null ? entity.getPhongHoc().getTenPhong() : null)
                 .soLuongToiDa(entity.getSoLuongToiDa())
+                .soNguoiDangKy(soNguoiDangKy)
                 .diemRenLuyen(entity.getDiemRenLuyen())
+                .maDanhMucRenLuyen(entity.getMaDanhMucRenLuyen())
+                .maTieuChiRenLuyen(entity.getMaTieuChiRenLuyen())
+                .diemToiDaTieuChi(entity.getDiemToiDaTieuChi())
                 .maBchPhuTrach(entity.getNguoiPhuTrach() != null ? entity.getNguoiPhuTrach().getMaBch() : null)
                 .tenNguoiPhuTrach(entity.getNguoiPhuTrach() != null ? entity.getNguoiPhuTrach().getSinhVien().getHoTen() : null)
                 .maKhoa(entity.getKhoa() != null ? entity.getKhoa().getMaKhoa() : null)
                 .tenKhoa(entity.getKhoa() != null ? entity.getKhoa().getTenKhoa() : null)
                 .maNganh(entity.getNganh() != null ? entity.getNganh().getMaNganh() : null)
                 .tenNganh(entity.getNganh() != null ? entity.getNganh().getTenNganh() : null)
+                .soHocKy(entity.getSoHocKy())
+                .maNamHoc(entity.getNamHoc() != null ? entity.getNamHoc().getMaNamHoc() : null)
+                .tenNamHoc(entity.getNamHoc() != null ? entity.getNamHoc().getTenNamHoc() : null)
                 .trangThai(entity.getTrangThai())
                 .yeuCauDiemDanh(entity.getYeuCauDiemDanh())
                 .choPhepDangKy(entity.getChoPhepDangKy())
@@ -443,6 +475,11 @@ public class HoatDongService {
                 .diaDiem(dto.getDiaDiem())
                 .soLuongToiDa(dto.getSoLuongToiDa())
                 .diemRenLuyen(dto.getDiemRenLuyen())
+                .maDanhMucRenLuyen(dto.getMaDanhMucRenLuyen())
+                .maTieuChiRenLuyen(dto.getMaTieuChiRenLuyen())
+                .diemToiDaTieuChi(dto.getMaTieuChiRenLuyen() != null
+                        ? criteriaService.getDiemToiDa(dto.getMaTieuChiRenLuyen())
+                        : dto.getDiemToiDaTieuChi())
                 .trangThai(dto.getTrangThai() != null ? dto.getTrangThai() : TrangThaiHoatDongEnum.SAP_DIEN_RA)
                 .yeuCauDiemDanh(dto.getYeuCauDiemDanh() != null ? dto.getYeuCauDiemDanh() : true)
                 .choPhepDangKy(dto.getChoPhepDangKy() != null ? dto.getChoPhepDangKy() : true)
@@ -466,6 +503,22 @@ public class HoatDongService {
             entity.setNganh(nganhRepository.findById(dto.getMaNganh()).orElse(null));
         }
 
+        // Xác định Năm học và Học kỳ
+        LocalDate activityDate = dto.getNgayToChuc() != null ? dto.getNgayToChuc() : LocalDate.now();
+        if (dto.getMaNamHoc() != null) {
+            entity.setNamHoc(namHocRepository.findById(dto.getMaNamHoc()).orElse(null));
+        } else {
+            // Tự động tính năm học từ ngày tổ chức
+            String maNamHoc = AcademicCalendarUtil.getMaNamHoc(activityDate);
+            entity.setNamHoc(namHocRepository.findById(maNamHoc).orElse(null));
+        }
+        if (dto.getSoHocKy() != null) {
+            entity.setSoHocKy(dto.getSoHocKy());
+        } else {
+            // Tự động tính số học kỳ từ ngày tổ chức
+            entity.setSoHocKy(AcademicCalendarUtil.getSoHocKy(activityDate));
+        }
+
         return entity;
     }
 
@@ -485,6 +538,11 @@ public class HoatDongService {
         if (dto.getDiaDiem() != null) entity.setDiaDiem(dto.getDiaDiem());
         if (dto.getSoLuongToiDa() != null) entity.setSoLuongToiDa(dto.getSoLuongToiDa());
         if (dto.getDiemRenLuyen() != null) entity.setDiemRenLuyen(dto.getDiemRenLuyen());
+        if (dto.getMaDanhMucRenLuyen() != null) entity.setMaDanhMucRenLuyen(dto.getMaDanhMucRenLuyen());
+        if (dto.getMaTieuChiRenLuyen() != null) {
+            entity.setMaTieuChiRenLuyen(dto.getMaTieuChiRenLuyen());
+            entity.setDiemToiDaTieuChi(criteriaService.getDiemToiDa(dto.getMaTieuChiRenLuyen()));
+        }
         if (dto.getTrangThai() != null) entity.setTrangThai(dto.getTrangThai());
         if (dto.getYeuCauDiemDanh() != null) entity.setYeuCauDiemDanh(dto.getYeuCauDiemDanh());
         if (dto.getChoPhepDangKy() != null) entity.setChoPhepDangKy(dto.getChoPhepDangKy());
@@ -505,5 +563,34 @@ public class HoatDongService {
         if (dto.getMaNganh() != null) {
             entity.setNganh(nganhRepository.findById(dto.getMaNganh()).orElse(null));
         }
+
+        // Cập nhật Năm học và Học kỳ
+        if (dto.getMaNamHoc() != null) {
+            entity.setNamHoc(namHocRepository.findById(dto.getMaNamHoc()).orElse(entity.getNamHoc()));
+        }
+        if (dto.getSoHocKy() != null) {
+            entity.setSoHocKy(dto.getSoHocKy());
+        }
+    }
+
+    /**
+     * Trả về thông tin học kỳ và năm học hiện tại theo ngày hôm nay.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getCurrentAcademicInfo() {
+        Map<String, Object> info = AcademicCalendarUtil.getCurrentAcademicInfo();
+
+        // Bổ sung danh sách các năm học có trong CSDL
+        List<Map<String, String>> namHocList = namHocRepository.findByIsActiveTrue()
+                .stream()
+                .map(nh -> {
+                    Map<String, String> m = new HashMap<>();
+                    m.put("maNamHoc", nh.getMaNamHoc());
+                    m.put("tenNamHoc", nh.getTenNamHoc());
+                    return m;
+                })
+                .collect(Collectors.toList());
+        info.put("danhSachNamHoc", namHocList);
+        return info;
     }
 }

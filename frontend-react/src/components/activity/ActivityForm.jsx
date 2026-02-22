@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import Input from '../common/Input';
 import Select from '../common/Select';
@@ -7,11 +7,13 @@ import Textarea from '../common/Textarea';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import ImageUpload from '../common/ImageUpload';
+import RenLuyenSelector from './RenLuyenSelector';
 import activityService from '../../services/activityService';
 import {
   LOAI_HOAT_DONG_OPTIONS,
   CAP_DO_OPTIONS,
   TRANG_THAI_OPTIONS,
+  HOC_KY_OPTIONS,
 } from '../../constants/activityConstants';
 
 const ActivityForm = ({
@@ -40,6 +42,9 @@ const ActivityForm = ({
     diaDiem: '',
     soLuongToiDa: '',
     diemRenLuyen: '',
+    maDanhMucRenLuyen: '',
+    maTieuChiRenLuyen: '',
+    diemToiDaTieuChi: null,
     maKhoa: '',
     hanDangKy: '',
     hinhAnhPoster: '',
@@ -47,42 +52,110 @@ const ActivityForm = ({
     yeuCauDiemDanh: true,
     choPhepDangKy: true,
     trangThai: 'SAP_DIEN_RA',
+    soHocKy: '',
+    maNamHoc: '',
+    tenNamHoc: '',
   });
 
   const [errors, setErrors] = useState({});
 
+  // Lấy thông tin học kỳ / năm học hiện tại từ server
+  const { data: academicInfo } = useQuery({
+    queryKey: ['academic-info'],
+    queryFn: () => activityService.getCurrentAcademicInfo(),
+    staleTime: 5 * 60 * 1000, // cache 5 phút
+  });
+
+  // Khi load trang tạo mới, tự động điền học kỳ và năm học hiện tại
+  useEffect(() => {
+    if (!isEdit && academicInfo) {
+      setFormData((prev) => ({
+        ...prev,
+        soHocKy: prev.soHocKy || academicInfo.soHocKy,
+        maNamHoc: prev.maNamHoc || academicInfo.maNamHoc,
+        tenNamHoc: prev.tenNamHoc || academicInfo.tenNamHoc,
+      }));
+    }
+  }, [academicInfo, isEdit]);
+
   useEffect(() => {
     if (initialData) {
-      setFormData({
-        ...formData,
+      setFormData((prev) => ({
+        ...prev,
         ...initialData,
-      });
+      }));
     }
   }, [initialData]);
+
+  // Khi người dùng thay đổi ngày tổ chức → cập nhật học kỳ và năm học tương ứng
+  const handleNgayToChucChange = (e) => {
+    const ngay = e.target.value; // yyyy-MM-dd
+    setFormData((prev) => {
+      const updated = { ...prev, ngayToChuc: ngay };
+
+      if (ngay) {
+        const date = new Date(ngay);
+        const month = date.getMonth() + 1; // 1-12
+        const day = date.getDate();
+        const year = date.getFullYear();
+
+        // Tính số học kỳ theo quy tắc trường KGU
+        let soHK;
+        if (month >= 8 && month <= 11) {
+          soHK = 1;
+        } else if (
+          month === 12 ||
+          month === 1 ||
+          month === 2 ||
+          (month === 3 && day < 15)
+        ) {
+          soHK = 2;
+        } else {
+          soHK = 3; // tháng 3 (>=15), 4, 5, 6 và cả tháng 7 (nghỉ hè)
+        }
+
+        // Tính năm học
+        let startYear, endYear;
+        if (month >= 8) {
+          startYear = year;
+          endYear = year + 1;
+        } else {
+          startYear = year - 1;
+          endYear = year;
+        }
+        const maNH = `NH${startYear}-${endYear}`;
+        const tenNH = `Năm học ${startYear}-${endYear}`;
+
+        updated.soHocKy = soHK;
+        updated.maNamHoc = maNH;
+        updated.tenNamHoc = tenNH;
+      }
+
+      return updated;
+    });
+  };
 
   const createMutation = useMutation({
     mutationFn: (data) => activityService.create(data),
     onSuccess: () => {
-        toast.success('Tạo hoạt động thành công!');
-        onSuccess();
+      toast.success('Tạo hoạt động thành công!');
+      onSuccess();
     },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Tạo hoạt động thất bại!');
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Tạo hoạt động thất bại!');
     },
-    }
-  );
+  });
 
   const updateMutation = useMutation({
     mutationFn: (data) => activityService.update(initialData.maHoatDong, data),
     onSuccess: () => {
-        toast.success('Cập nhật hoạt động thành công!');
-        onSuccess();
+      toast.success('Cập nhật hoạt động thành công!');
+      onSuccess();
     },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Cập nhật hoạt động thất bại!');
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Cập nhật hoạt động thất bại!');
     },
-    }
-  );
+  });
 
   const validate = () => {
     const newErrors = {};
@@ -111,7 +184,11 @@ const ActivityForm = ({
       thoiGianToiThieu: formData.thoiGianToiThieu ? parseInt(formData.thoiGianToiThieu) : null,
       choPhepCheckInSom: formData.choPhepCheckInSom ? parseInt(formData.choPhepCheckInSom) : 30,
       soLuongToiDa: formData.soLuongToiDa ? parseInt(formData.soLuongToiDa) : null,
-      diemRenLuyen: formData.diemRenLuyen ? parseInt(formData.diemRenLuyen) : null,
+      diemRenLuyen: formData.diemRenLuyen !== '' && formData.diemRenLuyen !== null
+        ? parseInt(formData.diemRenLuyen) : null,
+      soHocKy: formData.soHocKy ? parseInt(formData.soHocKy) : null,
+      maDanhMucRenLuyen: formData.maDanhMucRenLuyen || null,
+      maTieuChiRenLuyen: formData.maTieuChiRenLuyen || null,
     };
 
     if (isEdit) {
@@ -129,7 +206,21 @@ const ActivityForm = ({
     }));
   };
 
+  // Handler nhận dữ liệu từ RenLuyenSelector
+  const handleRenLuyenChange = ({ maDanhMucRenLuyen, maTieuChiRenLuyen, diemRenLuyen, diemToiDaTieuChi }) => {
+    setFormData((prev) => ({
+      ...prev,
+      maDanhMucRenLuyen: maDanhMucRenLuyen || '',
+      maTieuChiRenLuyen: maTieuChiRenLuyen || '',
+      diemRenLuyen: diemRenLuyen ?? '',
+      diemToiDaTieuChi: diemToiDaTieuChi ?? null,
+    }));
+  };
+
   const isLoading = createMutation.isLoading || updateMutation.isLoading;
+
+  // Danh sách năm học từ server (nếu có)
+  const namHocList = academicInfo?.danhSachNamHoc || [];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
@@ -218,7 +309,7 @@ const ActivityForm = ({
               type="date"
               name="ngayToChuc"
               value={formData.ngayToChuc}
-              onChange={handleChange}
+              onChange={handleNgayToChucChange}
               error={errors.ngayToChuc}
             />
             <Input
@@ -237,6 +328,81 @@ const ActivityForm = ({
             onChange={handleChange}
             placeholder="VD: Tòa nhà A, Phòng 101"
           />
+        </div>
+      </Card>
+
+      {/* Học kỳ & Năm học */}
+      <Card>
+        <div className="space-y-4">
+          <h3 className="font-semibold text-lg text-gray-900">Học kỳ &amp; Năm học</h3>
+          <p className="text-sm text-gray-500">
+            Tự động tính theo ngày tổ chức. Bạn có thể điều chỉnh nếu cần.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* Dropdown chọn Học kỳ */}
+            <Select
+              label="Học kỳ"
+              name="soHocKy"
+              value={formData.soHocKy}
+              onChange={handleChange}
+            >
+              <option value="">-- Chọn học kỳ --</option>
+              {HOC_KY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </Select>
+
+            {/* Dropdown chọn Năm học (từ danh sách server) hoặc hiển thị text */}
+            {namHocList.length > 0 ? (
+              <Select
+                label="Năm học"
+                name="maNamHoc"
+                value={formData.maNamHoc}
+                onChange={handleChange}
+              >
+                <option value="">-- Chọn năm học --</option>
+                {namHocList.map((nh) => (
+                  <option key={nh.maNamHoc} value={nh.maNamHoc}>
+                    {nh.tenNamHoc}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Năm học
+                </label>
+                <div className="flex items-center h-10 px-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
+                  {formData.tenNamHoc || (
+                    <span className="text-gray-400">Chưa xác định</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Tự động tính từ ngày tổ chức
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Badge hiển thị thông tin đang chọn */}
+          {(formData.soHocKy || formData.tenNamHoc) && (
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm text-blue-700">
+                Hoạt động thuộc{' '}
+                <strong>
+                  {formData.soHocKy ? `Học kỳ ${formData.soHocKy}` : ''}
+                  {formData.soHocKy && formData.tenNamHoc ? ' – ' : ''}
+                  {formData.tenNamHoc || ''}
+                </strong>
+              </span>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -306,29 +472,38 @@ const ActivityForm = ({
         </div>
       </Card>
 
-      {/* Capacity & Points */}
+      {/* Capacity */}
       <Card>
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Quy mô & Điểm</h3>
+          <h3 className="font-semibold text-lg text-gray-900">Quy mô</h3>
+          <Input
+            label="Số lượng tối đa"
+            type="number"
+            name="soLuongToiDa"
+            value={formData.soLuongToiDa}
+            onChange={handleChange}
+            min="0"
+            className="max-w-xs"
+          />
+        </div>
+      </Card>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Số lượng tối đa"
-              type="number"
-              name="soLuongToiDa"
-              value={formData.soLuongToiDa}
-              onChange={handleChange}
-              min="0"
-            />
-            <Input
-              label="Điểm rèn luyện"
-              type="number"
-              name="diemRenLuyen"
-              value={formData.diemRenLuyen}
-              onChange={handleChange}
-              min="0"
-            />
+      {/* Điểm rèn luyện */}
+      <Card>
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-semibold text-lg text-gray-900">Điểm rèn luyện</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Chọn tiêu chí phù hợp theo quy chế đánh giá rèn luyện sinh viên của trường.
+              Sinh viên tham gia hoạt động này sẽ được tính điểm theo tiêu chí đã chọn.
+            </p>
           </div>
+          <RenLuyenSelector
+            maDanhMuc={formData.maDanhMucRenLuyen}
+            maTieuChi={formData.maTieuChiRenLuyen}
+            diemRenLuyen={formData.diemRenLuyen}
+            onChange={handleRenLuyenChange}
+          />
         </div>
       </Card>
 

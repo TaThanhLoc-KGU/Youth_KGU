@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.*;
 
@@ -29,7 +30,7 @@ public class DangKyHoatDongController {
     @PostMapping
     @Operation(summary = "Đăng ký hoạt động")
     public ResponseEntity<ApiResponse<DangKyHoatDongDTO>> register(
-            @RequestBody DangKyHoatDongRequest request) {
+            @Valid @RequestBody DangKyHoatDongRequest request) {
         log.info("POST /api/dang-ky - Student {} registering for activity {}",
                 request.getMaSv(), request.getMaHoatDong());
         DangKyHoatDongDTO result = dangKyService.registerActivity(request);
