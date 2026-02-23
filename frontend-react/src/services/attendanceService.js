@@ -135,11 +135,40 @@ const attendanceService = {
   // Get overall statistics (Dashboard)
   getStatisticsOverview: async () => {
     try {
-      const response = await api.get('/api/diem-danh/statistics');
+      const response = await api.get('/api/baocao/thongke');
       return response.data?.data || {};
     } catch (error) {
       console.error('Error fetching overall statistics:', error);
       return {};
+    }
+  },
+
+  getReportData: async (type, params) => {
+    try {
+      const response = await api.get(`/api/baocao/${type}`, { params });
+      return response.data?.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching report data:', error);
+      return [];
+    }
+  },
+
+  exportReportExcel: async (type) => {
+    try {
+      const response = await api.get(`/api/baocao/xuat/${type}`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `bao_cao_${type}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      throw error;
     }
   },
 };

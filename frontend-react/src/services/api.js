@@ -11,6 +11,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 seconds
+  withCredentials: true, // Crucial for Cookie-based sessions
 });
 
 // Request interceptor - Add auth token to requests
@@ -20,31 +21,16 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Log request for debugging
-    console.log(`[API Request] ${config.method.toUpperCase()} ${config.url}`, {
-      params: config.params,
-      headers: config.headers,
-      data: config.data
-    });
     return config;
   },
   (error) => {
-    console.error('[API Request Error]', error);
     return Promise.reject(error);
   }
 );
 
 // Response interceptor - Handle errors globally
 api.interceptors.response.use(
-  (response) => {
-    // Log response for debugging
-    console.log(`[API Response] ${response.config.method.toUpperCase()} ${response.config.url}`, {
-      status: response.status,
-      data: response.data,
-      headers: response.headers
-    });
-    return response;
-  },
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
@@ -58,9 +44,7 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) {
-          throw new Error('No refresh token');
-        }
+        if (!refreshToken) throw new Error('No refresh token');
 
         // Try to refresh token
         const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
@@ -77,11 +61,9 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed - logout user
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+        // Refresh failed - logout user completely
+        localStorage.clear(); // Nuclear option
+        window.location.href = '/login?expired=true';
         return Promise.reject(refreshError);
       }
     }
@@ -89,8 +71,8 @@ api.interceptors.response.use(
     // Handle other errors
     const errorMessage = error.response?.data?.message || error.message || 'Đã xảy ra lỗi';
 
-    // Don't show toast for certain status codes or for login failures (handled in component)
-    if (error.response?.status !== 401) {
+    // Don't show toast for 401 (auth errors) as they are handled by redirect logic
+    if (error.response?.status !== 401 && error.config.url !== '/api/auth/login') {
       toast.error(errorMessage);
     }
 

@@ -24,13 +24,10 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false); // State for password modal
 
-  // Query: Get Current User
+  // Query: Get Current User (dùng /api/accounts/me để không cần quyền XEM_TAI_KHOAN)
   const { data: user, isLoading } = useQuery({
     queryKey: ['userProfile', userId],
-    queryFn: async () => {
-      const userData = await accountService.getAccount(userId);
-      return userData; // Return the user data directly
-    },
+    queryFn: () => accountService.getMyProfile(),
     enabled: !!userId,
   });
 

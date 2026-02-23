@@ -11,7 +11,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.web.bind.annotation.*;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+
 import java.util.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 
 /**
  * REST API Controller cho điểm danh QR Code
@@ -25,6 +32,21 @@ import java.util.*;
 public class DiemDanhHoatDongController {
 
     private final DiemDanhHoatDongService diemDanhService;
+
+    @GetMapping("/activity/{maHoatDong}/export")
+    @Operation(summary = "Xuất danh sách điểm danh ra file Excel")
+    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
+    public ResponseEntity<InputStreamResource> exportAttendance(@PathVariable String maHoatDong) throws IOException {
+        log.info("GET /api/diem-danh/activity/{}/export", maHoatDong);
+        ByteArrayInputStream in = diemDanhService.exportAttendanceExcel(maHoatDong);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Disposition", "attachment; filename=diem_danh_" + maHoatDong + ".xlsx");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(new InputStreamResource(in));
+    }
 
     // ========== QR SCAN ENDPOINTS ==========
 
@@ -163,11 +185,17 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/statistics")
     @Operation(summary = "Thống kê điểm danh tổng hợp")
-    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
+    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH') or hasPermission(null, 'QUET_QR') or hasPermission(null, 'TAO_HOAT_DONG')")
     public ResponseEntity<ApiResponse<AttendanceStatisticsDTO>> getStatisticsOverview() {
         log.info("GET /api/diem-danh/statistics");
         AttendanceStatisticsDTO stats = diemDanhService.getAttendanceStatisticsOverview();
         return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public void rethrowAccessDenied(org.springframework.security.access.AccessDeniedException e)
+            throws org.springframework.security.access.AccessDeniedException {
+        throw e;
     }
 
     @ExceptionHandler(Exception.class)

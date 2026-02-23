@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
 
@@ -20,7 +21,9 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const login = useAuthStore((state) => state.login);
+  const reset = useAuthStore((state) => state.reset);
 
   const {
     register,
@@ -31,8 +34,15 @@ const Login = () => {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
+      // 1. Reset everything before login to be 100% clean
+      reset();
+      queryClient.clear();
+
       const result = await login(data);
       toast.success('Đăng nhập thành công!');
+
+      // 2. Clear query cache again after login just in case
+      queryClient.clear();
 
       // Nếu có trang được yêu cầu trước đó, quay lại trang đó
       const from = location.state?.from?.pathname;

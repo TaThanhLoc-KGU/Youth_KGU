@@ -26,7 +26,7 @@ public class ChuyenVienController {
 
     @GetMapping
     @Operation(summary = "Lấy tất cả chuyên viên")
-    @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN')")
+    @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN') or hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<ChuyenVienDTO>>> getAll() {
         log.info("GET /api/chuyenvien");
         List<ChuyenVienDTO> list = chuyenVienService.getAll();

@@ -12,7 +12,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -296,11 +302,96 @@ public class StatisticsService {
         return statistics;
     }
 
+    public ByteArrayInputStream exportGeneralReport(String type) throws IOException {
+        List<Map<String, Object>> reportData = (List<Map<String, Object>>) getReportByType(type, null, null).get("data");
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Báo cáo hoạt động");
+
+            // Xác định danh sách các khoa có trong dữ liệu
+            Set<String> allFaculties = new TreeSet<>();
+            reportData.forEach(d -> {
+                Map<String, Long> fb = (Map<String, Long>) d.get("facultyBreakdown");
+                if (fb != null) allFaculties.addAll(fb.keySet());
+            });
+
+            Row headerRow = sheet.createRow(0);
+            String[] baseCols = {"STT", "Mã hoạt động", "Tên hoạt động", "Ngày tổ chức", "Tổng đăng ký", "Đã điểm danh"};
+            int colIdx = 0;
+            for (String c : baseCols) headerRow.createCell(colIdx++).setCellValue(c);
+            for (String f : allFaculties) headerRow.createCell(colIdx++).setCellValue("Khoa: " + f);
+
+            int rowIdx = 1;
+            for (Map<String, Object> data : reportData) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(rowIdx - 1);
+                row.createCell(1).setCellValue(String.valueOf(data.get("maHoatDong")));
+                row.createCell(2).setCellValue(String.valueOf(data.get("tenHoatDong")));
+                row.createCell(3).setCellValue(data.get("ngayToChuc") != null ? data.get("ngayToChuc").toString() : "");
+                row.createCell(4).setCellValue(Double.parseDouble(data.get("tongDangKy").toString()));
+                row.createCell(5).setCellValue(Double.parseDouble(data.get("daDiemDanh").toString()));
+
+                int fCol = 6;
+                Map<String, Long> fb = (Map<String, Long>) data.get("facultyBreakdown");
+                for (String f : allFaculties) {
+                    row.createCell(fCol++).setCellValue(fb != null ? fb.getOrDefault(f, 0L) : 0L);
+                }
+            }
+
+            workbook.write(out);
+            return new ByteArrayInputStream(out.toByteArray());
+        }
+    }
+
     public Map<String, Object> getGeneralStatistics() {
-        return new HashMap<>();
+        Map<String, Object> stats = new HashMap<>();
+        
+        long totalAttendance = diemDanhHoatDongRepository.count();
+        long successful = diemDanhHoatDongRepository.countByHoatDongMaHoatDongAndTrangThai(null, com.tathanhloc.faceattendance.Enum.TrangThaiThamGiaEnum.DA_THAM_GIA);
+        long absent = diemDanhHoatDongRepository.countByHoatDongMaHoatDongAndTrangThai(null, com.tathanhloc.faceattendance.Enum.TrangThaiThamGiaEnum.VANG_MAT);
+        
+        stats.put("tongLuotDiemDanh", totalAttendance);
+        stats.put("diemDanhThanhCong", successful);
+        stats.put("vangKhongPhep", absent);
+        stats.put("tiLeCoMat", totalAttendance > 0 ? Math.round((double) successful / totalAttendance * 100 * 100.0) / 100.0 : 0);
+        
+        Map<String, Long> byFaculty = new HashMap<>();
+        stats.put("thongKeTheoKhoa", byFaculty);
+        
+        return stats;
     }
 
     public Map<String, Object> getReportByType(String type, String from, String to) {
-        return new HashMap<>();
+        Map<String, Object> report = new HashMap<>();
+        
+        LocalDateTime start = from != null ? LocalDate.parse(from).atStartOfDay() : LocalDateTime.now().minusMonths(6);
+        LocalDateTime end = to != null ? LocalDate.parse(to).atTime(23, 59, 59) : LocalDateTime.now();
+
+        List<Map<String, Object>> data = hoatDongRepository.findAll().stream()
+                .filter(hd -> hd.getNgayToChuc() != null && 
+                             !hd.getNgayToChuc().isBefore(start.toLocalDate()) && 
+                             !hd.getNgayToChuc().isAfter(end.toLocalDate()))
+                .map(hd -> {
+                    Map<String, Object> m = new HashMap<>();
+                    String maHĐ = hd.getMaHoatDong();
+                    m.put("maHoatDong", maHĐ);
+                    m.put("tenHoatDong", hd.getTenHoatDong());
+                    m.put("ngayToChuc", hd.getNgayToChuc());
+                    m.put("tongDangKy", dangKyHoatDongRepository.countByHoatDongMaHoatDongAndIsActiveTrue(maHĐ));
+                    m.put("daDiemDanh", diemDanhHoatDongRepository.countByHoatDongMaHoatDong(maHĐ));
+                    
+                    Map<String, Long> facultyBreakdown = new HashMap<>();
+                    diemDanhHoatDongRepository.findByHoatDongMaHoatDong(maHĐ).forEach(dd -> {
+                        String k = (dd.getSinhVien().getLop() != null) ? 
+                                   dd.getSinhVien().getLop().getTenLop().split("-")[0] : "Khác";
+                        facultyBreakdown.put(k, facultyBreakdown.getOrDefault(k, 0L) + 1);
+                    });
+                    m.put("facultyBreakdown", facultyBreakdown);
+                    return m;
+                })
+                .collect(Collectors.toList());
+        
+        report.put("data", data);
+        return report;
     }
 }

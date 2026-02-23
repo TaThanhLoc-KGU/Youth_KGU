@@ -31,6 +31,7 @@ import { useState } from 'react';
 
 // ─── Menu admin - mỗi item gắn permission tương ứng từ DB ───────────────────
 // ADMIN luôn trả true cho hasPermission → tất cả vẫn hiển thị với ADMIN
+// "Hồ sơ cá nhân" đã được chuyển ra item độc lập ở cuối nav (VẤN ĐỀ 3)
 const ADMIN_MENU = [
   { icon: LayoutDashboard, label: 'Dashboard',             path: ROUTES.ADMIN_DASHBOARD,          permission: null },
   // ── Quản lý đối tượng ─────────────────────────────────────────────────────
@@ -52,29 +53,28 @@ const ADMIN_MENU = [
   { icon: UserPlus,        label: 'Quản lý tài khoản',    path: ROUTES.ADMIN_ACCOUNTS,           permission: PERMISSIONS.VIEW_TAI_KHOAN },
   { icon: BarChart2,       label: 'Thống kê tài khoản',   path: ROUTES.ADMIN_ACCOUNT_STATISTICS, permission: PERMISSIONS.VIEW_THONG_KE },
   // ── Hệ thống ──────────────────────────────────────────────────────────────
-  { icon: User,            label: 'Hồ sơ cá nhân',        path: ROUTES.PROFILE,                  permission: null },
   { icon: ScrollText,      label: 'System Log',            path: '/admin/system-log',             permission: PERMISSIONS.VIEW_SYSTEM_LOG },
   { icon: Shield,          label: 'Cài đặt & Phân quyền', path: ROUTES.ADMIN_SETTINGS,           permission: PERMISSIONS.MANAGE_ROLE_PERMISSIONS },
 ];
 
 // ─── Menu BCH (ai có TAO_HOAT_DONG đều thấy) ─────────────────────────────────
+// "Hồ sơ cá nhân" đã được chuyển ra item độc lập ở cuối nav (VẤN ĐỀ 3)
 const BCH_MENU = [
   { icon: LayoutDashboard, label: 'Dashboard BCH',       path: ROUTES.BCH_DASHBOARD,  permission: PERMISSIONS.TAO_HOAT_DONG },
   { icon: Activity,        label: 'Quản lý Hoạt động',  path: ROUTES.BCH_ACTIVITIES, permission: PERMISSIONS.TAO_HOAT_DONG },
   { icon: ClipboardCheck,  label: 'Điểm danh',           path: ROUTES.BCH_ATTENDANCE, permission: PERMISSIONS.QUET_QR },
   { icon: QrCode,          label: 'Quét QR',             path: ROUTES.BCH_SCAN_QR,   permission: PERMISSIONS.QUET_QR },
-  { icon: User,            label: 'Hồ sơ cá nhân',      path: ROUTES.PROFILE,        permission: null },
 ];
 
-// ─── Menu sinh viên — quyền căn bản, mọi sinh viên đều có ───────────────────
-// showStudent đã filter bởi vaiTro === SINHVIEN, nên permission: null là đúng
-// Không dựa vào quyền cụ thể vì backend có thể không luôn trả về đủ base perms
+// ─── Menu sinh viên — 4 quyền cứng, mọi sinh viên đều có, không kiểm tra permission ─
+// showStudent đã filter bởi vaiTro === SINHVIEN → permission: null cho tất cả (VẤN ĐỀ 2)
+// "Hồ sơ cá nhân" đã được chuyển ra item độc lập ở cuối nav (VẤN ĐỀ 3)
+// KHÔNG được thêm permission vào bất kỳ item nào trong STUDENT_MENU
 const STUDENT_MENU = [
   { icon: LayoutDashboard, label: 'Dashboard',           path: ROUTES.STUDENT_DASHBOARD,          permission: null },
   { icon: Calendar,        label: 'Đăng ký hoạt động',  path: ROUTES.STUDENT_REGISTER_ACTIVITIES,permission: null },
   { icon: ClipboardCheck,  label: 'Hoạt động của tôi',  path: ROUTES.STUDENT_MY_ACTIVITIES,      permission: null },
   { icon: TrendingUp,      label: 'Điểm rèn luyện',     path: ROUTES.STUDENT_TRAINING_POINTS,    permission: null },
-  { icon: User,            label: 'Hồ sơ cá nhân',      path: ROUTES.STUDENT_PROFILE,            permission: null },
 ];
 
 // ─── Quyền "mở khóa" section quản trị ─────────────────────────────────────────
@@ -97,9 +97,10 @@ const Sidebar = () => {
 
   const isAdmin = user?.vaiTro === ROLES.ADMIN;
 
-  // Section quản trị: ADMIN role luôn thấy, người khác thấy nếu có ít nhất 1 quyền quản trị
-  // → GV001 (Bí thư, 100% quyền) sẽ thấy menu quản trị đầy đủ
-  const showAdminSection = isAdmin || hasAnyPermission(ADMIN_SECTION_PERMS);
+  // VẤN ĐỀ 1: Sinh viên thuần (SINHVIEN && !laBCH) KHÔNG BAO GIỜ thấy Admin section
+  // dù backend vô tình gán quyền quản trị cho họ
+  const isSinhVienThuan = user?.vaiTro === ROLES.SINHVIEN && !laBCH;
+  const showAdminSection = !isSinhVienThuan && (isAdmin || hasAnyPermission(ADMIN_SECTION_PERMS));
 
   // BCH section: dùng flag laBCH từ backend
   // SINH_VIEN là BCH → laBCH=true → thấy BCH section
@@ -225,13 +226,14 @@ const Sidebar = () => {
 
       {/* Navigation - Scrollable */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 custom-scrollbar space-y-1">
-        {/* Admin section: ADMIN role hoặc ai có quyền quản trị (GV001, BCH cấp cao...) */}
+        {/* Admin section: ADMIN role hoặc ai có quyền quản trị (GV001, BCH cấp cao...)
+            KHÔNG hiển thị cho sinh viên thuần dù có quyền admin (VẤN ĐỀ 1) */}
         {showAdminSection && renderSection(
           showBCH || showStudent ? 'Quản trị' : null,
           ADMIN_MENU
         )}
 
-        {/* Divider */}
+        {/* Divider giữa Admin và BCH */}
         {showAdminSection && showBCH && !isCollapsed && (
           <div className="border-t border-gray-100 my-2" />
         )}
@@ -242,34 +244,35 @@ const Sidebar = () => {
           BCH_MENU
         )}
 
-        {/* Divider */}
+        {/* Divider giữa BCH/Admin và Student */}
         {(showAdminSection || showBCH) && showStudent && !isCollapsed && (
           <div className="border-t border-gray-100 my-2" />
         )}
 
-        {/* Student section */}
+        {/* Student section — 4 quyền cứng, luôn hiển thị với mọi SINH_VIEN (VẤN ĐỀ 2) */}
         {showStudent && renderSection(
           showAdminSection || showBCH ? 'Sinh viên' : null,
           STUDENT_MENU
         )}
 
-        {/* Fallback: GIANG_VIEN/CHUYEN_VIEN không có quyền nào → chỉ thấy hồ sơ */}
-        {!showAdminSection && !showBCH && !showStudent && (
-          <ul className="space-y-1">
-            <li>
-              <Link
-                to={ROUTES.PROFILE}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                  location.pathname === ROUTES.PROFILE ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
-                } ${isCollapsed ? 'justify-center' : ''}`}
-                title={isCollapsed ? 'Hồ sơ cá nhân' : ''}
-              >
-                <User className="w-5 h-5 flex-shrink-0" />
-                {!isCollapsed && <span className="text-sm font-medium">Hồ sơ cá nhân</span>}
-              </Link>
-            </li>
-          </ul>
-        )}
+        {/* VẤN ĐỀ 3: Hồ sơ cá nhân — LUÔN hiển thị với MỌI user đã đăng nhập
+            Độc lập, không thuộc section nào, không có permission check
+            Đường dẫn duy nhất: ROUTES.PROFILE = /profile (VẤN ĐỀ 4) */}
+        <div className="border-t border-gray-100 my-2" />
+        <ul className="space-y-1">
+          <li>
+            <Link
+              to={ROUTES.PROFILE}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                location.pathname === ROUTES.PROFILE ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title={isCollapsed ? 'Hồ sơ cá nhân' : ''}
+            >
+              <User className="w-5 h-5 flex-shrink-0" />
+              {!isCollapsed && <span className="text-sm font-medium truncate">Hồ sơ cá nhân</span>}
+            </Link>
+          </li>
+        </ul>
       </nav>
 
       {/* Logout Button */}

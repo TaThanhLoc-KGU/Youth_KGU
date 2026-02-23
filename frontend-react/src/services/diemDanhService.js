@@ -73,6 +73,23 @@ const diemDanhService = {
     const response = await api.get(`/api/diem-danh/statistics/${maHoatDong}`);
     return response.data.data;
   },
+
+  // Xuất file Excel điểm danh
+  exportExcel: async (maHoatDong) => {
+    const response = await api.get(`/api/diem-danh/activity/${maHoatDong}/export`, {
+      responseType: 'blob',
+    });
+    
+    // Create a URL for the blob
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `diem_danh_${maHoatDong}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 export default diemDanhService;

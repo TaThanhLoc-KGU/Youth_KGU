@@ -28,6 +28,19 @@ const accountService = {
   },
 
   /**
+   * Lấy thông tin tài khoản của chính mình (không cần permission đặc biệt)
+   * @returns {Promise}
+   */
+  getMyProfile: async () => {
+    try {
+      const response = await api.get('/api/accounts/me');
+      return response.data.data;
+    } catch (error) {
+      throw error.response?.data?.message || 'Lỗi lấy thông tin tài khoản';
+    }
+  },
+
+  /**
    * Lấy thông tin tài khoản theo ID
    * @param {number} accountId - ID tài khoản
    * @returns {Promise}
@@ -173,8 +186,7 @@ const accountService = {
     try {
       const response = await api.patch(
         ACCOUNT_API.SET_ACTIVE(accountId),
-        {},
-        { params: { isActive } }
+        { isActive }
       );
       return response.data.data;
     } catch (error) {

@@ -76,7 +76,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/student/{maSv}")
     @Operation(summary = "Danh sách đăng ký của sinh viên")
-    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<List<DangKyHoatDongDTO>>> getByStudent(
             @PathVariable String maSv) {
         log.info("GET /api/dang-ky/student/{}", maSv);
@@ -181,6 +181,12 @@ public class DangKyHoatDongController {
         // String qrString = dangKyService.getQrCodeString(maSv, maHoatDong);
         // Tạm thời trả về chuỗi format chuẩn
         return ResponseEntity.ok(ApiResponse.success("Lấy mã QR thành công", maHoatDong + maSv));
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public void rethrowAccessDenied(org.springframework.security.access.AccessDeniedException e)
+            throws org.springframework.security.access.AccessDeniedException {
+        throw e;
     }
 
     @ExceptionHandler(Exception.class)

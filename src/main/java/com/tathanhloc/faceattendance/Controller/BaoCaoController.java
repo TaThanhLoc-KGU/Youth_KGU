@@ -9,7 +9,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.Map;
 
 @RestController
@@ -20,6 +25,22 @@ import java.util.Map;
 public class BaoCaoController {
 
     private final StatisticsService statisticsService;
+
+    @GetMapping("/xuat/{type}")
+    @Operation(summary = "Xuất báo cáo ra file Excel")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
+    public ResponseEntity<InputStreamResource> exportReport(
+            @PathVariable String type) throws IOException {
+        log.info("GET /api/baocao/xuat/{}", type);
+        ByteArrayInputStream in = statisticsService.exportGeneralReport(type);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Disposition", "attachment; filename=bao_cao_" + type + ".xlsx");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(new InputStreamResource(in));
+    }
 
     @GetMapping("/thongke")
     @Operation(summary = "Xem thống kê tổng quan")
@@ -40,16 +61,5 @@ public class BaoCaoController {
         log.info("GET /api/baocao/{}?from={}&to={}", type, from, to);
         Map<String, Object> report = statisticsService.getReportByType(type, from, to);
         return ResponseEntity.ok(ApiResponse.success(report));
-    }
-
-    @PostMapping("/xuat/{type}")
-    @Operation(summary = "Xuất báo cáo ra file")
-    @PreAuthorize("hasPermission(null, 'XUAT_BAO_CAO')")
-    public ResponseEntity<ApiResponse<String>> exportReport(
-            @PathVariable String type,
-            @RequestParam(defaultValue = "excel") String format) {
-        log.info("POST /api/baocao/xuat/{}?format={}", type, format);
-        // TODO: Implement export logic
-        return ResponseEntity.ok(ApiResponse.success("Chức năng xuất báo cáo đang phát triển", null));
     }
 }

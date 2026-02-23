@@ -48,6 +48,14 @@ public class DiemDanhHoatDongDTO {
 
     private String ghiChu;
 
+    // Chi tiết check-in/out
+    private String trangThaiCheckIn;
+    private Integer soPhutTre;
+    private String trangThaiCheckOut;
+    private Integer soPhutVeSom;
+    private Integer tongThoiGianThamGia;
+    private Boolean datThoiGianToiThieu;
+
     // Metadata
     private String thietBiQuet;
     private Double latitude;

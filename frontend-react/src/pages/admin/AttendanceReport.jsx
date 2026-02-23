@@ -41,9 +41,7 @@ const AttendanceReport = () => {
   const { data: reportData = [], isLoading: isLoadingReport, refetch } = useQuery({
     queryKey: ['attendance-report-list', lopFilter, startDate, endDate],
     queryFn: async () => {
-      // Currently using mock data or empty array as the specific report endpoint might not exist
-      // You can replace this with a real API call if available, e.g., attendanceService.getReport(params)
-      return []; 
+      return attendanceService.getReportData('general', { from: startDate, to: endDate });
     },
     keepPreviousData: true
   });
@@ -51,7 +49,6 @@ const AttendanceReport = () => {
   // Prepare chart data from stats
   const attendanceChartData = [
     { name: 'Thành công', value: stats.diemDanhThanhCong || 0, fill: '#10b981' },
-    { name: 'Trễ', value: stats.diemDanhTre || 0, fill: '#f59e0b' },
     { name: 'Vắng', value: stats.vangKhongPhep || 0, fill: '#ef4444' },
   ];
 
@@ -61,36 +58,50 @@ const AttendanceReport = () => {
   })) : [];
 
   const handleExport = async () => {
-    toast.info('Chức năng xuất báo cáo đang được phát triển');
+    try {
+      toast.info('Đang chuẩn bị file báo cáo...');
+      await attendanceService.exportReportExcel('general');
+      toast.success('Xuất báo cáo thành công!');
+    } catch (error) {
+      toast.error('Lỗi khi xuất báo cáo');
+    }
   };
 
   const columns = [
     {
-      header: 'Hoạt động',
+      header: 'Mã hoạt động',
+      accessor: 'maHoatDong',
+    },
+    {
+      header: 'Tên hoạt động',
       accessor: 'tenHoatDong',
     },
     {
-      header: 'Tổng lượt',
-      accessor: 'tongLuot',
+      header: 'Ngày tổ chức',
+      accessor: 'ngayToChuc',
+      render: (v) => v ? new Date(v).toLocaleDateString('vi-VN') : '—',
     },
     {
-      header: 'Thành công',
-      accessor: 'thanhCong',
+      header: 'Đăng ký',
+      accessor: 'tongDangKy',
+      render: (v) => <span className="font-semibold">{v}</span>,
+    },
+    {
+      header: 'Tham gia',
+      accessor: 'daDiemDanh',
       render: (v) => <span className="font-semibold text-green-600">{v}</span>,
-    },
-    {
-      header: 'Vắng',
-      accessor: 'vang',
-      render: (v) => <span className="font-semibold text-red-600">{v}</span>,
     },
     {
       header: 'Tỷ lệ (%)',
       accessor: 'tyLe',
-      render: (v) => (
-        <Badge variant={v >= 80 ? 'success' : v >= 60 ? 'warning' : 'danger'}>
-          {v?.toFixed(1)}%
-        </Badge>
-      ),
+      render: (_, row) => {
+        const v = row.tongDangKy > 0 ? (row.daDiemDanh / row.tongDangKy) * 100 : 0;
+        return (
+          <Badge variant={v >= 80 ? 'success' : v >= 60 ? 'warning' : 'danger'}>
+            {v.toFixed(1)}%
+          </Badge>
+        );
+      },
     },
   ];
 
@@ -235,11 +246,13 @@ const AttendanceReport = () => {
         </div>
       </Card>
 
-      {/* Report Table (Placeholder for detailed data) */}
+      {/* Report Table */}
       <Card>
-        <div className="p-6 text-center text-gray-500">
-          Chức năng xem chi tiết báo cáo đang được cập nhật.
-        </div>
+        <Table
+          columns={columns}
+          data={reportData}
+          loading={isLoadingReport}
+        />
       </Card>
     </div>
   );

@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import org.springframework.security.core.Authentication;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,10 +27,44 @@ import java.util.Map;
 @RequestMapping("/api/accounts")
 @RequiredArgsConstructor
 @Slf4j
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.PATCH, RequestMethod.OPTIONS})
 public class AccountController {
 
     private final AccountService accountService;
     private final StatisticsService statisticsService;
+
+    /**
+     * Lấy thông tin tài khoản của chính mình (mọi user đã đăng nhập)
+     */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<AccountDTO>> getMyAccount(Authentication authentication) {
+        log.info("GET /api/accounts/me - User: {}", authentication.getName());
+        try {
+            AccountDTO account = accountService.getAccountByUsername(authentication.getName());
+            return ResponseEntity.ok(
+                    ApiResponse.<AccountDTO>builder()
+                            .success(true)
+                            .message("Lấy thông tin tài khoản thành công")
+                            .data(account)
+                            .build()
+            );
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        } catch (Exception e) {
+            log.error("Lỗi lấy thông tin tài khoản bản thân", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message("Lỗi lấy thông tin tài khoản: " + e.getMessage())
+                            .build()
+                    );
+        }
+    }
 
     /**
      * Lấy danh sách tất cả tài khoản (Admin only)
@@ -384,6 +419,53 @@ public class AccountController {
                     .body(ApiResponse.<Void>builder()
                             .success(false)
                             .message(e.getMessage())
+                            .build()
+                    );
+        }
+    }
+
+    /**
+     * Kích hoạt/Vô hiệu hóa tài khoản (Admin only)
+     */
+    @PatchMapping("/{accountId}/active")
+    @PreAuthorize("hasPermission(null, 'SUA_TAI_KHOAN')")
+    public ResponseEntity<ApiResponse<AccountDTO>> setAccountActive(
+            @PathVariable Long accountId,
+            @RequestBody Map<String, Boolean> body) {
+        Boolean isActive = body.get("isActive");
+        log.info("PATCH /api/accounts/{}/active - Body: {}", accountId, body);
+
+        if (isActive == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message("Tham số isActive không được để trống")
+                            .build()
+                    );
+        }
+
+        try {
+            AccountDTO updated = accountService.setAccountActive(accountId, isActive);
+            return ResponseEntity.ok(
+                    ApiResponse.<AccountDTO>builder()
+                            .success(true)
+                            .message(isActive ? "Kích hoạt tài khoản thành công" : "Vô hiệu hóa tài khoản thành công")
+                            .data(updated)
+                            .build()
+            );
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+                    );
+        } catch (Exception e) {
+            log.error("Lỗi cập nhật trạng thái tài khoản", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<AccountDTO>builder()
+                            .success(false)
+                            .message("Lỗi cập nhật trạng thái: " + e.getMessage())
                             .build()
                     );
         }

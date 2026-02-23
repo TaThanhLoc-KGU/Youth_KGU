@@ -37,7 +37,7 @@ public class HoatDongController {
 
     @GetMapping
     @Operation(summary = "Lấy tất cả hoạt động")
-    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getAll() {
         log.info("GET /api/hoat-dong - Get all activities");
         List<HoatDongDTO> activities = hoatDongService.getAll();
@@ -46,7 +46,7 @@ public class HoatDongController {
 
     @GetMapping("/page")
     @Operation(summary = "Lấy hoạt động có phân trang")
-    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<PageResponse<HoatDongDTO>> getAllWithPagination(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -62,7 +62,7 @@ public class HoatDongController {
 
     @GetMapping("/{maHoatDong}")
     @Operation(summary = "Lấy chi tiết hoạt động")
-    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<HoatDongDTO>> getById(@PathVariable String maHoatDong) {
         log.info("GET /api/hoat-dong/{} - Get activity details", maHoatDong);
         HoatDongDTO activity = hoatDongService.getById(maHoatDong);
@@ -120,7 +120,7 @@ public class HoatDongController {
 
     @GetMapping("/trang-thai/{trangThai}")
     @Operation(summary = "Lọc theo trạng thái")
-    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getByTrangThai(
             @PathVariable String trangThai) {
         log.info("GET /api/hoat-dong/trang-thai/{}", trangThai);
@@ -153,7 +153,7 @@ public class HoatDongController {
 
     @GetMapping("/upcoming")
     @Operation(summary = "Lấy hoạt động sắp diễn ra")
-    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getUpcoming() {
         log.info("GET /api/hoat-dong/upcoming");
         List<HoatDongDTO> activities = hoatDongService.getUpcomingActivities();
@@ -162,7 +162,7 @@ public class HoatDongController {
 
     @GetMapping("/ongoing")
     @Operation(summary = "Lấy hoạt động đang diễn ra")
-    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getOngoing() {
         log.info("GET /api/hoat-dong/ongoing");
         List<HoatDongDTO> activities = hoatDongService.getOngoingActivities();
@@ -289,6 +289,12 @@ public class HoatDongController {
     }
 
     // ========== ERROR HANDLING ==========
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public void rethrowAccessDenied(org.springframework.security.access.AccessDeniedException e)
+            throws org.springframework.security.access.AccessDeniedException {
+        throw e;
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {

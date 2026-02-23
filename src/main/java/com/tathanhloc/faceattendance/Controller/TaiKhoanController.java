@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/taikhoan")
@@ -97,6 +98,22 @@ public class TaiKhoanController {
     @PreAuthorize("hasPermission(null, 'XEM_TAI_KHOAN')")
     public ResponseEntity<TaiKhoanDTO> getByUsername(@PathVariable String username) {
         return ResponseEntity.ok(taiKhoanService.getByUsername(username));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasPermission(null, 'SUA_TAI_KHOAN')")
+    public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String, Boolean> statusMap) {
+        try {
+            Boolean isActive = statusMap.get("isActive");
+            if (isActive == null) {
+                return ResponseEntity.badRequest().body("Trạng thái isActive không được để trống");
+            }
+            TaiKhoanDTO updatedAccount = taiKhoanService.updateStatus(id, isActive);
+            return ResponseEntity.ok(updatedAccount);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi cập nhật trạng thái tài khoản: " + e.getMessage());
+        }
     }
 
 }

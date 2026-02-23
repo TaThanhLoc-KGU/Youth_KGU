@@ -65,15 +65,24 @@ const useAuthStore = create(
         try {
           await authService.logout();
         } finally {
-          set({
-            user: null,
-            isAuthenticated: false,
-            permissions: [],
-            laBCH: false,
-            effectiveRole: null,
-            danhSachChucVu: [],
-          });
+          get().reset();
         }
+      },
+
+      // Reset action to clear all state
+      reset: () => {
+        set({
+          user: null,
+          isAuthenticated: false,
+          permissions: [],
+          laBCH: false,
+          effectiveRole: null,
+          danhSachChucVu: [],
+        });
+        // Clear local storage explicitly to be safe
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
       },
 
       // Update user

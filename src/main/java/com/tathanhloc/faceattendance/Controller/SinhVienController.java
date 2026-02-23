@@ -89,7 +89,7 @@ public class SinhVienController {
 
 
     @GetMapping("/active/all")
-    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN') or hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<List<SinhVienDTO>> getAllActive() {
         log.info("Lấy danh sách sinh viên đang hoạt động");
         return ResponseEntity.ok(sinhVienService.getAllActive());

@@ -8,7 +8,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -415,6 +420,105 @@ public class DiemDanhHoatDongService {
     // ========== QUERY OPERATIONS ==========
 
     @Transactional(readOnly = true)
+    public ByteArrayInputStream exportAttendanceExcel(String maHoatDong) throws IOException {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động"));
+
+        List<DiemDanhHoatDongDTO> attendanceList = getByActivity(maHoatDong);
+        List<Map<String, Object>> notCheckedIn = getNotCheckedInStudents(maHoatDong);
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            // Sheet 1: Thống kê tổng hợp & Theo Khoa
+            Sheet summarySheet = workbook.createSheet("Thống kê chung");
+            
+            Row r0 = summarySheet.createRow(0);
+            r0.createCell(0).setCellValue("HOẠT ĐỘNG:");
+            r0.createCell(1).setCellValue(hoatDong.getTenHoatDong());
+            
+            Row r1 = summarySheet.createRow(1);
+            r1.createCell(0).setCellValue("Ngày tổ chức:");
+            r1.createCell(1).setCellValue(hoatDong.getNgayToChuc() != null ? hoatDong.getNgayToChuc().toString() : "");
+
+            // Thống kê theo Khoa (Đoàn khoa)
+            Row r3 = summarySheet.createRow(3);
+            r3.createCell(0).setCellValue("THỐNG KÊ THEO ĐOÀN KHOA");
+            
+            Row r4 = summarySheet.createRow(4);
+            String[] summaryCols = {"STT", "Tên Khoa/Đơn vị", "Tổng Đăng Ký", "Đã Tham Gia", "Tỷ lệ (%)"};
+            for(int i=0; i<summaryCols.length; i++) summarySheet.getRow(4).createCell(i).setCellValue(summaryCols[i]);
+            
+            // Logic tính toán theo khoa
+            Map<String, Long> regByKhoa = new HashMap<>();
+            Map<String, Long> attByKhoa = new HashMap<>();
+            
+            // Gom nhóm từ danh sách tham gia
+            attendanceList.forEach(a -> {
+                String khoa = a.getTenLop() != null && a.getTenLop().contains("-") ? a.getTenLop().split("-")[0] : "Khác";
+                attByKhoa.put(khoa, attByKhoa.getOrDefault(khoa, 0L) + 1);
+                regByKhoa.put(khoa, regByKhoa.getOrDefault(khoa, 0L) + 1);
+            });
+            // Gom nhóm từ danh sách vắng
+            notCheckedIn.forEach(m -> {
+                String khoa = "Chưa rõ"; // Có thể join thêm bảng Khoa nếu cần
+                regByKhoa.put(khoa, regByKhoa.getOrDefault(khoa, 0L) + 1);
+            });
+
+            int sIdx = 5;
+            int stt = 1;
+            for(String k : regByKhoa.keySet()) {
+                Row row = summarySheet.createRow(sIdx++);
+                row.createCell(0).setCellValue(stt++);
+                row.createCell(1).setCellValue(k);
+                row.createCell(2).setCellValue(regByKhoa.get(k));
+                row.createCell(3).setCellValue(attByKhoa.getOrDefault(k, 0L));
+                long total = regByKhoa.get(k);
+                row.createCell(4).setCellValue(total > 0 ? (double)attByKhoa.getOrDefault(k, 0L)/total*100 : 0);
+            }
+
+            // Sheet 2: Danh sách chi tiết
+            Sheet detailSheet = workbook.createSheet("Danh sách chi tiết");
+            Row headerRow = detailSheet.createRow(0);
+            String[] columns = {"STT", "Mã SV", "Họ Tên", "Lớp", "Check-in", "Trạng thái CI", "Check-out", "Trạng thái CO", "Trạng thái tham gia", "Ghi chú"};
+            for (int i = 0; i < columns.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(columns[i]);
+            }
+
+            int rowIdx = 1;
+            for (DiemDanhHoatDongDTO dto : attendanceList) {
+                Row row = detailSheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(rowIdx - 1);
+                row.createCell(1).setCellValue(String.valueOf(dto.getMaSv()));
+                row.createCell(2).setCellValue(String.valueOf(dto.getHoTenSinhVien()));
+                row.createCell(3).setCellValue(String.valueOf(dto.getTenLop()));
+                row.createCell(4).setCellValue(dto.getThoiGianCheckIn() != null ? dto.getThoiGianCheckIn().toString() : "");
+                row.createCell(5).setCellValue(dto.getTrangThaiCheckIn() != null ? dto.getTrangThaiCheckIn() : "");
+                row.createCell(6).setCellValue(dto.getThoiGianCheckOut() != null ? dto.getThoiGianCheckOut().toString() : "");
+                row.createCell(7).setCellValue(dto.getTrangThaiCheckOut() != null ? dto.getTrangThaiCheckOut() : "");
+                row.createCell(8).setCellValue(dto.getTrangThai() != null ? dto.getTrangThai().name() : "");
+                row.createCell(9).setCellValue(String.valueOf(dto.getGhiChu() != null ? dto.getGhiChu() : ""));
+            }
+
+            for (Map<String, Object> map : notCheckedIn) {
+                Row row = detailSheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(rowIdx - 1);
+                row.createCell(1).setCellValue(String.valueOf(map.get("maSv")));
+                row.createCell(2).setCellValue(String.valueOf(map.get("hoTen")));
+                row.createCell(3).setCellValue("");
+                row.createCell(4).setCellValue("");
+                row.createCell(5).setCellValue("");
+                row.createCell(6).setCellValue("");
+                row.createCell(7).setCellValue("");
+                row.createCell(8).setCellValue("VANG_MAT");
+                row.createCell(9).setCellValue("Chưa quét mã QR");
+            }
+
+            workbook.write(out);
+            return new ByteArrayInputStream(out.toByteArray());
+        }
+    }
+
+    @Transactional(readOnly = true)
     public List<DiemDanhHoatDongDTO> getByActivity(String maHoatDong) {
         log.debug("Getting attendance records for activity: {}", maHoatDong);
         return diemDanhRepository.findByHoatDongMaHoatDong(maHoatDong).stream()
@@ -664,6 +768,12 @@ public class DiemDanhHoatDongService {
                 .tenNguoiXacNhan(entity.getNguoiCheckIn() != null ?
                         entity.getNguoiCheckIn().getSinhVien().getHoTen() : null)
                 .ghiChu(entity.getGhiChu())
+                .trangThaiCheckIn(entity.getTrangThaiCheckIn() != null ? entity.getTrangThaiCheckIn().name() : null)
+                .soPhutTre(entity.getSoPhutTre())
+                .trangThaiCheckOut(entity.getTrangThaiCheckOut() != null ? entity.getTrangThaiCheckOut().name() : null)
+                .soPhutVeSom(entity.getSoPhutVeSom())
+                .tongThoiGianThamGia(entity.getTongThoiGianThamGia())
+                .datThoiGianToiThieu(entity.getDatThoiGianToiThieu())
                 .thietBiQuet(entity.getThietBiQuet())
                 .latitude(entity.getLatitude())
                 .longitude(entity.getLongitude())

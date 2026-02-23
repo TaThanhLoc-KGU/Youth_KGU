@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import accountService from '../../services/accountService';
 import useAuthStore from '../../stores/authStore';
@@ -44,8 +44,10 @@ export default function AccountManagementPage() {
   const canCreate  = hasPermission(PERMISSIONS.CREATE_TAI_KHOAN);
   const canEdit    = hasPermission(PERMISSIONS.EDIT_TAI_KHOAN);
   const canDelete  = hasPermission(PERMISSIONS.DELETE_TAI_KHOAN);
-  const [activeTab, setActiveTab] = useState('all'); // all | pending | search | create | bulk
+  const [activeTab, setActiveTab] = useState('all'); // all | pending | create | bulk
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [allSearchKeyword, setAllSearchKeyword] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL'); // ALL | SINH_VIEN | GV_CV | QUAN_TRI
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -112,6 +114,27 @@ export default function AccountManagementPage() {
     queryKey: ['banList'],
     queryFn: () => api.get('/api/ban').then(r => r.data?.data || r.data || [])
   });
+
+  // Client-side filtered accounts for the 'all' tab
+  const filteredAccounts = useMemo(() => {
+    let result = allAccounts;
+    if (roleFilter === 'SINH_VIEN') {
+      result = result.filter(a => a.vaiTro === 'SINH_VIEN');
+    } else if (roleFilter === 'GV_CV') {
+      result = result.filter(a => a.vaiTro === 'GIANG_VIEN' || a.vaiTro === 'CHUYEN_VIEN');
+    } else if (roleFilter === 'QUAN_TRI') {
+      result = result.filter(a => a.vaiTro !== 'SINH_VIEN' && a.vaiTro !== 'GIANG_VIEN' && a.vaiTro !== 'CHUYEN_VIEN');
+    }
+    if (allSearchKeyword.trim()) {
+      const kw = allSearchKeyword.toLowerCase();
+      result = result.filter(a =>
+        a.username?.toLowerCase().includes(kw) ||
+        a.email?.toLowerCase().includes(kw) ||
+        a.hoTen?.toLowerCase().includes(kw)
+      );
+    }
+    return result;
+  }, [allAccounts, roleFilter, allSearchKeyword]);
 
   // =================== Mutations ===================
 
@@ -414,19 +437,26 @@ export default function AccountManagementPage() {
                           </button>
                         </>
                       )}
-                      {activeTab !== 'all' && account.isActive && (
-                        <button
-                          onClick={() => setActiveMutation.mutate({ accountId: account.id, isActive: false })}
-                          className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded">
-                          Vô hiệu
-                        </button>
-                      )}
-                      {activeTab !== 'all' && !account.isActive && (
-                        <button
-                          onClick={() => setActiveMutation.mutate({ accountId: account.id, isActive: true })}
-                          className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded">
-                          Kích hoạt
-                        </button>
+                      {canEdit && (
+                        <div className="flex items-center gap-2 ml-2">
+                          <button
+                            onClick={() => setActiveMutation.mutate({ accountId: account.id, isActive: !account.isActive })}
+                            disabled={setActiveMutation.isPending}
+                            title={account.isActive ? "Vô hiệu hóa tài khoản" : "Kích hoạt tài khoản"}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                              account.isActive ? 'bg-green-500' : 'bg-gray-300'
+                            } ${setActiveMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                                account.isActive ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                          <span className={`text-xs font-medium ${account.isActive ? 'text-green-600' : 'text-gray-400'}`}>
+                            {account.isActive ? 'Hoạt động' : 'Vô hiệu'}
+                          </span>
+                        </div>
                       )}
                     </div>
                   </td>
@@ -453,7 +483,6 @@ export default function AccountManagementPage() {
         {[
           { key: 'all', label: 'Tất cả' },
           { key: 'pending', label: `Chờ phê duyệt (${pendingAccounts.length})` },
-          { key: 'search', label: 'Tìm kiếm' },
           ...(canCreate ? [
             { key: 'create', label: 'Thêm tài khoản' },
             { key: 'bulk', label: 'Tạo từ danh sách' },
@@ -461,7 +490,7 @@ export default function AccountManagementPage() {
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setSearchKeyword(''); }}
+            onClick={() => { setActiveTab(tab.key); setSearchKeyword(''); setAllSearchKeyword(''); setRoleFilter('ALL'); }}
             className={`px-4 py-2 font-semibold border-b-2 ${
               activeTab === tab.key
                 ? 'border-blue-600 text-blue-600'
@@ -473,26 +502,45 @@ export default function AccountManagementPage() {
         ))}
       </div>
 
-      {/* Search input */}
-      {activeTab === 'search' && (
-        <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo username, email hoặc tên..."
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      )}
-
       {/* Content */}
       <div className="bg-white rounded-lg shadow">
         {/* All accounts */}
         {activeTab === 'all' && (
           <div className="p-6">
-            <h2 className="text-xl font-bold mb-4">Tất cả tài khoản</h2>
-            <AccountTable accounts={allAccounts} loading={allAccountsLoading} showActions={true} />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <h2 className="text-xl font-bold">Tất cả tài khoản</h2>
+              <input
+                type="text"
+                placeholder="Tìm kiếm username, email, họ tên..."
+                value={allSearchKeyword}
+                onChange={(e) => setAllSearchKeyword(e.target.value)}
+                className="sm:w-72 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Role filter sub-tabs */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              {[
+                { key: 'ALL', label: `Tất cả (${allAccounts.length})` },
+                { key: 'SINH_VIEN', label: `Sinh viên (${allAccounts.filter(a => a.vaiTro === 'SINH_VIEN').length})` },
+                { key: 'GV_CV', label: `GV / Chuyên viên (${allAccounts.filter(a => a.vaiTro === 'GIANG_VIEN' || a.vaiTro === 'CHUYEN_VIEN').length})` },
+                { key: 'QUAN_TRI', label: `Quản trị (${allAccounts.filter(a => a.vaiTro !== 'SINH_VIEN' && a.vaiTro !== 'GIANG_VIEN' && a.vaiTro !== 'CHUYEN_VIEN').length})` },
+              ].map(rf => (
+                <button
+                  key={rf.key}
+                  onClick={() => setRoleFilter(rf.key)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                    roleFilter === rf.key
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {rf.label}
+                </button>
+              ))}
+            </div>
+
+            <AccountTable accounts={filteredAccounts} loading={allAccountsLoading} showActions={true} />
           </div>
         )}
 
@@ -502,17 +550,6 @@ export default function AccountManagementPage() {
             <h2 className="text-xl font-bold mb-4">Tài khoản chờ phê duyệt</h2>
             <AccountTable accounts={pendingAccounts} loading={pendingLoading} />
           </div>
-        )}
-
-        {/* Search results */}
-        {activeTab === 'search' && searchKeyword && (
-          <div className="p-6">
-            <h2 className="text-xl font-bold mb-4">Kết quả tìm kiếm</h2>
-            <AccountTable accounts={searchResults} loading={searchLoading} />
-          </div>
-        )}
-        {activeTab === 'search' && !searchKeyword && (
-          <div className="p-6 text-center text-gray-500">Nhập từ khóa để tìm kiếm tài khoản</div>
         )}
 
         {/* Create manual */}

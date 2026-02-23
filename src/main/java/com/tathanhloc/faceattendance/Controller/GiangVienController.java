@@ -127,7 +127,7 @@ public class GiangVienController {
      * Lấy danh sách giảng viên đang hoạt động
      */
     @GetMapping("/active")
-    @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN')")
+    @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN') or hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<List<GiangVienDTO>> getAllActive() {
         try {
             List<GiangVienDTO> activeGiangVien = giangVienService.getAllActive();

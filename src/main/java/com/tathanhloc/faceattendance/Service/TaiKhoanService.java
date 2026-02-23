@@ -112,6 +112,13 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
         return toDTO(taiKhoanRepository.save(existing));
     }
 
+    public TaiKhoanDTO updateStatus(Long id, boolean isActive) {
+        TaiKhoan existing = taiKhoanRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
+        existing.setIsActive(isActive);
+        return toDTO(taiKhoanRepository.save(existing));
+    }
+
     @Override
     protected TaiKhoanDTO toDTO(TaiKhoan tk) {
         return TaiKhoanDTO.builder()

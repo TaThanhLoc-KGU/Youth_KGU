@@ -488,6 +488,16 @@ export default function ActivityAttendancePage() {
     manualCheckOutMutation.mutate({ maSvList: [...selectedSvs] });
   };
 
+  const handleExportExcel = async () => {
+    try {
+      toast.info('Đang chuẩn bị file Excel...');
+      await diemDanhService.exportExcel(id);
+      toast.success('Tải về thành công!');
+    } catch (error) {
+      toast.error('Lỗi khi xuất file Excel');
+    }
+  };
+
   if (loadingActivity || loadingList) {
     return (
       <div className="p-8 text-center text-gray-500 flex items-center justify-center gap-2">
@@ -543,6 +553,14 @@ export default function ActivityAttendancePage() {
               <p className="text-xs text-red-600 font-semibold uppercase">Chưa điểm danh</p>
               <p className="text-xl font-bold text-red-700">{stats.notCheckedIn}</p>
             </div>
+            <button
+              onClick={handleExportExcel}
+              className="bg-green-600 hover:bg-green-700 text-white rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors"
+              title="Xuất file Excel danh sách tham gia"
+            >
+              <Download className="w-5 h-5 mb-1" />
+              <span className="text-[10px] font-bold uppercase">Xuất Excel</span>
+            </button>
           </div>
         </div>
       </div>

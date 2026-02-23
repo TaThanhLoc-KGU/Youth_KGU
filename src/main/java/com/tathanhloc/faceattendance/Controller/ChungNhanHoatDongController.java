@@ -140,6 +140,12 @@ public class ChungNhanHoatDongController {
         return ResponseEntity.ok(ApiResponse.success(certificates));
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public void rethrowAccessDenied(org.springframework.security.access.AccessDeniedException e)
+            throws org.springframework.security.access.AccessDeniedException {
+        throw e;
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("Error in ChungNhanHoatDongController", e);
