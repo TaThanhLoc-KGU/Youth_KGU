@@ -153,21 +153,99 @@ const attendanceService = {
     }
   },
 
-  exportReportExcel: async (type) => {
+  // Báo cáo hoạt động (theo khoảng ngày), có breakdown theo từng đoàn khoa
+  getActivityReport: async (params) => {
+    try {
+      const response = await api.get('/api/baocao/general', { params });
+      return response.data?.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching activity report:', error);
+      return [];
+    }
+  },
+
+  // Báo cáo tháng: trả về { data: [], tongHoatDong, tongDangKy, tongDiemDanh, tyLe }
+  getMonthlyReport: async (params) => {
+    try {
+      const response = await api.get('/api/baocao/thang', { params });
+      return response.data?.data || { data: [], tongHoatDong: 0, tongDangKy: 0, tongDiemDanh: 0, tyLe: 0 };
+    } catch (error) {
+      console.error('Error fetching monthly report:', error);
+      return { data: [], tongHoatDong: 0, tongDangKy: 0, tongDiemDanh: 0, tyLe: 0 };
+    }
+  },
+
+  // Báo cáo quý: trả về { tongHoatDong, tongDangKy, tongDiemDanh, tyLeTong, theoKhoa: [], soKhoaKhongThamGia }
+  getQuarterlyReport: async (params) => {
+    try {
+      const response = await api.get('/api/baocao/quy', { params });
+      return response.data?.data || { theoKhoa: [], tongHoatDong: 0, tongDangKy: 0, tongDiemDanh: 0, tyLeTong: 0, soKhoaKhongThamGia: 0 };
+    } catch (error) {
+      console.error('Error fetching quarterly report:', error);
+      return { theoKhoa: [], tongHoatDong: 0, tongDangKy: 0, tongDiemDanh: 0, tyLeTong: 0, soKhoaKhongThamGia: 0 };
+    }
+  },
+
+  exportReportExcel: async (type, params = {}) => {
     try {
       const response = await api.get(`/api/baocao/xuat/${type}`, {
+        params,
         responseType: 'blob',
       });
+      const filename = response.headers['content-disposition']
+        ?.match(/filename="?([^"]+)"?/)?.[1] || `bao_cao_${type}.xlsx`;
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `bao_cao_${type}.xlsx`);
+      link.setAttribute('download', decodeURIComponent(filename));
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting report:', error);
+      throw error;
+    }
+  },
+
+  // Xuất Excel báo cáo tháng
+  exportMonthlyExcel: async (from, to, month, year) => {
+    try {
+      const response = await api.get('/api/baocao/xuat/thang', {
+        params: { from, to, thang: month, nam: year },
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `bao_cao_thang_${month}_${year}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting monthly report:', error);
+      throw error;
+    }
+  },
+
+  // Xuất Excel báo cáo quý
+  exportQuarterlyExcel: async (from, to, quarter, year) => {
+    try {
+      const response = await api.get('/api/baocao/xuat/quy', {
+        params: { from, to, quy: quarter, nam: year },
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `bao_cao_quy${quarter}_${year}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting quarterly report:', error);
       throw error;
     }
   },

@@ -472,9 +472,9 @@ export default function AccountManagementPage() {
   // =================== Render ===================
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Quản lý tài khoản</h1>
+        <h1 className="text-xl sm:text-3xl font-bold text-gray-800">Quản lý tài khoản</h1>
         <p className="text-gray-600 mt-2">Quản lý tài khoản người dùng và phê duyệt đơn đăng ký</p>
       </div>
 

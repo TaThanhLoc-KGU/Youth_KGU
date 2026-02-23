@@ -115,13 +115,12 @@ const Pagination = ({
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 sm:px-6">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 sm:px-6">
       {/* Info */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         <p className="text-sm text-gray-700">
-          Hiển thị <span className="font-medium">{startItem}</span> đến{' '}
-          <span className="font-medium">{endItem}</span> trong tổng số{' '}
-          <span className="font-medium">{totalElements}</span> kết quả
+          Hiển thị <span className="font-medium">{startItem}</span>–<span className="font-medium">{endItem}</span>{' '}
+          / <span className="font-medium">{totalElements}</span>
         </p>
 
         {/* Page Size Selector */}
@@ -144,29 +143,29 @@ const Pagination = ({
       </div>
 
       {/* Pagination Buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <button
           onClick={() => onPageChange(0)}
           disabled={!canPreviousPage}
-          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Trang đầu"
         >
-          <ChevronsLeft className="w-5 h-5" />
+          <ChevronsLeft className="w-4 h-4" />
         </button>
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={!canPreviousPage}
-          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Trang trước"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-4 h-4" />
         </button>
 
-        {/* Page Numbers */}
-        <div className="flex items-center gap-1">
+        {/* Page Numbers - hidden on xs screens */}
+        <div className="hidden sm:flex items-center gap-1">
           {getPageNumbers().map((page, index) =>
             page === '...' ? (
-              <span key={`ellipsis-${index}`} className="px-3 py-1">
+              <span key={`ellipsis-${index}`} className="px-2 py-1 text-sm">
                 ...
               </span>
             ) : (
@@ -174,7 +173,7 @@ const Pagination = ({
                 key={page}
                 onClick={() => onPageChange(page)}
                 className={clsx(
-                  'px-3 py-1 rounded-lg transition-colors',
+                  'px-2.5 py-1 rounded-lg transition-colors text-sm',
                   page === currentPage
                     ? 'bg-primary text-white'
                     : 'hover:bg-gray-100'
@@ -186,21 +185,26 @@ const Pagination = ({
           )}
         </div>
 
+        {/* Current page on xs */}
+        <span className="sm:hidden px-2 py-1 text-sm text-gray-700">
+          {currentPage + 1}/{totalPages}
+        </span>
+
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={!canNextPage}
-          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Trang sau"
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-4 h-4" />
         </button>
         <button
           onClick={() => onPageChange(totalPages - 1)}
           disabled={!canNextPage}
-          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Trang cuối"
         >
-          <ChevronsRight className="w-5 h-5" />
+          <ChevronsRight className="w-4 h-4" />
         </button>
       </div>
     </div>

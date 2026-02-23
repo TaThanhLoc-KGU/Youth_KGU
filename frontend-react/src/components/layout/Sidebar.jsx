@@ -90,7 +90,7 @@ const ADMIN_SECTION_PERMS = [
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
-const Sidebar = () => {
+const Sidebar = ({ isOpen = false, onClose }) => {
   const location = useLocation();
   const { user, logout, hasPermission, hasAnyPermission, laBCH, danhSachChucVu } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -142,6 +142,7 @@ const Sidebar = () => {
       <li key={item.path}>
         <Link
           to={item.path}
+          onClick={onClose}
           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
             isActive
               ? 'bg-primary text-white'
@@ -173,10 +174,18 @@ const Sidebar = () => {
   );
 
   return (
+    <>
+      {/* Mobile backdrop overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={onClose}
+        />
+      )}
     <aside
       className={`fixed top-0 left-0 h-screen bg-white border-r border-gray-200 transition-all duration-300 z-40 flex flex-col ${
         isCollapsed ? 'w-20' : 'w-64'
-      }`}
+      } ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
     >
       {/* Logo */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 flex-shrink-0">
@@ -263,6 +272,7 @@ const Sidebar = () => {
           <li>
             <Link
               to={ROUTES.PROFILE}
+              onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
                 location.pathname === ROUTES.PROFILE ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
               } ${isCollapsed ? 'justify-center' : ''}`}
@@ -289,6 +299,7 @@ const Sidebar = () => {
         </button>
       </div>
     </aside>
+    </>
   );
 };
 

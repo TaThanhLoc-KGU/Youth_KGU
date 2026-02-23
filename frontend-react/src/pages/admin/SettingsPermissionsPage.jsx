@@ -538,11 +538,11 @@ function AccountPermissionsTab() {
 export default function SettingsPermissionsPage() {
   const [tab, setTab] = useState('role');
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="flex items-center gap-3 mb-6">
         <Shield className="w-7 h-7 text-blue-600" />
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Cài đặt & Phân quyền</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Cài đặt & Phân quyền</h1>
           <p className="text-gray-500 text-sm">Quản lý quyền truy cập theo nhóm và từng tài khoản cụ thể</p>
         </div>
       </div>

@@ -243,9 +243,9 @@ const ChuyenVien = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý Chuyên viên</h1>
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Quản lý Chuyên viên</h1>
           <p className="text-gray-600 mt-1">Quản lý thông tin chuyên viên Ban Đoàn - Hội</p>
         </div>
         {canManage && (

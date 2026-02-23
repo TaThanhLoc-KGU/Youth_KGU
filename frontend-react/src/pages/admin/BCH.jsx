@@ -268,9 +268,9 @@ const BCH = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý Ban Chấp hành</h1>
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Quản lý Ban Chấp hành</h1>
           <p className="text-gray-600 mt-1">Quản lý thành viên Ban Chấp hành Đoàn - Hội</p>
         </div>
         {canManage && (
@@ -281,7 +281,7 @@ const BCH = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <div className="text-center">
             <div className="text-3xl font-bold text-primary">{stats.totalBCH || 0}</div>

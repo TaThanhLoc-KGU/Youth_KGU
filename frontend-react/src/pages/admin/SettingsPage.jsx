@@ -110,9 +110,9 @@ export default function SettingsPage() {
   const hasPermissions = Object.keys(permissions).length > 0;
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Cài đặt phân quyền</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Cài đặt phân quyền</h1>
         <p className="text-gray-500 mt-1">Quản lý quyền chức năng cho từng tài khoản quản lý</p>
       </div>
 

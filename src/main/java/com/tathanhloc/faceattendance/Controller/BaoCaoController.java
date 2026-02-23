@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.Map;
 
 @RestController
@@ -30,11 +31,38 @@ public class BaoCaoController {
     @Operation(summary = "Xuất báo cáo ra file Excel")
     @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<InputStreamResource> exportReport(
-            @PathVariable String type) throws IOException {
-        log.info("GET /api/baocao/xuat/{}", type);
-        ByteArrayInputStream in = statisticsService.exportGeneralReport(type);
+            @PathVariable String type,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Integer thang,
+            @RequestParam(required = false) Integer quy,
+            @RequestParam(required = false) Integer nam) throws IOException {
+
+        log.info("GET /api/baocao/xuat/{} from={} to={} thang={} quy={} nam={}", type, from, to, thang, quy, nam);
+
+        int y = nam != null ? nam : LocalDate.now().getYear();
+        ByteArrayInputStream in;
+        String filename;
+
+        switch (type) {
+            case "thang":
+                in = statisticsService.exportMonthlyReport(from, to, thang, nam);
+                filename = String.format("bao_cao_thang_%s_%d.xlsx",
+                        thang != null ? thang : LocalDate.now().getMonthValue(), y);
+                break;
+            case "quy":
+                in = statisticsService.exportQuarterlyReport(from, to, quy, nam);
+                filename = String.format("bao_cao_quy_%s_%d.xlsx",
+                        quy != null ? quy : "", y);
+                break;
+            default:
+                in = statisticsService.exportGeneralReport(from, to);
+                filename = "bao_cao_hoat_dong.xlsx";
+        }
+
         HttpHeaders headers = new HttpHeaders();
-        headers.add("Content-Disposition", "attachment; filename=bao_cao_" + type + ".xlsx");
+        String encodedName = new String(filename.getBytes("UTF-8"), "ISO-8859-1");
+        headers.add("Content-Disposition", "attachment; filename=\"" + encodedName + "\"");
 
         return ResponseEntity.ok()
                 .headers(headers)
