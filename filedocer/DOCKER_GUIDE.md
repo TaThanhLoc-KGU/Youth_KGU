@@ -102,24 +102,24 @@ docker-compose exec mysql mysql -u root -p
 ### Build backend
 
 ```bash
-docker build -t face-attendance-backend:latest .
+docker build -t youth-kgu-backend:latest .
 ```
 
 ### Build frontend
 
 ```bash
-docker build -t face-attendance-frontend:latest ./frontend-react
+docker build -t youth-kgu-frontend:latest ./frontend-react
 ```
 
 ### Chạy backend container riêng
 
 ```bash
-docker run --name face-attendance-backend \
+docker run --name youth-kgu-backend \
   -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/face_attendance_activity \
   -e SPRING_DATASOURCE_USERNAME=root \
   -e SPRING_DATASOURCE_PASSWORD=yourpassword \
   -p 8080:8080 \
-  face-attendance-backend:latest
+  youth-kgu-backend:latest
 ```
 
 ## 🐛 Troubleshooting
@@ -205,7 +205,7 @@ Có thể thêm vào GitHub Actions, GitLab CI, v.v:
 docker-compose build
 
 # Push to registry
-docker tag face-attendance-backend:latest your-registry/backend:latest
+docker tag youth-kgu-backend:latest your-registry/backend:latest
 docker push your-registry/backend:latest
 ```
 

@@ -24,7 +24,7 @@ services:
 
     image: mysql:8.0
 
-    container_name: face-attendance-mysql
+    container_name: youth-kgu-mysql
 
     environment:
 
@@ -111,7 +111,7 @@ services:
 
       dockerfile: Dockerfile
 
-    container_name: face-attendance-backend
+    container_name: youth-kgu-backend
 
     environment:
 
@@ -233,7 +233,7 @@ services:
 
       dockerfile: Dockerfile
 
-    container_name: face-attendance-frontend
+    container_name: youth-kgu-frontend
 
     environment:
 

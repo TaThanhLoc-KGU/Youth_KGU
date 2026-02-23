@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.tathanhloc</groupId>
-    <artifactId>face-attendance</artifactId>
+    <artifactId>youth-kgu</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>face-attendance</name>
-    <description>face-attendance</description>
+    <name>youth-kgu</name>
+    <description>Youth KGU Attendance System</description>
     <url/>
     <licenses>
         <license/>
