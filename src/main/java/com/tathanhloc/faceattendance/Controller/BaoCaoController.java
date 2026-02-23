@@ -27,6 +27,14 @@ public class BaoCaoController {
 
     private final StatisticsService statisticsService;
 
+    @GetMapping("/dashboard")
+    @Operation(summary = "Dashboard thống kê tổng hợp")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboard() {
+        log.info("GET /api/baocao/dashboard");
+        return ResponseEntity.ok(ApiResponse.success(statisticsService.getDashboardData()));
+    }
+
     @GetMapping("/xuat/{type}")
     @Operation(summary = "Xuất báo cáo ra file Excel")
     @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")

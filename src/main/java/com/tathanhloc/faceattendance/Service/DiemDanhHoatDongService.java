@@ -36,6 +36,7 @@ public class DiemDanhHoatDongService {
     private final SinhVienRepository sinhVienRepository;
     private final BCHDoanHoiRepository bchRepository;
     private final QRCodeService qrCodeService;
+    private final NotificationService notificationService;
 
     // ========== QR CODE ATTENDANCE ==========
 
@@ -176,6 +177,15 @@ public class DiemDanhHoatDongService {
 
         diemDanh = diemDanhRepository.save(diemDanh);
         log.info("Check-in successful: student={}, activity={}", dangKy.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
+
+        notificationService.sendNotification(
+                dangKy.getSinhVien().getMaSv(),
+                "Check-in thành công",
+                "Bạn đã check-in thành công hoạt động \"" + hoatDong.getTenHoatDong() + "\".",
+                "ATTENDANCE_CHECKIN",
+                hoatDong.getMaHoatDong()
+        );
+
         return DiemDanhQRResponse.success("Check-in thành công", toDTO(diemDanh));
     }
 
@@ -226,6 +236,15 @@ public class DiemDanhHoatDongService {
 
         diemDanh = diemDanhRepository.save(diemDanh);
         log.info("QR checkout successful: student={}, activity={}", diemDanh.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
+
+        notificationService.sendNotification(
+                diemDanh.getSinhVien().getMaSv(),
+                "Kết quả điểm danh",
+                "Bạn đã hoàn thành hoạt động \"" + hoatDong.getTenHoatDong() + "\". Điểm rèn luyện sẽ được cập nhật sớm.",
+                "ATTENDANCE_RESULT",
+                hoatDong.getMaHoatDong()
+        );
+
         return DiemDanhQRResponse.success("Check-out thành công", toDTO(diemDanh));
     }
 

@@ -2,6 +2,7 @@ package com.tathanhloc.faceattendance.Repository;
 
 import com.tathanhloc.faceattendance.Enum.TrangThaiThamGiaEnum;
 import com.tathanhloc.faceattendance.Model.DiemDanhHoatDong;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -99,4 +100,21 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             @Param("maHoatDong") String maHoatDong,
             @Param("trangThai") TrangThaiThamGiaEnum trangThai
     );
+
+    // ========== DASHBOARD QUERIES ==========
+
+    @Query("SELECT d.hoatDong.maHoatDong, d.hoatDong.tenHoatDong, d.hoatDong.ngayToChuc, COUNT(d) " +
+            "FROM DiemDanhHoatDong d WHERE d.trangThai = 'DA_THAM_GIA' " +
+            "GROUP BY d.hoatDong.maHoatDong, d.hoatDong.tenHoatDong, d.hoatDong.ngayToChuc " +
+            "ORDER BY COUNT(d) DESC")
+    List<Object[]> findTopActivitiesByAttendance(Pageable pageable);
+
+    @Query("SELECT d.sinhVien.maSv, d.sinhVien.hoTen, COUNT(d) " +
+            "FROM DiemDanhHoatDong d WHERE d.trangThai = 'DA_THAM_GIA' " +
+            "GROUP BY d.sinhVien.maSv, d.sinhVien.hoTen " +
+            "ORDER BY COUNT(d) DESC")
+    List<Object[]> findTopStudentsByParticipation(Pageable pageable);
+
+    @Query("SELECT COUNT(d) FROM DiemDanhHoatDong d WHERE d.trangThai = :trangThai")
+    long countByTrangThai(@Param("trangThai") TrangThaiThamGiaEnum trangThai);
 }

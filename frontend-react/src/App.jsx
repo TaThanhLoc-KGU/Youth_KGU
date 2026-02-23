@@ -84,6 +84,38 @@ const NotFound = () => {
   );
 };
 
+// Quyền mở khóa trang quản trị (đồng bộ với Login.jsx)
+const ADMIN_SECTION_PERMS = [
+  PERMISSIONS.XEM_SINH_VIEN, PERMISSIONS.XEM_GIANG_VIEN, PERMISSIONS.XEM_CHUYEN_VIEN,
+  PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
+  PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
+  PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
+  PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
+];
+
+/**
+ * SmartRedirect: dùng cho path "/".
+ * - Chưa đăng nhập → /login
+ * - Đã đăng nhập   → dashboard phù hợp với role/permission
+ */
+const SmartRedirect = () => {
+  const { isAuthenticated, user, permissions, laBCH } = useAuthStore();
+  if (!isAuthenticated) {
+    return <Navigate to={ROUTES.LOGIN} replace />;
+  }
+  const hasAdminPerm = ADMIN_SECTION_PERMS.some((p) => permissions.includes(p));
+  if (user?.vaiTro === ROLES.ADMIN || hasAdminPerm) {
+    return <Navigate to={ROUTES.ADMIN_DASHBOARD} replace />;
+  }
+  if (laBCH) {
+    return <Navigate to={ROUTES.BCH_DASHBOARD} replace />;
+  }
+  if (user?.vaiTro === ROLES.SINHVIEN) {
+    return <Navigate to={ROUTES.STUDENT_DASHBOARD} replace />;
+  }
+  return <Navigate to={ROUTES.PROFILE} replace />;
+};
+
 function App() {
   const { checkAuth } = useAuthStore();
 
@@ -283,8 +315,8 @@ function App() {
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />
 
-        {/* Home - redirect to login */}
-        <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.LOGIN} replace />} />
+        {/* Home - smart redirect: chưa đăng nhập → login, đã đăng nhập → dashboard */}
+        <Route path={ROUTES.HOME} element={<SmartRedirect />} />
       </Routes>
     </ErrorBoundary>
   );

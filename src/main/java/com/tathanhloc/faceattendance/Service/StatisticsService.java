@@ -7,6 +7,7 @@ import com.tathanhloc.faceattendance.Model.*;
 import com.tathanhloc.faceattendance.Repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.poi.ss.usermodel.*;
@@ -223,6 +224,115 @@ public class StatisticsService {
         if (heThong > 0) statistics.put("Hệ thống", heThong);
 
         return statistics;
+    }
+
+    // ==================== DASHBOARD TỔNG HỢP ====================
+
+    public Map<String, Object> getDashboardData() {
+        log.info("Building unified dashboard data");
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        // ---- 1. Tổng quan ----
+        long tongHoatDong = hoatDongRepository.count();
+        long tongDangKy = dangKyHoatDongRepository.count();
+        long tongDiemDanh = diemDanhHoatDongRepository.countByTrangThai(TrangThaiThamGiaEnum.DA_THAM_GIA);
+        double tyLeThamGia = tongDangKy > 0
+                ? Math.round((double) tongDiemDanh / tongDangKy * 100 * 10.0) / 10.0 : 0.0;
+
+        // ---- Tính theoKhoa (dùng lại để tính soKhoaThamGia) ----
+        Map<String, long[]> facultyMap = new LinkedHashMap<>();
+        diemDanhHoatDongRepository.findAll().forEach(dd -> {
+            if (TrangThaiThamGiaEnum.DA_THAM_GIA.equals(dd.getTrangThai())) {
+                String tenKhoa = getFacultyName(dd.getSinhVien());
+                facultyMap.computeIfAbsent(tenKhoa, k -> new long[]{0, 0})[1]++;
+            }
+        });
+        dangKyHoatDongRepository.findAll().stream()
+                .filter(dk -> Boolean.TRUE.equals(dk.getIsActive()))
+                .forEach(dk -> {
+                    String tenKhoa = getFacultyName(dk.getSinhVien());
+                    facultyMap.computeIfAbsent(tenKhoa, k -> new long[]{0, 0})[0]++;
+                });
+
+        long soKhoaThamGia = facultyMap.values().stream().filter(stats -> stats[1] > 0).count();
+
+        Map<String, Object> tongQuan = new LinkedHashMap<>();
+        tongQuan.put("tongHoatDong", tongHoatDong);
+        tongQuan.put("tongDiemDanh", tongDiemDanh);
+        tongQuan.put("tyLeThamGia", tyLeThamGia);
+        tongQuan.put("soKhoaThamGia", soKhoaThamGia);
+        result.put("tongQuan", tongQuan);
+
+        // ---- 2. Xu hướng theo tháng (12 tháng gần nhất) ----
+        List<Map<String, Object>> trend = new ArrayList<>();
+        for (int i = 11; i >= 0; i--) {
+            LocalDate month = LocalDate.now().minusMonths(i);
+            LocalDate start = month.withDayOfMonth(1);
+            LocalDate end = month.withDayOfMonth(month.lengthOfMonth());
+
+            List<HoatDong> activities = hoatDongRepository.findByDateRange(start, end);
+            long soHoatDong = activities.size();
+            long tongDangKyThang = activities.stream()
+                    .mapToLong(hd -> dangKyHoatDongRepository.countByHoatDongMaHoatDongAndIsActiveTrue(hd.getMaHoatDong()))
+                    .sum();
+            long tongDiemDanhThang = activities.stream()
+                    .mapToLong(hd -> diemDanhHoatDongRepository.countByHoatDongMaHoatDong(hd.getMaHoatDong()))
+                    .sum();
+            double tyLe = tongDangKyThang > 0
+                    ? Math.round((double) tongDiemDanhThang / tongDangKyThang * 100 * 10.0) / 10.0 : 0.0;
+
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("thang", month.getYear() + "-" + String.format("%02d", month.getMonthValue()));
+            m.put("soHoatDong", soHoatDong);
+            m.put("tongDangKy", tongDangKyThang);
+            m.put("tongDiemDanh", tongDiemDanhThang);
+            m.put("tyLe", tyLe);
+            trend.add(m);
+        }
+        result.put("xuHuongTheoThang", trend);
+
+        // ---- 3. Top 5 hoạt động theo điểm danh ----
+        List<Object[]> topActivitiesRaw = diemDanhHoatDongRepository
+                .findTopActivitiesByAttendance(PageRequest.of(0, 5));
+        List<Map<String, Object>> topHoatDong = topActivitiesRaw.stream().map(row -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("maHoatDong", row[0]);
+            m.put("tenHoatDong", row[1]);
+            m.put("ngayToChuc", row[2]);
+            m.put("tongDiemDanh", row[3]);
+            return m;
+        }).collect(Collectors.toList());
+        result.put("topHoatDong", topHoatDong);
+
+        // ---- 4. Top 10 sinh viên theo số lần tham gia ----
+        List<Object[]> topStudentsRaw = diemDanhHoatDongRepository
+                .findTopStudentsByParticipation(PageRequest.of(0, 10));
+        List<Map<String, Object>> topSinhVien = topStudentsRaw.stream().map(row -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("maSv", row[0]);
+            m.put("hoTen", row[1]);
+            m.put("soLan", row[2]);
+            return m;
+        }).collect(Collectors.toList());
+        result.put("topSinhVien", topSinhVien);
+
+        // ---- 5. Theo khoa ----
+        List<Map<String, Object>> theoKhoa = facultyMap.entrySet().stream()
+                .map(e -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("tenKhoa", e.getKey());
+                    long dk = e.getValue()[0];
+                    long dd = e.getValue()[1];
+                    m.put("tongDangKy", dk);
+                    m.put("tongDiemDanh", dd);
+                    m.put("tyLe", dk > 0 ? Math.round((double) dd / dk * 100 * 10.0) / 10.0 : 0.0);
+                    return m;
+                })
+                .sorted((a, b) -> Double.compare((Double) b.get("tyLe"), (Double) a.get("tyLe")))
+                .collect(Collectors.toList());
+        result.put("theoKhoa", theoKhoa);
+
+        return result;
     }
 
     // ==================== THỐNG KÊ TỔNG QUAN ====================

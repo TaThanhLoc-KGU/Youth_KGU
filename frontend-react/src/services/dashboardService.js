@@ -1,6 +1,17 @@
 import api from './api';
 
 const dashboardService = {
+  // Get unified dashboard stats (tongQuan, xuHuongTheoThang, topHoatDong, topSinhVien, theoKhoa)
+  getDashboardStats: async () => {
+    try {
+      const response = await api.get('/api/baocao/dashboard');
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      return null;
+    }
+  },
+
   // Get dashboard overview
   getDashboard: async () => {
     try {

@@ -36,6 +36,7 @@ public class HoatDongService {
     private final DiemDanhHoatDongRepository diemDanhRepository;
     private final NamHocRepository namHocRepository;
     private final DiemRenLuyenCriteriaService criteriaService;
+    private final NotificationService notificationService;
 
     // ========== CRUD OPERATIONS ==========
 
@@ -76,6 +77,15 @@ public class HoatDongService {
         HoatDong hoatDong = toEntity(dto);
         hoatDong.setIsActive(true);
         hoatDong = hoatDongRepository.save(hoatDong);
+
+        if (hoatDong.getTrangThai() == TrangThaiHoatDongEnum.DANG_MO_DANG_KY) {
+            notificationService.sendNotificationToAllStudents(
+                    "Hoạt động mới mở đăng ký",
+                    "Hoạt động \"" + hoatDong.getTenHoatDong() + "\" đã mở cổng đăng ký. Hãy tham gia ngay!",
+                    "NEW_ACTIVITY",
+                    hoatDong.getMaHoatDong()
+            );
+        }
 
         log.info("Activity created successfully: {}", hoatDong.getMaHoatDong());
         return toDTO(hoatDong);
@@ -185,6 +195,13 @@ public class HoatDongService {
         hoatDong.setTrangThai(TrangThaiHoatDongEnum.DANG_MO_DANG_KY);
         hoatDongRepository.save(hoatDong);
 
+        notificationService.sendNotificationToAllStudents(
+                "Mở đăng ký hoạt động",
+                "Hoạt động \"" + hoatDong.getTenHoatDong() + "\" đã mở đăng ký. Đăng ký ngay!",
+                "HOAT_DONG_MOI",
+                maHoatDong
+        );
+
         log.info("Registration opened for: {}", maHoatDong);
     }
 
@@ -226,6 +243,16 @@ public class HoatDongService {
         hoatDong.setChoPhepDangKy(false);
         hoatDongRepository.save(hoatDong);
 
+        long daThamGia = diemDanhRepository.countByHoatDongMaHoatDong(maHoatDong);
+        long soDangKy = dangKyRepository.countByHoatDongMaHoatDongAndIsActiveTrue(maHoatDong);
+        notificationService.sendNotificationToAllStudents(
+                "Hoạt động đã hoàn thành",
+                "Hoạt động \"" + hoatDong.getTenHoatDong() + "\" đã hoàn thành với "
+                        + daThamGia + "/" + soDangKy + " sinh viên tham gia.",
+                "KET_QUA",
+                maHoatDong
+        );
+
         log.info("Activity completed: {}", maHoatDong);
     }
 
@@ -240,6 +267,13 @@ public class HoatDongService {
         hoatDong.setChoPhepDangKy(false);
         hoatDong.setGhiChu(hoatDong.getGhiChu() + "\n[HỦY] " + lyDo);
         hoatDongRepository.save(hoatDong);
+
+        notificationService.sendNotificationToAllStudents(
+                "Hoạt động bị hủy",
+                "Hoạt động \"" + hoatDong.getTenHoatDong() + "\" đã bị hủy. Lý do: " + lyDo,
+                "HE_THONG",
+                maHoatDong
+        );
 
         log.info("Activity cancelled: {}", maHoatDong);
     }

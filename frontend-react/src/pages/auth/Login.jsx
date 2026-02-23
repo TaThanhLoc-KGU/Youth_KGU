@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
@@ -24,6 +24,30 @@ const Login = () => {
   const queryClient = useQueryClient();
   const login = useAuthStore((state) => state.login);
   const reset = useAuthStore((state) => state.reset);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const authUser = useAuthStore((state) => state.user);
+  const permissions = useAuthStore((state) => state.permissions);
+  const laBCH = useAuthStore((state) => state.laBCH);
+
+  // Nếu đã đăng nhập, tự động chuyển đến trang phù hợp
+  useEffect(() => {
+    if (!isAuthenticated || !authUser) return;
+    const from = location.state?.from?.pathname;
+    if (from && from !== ROUTES.LOGIN) {
+      navigate(from, { replace: true });
+      return;
+    }
+    const hasAdminPerm = ADMIN_SECTION_PERMS.some((p) => permissions.includes(p));
+    if (authUser.vaiTro === ROLES.ADMIN || hasAdminPerm) {
+      navigate(ROUTES.ADMIN_DASHBOARD, { replace: true });
+    } else if (laBCH) {
+      navigate(ROUTES.BCH_DASHBOARD, { replace: true });
+    } else if (authUser.vaiTro === ROLES.SINHVIEN) {
+      navigate(ROUTES.STUDENT_DASHBOARD, { replace: true });
+    } else {
+      navigate(ROUTES.PROFILE, { replace: true });
+    }
+  }, [isAuthenticated]);
 
   const {
     register,
