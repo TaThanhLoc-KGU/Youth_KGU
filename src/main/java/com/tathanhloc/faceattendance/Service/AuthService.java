@@ -263,7 +263,10 @@ public class AuthService {
                 .id(taiKhoan.getId())
                 .username(taiKhoan.getUsername())
                 .vaiTro(taiKhoan.getVaiTro())
-                .isActive(taiKhoan.getIsActive());
+                .isActive(taiKhoan.getIsActive())
+                // Lấy hoTen trực tiếp từ bảng taikhoan làm giá trị mặc định
+                // (sẽ bị override bởi linked entity bên dưới nếu có)
+                .hoTen(taiKhoan.getHoTen());
 
         // Load info from linked entity
         if (taiKhoan.getSinhVien() != null) {

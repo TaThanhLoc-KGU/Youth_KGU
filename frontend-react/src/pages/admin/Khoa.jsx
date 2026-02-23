@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
 import khoaService from '../../services/khoaService';
 import Table from '../../components/common/Table';
@@ -78,6 +80,8 @@ const KhoaForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
 
 const Khoa = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canManage = hasPermission(PERMISSIONS.CAI_DAT_HE_THONG);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -143,27 +147,31 @@ const Khoa = () => {
       accessor: 'actions',
       render: (_, row) => (
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Edit}
-            onClick={() => {
-              setSelectedKhoa(row);
-              setModalMode('edit');
-              setIsModalOpen(true);
-            }}
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Trash2}
-            className="text-red-600"
-            onClick={() => {
-              if (window.confirm(`Xóa khoa ${row.tenKhoa}?`)) {
-                deleteMutation.mutate(row.maKhoa);
-              }
-            }}
-          />
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Edit}
+              onClick={() => {
+                setSelectedKhoa(row);
+                setModalMode('edit');
+                setIsModalOpen(true);
+              }}
+            />
+          )}
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Trash2}
+              className="text-red-600"
+              onClick={() => {
+                if (window.confirm(`Xóa khoa ${row.tenKhoa}?`)) {
+                  deleteMutation.mutate(row.maKhoa);
+                }
+              }}
+            />
+          )}
         </div>
       ),
     },
@@ -176,13 +184,15 @@ const Khoa = () => {
           <h1 className="text-2xl font-bold text-gray-900">Quản lý Khoa</h1>
           <p className="text-gray-600 mt-1">Quản lý các khoa/bộ môn</p>
         </div>
-        <Button icon={Plus} onClick={() => {
-          setSelectedKhoa(null);
-          setModalMode('create');
-          setIsModalOpen(true);
-        }}>
-          Thêm khoa
-        </Button>
+        {canManage && (
+          <Button icon={Plus} onClick={() => {
+            setSelectedKhoa(null);
+            setModalMode('create');
+            setIsModalOpen(true);
+          }}>
+            Thêm khoa
+          </Button>
+        )}
       </div>
 
       <Card>

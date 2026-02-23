@@ -35,7 +35,7 @@ public class AccountController {
      * Lấy danh sách tất cả tài khoản (Admin only)
      */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'XEM_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<List<AccountDTO>>> getAllAccounts() {
         log.info("GET /api/accounts - Lấy danh sách tất cả tài khoản");
         try {
@@ -62,7 +62,7 @@ public class AccountController {
      * Tìm kiếm tài khoản (Admin only)
      */
     @GetMapping("/search")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'XEM_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<List<AccountDTO>>> searchAccounts(@RequestParam String keyword) {
         log.info("GET /api/accounts/search?keyword={}", keyword);
         try {
@@ -89,6 +89,7 @@ public class AccountController {
      * Lấy thông tin tài khoản theo ID
      */
     @GetMapping("/{accountId}")
+    @PreAuthorize("hasPermission(null, 'XEM_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<AccountDTO>> getAccountById(@PathVariable Long accountId) {
         log.info("GET /api/accounts/{} - Lấy thông tin tài khoản", accountId);
         try {
@@ -123,7 +124,7 @@ public class AccountController {
      * Lấy danh sách tài khoản chờ phê duyệt (Admin only)
      */
     @GetMapping("/pending-approval")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'DUYET_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<List<AccountDTO>>> getPendingApprovalAccounts() {
         log.info("GET /api/accounts/pending-approval - Lấy danh sách tài khoản chờ phê duyệt");
         try {
@@ -187,7 +188,7 @@ public class AccountController {
      * Phê duyệt tài khoản (admin only)
      */
     @PostMapping("/{accountId}/approve")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'DUYET_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<AccountDTO>> approveAccount(
             @PathVariable Long accountId,
             @RequestParam(required = false) String ghiChu) {
@@ -217,7 +218,7 @@ public class AccountController {
      * Cập nhật thông tin tài khoản (Admin only)
      */
     @PutMapping("/{accountId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'SUA_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<AccountDTO>> updateAccount(
             @PathVariable Long accountId,
             @RequestBody AccountDTO request) {
@@ -255,6 +256,7 @@ public class AccountController {
      * Cập nhật hồ sơ cá nhân (User)
      */
     @PutMapping("/{accountId}/profile")
+    @PreAuthorize("hasPermission(null, 'SUA_THONG_TIN_CA_NHAN')")
     public ResponseEntity<ApiResponse<AccountDTO>> updateProfile(
             @PathVariable Long accountId,
             @RequestBody AccountDTO request) {
@@ -292,7 +294,7 @@ public class AccountController {
      * Tạo tài khoản thủ công (Admin only) — POST /api/accounts/create-manual
      */
     @PostMapping("/create-manual")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'TAO_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<AccountDTO>> createAccountManually(
             @Valid @RequestBody CreateAccountRequest request) {
         log.info("POST /api/accounts/create-manual - Tạo tài khoản thủ công: {}", request.getUsername());
@@ -326,7 +328,7 @@ public class AccountController {
      * type: SINH_VIEN | GIANG_VIEN | CHUYEN_VIEN
      */
     @GetMapping("/without-account/{type}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'TAO_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getWithoutAccount(
             @PathVariable String type) {
         log.info("GET /api/accounts/without-account/{}", type);
@@ -342,7 +344,7 @@ public class AccountController {
      * Tạo hàng loạt tài khoản — POST /api/accounts/bulk-create
      */
     @PostMapping("/bulk-create")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'TAO_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> bulkCreate(
             @RequestBody List<CreateAccountRequest> requests) {
         log.info("POST /api/accounts/bulk-create - {} accounts", requests.size());
@@ -358,7 +360,7 @@ public class AccountController {
      * Xóa tài khoản (Admin only)
      */
     @DeleteMapping("/{accountId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'XOA_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<Void>> deleteAccount(@PathVariable Long accountId) {
         log.info("DELETE /api/accounts/{} - Xóa tài khoản", accountId);
 

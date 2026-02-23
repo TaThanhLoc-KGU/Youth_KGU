@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,6 +30,7 @@ public class BCHDoanHoiController {
 
     @GetMapping
     @Operation(summary = "Lấy tất cả BCH")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getAll() {
         log.info("GET /api/bch");
         List<BCHDoanHoiDTO> list = bchService.getAll();
@@ -37,6 +39,7 @@ public class BCHDoanHoiController {
 
     @GetMapping("/{maBch}")
     @Operation(summary = "Lấy chi tiết BCH")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<BCHDoanHoiDTO>> getById(@PathVariable String maBch) {
         log.info("GET /api/bch/{}", maBch);
         BCHDoanHoiDTO dto = bchService.getById(maBch);
@@ -45,6 +48,7 @@ public class BCHDoanHoiController {
 
     @PostMapping
     @Operation(summary = "Tạo BCH mới (mã tự động: BCHKGU0001)")
+    @PreAuthorize("hasPermission(null, 'THEM_BCH')")
     public ResponseEntity<ApiResponse<BCHDoanHoiDTO>> create(@RequestBody BCHDoanHoiDTO dto) {
         log.info("POST /api/bch - Type: {}, Member: {}", dto.getLoaiThanhVien(), dto.getMaThanhVien());
         BCHDoanHoiDTO created = bchService.create(dto);
@@ -54,6 +58,7 @@ public class BCHDoanHoiController {
 
     @PutMapping("/{maBch}")
     @Operation(summary = "Cập nhật BCH")
+    @PreAuthorize("hasPermission(null, 'SUA_BCH')")
     public ResponseEntity<ApiResponse<BCHDoanHoiDTO>> update(
             @PathVariable String maBch,
             @RequestBody BCHDoanHoiDTO dto) {
@@ -64,6 +69,7 @@ public class BCHDoanHoiController {
 
     @DeleteMapping("/{maBch}")
     @Operation(summary = "Xóa BCH (soft delete)")
+    @PreAuthorize("hasPermission(null, 'XOA_BCH')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String maBch) {
         log.info("DELETE /api/bch/{}", maBch);
         bchService.delete(maBch);
@@ -74,6 +80,7 @@ public class BCHDoanHoiController {
 
     @PostMapping("/{maBch}/chuc-vu")
     @Operation(summary = "Thêm chức vụ cho BCH")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUC_VU')")
     public ResponseEntity<ApiResponse<BCHChucVuDTO>> addChucVu(
             @PathVariable String maBch,
             @RequestBody BCHChucVuDTO dto) {
@@ -85,6 +92,7 @@ public class BCHDoanHoiController {
 
     @DeleteMapping("/chuc-vu/{id}")
     @Operation(summary = "Xóa chức vụ của BCH")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUC_VU')")
     public ResponseEntity<ApiResponse<Void>> removeChucVu(@PathVariable Long id) {
         log.info("DELETE /api/bch/chuc-vu/{}", id);
         bchService.removeChucVu(id);
@@ -93,6 +101,7 @@ public class BCHDoanHoiController {
 
     @GetMapping("/{maBch}/chuc-vu")
     @Operation(summary = "Lấy danh sách chức vụ của BCH")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<BCHChucVuDTO>>> getChucVuByBCH(
             @PathVariable String maBch) {
         log.info("GET /api/bch/{}/chuc-vu", maBch);
@@ -104,6 +113,7 @@ public class BCHDoanHoiController {
 
     @GetMapping("/search")
     @Operation(summary = "Tìm kiếm BCH theo từ khóa")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> search(
             @RequestParam String keyword) {
         log.info("GET /api/bch/search?keyword={}", keyword);
@@ -113,6 +123,7 @@ public class BCHDoanHoiController {
 
     @GetMapping("/loai/{loaiThanhVien}")
     @Operation(summary = "Lọc BCH theo loại thành viên")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getByLoaiThanhVien(
             @PathVariable LoaiThanhVienEnum loaiThanhVien) {
         log.info("GET /api/bch/loai/{}", loaiThanhVien);
@@ -122,6 +133,7 @@ public class BCHDoanHoiController {
 
     @GetMapping("/nhiem-ky/{nhiemKy}")
     @Operation(summary = "Lọc BCH theo nhiệm kỳ")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getByNhiemKy(
             @PathVariable String nhiemKy) {
         log.info("GET /api/bch/nhiem-ky/{}", nhiemKy);
@@ -131,6 +143,7 @@ public class BCHDoanHoiController {
 
     @GetMapping("/chuc-vu/{maChucVu}/bch")
     @Operation(summary = "Lấy BCH theo chức vụ")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getBCHByChucVu(
             @PathVariable String maChucVu) {
         log.info("GET /api/bch/chuc-vu/{}/bch", maChucVu);
@@ -140,6 +153,7 @@ public class BCHDoanHoiController {
 
     @GetMapping("/ban/{maBan}/bch")
     @Operation(summary = "Lấy BCH theo ban")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<BCHDoanHoiDTO>>> getBCHByBan(
             @PathVariable String maBan) {
         log.info("GET /api/bch/ban/{}/bch", maBan);
@@ -151,6 +165,7 @@ public class BCHDoanHoiController {
 
     @GetMapping("/statistics")
     @Operation(summary = "Thống kê BCH")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics() {
         log.info("GET /api/bch/statistics");
         Map<String, Object> stats = bchService.getStatistics();

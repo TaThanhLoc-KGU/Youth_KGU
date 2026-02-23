@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,39 +24,46 @@ public class LopController {
 
     // Lấy tất cả lớp (bao gồm cả đã xóa)
     @GetMapping("/all")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public List<LopDTO> getAll() {
         return lopService.getAll();
     }
 
     // Lấy chỉ lớp đang hoạt động
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public List<LopDTO> getAllActive() {
         return lopService.getAllActive();
     }
 
     // Lấy chỉ lớp đã bị xóa mềm
     @GetMapping("/deleted")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public List<LopDTO> getAllDeleted() {
         return lopService.getAllDeleted();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public LopDTO getById(@PathVariable String id) {
         return lopService.getById(id);
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
     public LopDTO create(@Valid @RequestBody LopDTO dto) {
         return lopService.create(dto);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
     public LopDTO update(@PathVariable String id, @Valid @RequestBody LopDTO dto) {
         return lopService.update(id, dto);
     }
 
     // Xóa mềm
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
     public ResponseEntity<Void> softDelete(@PathVariable String id) {
         lopService.softDelete(id);
         return ResponseEntity.noContent().build();
@@ -63,6 +71,7 @@ public class LopController {
 
     // Khôi phục lớp đã xóa mềm
     @PutMapping("/{id}/restore")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
     public ResponseEntity<LopDTO> restore(@PathVariable String id) {
         LopDTO restored = lopService.restore(id);
         return ResponseEntity.ok(restored);
@@ -70,35 +79,41 @@ public class LopController {
 
     // Xóa vĩnh viễn
     @DeleteMapping("/{id}/hard")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
     public ResponseEntity<Void> hardDelete(@PathVariable String id) {
         lopService.hardDelete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/by-malop/{maLop}")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public ResponseEntity<LopDTO> getByMaLop(@PathVariable String maLop) {
         return ResponseEntity.ok(lopService.getByMaLop(maLop));
     }
 
     @GetMapping("/count")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public ResponseEntity<Long> count() {
         long count = lopService.count();
         return ResponseEntity.ok(count);
     }
 
     @GetMapping("/count/active")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public ResponseEntity<Long> countActive() {
         long count = lopService.countActive();
         return ResponseEntity.ok(count);
     }
 
     @GetMapping("/count/inactive")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public ResponseEntity<Long> countInactive() {
         long count = lopService.countInactive();
         return ResponseEntity.ok(count);
     }
     // Thêm vào class LopController
     @GetMapping("/{maLop}/sinhvien/count")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public ResponseEntity<Long> countSinhVienByLop(@PathVariable String maLop) {
         long count = lopService.countSinhVienByLop(maLop);
         return ResponseEntity.ok(count);
@@ -106,6 +121,7 @@ public class LopController {
 
     // Excel import/export endpoints
     @GetMapping("/template-excel")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
     public ResponseEntity<byte[]> downloadTemplate() throws Exception {
         byte[] excelFile = lopExcelService.createTemplate();
         return ResponseEntity.ok()
@@ -115,12 +131,14 @@ public class LopController {
     }
 
     @PostMapping("/import-excel/preview")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
     public ResponseEntity<ExcelImportPreviewDTO> previewExcelImport(@RequestParam MultipartFile file) throws Exception {
         ExcelImportPreviewDTO preview = lopExcelService.previewExcel(file);
         return ResponseEntity.ok(preview);
     }
 
     @PostMapping("/import-excel/confirm")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
     public ResponseEntity<ExcelImportPreviewDTO> confirmExcelImport(@RequestParam MultipartFile file) throws Exception {
         ExcelImportPreviewDTO preview = lopExcelService.previewExcel(file);
         
@@ -139,6 +157,7 @@ public class LopController {
     }
 
     @GetMapping("/export-excel")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public ResponseEntity<byte[]> exportToExcel() throws Exception {
         List<LopDTO> lopList = lopService.getAll();
         byte[] excelFile = lopExcelService.exportToExcel(lopList);

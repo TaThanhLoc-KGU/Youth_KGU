@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -26,6 +27,7 @@ public class NamHocController {
      * Lấy tất cả năm học đang hoạt động
      */
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<List<NamHocDTO>> getAll() {
         log.info("Lấy danh sách tất cả năm học");
         return ResponseEntity.ok(namHocService.getAll());
@@ -35,6 +37,7 @@ public class NamHocController {
      * Lấy tất cả năm học (bao gồm cả đã xóa mềm)
      */
     @GetMapping("/all")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<List<NamHocDTO>> getAllIncludeInactive() {
         log.info("Lấy danh sách tất cả năm học (bao gồm inactive)");
         return ResponseEntity.ok(namHocService.getAllIncludeInactive());
@@ -44,6 +47,7 @@ public class NamHocController {
      * Lấy năm học theo ID
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<NamHocDTO> getById(@PathVariable String id) {
         log.info("Lấy năm học với ID: {}", id);
         return ResponseEntity.ok(namHocService.getById(id));
@@ -53,6 +57,7 @@ public class NamHocController {
      * Tạo năm học mới
      */
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<NamHocDTO> create(@Valid @RequestBody NamHocDTO dto) {
         log.info("Tạo năm học mới: {}", dto.getMaNamHoc());
         try {
@@ -68,6 +73,7 @@ public class NamHocController {
      * Tạo năm học mới với học kỳ mặc định
      */
     @PostMapping("/with-semesters")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<NamHocDTO> createWithDefaultSemesters(@Valid @RequestBody NamHocDTO dto) {
         log.info("Tạo năm học mới với học kỳ mặc định: {}", dto.getMaNamHoc());
         try {
@@ -83,6 +89,7 @@ public class NamHocController {
      * Cập nhật năm học
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<NamHocDTO> update(@PathVariable String id, @Valid @RequestBody NamHocDTO dto) {
         log.info("Cập nhật năm học với ID {}: {}", id, dto.getMaNamHoc());
         try {
@@ -97,6 +104,7 @@ public class NamHocController {
      * Xóa mềm năm học (soft delete)
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<Void> softDelete(@PathVariable String id) {
         log.info("Xóa mềm năm học với ID: {}", id);
         namHocService.softDelete(id);
@@ -107,6 +115,7 @@ public class NamHocController {
      * Khôi phục năm học đã xóa mềm
      */
     @PutMapping("/{id}/restore")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<NamHocDTO> restore(@PathVariable String id) {
         log.info("Khôi phục năm học với ID: {}", id);
         return ResponseEntity.ok(namHocService.restore(id));
@@ -118,6 +127,7 @@ public class NamHocController {
      * Lấy năm học hiện tại
      */
     @GetMapping("/current")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<NamHocDTO> getCurrentAcademicYear() {
         log.info("Lấy năm học hiện tại");
         Optional<NamHocDTO> current = namHocService.getCurrentAcademicYear();
@@ -129,6 +139,7 @@ public class NamHocController {
      * Lấy các năm học đang diễn ra
      */
     @GetMapping("/ongoing")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<List<NamHocDTO>> getOngoingAcademicYears() {
         log.info("Lấy các năm học đang diễn ra");
         return ResponseEntity.ok(namHocService.getOngoingAcademicYears());
@@ -138,6 +149,7 @@ public class NamHocController {
      * Lấy các năm học sắp tới
      */
     @GetMapping("/upcoming")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<List<NamHocDTO>> getUpcomingAcademicYears() {
         log.info("Lấy các năm học sắp tới");
         return ResponseEntity.ok(namHocService.getUpcomingAcademicYears());
@@ -147,6 +159,7 @@ public class NamHocController {
      * Lấy các năm học đã kết thúc
      */
     @GetMapping("/finished")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<List<NamHocDTO>> getFinishedAcademicYears() {
         log.info("Lấy các năm học đã kết thúc");
         return ResponseEntity.ok(namHocService.getFinishedAcademicYears());
@@ -156,6 +169,7 @@ public class NamHocController {
      * Đặt năm học làm hiện tại
      */
     @PutMapping("/{id}/set-current")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<NamHocDTO> setAsCurrent(@PathVariable String id) {
         log.info("Đặt năm học {} làm hiện tại", id);
         return ResponseEntity.ok(namHocService.setAsCurrent(id));
@@ -165,6 +179,7 @@ public class NamHocController {
      * Lấy thống kê năm học
      */
     @GetMapping("/statistics")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> getStatistics() {
         log.info("Lấy thống kê năm học");
 
@@ -189,6 +204,7 @@ public class NamHocController {
      * Tạo học kỳ mặc định cho năm học
      */
     @PostMapping("/{maNamHoc}/create-semesters")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> createSemestersForYear(@PathVariable String maNamHoc) {
         log.info("API call: Create semesters for academic year: {}", maNamHoc);
 
@@ -212,6 +228,7 @@ public class NamHocController {
      * Lấy danh sách học kỳ theo năm học
      */
     @GetMapping("/{maNamHoc}/semesters")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<List<HocKyDTO>> getSemestersByYear(@PathVariable String maNamHoc) {
         log.info("API call: Get semesters for academic year: {}", maNamHoc);
 
@@ -229,6 +246,7 @@ public class NamHocController {
      * Xóa tất cả học kỳ của năm học
      */
     @DeleteMapping("/{maNamHoc}/semesters")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> deleteSemestersOfYear(@PathVariable String maNamHoc) {
         log.info("API call: Delete semesters for academic year: {}", maNamHoc);
 
@@ -258,6 +276,7 @@ public class NamHocController {
      * Kiểm tra năm học đã có học kỳ chưa
      */
     @GetMapping("/{maNamHoc}/has-semesters")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> checkHasSemesters(@PathVariable String maNamHoc) {
         log.debug("API call: Check if academic year has semesters: {}", maNamHoc);
 
@@ -287,6 +306,7 @@ public class NamHocController {
      * Xóa vĩnh viễn năm học (hard delete)
      */
     @DeleteMapping("/{id}/permanent")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<Void> hardDelete(@PathVariable String id) {
         log.info("Xóa vĩnh viễn năm học với ID: {}", id);
         namHocService.hardDelete(id);
@@ -297,6 +317,7 @@ public class NamHocController {
      * Lấy danh sách năm học đã xóa mềm
      */
     @GetMapping("/deleted")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<List<NamHocDTO>> getDeletedAcademicYears() {
         log.info("Lấy danh sách năm học đã xóa mềm");
         return ResponseEntity.ok(namHocService.getDeletedAcademicYears());
@@ -306,6 +327,7 @@ public class NamHocController {
      * Xóa một học kỳ cụ thể khỏi năm học
      */
     @DeleteMapping("/{maNamHoc}/semesters/{maHocKy}")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> removeSemesterFromYear(
             @PathVariable String maNamHoc,
             @PathVariable String maHocKy) {

@@ -2,9 +2,18 @@ import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { LogIn, Eye, EyeOff, Building2 } from 'lucide-react';
+import { LogIn, Eye, EyeOff } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
-import { ROUTES, ROLES } from '../../utils/constants';
+import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
+
+// Quyền "mở khóa" trang quản trị (phải đồng bộ với ADMIN_SECTION_PERMS trong Sidebar)
+const ADMIN_SECTION_PERMS = [
+  PERMISSIONS.XEM_SINH_VIEN, PERMISSIONS.XEM_GIANG_VIEN, PERMISSIONS.XEM_CHUYEN_VIEN,
+  PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
+  PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
+  PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
+  PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
+];
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -25,24 +34,35 @@ const Login = () => {
       const result = await login(data);
       toast.success('Đăng nhập thành công!');
 
-      // Redirect based on user role
+      // Nếu có trang được yêu cầu trước đó, quay lại trang đó
       const from = location.state?.from?.pathname;
-      if (from) {
+      if (from && from !== ROUTES.LOGIN) {
         navigate(from);
+        return;
+      }
+
+      // Redirect theo role + permissions
+      const vaiTro = result.user.vaiTro;
+      const laBCH  = result.laBCH;
+
+      // Lấy permissions từ store sau khi login đã cập nhật xong
+      const { permissions: loadedPerms } = useAuthStore.getState();
+      const hasAdminPerm = ADMIN_SECTION_PERMS.some((p) => loadedPerms.includes(p));
+
+      if (vaiTro === ROLES.ADMIN) {
+        // ADMIN role → dashboard quản trị
+        navigate(ROUTES.ADMIN_DASHBOARD);
+      } else if (hasAdminPerm) {
+        // Không phải ADMIN nhưng có quyền quản trị (GV001 Bí thư, BCH cấp cao...)
+        navigate(ROUTES.ADMIN_DASHBOARD);
+      } else if (laBCH) {
+        // BCH thông thường (chỉ có quyền BCH, không có quyền quản trị)
+        navigate(ROUTES.BCH_DASHBOARD);
+      } else if (vaiTro === ROLES.SINHVIEN) {
+        navigate(ROUTES.STUDENT_DASHBOARD);
       } else {
-        switch (result.user.vaiTro) {
-          case ROLES.ADMIN:
-            navigate(ROUTES.ADMIN_DASHBOARD);
-            break;
-          case ROLES.BCH:
-            navigate(ROUTES.BCH_DASHBOARD);
-            break;
-          case ROLES.SINHVIEN:
-            navigate(ROUTES.STUDENT_DASHBOARD);
-            break;
-          default:
-            navigate(ROUTES.HOME);
-        }
+        // GIANG_VIEN, CHUYEN_VIEN không có quyền đặc biệt → hồ sơ
+        navigate(ROUTES.PROFILE);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Đăng nhập thất bại');

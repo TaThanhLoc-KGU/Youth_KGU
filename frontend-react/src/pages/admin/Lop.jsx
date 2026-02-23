@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Plus, Edit, Trash2, RotateCcw, RefreshCw, Download, Upload } from 'lucide-react';
 import lopService from '../../services/lopService';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import khoaService from '../../services/khoaService';
 import nganhService from '../../services/nganhService';
 import khoahocService from '../../services/khoahocService';
@@ -123,6 +125,8 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
 
 const Lop = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canManage = hasPermission(PERMISSIONS.CAI_DAT_HE_THONG);
   const [search, setSearch] = useState('');
   const [khoaFilter, setKhoaFilter] = useState('');
   const [nganhFilter, setNganhFilter] = useState('');
@@ -251,17 +255,19 @@ const Lop = () => {
       accessor: 'actions',
       render: (_, row) => (
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Edit}
-            onClick={() => {
-              setSelectedLop(row);
-              setModalMode('edit');
-              setIsModalOpen(true);
-            }}
-          />
-          {row.isActive ? (
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Edit}
+              onClick={() => {
+                setSelectedLop(row);
+                setModalMode('edit');
+                setIsModalOpen(true);
+              }}
+            />
+          )}
+          {canManage && row.isActive && (
             <Button
               size="sm"
               variant="ghost"
@@ -273,7 +279,8 @@ const Lop = () => {
                 }
               }}
             />
-          ) : (
+          )}
+          {canManage && !row.isActive && (
             <Button
               size="sm"
               variant="ghost"
@@ -303,6 +310,7 @@ const Lop = () => {
           <p className="text-gray-600 mt-1">Quản lý các lớp học</p>
         </div>
         <div className="flex gap-2">
+          {canManage && (
           <Button
             variant="outline"
             icon={Upload}
@@ -310,6 +318,8 @@ const Lop = () => {
           >
             Import Excel
           </Button>
+          )}
+          {canManage && (
           <Button
             variant="outline"
             icon={Download}
@@ -332,6 +342,8 @@ const Lop = () => {
           >
             Export Excel
           </Button>
+          )}
+          {canManage && (
           <Button icon={Plus} onClick={() => {
             setSelectedLop(null);
             setModalMode('create');
@@ -339,6 +351,7 @@ const Lop = () => {
           }}>
             Thêm lớp
           </Button>
+          )}
         </div>
       </div>
 

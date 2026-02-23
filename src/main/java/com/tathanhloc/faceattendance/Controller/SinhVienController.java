@@ -16,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -36,6 +37,7 @@ public class SinhVienController {
     private SinhVienExcelService excelService;
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<Page<SinhVienDTO>> getAll(@RequestParam(defaultValue = "0") int page,
                                                     @RequestParam(defaultValue = "10") int size,
                                                     @RequestParam(defaultValue = "maSv") String sortBy,
@@ -87,30 +89,35 @@ public class SinhVienController {
 
 
     @GetMapping("/active/all")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<List<SinhVienDTO>> getAllActive() {
         log.info("Lấy danh sách sinh viên đang hoạt động");
         return ResponseEntity.ok(sinhVienService.getAllActive());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<SinhVienDTO> getById(@PathVariable String id) {
         log.info("Lấy thông tin sinh viên với ID: {}", id);
         return ResponseEntity.ok(sinhVienService.getById(id));
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'THEM_SINH_VIEN')")
     public ResponseEntity<SinhVienDTO> create(@Valid @RequestBody SinhVienDTO dto) {
         log.info("Tạo sinh viên mới: {}", dto);
         return ResponseEntity.ok(sinhVienService.create(dto));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'SUA_SINH_VIEN')")
     public ResponseEntity<SinhVienDTO> update(@PathVariable String id, @Valid @RequestBody SinhVienDTO dto) {
         log.info("Cập nhật sinh viên với ID {}: {}", id, dto);
         return ResponseEntity.ok(sinhVienService.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XOA_SINH_VIEN')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         log.info("Xóa sinh viên với ID: {}", id);
         sinhVienService.softDelete(id);
@@ -118,6 +125,7 @@ public class SinhVienController {
     }
 
     @PutMapping("/{id}/restore")
+    @PreAuthorize("hasPermission(null, 'SUA_SINH_VIEN')")
     public ResponseEntity<Void> restore(@PathVariable String id) {
         log.info("Khôi phục sinh viên với ID: {}", id);
         sinhVienService.restore(id);
@@ -125,6 +133,7 @@ public class SinhVienController {
     }
 
     @GetMapping("/by-masv/{maSv}")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<SinhVienDTO> getByMaSv(@PathVariable String maSv) {
         log.info("Tìm sinh viên theo mã: {}", maSv);
         return ResponseEntity.ok(sinhVienService.getByMaSv(maSv));
@@ -135,12 +144,14 @@ public class SinhVienController {
      * @return Danh sách embedding
      */
     @GetMapping("/embeddings")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<List<Map<String, Object>>> getAllEmbeddings() {
         return ResponseEntity.ok(sinhVienService.getAllEmbeddings());
     }
 
 
     @GetMapping("/all")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<List<SinhVienDTO>> getAllStudentsNoPagination() {
         log.info("Lấy tất cả sinh viên (không phân trang)");
         return ResponseEntity.ok(sinhVienService.getAll());
@@ -150,6 +161,7 @@ public class SinhVienController {
      * Lấy thống kê sinh viên
      */
     @GetMapping("/statistics")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<Map<String, Object>> getStatistics() {
         try {
             log.info("Getting student statistics");
@@ -183,6 +195,7 @@ public class SinhVienController {
      * Tìm kiếm sinh viên với filter nâng cao
      */
     @GetMapping("/search")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<Page<SinhVienDTO>> searchWithFilters(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -214,6 +227,7 @@ public class SinhVienController {
      * Bulk operations - Cập nhật trạng thái nhiều sinh viên
      */
     @PostMapping("/bulk-update-status")
+    @PreAuthorize("hasPermission(null, 'SUA_SINH_VIEN')")
     public ResponseEntity<Map<String, Object>> bulkUpdateStatus(
             @RequestBody Map<String, Object> request) {
         try {
@@ -245,6 +259,7 @@ public class SinhVienController {
     }
 
     @GetMapping("/count")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<StudentCountDTO> getStudentCount() {
         try {
             log.info("Lấy thống kê số lượng sinh viên");
@@ -256,6 +271,7 @@ public class SinhVienController {
     }
     // Thêm vào class SinhVienController
     @GetMapping("/count/active")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<Long> countActiveSinhVien() {
         log.info("Đếm tổng số sinh viên đang hoạt động");
         long count = sinhVienService.countActive();
@@ -263,6 +279,7 @@ public class SinhVienController {
     }
 
     @GetMapping("/count/all")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<Long> countAllSinhVien() {
         log.info("Đếm tổng số sinh viên");
         long count = sinhVienService.countAll();
@@ -273,6 +290,7 @@ public class SinhVienController {
      * Download template Excel
      */
     @GetMapping("/template-excel")
+    @PreAuthorize("hasPermission(null, 'IMPORT_SINH_VIEN')")
     public ResponseEntity<byte[]> downloadTemplate() {
         try {
             log.info("Download template Excel");
@@ -295,6 +313,7 @@ public class SinhVienController {
      * Preview dữ liệu từ Excel
      */
     @PostMapping("/import-excel/preview")
+    @PreAuthorize("hasPermission(null, 'IMPORT_SINH_VIEN')")
     public ResponseEntity<ExcelImportPreviewDTO> previewExcelImport(
             @RequestParam("file") MultipartFile file) {
         try {
@@ -316,6 +335,7 @@ public class SinhVienController {
      * Confirm và lưu dữ liệu từ Excel
      */
     @PostMapping("/import-excel/confirm")
+    @PreAuthorize("hasPermission(null, 'IMPORT_SINH_VIEN')")
     public ResponseEntity<Map<String, Object>> confirmExcelImport(
             @RequestParam("file") MultipartFile file) {
         try {
@@ -350,6 +370,7 @@ public class SinhVienController {
      * Export sinh viên ra Excel
      */
     @GetMapping("/export-excel")
+    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<byte[]> exportToExcel(
             @RequestParam(required = false) String maLop,
             @RequestParam(required = false) Boolean isActive) {

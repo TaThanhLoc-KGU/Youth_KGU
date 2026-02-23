@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class DiemRenLuyenCriteriaController {
 
     @GetMapping
     @Operation(summary = "Lấy toàn bộ danh sách tiêu chí điểm rèn luyện")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAll() {
         log.info("GET /api/diem-ren-luyen-criteria");
         return ResponseEntity.ok(ApiResponse.success(criteriaService.getAllCriteria()));
@@ -33,6 +35,7 @@ public class DiemRenLuyenCriteriaController {
 
     @GetMapping("/{danhMucId}")
     @Operation(summary = "Lấy tiêu chí theo mã danh mục (I, II, III...)")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getByDanhMuc(
             @PathVariable String danhMucId) {
         log.info("GET /api/diem-ren-luyen-criteria/{}", danhMucId);

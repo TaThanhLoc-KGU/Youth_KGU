@@ -4,6 +4,8 @@ import { toast } from 'react-toastify';
 import { Plus, Edit, Trash2, Download, RefreshCw } from 'lucide-react';
 import nganhService from '../../services/nganhService';
 import khoaService from '../../services/khoaService';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import SearchInput from '../../components/common/SearchInput';
@@ -120,6 +122,8 @@ const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas = 
 
 const Nganh = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canManage = hasPermission(PERMISSIONS.CAI_DAT_HE_THONG);
   const [search, setSearch] = useState('');
   const [khoaFilter, setKhoaFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -220,27 +224,31 @@ const Nganh = () => {
       accessor: 'actions',
       render: (_, row) => (
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Edit}
-            onClick={() => {
-              setSelectedNganh(row);
-              setModalMode('edit');
-              setIsModalOpen(true);
-            }}
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Trash2}
-            className="text-red-600"
-            onClick={() => {
-              if (window.confirm(`Xóa ngành ${row.tenNganh}?`)) {
-                deleteMutation.mutate(row.maNganh);
-              }
-            }}
-          />
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Edit}
+              onClick={() => {
+                setSelectedNganh(row);
+                setModalMode('edit');
+                setIsModalOpen(true);
+              }}
+            />
+          )}
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Trash2}
+              className="text-red-600"
+              onClick={() => {
+                if (window.confirm(`Xóa ngành ${row.tenNganh}?`)) {
+                  deleteMutation.mutate(row.maNganh);
+                }
+              }}
+            />
+          )}
         </div>
       ),
     },
@@ -254,16 +262,20 @@ const Nganh = () => {
           <p className="text-gray-600 mt-1">Quản lý các ngành học</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" icon={Download} onClick={handleExport}>
-            Export Excel
-          </Button>
-          <Button icon={Plus} onClick={() => {
-            setSelectedNganh(null);
-            setModalMode('create');
-            setIsModalOpen(true);
-          }}>
-            Thêm ngành
-          </Button>
+          {canManage && (
+            <Button variant="outline" icon={Download} onClick={handleExport}>
+              Export Excel
+            </Button>
+          )}
+          {canManage && (
+            <Button icon={Plus} onClick={() => {
+              setSelectedNganh(null);
+              setModalMode('create');
+              setIsModalOpen(true);
+            }}>
+              Thêm ngành
+            </Button>
+          )}
         </div>
       </div>
 

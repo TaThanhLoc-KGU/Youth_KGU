@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,6 +31,7 @@ public class PhanCongDiemDanhController {
      * @return List của PhanCongDiemDanhDTO
      */
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'PHAN_CONG_DIEM_DANH')")
     public ResponseEntity<ApiResponse<List<PhanCongDiemDanhDTO>>> phanCongNguoiDiemDanh(
             @RequestBody PhanCongDiemDanhRequest request) {
         log.info("POST /api/phan-cong-diem-danh - Phân công hoạt động: {}", request.getMaHoatDong());
@@ -63,6 +65,7 @@ public class PhanCongDiemDanhController {
      * @return List của PhanCongDiemDanhDTO
      */
     @GetMapping("/hoat-dong/{maHoatDong}")
+    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
     public ResponseEntity<ApiResponse<List<PhanCongDiemDanhDTO>>> getDanhSachNguoiDiemDanh(
             @PathVariable String maHoatDong) {
         log.info("GET /api/phan-cong-diem-danh/hoat-dong/{} - Lấy danh sách người điểm danh", maHoatDong);
@@ -97,6 +100,7 @@ public class PhanCongDiemDanhController {
      * @return ApiResponse
      */
     @DeleteMapping
+    @PreAuthorize("hasPermission(null, 'PHAN_CONG_DIEM_DANH')")
     public ResponseEntity<ApiResponse<Void>> xoaPhanCong(
             @RequestParam String maHoatDong,
             @RequestParam String maBch) {
@@ -130,6 +134,7 @@ public class PhanCongDiemDanhController {
      * @return List của PhanCongDiemDanhDTO
      */
     @GetMapping("/bch/{maBch}")
+    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
     public ResponseEntity<ApiResponse<List<PhanCongDiemDanhDTO>>> getDanhSachHoatDongCuaBCH(
             @PathVariable String maBch) {
         log.info("GET /api/phan-cong-diem-danh/bch/{} - Lấy danh sách hoạt động của BCH", maBch);

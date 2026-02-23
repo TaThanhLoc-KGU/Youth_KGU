@@ -5,6 +5,7 @@ import com.tathanhloc.faceattendance.Service.PhongHocService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class PhongHocController {
     private final PhongHocService phongHocService;
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<Page<PhongHocDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -27,16 +29,19 @@ public class PhongHocController {
     }
 
     @GetMapping("/all")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<List<PhongHocDTO>> getAllRooms() {
         return ResponseEntity.ok(phongHocService.getAll());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<PhongHocDTO> getById(@PathVariable String id) {
         return ResponseEntity.ok(phongHocService.getById(id));
     }
 
     @GetMapping("/search")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<Page<PhongHocDTO>> searchRooms(
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
@@ -45,6 +50,7 @@ public class PhongHocController {
     }
 
     @GetMapping("/filter/type")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<Page<PhongHocDTO>> filterByType(
             @RequestParam String loaiPhong,
             @RequestParam(defaultValue = "0") int page,
@@ -53,6 +59,7 @@ public class PhongHocController {
     }
 
     @GetMapping("/filter/status")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<Page<PhongHocDTO>> filterByStatus(
             @RequestParam String trangThai,
             @RequestParam(defaultValue = "0") int page,
@@ -61,21 +68,25 @@ public class PhongHocController {
     }
 
     @GetMapping("/statistics")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<Map<String, Long>> getStatistics() {
         return ResponseEntity.ok(phongHocService.getRoomStatistics());
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<PhongHocDTO> create(@RequestBody PhongHocDTO dto) {
         return ResponseEntity.ok(phongHocService.create(dto));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<PhongHocDTO> update(@PathVariable String id, @RequestBody PhongHocDTO dto) {
         return ResponseEntity.ok(phongHocService.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         phongHocService.delete(id);
         return ResponseEntity.noContent().build();

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
 import chucVuService from '../../services/chucVuService';
 import Table from '../../components/common/Table';
@@ -44,6 +46,8 @@ const getThuocBanLabel = (thuocBan) => {
 
 const ChucVu = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canManage = hasPermission(PERMISSIONS.MANAGE_BCH);
   const [search, setSearch] = useState('');
   const [thuocBanFilter, setThuocBanFilter] = useState('');
 
@@ -139,21 +143,12 @@ const ChucVu = () => {
       width: '120px',
       render: (_, row) => (
         <div className="flex gap-2 justify-center">
-          <Button
-            size="sm"
-            variant="outline"
-            icon={Edit}
-            onClick={() => handleEdit(row)}
-            title="Chỉnh sửa"
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-red-600 hover:bg-red-50"
-            icon={Trash2}
-            onClick={() => handleDelete(row.maChucVu)}
-            title="Xóa"
-          />
+          {canManage && (
+            <Button size="sm" variant="outline" icon={Edit} onClick={() => handleEdit(row)} title="Chỉnh sửa" />
+          )}
+          {canManage && (
+            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" icon={Trash2} onClick={() => handleDelete(row.maChucVu)} title="Xóa" />
+          )}
         </div>
       ),
     },
@@ -201,9 +196,11 @@ const ChucVu = () => {
           <h1 className="text-3xl font-bold text-gray-900">Quản lý Chức vụ</h1>
           <p className="text-gray-600 mt-1">Quản lý các chức vụ trong Ban Chấp hành</p>
         </div>
-        <Button icon={Plus} onClick={handleCreate}>
-          Thêm chức vụ mới
-        </Button>
+        {canManage && (
+          <Button icon={Plus} onClick={handleCreate}>
+            Thêm chức vụ mới
+          </Button>
+        )}
       </div>
 
       {/* Statistics Cards */}

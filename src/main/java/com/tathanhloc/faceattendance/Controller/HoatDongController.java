@@ -15,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -36,6 +37,7 @@ public class HoatDongController {
 
     @GetMapping
     @Operation(summary = "Lấy tất cả hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getAll() {
         log.info("GET /api/hoat-dong - Get all activities");
         List<HoatDongDTO> activities = hoatDongService.getAll();
@@ -44,6 +46,7 @@ public class HoatDongController {
 
     @GetMapping("/page")
     @Operation(summary = "Lấy hoạt động có phân trang")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<PageResponse<HoatDongDTO>> getAllWithPagination(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -59,6 +62,7 @@ public class HoatDongController {
 
     @GetMapping("/{maHoatDong}")
     @Operation(summary = "Lấy chi tiết hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<HoatDongDTO>> getById(@PathVariable String maHoatDong) {
         log.info("GET /api/hoat-dong/{} - Get activity details", maHoatDong);
         HoatDongDTO activity = hoatDongService.getById(maHoatDong);
@@ -67,6 +71,7 @@ public class HoatDongController {
 
     @PostMapping
     @Operation(summary = "Tạo hoạt động mới")
+    @PreAuthorize("hasPermission(null, 'TAO_HOAT_DONG')")
     public ResponseEntity<ApiResponse<HoatDongDTO>> create(@Valid @RequestBody HoatDongDTO dto) {
         // Validate logic nghiệp vụ: Thời gian kết thúc phải sau thời gian bắt đầu
         if (dto.getThoiGianBatDau() != null && dto.getThoiGianKetThuc() != null) {
@@ -84,6 +89,7 @@ public class HoatDongController {
 
     @PutMapping("/{maHoatDong}")
     @Operation(summary = "Cập nhật hoạt động")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
     public ResponseEntity<ApiResponse<HoatDongDTO>> update(
             @PathVariable String maHoatDong,
             @Valid @RequestBody HoatDongDTO dto) {
@@ -103,6 +109,7 @@ public class HoatDongController {
 
     @DeleteMapping("/{maHoatDong}")
     @Operation(summary = "Xóa hoạt động (soft delete)")
+    @PreAuthorize("hasPermission(null, 'XOA_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String maHoatDong) {
         log.info("DELETE /api/hoat-dong/{} - Soft delete activity", maHoatDong);
         hoatDongService.delete(maHoatDong);
@@ -113,6 +120,7 @@ public class HoatDongController {
 
     @GetMapping("/trang-thai/{trangThai}")
     @Operation(summary = "Lọc theo trạng thái")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getByTrangThai(
             @PathVariable String trangThai) {
         log.info("GET /api/hoat-dong/trang-thai/{}", trangThai);
@@ -123,6 +131,7 @@ public class HoatDongController {
 
     @GetMapping("/loai/{loaiHoatDong}")
     @Operation(summary = "Lọc theo loại hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getByLoai(
             @PathVariable String loaiHoatDong) {
         log.info("GET /api/hoat-dong/loai/{}", loaiHoatDong);
@@ -133,6 +142,7 @@ public class HoatDongController {
 
     @GetMapping("/cap-do/{capDo}")
     @Operation(summary = "Lọc theo cấp độ")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getByCapDo(
             @PathVariable String capDo) {
         log.info("GET /api/hoat-dong/cap-do/{}", capDo);
@@ -143,6 +153,7 @@ public class HoatDongController {
 
     @GetMapping("/upcoming")
     @Operation(summary = "Lấy hoạt động sắp diễn ra")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getUpcoming() {
         log.info("GET /api/hoat-dong/upcoming");
         List<HoatDongDTO> activities = hoatDongService.getUpcomingActivities();
@@ -151,6 +162,7 @@ public class HoatDongController {
 
     @GetMapping("/ongoing")
     @Operation(summary = "Lấy hoạt động đang diễn ra")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getOngoing() {
         log.info("GET /api/hoat-dong/ongoing");
         List<HoatDongDTO> activities = hoatDongService.getOngoingActivities();
@@ -159,6 +171,7 @@ public class HoatDongController {
 
     @GetMapping("/search")
     @Operation(summary = "Tìm kiếm hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> search(
             @RequestParam String keyword) {
         log.info("GET /api/hoat-dong/search?keyword={}", keyword);
@@ -168,6 +181,7 @@ public class HoatDongController {
 
     @GetMapping("/date-range")
     @Operation(summary = "Lọc theo khoảng thời gian")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -180,6 +194,7 @@ public class HoatDongController {
 
     @PostMapping("/{maHoatDong}/open-registration")
     @Operation(summary = "Mở đăng ký hoạt động")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> openRegistration(@PathVariable String maHoatDong) {
         log.info("POST /api/hoat-dong/{}/open-registration", maHoatDong);
         hoatDongService.openRegistration(maHoatDong);
@@ -188,6 +203,7 @@ public class HoatDongController {
 
     @PostMapping("/{maHoatDong}/close-registration")
     @Operation(summary = "Đóng đăng ký hoạt động")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> closeRegistration(@PathVariable String maHoatDong) {
         log.info("POST /api/hoat-dong/{}/close-registration", maHoatDong);
         hoatDongService.closeRegistration(maHoatDong);
@@ -196,6 +212,7 @@ public class HoatDongController {
 
     @PostMapping("/{maHoatDong}/start")
     @Operation(summary = "Bắt đầu hoạt động")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> startActivity(@PathVariable String maHoatDong) {
         log.info("POST /api/hoat-dong/{}/start", maHoatDong);
         hoatDongService.startActivity(maHoatDong);
@@ -204,6 +221,7 @@ public class HoatDongController {
 
     @PostMapping("/{maHoatDong}/complete")
     @Operation(summary = "Hoàn thành hoạt động")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> completeActivity(@PathVariable String maHoatDong) {
         log.info("POST /api/hoat-dong/{}/complete", maHoatDong);
         hoatDongService.completeActivity(maHoatDong);
@@ -212,6 +230,7 @@ public class HoatDongController {
 
     @PostMapping("/{maHoatDong}/ket-thuc-som")
     @Operation(summary = "Kết thúc sớm hoạt động")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
     public ResponseEntity<ApiResponse<HoatDongDTO>> earlyTerminate(@PathVariable String maHoatDong) {
         log.info("POST /api/hoat-dong/{}/ket-thuc-som", maHoatDong);
         HoatDongDTO updated = hoatDongService.earlyTerminate(maHoatDong);
@@ -220,6 +239,7 @@ public class HoatDongController {
 
     @PostMapping("/{maHoatDong}/cancel")
     @Operation(summary = "Hủy hoạt động")
+    @PreAuthorize("hasPermission(null, 'XOA_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> cancelActivity(
             @PathVariable String maHoatDong,
             @RequestParam String lyDo) {
@@ -232,6 +252,7 @@ public class HoatDongController {
 
     @GetMapping("/{maHoatDong}/statistics")
     @Operation(summary = "Thống kê hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics(
             @PathVariable String maHoatDong) {
         log.info("GET /api/hoat-dong/{}/statistics", maHoatDong);
@@ -241,6 +262,7 @@ public class HoatDongController {
 
     @GetMapping("/statistics/by-status")
     @Operation(summary = "Thống kê theo trạng thái")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Map<String, Long>>> getStatisticsByStatus() {
         log.info("GET /api/hoat-dong/statistics/by-status");
         Map<String, Long> stats = hoatDongService.getStatisticsByStatus();
@@ -249,6 +271,7 @@ public class HoatDongController {
 
     @GetMapping("/{maHoatDong}/attendance-status")
     @Operation(summary = "Lấy danh sách trạng thái điểm danh của sinh viên trong hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<DiemDanhStatusDTO>>> getAttendanceStatusList(
             @PathVariable String maHoatDong) {
         log.info("GET /api/hoat-dong/{}/attendance-status", maHoatDong);
@@ -258,6 +281,7 @@ public class HoatDongController {
 
     @GetMapping("/academic-info")
     @Operation(summary = "Lấy thông tin học kỳ và năm học hiện tại")
+    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentAcademicInfo() {
         log.info("GET /api/hoat-dong/academic-info");
         Map<String, Object> info = hoatDongService.getCurrentAcademicInfo();

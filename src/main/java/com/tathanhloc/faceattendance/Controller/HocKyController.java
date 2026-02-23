@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +26,7 @@ public class HocKyController {
      * Lấy tất cả học kỳ đang hoạt động
      */
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'XEM_HOC_KY')")
     public ResponseEntity<List<HocKyDTO>> getAll() {
         log.info("Lấy danh sách tất cả học kỳ");
         return ResponseEntity.ok(hocKyService.getAll());
@@ -34,6 +36,7 @@ public class HocKyController {
      * Lấy tất cả học kỳ (bao gồm cả đã xóa mềm)
      */
     @GetMapping("/all")
+    @PreAuthorize("hasPermission(null, 'XEM_HOC_KY')")
     public ResponseEntity<List<HocKyDTO>> getAllIncludeInactive() {
         log.info("Lấy danh sách tất cả học kỳ (bao gồm inactive)");
         return ResponseEntity.ok(hocKyService.getAllIncludeInactive());
@@ -43,6 +46,7 @@ public class HocKyController {
      * Lấy học kỳ theo ID
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XEM_HOC_KY')")
     public ResponseEntity<HocKyDTO> getById(@PathVariable String id) {
         log.info("Lấy học kỳ với ID: {}", id);
         return ResponseEntity.ok(hocKyService.getById(id));
@@ -52,6 +56,7 @@ public class HocKyController {
      * Tạo học kỳ mới
      */
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
     public ResponseEntity<HocKyDTO> create(@Valid @RequestBody HocKyDTO dto) {
         log.info("Tạo học kỳ mới: {}", dto.getMaHocKy());
         try {
@@ -67,6 +72,7 @@ public class HocKyController {
      * Cập nhật học kỳ
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
     public ResponseEntity<HocKyDTO> update(@PathVariable String id, @Valid @RequestBody HocKyDTO dto) {
         log.info("Cập nhật học kỳ với ID {}: {}", id, dto.getMaHocKy());
         try {
@@ -81,6 +87,7 @@ public class HocKyController {
      * Xóa mềm học kỳ (soft delete)
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
     public ResponseEntity<Void> softDelete(@PathVariable String id) {
         log.info("Xóa mềm học kỳ với ID: {}", id);
         hocKyService.softDelete(id);
@@ -91,6 +98,7 @@ public class HocKyController {
      * Khôi phục học kỳ đã xóa mềm
      */
     @PutMapping("/{id}/restore")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
     public ResponseEntity<HocKyDTO> restore(@PathVariable String id) {
         log.info("Khôi phục học kỳ với ID: {}", id);
         return ResponseEntity.ok(hocKyService.restore(id));
@@ -102,6 +110,7 @@ public class HocKyController {
      * Lấy học kỳ hiện tại
      */
     @GetMapping("/current")
+    @PreAuthorize("hasPermission(null, 'XEM_HOC_KY')")
     public ResponseEntity<HocKyDTO> getCurrentSemester() {
         log.info("Lấy học kỳ hiện tại");
         Optional<HocKyDTO> current = hocKyService.getCurrentSemester();
@@ -113,6 +122,7 @@ public class HocKyController {
      * Lấy các học kỳ đang diễn ra
      */
     @GetMapping("/ongoing")
+    @PreAuthorize("hasPermission(null, 'XEM_HOC_KY')")
     public ResponseEntity<List<HocKyDTO>> getOngoingSemesters() {
         log.info("Lấy các học kỳ đang diễn ra");
         return ResponseEntity.ok(hocKyService.getOngoingSemesters());
@@ -122,6 +132,7 @@ public class HocKyController {
      * Lấy các học kỳ sắp tới
      */
     @GetMapping("/upcoming")
+    @PreAuthorize("hasPermission(null, 'XEM_HOC_KY')")
     public ResponseEntity<List<HocKyDTO>> getUpcomingSemesters() {
         log.info("Lấy các học kỳ sắp tới");
         return ResponseEntity.ok(hocKyService.getUpcomingSemesters());
@@ -131,6 +142,7 @@ public class HocKyController {
      * Lấy các học kỳ đã kết thúc
      */
     @GetMapping("/finished")
+    @PreAuthorize("hasPermission(null, 'XEM_HOC_KY')")
     public ResponseEntity<List<HocKyDTO>> getFinishedSemesters() {
         log.info("Lấy các học kỳ đã kết thúc");
         return ResponseEntity.ok(hocKyService.getFinishedSemesters());
@@ -140,6 +152,7 @@ public class HocKyController {
      * Đặt học kỳ làm hiện tại
      */
     @PutMapping("/{id}/set-current")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
     public ResponseEntity<HocKyDTO> setAsCurrent(@PathVariable String id) {
         log.info("Đặt học kỳ {} làm hiện tại", id);
         return ResponseEntity.ok(hocKyService.setAsCurrent(id));
@@ -149,6 +162,7 @@ public class HocKyController {
      * Lấy thống kê học kỳ
      */
     @GetMapping("/statistics")
+    @PreAuthorize("hasPermission(null, 'XEM_HOC_KY')")
     public ResponseEntity<Map<String, Object>> getStatistics() {
         log.info("Lấy thống kê học kỳ");
 
@@ -174,6 +188,7 @@ public class HocKyController {
      * Xóa vĩnh viễn học kỳ (hard delete)
      */
     @DeleteMapping("/{id}/permanent")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
     public ResponseEntity<Void> hardDelete(@PathVariable String id) {
         log.info("Xóa vĩnh viễn học kỳ với ID: {}", id);
         hocKyService.hardDelete(id);
@@ -184,6 +199,7 @@ public class HocKyController {
      * Lấy danh sách học kỳ đã xóa mềm
      */
     @GetMapping("/deleted")
+    @PreAuthorize("hasPermission(null, 'XEM_HOC_KY')")
     public ResponseEntity<List<HocKyDTO>> getDeletedSemesters() {
         log.info("Lấy danh sách học kỳ đã xóa mềm");
         return ResponseEntity.ok(hocKyService.getDeletedSemesters());

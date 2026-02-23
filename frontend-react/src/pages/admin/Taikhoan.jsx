@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Trash2, RotateCcw, Key, Shield, Lock } from 'lucide-react';
 import taikhoanService from '../../services/taikhoanService';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import studentService from '../../services/studentService';
 import giangvienService from '../../services/giangvienService';
 import Table from '../../components/common/Table';
@@ -87,6 +89,10 @@ const CreateAccountModal = ({ isOpen, onClose, usersWithoutAccount, userType, on
 
 const Taikhoan = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canCreate = hasPermission(PERMISSIONS.CREATE_TAI_KHOAN);
+  const canEdit   = hasPermission(PERMISSIONS.EDIT_TAI_KHOAN);
+  const canDelete = hasPermission(PERMISSIONS.DELETE_TAI_KHOAN);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -214,39 +220,45 @@ const Taikhoan = () => {
       accessor: 'actions',
       render: (_, row) => (
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Key}
-            title="Reset mật khẩu"
-            onClick={() => {
-              if (window.confirm('Reset mật khẩu cho tài khoản này?')) {
-                resetPasswordMutation.mutate(row.id);
-              }
-            }}
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={row.isActive ? Lock : Shield}
-            title={row.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
-            onClick={() => {
-              if (window.confirm(`${row.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'} tài khoản này?`)) {
-                toggleStatusMutation.mutate(row.id);
-              }
-            }}
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Trash2}
-            className="text-red-600"
-            onClick={() => {
-              if (window.confirm(`Xóa tài khoản ${row.tenDangNhap}?`)) {
-                deleteMutation.mutate(row.id);
-              }
-            }}
-          />
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Key}
+              title="Reset mật khẩu"
+              onClick={() => {
+                if (window.confirm('Reset mật khẩu cho tài khoản này?')) {
+                  resetPasswordMutation.mutate(row.id);
+                }
+              }}
+            />
+          )}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={row.isActive ? Lock : Shield}
+              title={row.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
+              onClick={() => {
+                if (window.confirm(`${row.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'} tài khoản này?`)) {
+                  toggleStatusMutation.mutate(row.id);
+                }
+              }}
+            />
+          )}
+          {canDelete && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Trash2}
+              className="text-red-600"
+              onClick={() => {
+                if (window.confirm(`Xóa tài khoản ${row.tenDangNhap}?`)) {
+                  deleteMutation.mutate(row.id);
+                }
+              }}
+            />
+          )}
         </div>
       ),
     },
@@ -292,7 +304,7 @@ const Taikhoan = () => {
       </div>
 
       {/* Batch Create Section */}
-      {(studentsWithoutAccount.length > 0 || teachersWithoutAccount.length > 0) && (
+      {canCreate && (studentsWithoutAccount.length > 0 || teachersWithoutAccount.length > 0) && (
         <Card>
           <div className="p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Tạo tài khoản hàng loạt</h3>

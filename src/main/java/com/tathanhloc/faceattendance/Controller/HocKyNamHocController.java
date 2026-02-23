@@ -7,6 +7,7 @@ import com.tathanhloc.faceattendance.Repository.HocKyNamHocRepository;
 import com.tathanhloc.faceattendance.Service.HocKyNamHocService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
@@ -24,27 +25,32 @@ public class HocKyNamHocController {
     private final HocKyNamHocRepository hocKyNamHocRepository;
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public List<HocKyNamHocDTO> getAll() {
         return hocKyNamHocService.getAll();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public HocKyNamHocDTO getById(@PathVariable Integer id) {
         return hocKyNamHocService.getById(id);
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public HocKyNamHocDTO create(@RequestBody HocKyNamHocDTO dto) {
         return hocKyNamHocService.create(dto);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
         hocKyNamHocService.delete(id);
         return ResponseEntity.noContent().build();
     }
     // Thêm vào HocKyNamHocController.java
     @PostMapping("/namhoc/{maNamHoc}/hocky")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<HocKyNamHocDTO> createHocKyInNamHoc(
             @PathVariable String maNamHoc,
             @RequestBody HocKyDTO hocKyDTO) {
@@ -53,11 +59,13 @@ public class HocKyNamHocController {
     }
 
     @GetMapping("/namhoc/{maNamHoc}/hocky")
+    @PreAuthorize("hasPermission(null, 'XEM_NAM_HOC')")
     public ResponseEntity<List<HocKyDTO>> getHocKyByNamHoc(@PathVariable String maNamHoc) {
         return ResponseEntity.ok(hocKyNamHocService.getHocKyByNamHoc(maNamHoc));
     }
 
     @PostMapping("/namhoc/{maNamHoc}/create-default-semesters")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<List<HocKyNamHocDTO>> createDefaultSemesters(@PathVariable String maNamHoc) {
         List<HocKyNamHocDTO> result = hocKyNamHocService.createDefaultSemestersForNamHoc(maNamHoc);
         return ResponseEntity.ok(result);
@@ -66,6 +74,7 @@ public class HocKyNamHocController {
      * Xóa mềm học kỳ khỏi năm học
      */
     @DeleteMapping("/namhoc/{maNamHoc}/hocky/{maHocKy}")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> removeSemesterFromYear(
             @PathVariable String maNamHoc,
             @PathVariable String maHocKy) {
@@ -91,6 +100,7 @@ public class HocKyNamHocController {
      * Cập nhật lại thứ tự học kỳ trong năm học
      */
     @PutMapping("/namhoc/{maNamHoc}/reorder")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> reorderSemesters(@PathVariable String maNamHoc) {
         try {
             hocKyNamHocService.reorderSemestersInYear(maNamHoc);

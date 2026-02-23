@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Plus, Edit, Trash2, Eye, RefreshCw } from 'lucide-react';
 import chuyenVienService from '../../services/chuyenVienService';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import SearchInput from '../../components/common/SearchInput';
@@ -15,6 +17,8 @@ import Textarea from '../../components/common/Textarea';
 
 const ChuyenVien = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canManage = hasPermission(PERMISSIONS.MANAGE_GIANG_VIEN);
   const [search, setSearch] = useState('');
   const [selectedChuyenVien, setSelectedChuyenVien] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -143,28 +147,13 @@ const ChuyenVien = () => {
       width: '120px',
       render: (_, row) => (
         <div className="flex items-center gap-1 justify-center">
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Eye}
-            onClick={() => handleView(row)}
-            title="Xem chi tiết"
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Edit}
-            onClick={() => handleEdit(row)}
-            title="Chỉnh sửa"
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-red-600 hover:text-red-700"
-            icon={Trash2}
-            onClick={() => handleDelete(row)}
-            title="Xóa"
-          />
+          <Button size="sm" variant="ghost" icon={Eye} onClick={() => handleView(row)} title="Xem chi tiết" />
+          {canManage && (
+            <Button size="sm" variant="ghost" icon={Edit} onClick={() => handleEdit(row)} title="Chỉnh sửa" />
+          )}
+          {canManage && (
+            <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" icon={Trash2} onClick={() => handleDelete(row)} title="Xóa" />
+          )}
         </div>
       ),
     },
@@ -259,9 +248,11 @@ const ChuyenVien = () => {
           <h1 className="text-3xl font-bold text-gray-900">Quản lý Chuyên viên</h1>
           <p className="text-gray-600 mt-1">Quản lý thông tin chuyên viên Ban Đoàn - Hội</p>
         </div>
-        <Button icon={Plus} onClick={handleCreate}>
-          Thêm chuyên viên mới
-        </Button>
+        {canManage && (
+          <Button icon={Plus} onClick={handleCreate}>
+            Thêm chuyên viên mới
+          </Button>
+        )}
       </div>
 
       {/* Statistics Cards */}

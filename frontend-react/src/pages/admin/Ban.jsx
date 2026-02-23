@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
 import banService from '../../services/banService';
 import Table from '../../components/common/Table';
@@ -46,6 +48,8 @@ const getLoaiBanLabel = (loaiBan) => {
 
 const Ban = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canManage = hasPermission(PERMISSIONS.MANAGE_BCH);
   const [search, setSearch] = useState('');
   const [loaiBanFilter, setLoaiBanFilter] = useState('');
 
@@ -136,21 +140,12 @@ const Ban = () => {
       width: '120px',
       render: (_, row) => (
         <div className="flex gap-2 justify-center">
-          <Button
-            size="sm"
-            variant="outline"
-            icon={Edit}
-            onClick={() => handleEdit(row)}
-            title="Chỉnh sửa"
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-red-600 hover:bg-red-50"
-            icon={Trash2}
-            onClick={() => handleDelete(row.maBan)}
-            title="Xóa"
-          />
+          {canManage && (
+            <Button size="sm" variant="outline" icon={Edit} onClick={() => handleEdit(row)} title="Chỉnh sửa" />
+          )}
+          {canManage && (
+            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" icon={Trash2} onClick={() => handleDelete(row.maBan)} title="Xóa" />
+          )}
         </div>
       ),
     },

@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -33,6 +34,7 @@ public class ThongKeController {
 
     @GetMapping("/dashboard")
     @Operation(summary = "Dashboard tổng quan")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<DashboardResponse>> getDashboard() {
         log.info("GET /api/thong-ke/dashboard");
 
@@ -60,6 +62,7 @@ public class ThongKeController {
 
     @GetMapping("/hoat-dong/{maHoatDong}")
     @Operation(summary = "Báo cáo chi tiết hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_BAO_CAO')")
     public ResponseEntity<ApiResponse<ActivityReportDTO>> getActivityReport(
             @PathVariable String maHoatDong) {
         log.info("GET /api/thong-ke/hoat-dong/{}", maHoatDong);
@@ -84,6 +87,7 @@ public class ThongKeController {
 
     @GetMapping("/hoat-dong/tong-quan")
     @Operation(summary = "Thống kê tổng quan hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getActivityOverview(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
@@ -106,6 +110,7 @@ public class ThongKeController {
 
     @GetMapping("/sinh-vien/{maSv}")
     @Operation(summary = "Lịch sử tham gia của sinh viên")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<StudentHistoryDTO>> getStudentHistory(
             @PathVariable String maSv) {
         log.info("GET /api/thong-ke/sinh-vien/{}", maSv);
@@ -139,6 +144,7 @@ public class ThongKeController {
 
     @GetMapping("/bch/overview")
     @Operation(summary = "Thống kê BCH")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getBCHOverview() {
         log.info("GET /api/thong-ke/bch/overview");
 
@@ -156,6 +162,7 @@ public class ThongKeController {
 
     @GetMapping("/activity-trends")
     @Operation(summary = "Xu hướng hoạt động theo thời gian")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<List<ActivityTrendDTO>>> getActivityTrends(
             @RequestParam(required = false, defaultValue = "6") int months) {
         log.info("GET /api/thong-ke/activity-trends?months={}", months);
@@ -192,6 +199,7 @@ public class ThongKeController {
 
     @GetMapping("/participation-by-faculty")
     @Operation(summary = "Tỷ lệ tham gia theo khoa")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<List<ParticipationByFacultyDTO>>> getParticipationByFaculty() {
         log.info("GET /api/thong-ke/participation-by-faculty");
 
@@ -226,6 +234,7 @@ public class ThongKeController {
 
     @GetMapping("/top-students")
     @Operation(summary = "Top sinh viên tích cực nhất")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<List<TopStudentDTO>>> getTopStudents(
             @RequestParam(required = false, defaultValue = "10") int limit) {
         log.info("GET /api/thong-ke/top-students?limit={}", limit);
@@ -253,6 +262,7 @@ public class ThongKeController {
 
     @GetMapping("/attendance-statistics")
     @Operation(summary = "Thống kê điểm danh")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<AttendanceStatisticsDTO>> getAttendanceStatistics() {
         log.info("GET /api/thong-ke/attendance-statistics");
 
@@ -273,6 +283,7 @@ public class ThongKeController {
 
     @GetMapping("/hoat-dong/statistics")
     @Operation(summary = "Thống kê hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getActivityStatisticsEndpoint() {
         log.info("GET /api/thong-ke/hoat-dong/statistics");
 
@@ -284,6 +295,7 @@ public class ThongKeController {
 
     @GetMapping("/export/hoat-dong/{maHoatDong}")
     @Operation(summary = "Export báo cáo hoạt động")
+    @PreAuthorize("hasPermission(null, 'XUAT_BAO_CAO')")
     public ResponseEntity<ApiResponse<String>> exportActivityReport(
             @PathVariable String maHoatDong,
             @RequestParam(defaultValue = "excel") String format) {

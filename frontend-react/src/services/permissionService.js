@@ -21,7 +21,13 @@ const permissionService = {
     return response.data;
   },
 
-  // Lấy quyền tổng hợp của tài khoản (AccountPermissionDTO)
+  // Lấy quyền của chính mình (dùng JWT, không cần ID) - mọi người dùng đã đăng nhập gọi được
+  getMyPermissions: async () => {
+    const response = await api.get('/api/permissions/me');
+    return response.data?.data;
+  },
+
+  // Lấy quyền tổng hợp của tài khoản theo ID (chỉ ADMIN)
   getAccountPermissions: async (taiKhoanId) => {
     const response = await api.get(`/api/permissions/account/${taiKhoanId}`);
     return response.data?.data;

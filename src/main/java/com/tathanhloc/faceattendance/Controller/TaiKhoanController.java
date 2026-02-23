@@ -5,6 +5,7 @@ import com.tathanhloc.faceattendance.Service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -18,11 +19,13 @@ public class TaiKhoanController {
     private final TaiKhoanService taiKhoanService;
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'XEM_TAI_KHOAN')")
     public List<TaiKhoanDTO> getAll() {
         return taiKhoanService.getAll();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XEM_TAI_KHOAN')")
     public TaiKhoanDTO getById(@PathVariable Long id) {
         return taiKhoanService.getById(id);
     }
@@ -30,6 +33,7 @@ public class TaiKhoanController {
 // Thay thế method create() trong TaiKhoanController.java
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'TAO_TAI_KHOAN')")
     public ResponseEntity<?> create(@RequestBody TaiKhoanDTO dto) {
         try {
             // Validation cơ bản
@@ -77,17 +81,20 @@ public class TaiKhoanController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'SUA_TAI_KHOAN')")
     public TaiKhoanDTO update(@PathVariable Long id, @RequestBody TaiKhoanDTO dto) {
         return taiKhoanService.update(id, dto);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XOA_TAI_KHOAN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         taiKhoanService.softDelete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/by-username/{username}")
+    @PreAuthorize("hasPermission(null, 'XEM_TAI_KHOAN')")
     public ResponseEntity<TaiKhoanDTO> getByUsername(@PathVariable String username) {
         return ResponseEntity.ok(taiKhoanService.getByUsername(username));
     }

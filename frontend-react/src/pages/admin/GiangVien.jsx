@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import { Plus, Edit, Trash2, RotateCcw, RefreshCw } from 'lucide-react';
 import giangvienService from '../../services/giangvienService';
 import khoaService from '../../services/khoaService';
@@ -97,6 +99,9 @@ const GiangVienForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoa
 
 const GiangVien = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canView   = hasPermission(PERMISSIONS.VIEW_GIANG_VIEN);
+  const canManage = hasPermission(PERMISSIONS.MANAGE_GIANG_VIEN);
   const [search, setSearch] = useState('');
   const [khoaFilter, setKhoaFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -196,17 +201,19 @@ const GiangVien = () => {
       accessor: 'actions',
       render: (_, row) => (
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Edit}
-            onClick={() => {
-              setSelectedGV(row);
-              setModalMode('edit');
-              setIsModalOpen(true);
-            }}
-          />
-          {row.isActive ? (
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Edit}
+              onClick={() => {
+                setSelectedGV(row);
+                setModalMode('edit');
+                setIsModalOpen(true);
+              }}
+            />
+          )}
+          {canManage && row.isActive && (
             <Button
               size="sm"
               variant="ghost"
@@ -218,7 +225,8 @@ const GiangVien = () => {
                 }
               }}
             />
-          ) : (
+          )}
+          {canManage && !row.isActive && (
             <Button
               size="sm"
               variant="ghost"
@@ -243,13 +251,15 @@ const GiangVien = () => {
           <h1 className="text-2xl font-bold text-gray-900">Quản lý Giảng viên</h1>
           <p className="text-gray-600 mt-1">Quản lý thông tin giảng viên</p>
         </div>
-        <Button icon={Plus} onClick={() => {
-          setSelectedGV(null);
-          setModalMode('create');
-          setIsModalOpen(true);
-        }}>
-          Thêm GV
-        </Button>
+        {canManage && (
+          <Button icon={Plus} onClick={() => {
+            setSelectedGV(null);
+            setModalMode('create');
+            setIsModalOpen(true);
+          }}>
+            Thêm GV
+          </Button>
+        )}
       </div>
 
       <Card>

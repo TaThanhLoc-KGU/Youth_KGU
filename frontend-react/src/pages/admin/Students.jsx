@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Plus, Edit, Trash2, Eye, RefreshCw, Download, Upload, Search } from 'lucide-react';
 import studentService from '../../services/studentService';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import lopService from '../../services/lopService';
 import khoaService from '../../services/khoaService';
 import nganhService from '../../services/nganhService';
@@ -16,6 +18,9 @@ import StudentExcelImport from '../../components/admin/StudentExcelImport';
 
 const Students = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canView   = hasPermission(PERMISSIONS.VIEW_SINH_VIEN);
+  const canManage = hasPermission(PERMISSIONS.MANAGE_SINH_VIEN);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
@@ -183,33 +188,28 @@ const Students = () => {
             size="sm"
             variant="ghost"
             icon={Eye}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleView(row);
-            }}
+            onClick={(e) => { e.stopPropagation(); handleView(row); }}
             title="Xem chi tiết"
           />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Edit}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEdit(row);
-            }}
-            title="Sửa"
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Trash2}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(row);
-            }}
-            title="Xóa"
-            className="text-red-600 hover:text-red-700"
-          />
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Edit}
+              onClick={(e) => { e.stopPropagation(); handleEdit(row); }}
+              title="Sửa"
+            />
+          )}
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Trash2}
+              onClick={(e) => { e.stopPropagation(); handleDelete(row); }}
+              title="Xóa"
+              className="text-red-600 hover:text-red-700"
+            />
+          )}
         </div>
       ),
     },
@@ -271,19 +271,21 @@ const Students = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            icon={Upload}
-            onClick={() => setIsImportModalOpen(true)}
-          >
-            Import
-          </Button>
-          <Button variant="outline" icon={Download} onClick={handleExport}>
-            Export
-          </Button>
-          <Button icon={Plus} onClick={handleCreate}>
-            Thêm sinh viên
-          </Button>
+          {canManage && (
+            <Button variant="outline" icon={Upload} onClick={() => setIsImportModalOpen(true)}>
+              Import
+            </Button>
+          )}
+          {canView && (
+            <Button variant="outline" icon={Download} onClick={handleExport}>
+              Export
+            </Button>
+          )}
+          {canManage && (
+            <Button icon={Plus} onClick={handleCreate}>
+              Thêm sinh viên
+            </Button>
+          )}
         </div>
       </div>
 

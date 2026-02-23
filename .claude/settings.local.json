@@ -23,7 +23,10 @@
       "Bash(cd:*)",
       "mcp__youth-kgu-files__search_files",
       "Bash(cd \"D:\\\\Youth_KGU\\\\frontend-react\" && npm install jsqr --save 2>&1)",
-      "Bash(cd \"D:\\\\Youth_KGU\\\\frontend-react\" && npm install jsqr --save --legacy-peer-deps 2>&1)"
+      "Bash(cd \"D:\\\\Youth_KGU\\\\frontend-react\" && npm install jsqr --save --legacy-peer-deps 2>&1)",
+      "mcp__youth-kgu-files__create_directory",
+      "mcp__youth-kgu-files__read_multiple_files",
+      "mcp__youth-kgu-files__write_file"
     ],
     "deny": [],
     "ask": []

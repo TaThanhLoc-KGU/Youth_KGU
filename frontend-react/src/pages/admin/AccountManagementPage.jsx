@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import accountService from '../../services/accountService';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import logsService from '../../services/logsService';
 import {
   APPROVAL_STATUS_LABELS,
@@ -37,6 +39,11 @@ const DEFAULT_ROLE_FOR_TYPE = {
 
 export default function AccountManagementPage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canApprove = hasPermission(PERMISSIONS.APPROVE_TAI_KHOAN);
+  const canCreate  = hasPermission(PERMISSIONS.CREATE_TAI_KHOAN);
+  const canEdit    = hasPermission(PERMISSIONS.EDIT_TAI_KHOAN);
+  const canDelete  = hasPermission(PERMISSIONS.DELETE_TAI_KHOAN);
   const [activeTab, setActiveTab] = useState('all'); // all | pending | search | create | bulk
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedAccount, setSelectedAccount] = useState(null);
@@ -375,7 +382,7 @@ export default function AccountManagementPage() {
                 {showActions && (
                   <td className="px-4 py-3">
                     <div className="flex gap-2 flex-wrap">
-                      {account.trangThaiPheDuyet === 'CHO_PHE_DUYET' && (
+                      {account.trangThaiPheDuyet === 'CHO_PHE_DUYET' && canApprove && (
                         <>
                           <button onClick={() => handleApprove(account)}
                             className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded">
@@ -389,14 +396,18 @@ export default function AccountManagementPage() {
                       )}
                       {activeTab === 'all' && (
                         <>
-                          <button onClick={() => handleEditAccount(account)}
-                            className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded">
-                            Sửa
-                          </button>
-                          <button onClick={() => handleDeleteConfirm(account)}
-                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-sm rounded">
-                            Xóa
-                          </button>
+                          {canEdit && (
+                            <button onClick={() => handleEditAccount(account)}
+                              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded">
+                              Sửa
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button onClick={() => handleDeleteConfirm(account)}
+                              className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-sm rounded">
+                              Xóa
+                            </button>
+                          )}
                           <button onClick={() => handleHistoryView(account)}
                             className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded">
                             Lịch sử
@@ -443,8 +454,10 @@ export default function AccountManagementPage() {
           { key: 'all', label: 'Tất cả' },
           { key: 'pending', label: `Chờ phê duyệt (${pendingAccounts.length})` },
           { key: 'search', label: 'Tìm kiếm' },
-          { key: 'create', label: 'Thêm tài khoản' },
-          { key: 'bulk', label: 'Tạo từ danh sách' },
+          ...(canCreate ? [
+            { key: 'create', label: 'Thêm tài khoản' },
+            { key: 'bulk', label: 'Tạo từ danh sách' },
+          ] : []),
         ].map(tab => (
           <button
             key={tab.key}

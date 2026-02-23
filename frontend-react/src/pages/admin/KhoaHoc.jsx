@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
 import khoahocService from '../../services/khoahocService';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import SearchInput from '../../components/common/SearchInput';
@@ -104,6 +106,8 @@ const KhoaHocForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
 
 const KhoaHoc = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canManage = hasPermission(PERMISSIONS.CAI_DAT_HE_THONG);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -176,27 +180,31 @@ const KhoaHoc = () => {
       accessor: 'actions',
       render: (_, row) => (
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Edit}
-            onClick={() => {
-              setSelectedKhoaHoc(row);
-              setModalMode('edit');
-              setIsModalOpen(true);
-            }}
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Trash2}
-            className="text-red-600"
-            onClick={() => {
-              if (window.confirm(`Xóa khóa học ${row.tenKhoahoc}?`)) {
-                deleteMutation.mutate(row.maKhoahoc);
-              }
-            }}
-          />
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Edit}
+              onClick={() => {
+                setSelectedKhoaHoc(row);
+                setModalMode('edit');
+                setIsModalOpen(true);
+              }}
+            />
+          )}
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Trash2}
+              className="text-red-600"
+              onClick={() => {
+                if (window.confirm(`Xóa khóa học ${row.tenKhoahoc}?`)) {
+                  deleteMutation.mutate(row.maKhoahoc);
+                }
+              }}
+            />
+          )}
         </div>
       ),
     },
@@ -209,13 +217,15 @@ const KhoaHoc = () => {
           <h1 className="text-2xl font-bold text-gray-900">Quản lý Khóa học</h1>
           <p className="text-gray-600 mt-1">Quản lý các khóa học/năm học</p>
         </div>
-        <Button icon={Plus} onClick={() => {
-          setSelectedKhoaHoc(null);
-          setModalMode('create');
-          setIsModalOpen(true);
-        }}>
-          Thêm khóa học
-        </Button>
+        {canManage && (
+          <Button icon={Plus} onClick={() => {
+            setSelectedKhoaHoc(null);
+            setModalMode('create');
+            setIsModalOpen(true);
+          }}>
+            Thêm khóa học
+          </Button>
+        )}
       </div>
 
       <Card>

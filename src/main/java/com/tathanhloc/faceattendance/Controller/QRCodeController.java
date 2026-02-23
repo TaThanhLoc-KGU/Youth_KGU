@@ -10,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -28,6 +29,7 @@ public class QRCodeController {
 
     @GetMapping("/generate")
     @Operation(summary = "Sinh QR Code dạng Base64")
+    @PreAuthorize("hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<QRCodeImageResponse>> generateQRCode(
             @RequestParam String content) {
         log.info("GET /api/qrcode/generate?content={}", content);
@@ -53,6 +55,7 @@ public class QRCodeController {
 
     @GetMapping("/validate-format")
     @Operation(summary = "Validate format mã QR")
+    @PreAuthorize("hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> validateFormat(
             @RequestParam String maQR) {
         log.info("GET /api/qrcode/validate-format?maQR={}", maQR);
@@ -70,6 +73,7 @@ public class QRCodeController {
 
     @GetMapping("/parse")
     @Operation(summary = "Parse thông tin từ mã QR")
+    @PreAuthorize("hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<Map<String, String>>> parseQRCode(
             @RequestParam String maQR) {
         log.info("GET /api/qrcode/parse?maQR={}", maQR);

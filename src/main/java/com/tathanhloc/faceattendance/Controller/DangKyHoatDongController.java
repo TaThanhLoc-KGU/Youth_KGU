@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -29,6 +30,7 @@ public class DangKyHoatDongController {
 
     @PostMapping
     @Operation(summary = "Đăng ký hoạt động")
+    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<DangKyHoatDongDTO>> register(
             @Valid @RequestBody DangKyHoatDongRequest request) {
         log.info("POST /api/dang-ky - Student {} registering for activity {}",
@@ -40,6 +42,7 @@ public class DangKyHoatDongController {
 
     @DeleteMapping
     @Operation(summary = "Hủy đăng ký")
+    @PreAuthorize("hasPermission(null, 'HUY_DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> cancel(
             @RequestParam String maSv,
             @RequestParam String maHoatDong) {
@@ -50,6 +53,7 @@ public class DangKyHoatDongController {
 
     @PostMapping("/confirm")
     @Operation(summary = "Xác nhận đăng ký (Admin)")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<Void>> confirm(
             @RequestParam String maSv,
             @RequestParam String maHoatDong) {
@@ -62,6 +66,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/activity/{maHoatDong}")
     @Operation(summary = "Danh sách đăng ký theo hoạt động")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<List<DangKyHoatDongDTO>>> getByActivity(
             @PathVariable String maHoatDong) {
         log.info("GET /api/dang-ky/activity/{}", maHoatDong);
@@ -71,6 +76,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/student/{maSv}")
     @Operation(summary = "Danh sách đăng ký của sinh viên")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<List<DangKyHoatDongDTO>>> getByStudent(
             @PathVariable String maSv) {
         log.info("GET /api/dang-ky/student/{}", maSv);
@@ -80,6 +86,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/qrcode/{maQR}")
     @Operation(summary = "Thông tin đăng ký theo QR")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<DangKyHoatDongDTO>> getByQR(@PathVariable String maQR) {
         log.info("GET /api/dang-ky/qrcode/{}", maQR);
         DangKyHoatDongDTO registration = dangKyService.getByQRCode(maQR);
@@ -88,6 +95,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/pending/{maHoatDong}")
     @Operation(summary = "Danh sách chờ xác nhận")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<List<DangKyHoatDongDTO>>> getPending(
             @PathVariable String maHoatDong) {
         log.info("GET /api/dang-ky/pending/{}", maHoatDong);
@@ -99,6 +107,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/qrcode-image")
     @Operation(summary = "Lấy QR code dạng Base64")
+    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<String>> getQRCodeBase64(
             @RequestParam String maSv,
             @RequestParam String maHoatDong) {
@@ -109,6 +118,7 @@ public class DangKyHoatDongController {
 
     @PostMapping("/regenerate-qr/{maHoatDong}")
     @Operation(summary = "Sinh lại QR code cho hoạt động")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<BulkQRResponse>> regenerateQR(
             @PathVariable String maHoatDong) {
         log.info("POST /api/dang-ky/regenerate-qr/{}", maHoatDong);
@@ -128,6 +138,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/statistics/{maHoatDong}")
     @Operation(summary = "Thống kê đăng ký")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics(
             @PathVariable String maHoatDong) {
         log.info("GET /api/dang-ky/statistics/{}", maHoatDong);
@@ -139,6 +150,7 @@ public class DangKyHoatDongController {
 
     @PostMapping("/tham-gia")
     @Operation(summary = "Sinh viên đăng ký tham gia hoạt động (Alias)")
+    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<DangKyHoatDongDTO>> dangKyThamGia(@RequestBody Map<String, Object> request) {
         String maSv = (String) request.get("maSv");
         String maHoatDong = request.get("maHoatDong").toString();
@@ -151,6 +163,7 @@ public class DangKyHoatDongController {
 
     @PostMapping("/huy")
     @Operation(summary = "Hủy đăng ký tham gia (Alias)")
+    @PreAuthorize("hasPermission(null, 'HUY_DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> huyDangKy(@RequestBody Map<String, Object> request) {
         String maSv = (String) request.get("maSv");
         String maHoatDong = request.get("maHoatDong").toString();
@@ -159,6 +172,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/qr-code")
     @Operation(summary = "Lấy chuỗi mã QR để check-in (Alias)")
+    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<String>> getQrCode(
             @RequestParam String maSv,
             @RequestParam String maHoatDong) {

@@ -22,57 +22,92 @@ import {
   BarChart2,
   ScrollText,
   Shield,
+  QrCode,
+  TrendingUp,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
-import { ROUTES, ROLES } from '../../utils/constants';
+import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
 import { useState } from 'react';
 
+// ─── Menu admin - mỗi item gắn permission tương ứng từ DB ───────────────────
+// ADMIN luôn trả true cho hasPermission → tất cả vẫn hiển thị với ADMIN
+const ADMIN_MENU = [
+  { icon: LayoutDashboard, label: 'Dashboard',             path: ROUTES.ADMIN_DASHBOARD,          permission: null },
+  // ── Quản lý đối tượng ─────────────────────────────────────────────────────
+  { icon: Users,           label: 'Sinh viên',             path: ROUTES.ADMIN_STUDENTS,           permission: PERMISSIONS.VIEW_SINH_VIEN },
+  { icon: Users,           label: 'Giảng viên',            path: ROUTES.ADMIN_GIANGVIEN,          permission: PERMISSIONS.VIEW_GIANG_VIEN },
+  { icon: UserCog,         label: 'Chuyên viên',           path: ROUTES.ADMIN_CHUYENVIEN,         permission: PERMISSIONS.MANAGE_GIANG_VIEN },
+  { icon: UserCheck,       label: 'BCH Đoàn - Hội',       path: ROUTES.ADMIN_BCH,                permission: PERMISSIONS.VIEW_BCH },
+  // ── Dữ liệu cấu hình hệ thống ─────────────────────────────────────────────
+  { icon: Building2,       label: 'Khoa',                  path: ROUTES.ADMIN_KHOA,               permission: PERMISSIONS.CAI_DAT_HE_THONG },
+  { icon: Briefcase,       label: 'Ngành',                 path: ROUTES.ADMIN_NGANH,              permission: PERMISSIONS.CAI_DAT_HE_THONG },
+  { icon: BookOpen,        label: 'Lớp',                   path: ROUTES.ADMIN_LOP,                permission: PERMISSIONS.CAI_DAT_HE_THONG },
+  { icon: Calendar,        label: 'Khóa học',              path: ROUTES.ADMIN_KHOAHOC,            permission: PERMISSIONS.CAI_DAT_HE_THONG },
+  { icon: Zap,             label: 'Chức vụ',               path: ROUTES.ADMIN_CHUC_VU,            permission: PERMISSIONS.MANAGE_BCH },
+  { icon: Building,        label: 'Ban/Đội/CLB',           path: ROUTES.ADMIN_BAN,                permission: PERMISSIONS.MANAGE_BCH },
+  // ── Hoạt động & Điểm danh ─────────────────────────────────────────────────
+  { icon: Activity,        label: 'Hoạt động',             path: ROUTES.ADMIN_ACTIVITIES,         permission: PERMISSIONS.XEM_HOAT_DONG },
+  { icon: ClipboardCheck,  label: 'Điểm danh',             path: ROUTES.ADMIN_ATTENDANCE,         permission: PERMISSIONS.MANAGE_DIEM_DANH },
+  // ── Tài khoản & Thống kê ──────────────────────────────────────────────────
+  { icon: UserPlus,        label: 'Quản lý tài khoản',    path: ROUTES.ADMIN_ACCOUNTS,           permission: PERMISSIONS.VIEW_TAI_KHOAN },
+  { icon: BarChart2,       label: 'Thống kê tài khoản',   path: ROUTES.ADMIN_ACCOUNT_STATISTICS, permission: PERMISSIONS.VIEW_THONG_KE },
+  // ── Hệ thống ──────────────────────────────────────────────────────────────
+  { icon: User,            label: 'Hồ sơ cá nhân',        path: ROUTES.PROFILE,                  permission: null },
+  { icon: ScrollText,      label: 'System Log',            path: '/admin/system-log',             permission: PERMISSIONS.VIEW_SYSTEM_LOG },
+  { icon: Shield,          label: 'Cài đặt & Phân quyền', path: ROUTES.ADMIN_SETTINGS,           permission: PERMISSIONS.MANAGE_ROLE_PERMISSIONS },
+];
+
+// ─── Menu BCH (ai có TAO_HOAT_DONG đều thấy) ─────────────────────────────────
+const BCH_MENU = [
+  { icon: LayoutDashboard, label: 'Dashboard BCH',       path: ROUTES.BCH_DASHBOARD,  permission: PERMISSIONS.TAO_HOAT_DONG },
+  { icon: Activity,        label: 'Quản lý Hoạt động',  path: ROUTES.BCH_ACTIVITIES, permission: PERMISSIONS.TAO_HOAT_DONG },
+  { icon: ClipboardCheck,  label: 'Điểm danh',           path: ROUTES.BCH_ATTENDANCE, permission: PERMISSIONS.QUET_QR },
+  { icon: QrCode,          label: 'Quét QR',             path: ROUTES.BCH_SCAN_QR,   permission: PERMISSIONS.QUET_QR },
+  { icon: User,            label: 'Hồ sơ cá nhân',      path: ROUTES.PROFILE,        permission: null },
+];
+
+// ─── Menu sinh viên — quyền căn bản, mọi sinh viên đều có ───────────────────
+// showStudent đã filter bởi vaiTro === SINHVIEN, nên permission: null là đúng
+// Không dựa vào quyền cụ thể vì backend có thể không luôn trả về đủ base perms
+const STUDENT_MENU = [
+  { icon: LayoutDashboard, label: 'Dashboard',           path: ROUTES.STUDENT_DASHBOARD,          permission: null },
+  { icon: Calendar,        label: 'Đăng ký hoạt động',  path: ROUTES.STUDENT_REGISTER_ACTIVITIES,permission: null },
+  { icon: ClipboardCheck,  label: 'Hoạt động của tôi',  path: ROUTES.STUDENT_MY_ACTIVITIES,      permission: null },
+  { icon: TrendingUp,      label: 'Điểm rèn luyện',     path: ROUTES.STUDENT_TRAINING_POINTS,    permission: null },
+  { icon: User,            label: 'Hồ sơ cá nhân',      path: ROUTES.STUDENT_PROFILE,            permission: null },
+];
+
+// ─── Quyền "mở khóa" section quản trị ─────────────────────────────────────────
+// Ai có ít nhất 1 trong các quyền này → thấy menu quản trị + truy cập /admin/*
+const ADMIN_SECTION_PERMS = [
+  PERMISSIONS.XEM_SINH_VIEN, PERMISSIONS.XEM_GIANG_VIEN, PERMISSIONS.XEM_CHUYEN_VIEN,
+  PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
+  PERMISSIONS.XEM_KHOA, PERMISSIONS.XEM_NGANH, PERMISSIONS.XEM_LOP, PERMISSIONS.XEM_KHOA_HOC,
+  PERMISSIONS.QUAN_LY_CHUC_VU, PERMISSIONS.QUAN_LY_BAN,
+  PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
+  PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
+  PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 const Sidebar = () => {
   const location = useLocation();
-  const { user, logout } = useAuthStore();
+  const { user, logout, hasPermission, hasAnyPermission, laBCH, danhSachChucVu } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const menuItems = {
-    [ROLES.ADMIN]: [
-      { icon: LayoutDashboard, label: 'Dashboard', path: ROUTES.ADMIN_DASHBOARD },
-      { icon: Users, label: 'Sinh viên', path: ROUTES.ADMIN_STUDENTS },
-      { icon: Users, label: 'Giảng viên', path: ROUTES.ADMIN_GIANGVIEN },
-      { icon: Activity, label: 'Hoạt động', path: ROUTES.ADMIN_ACTIVITIES },
-      { icon: Building2, label: 'Khoa', path: ROUTES.ADMIN_KHOA },
-      { icon: Briefcase, label: 'Ngành', path: ROUTES.ADMIN_NGANH },
-      { icon: BookOpen, label: 'Lớp', path: ROUTES.ADMIN_LOP },
-      { icon: Calendar, label: 'Khóa học', path: ROUTES.ADMIN_KHOAHOC },
-      { icon: UserCheck, label: 'BCH Đoàn - Hội', path: ROUTES.ADMIN_BCH },
-      { icon: UserCog, label: 'Chuyên viên', path: ROUTES.ADMIN_CHUYENVIEN },
-      { icon: Zap, label: 'Chức vụ', path: ROUTES.ADMIN_CHUC_VU },
-      { icon: Building, label: 'Ban/Đội/CLB', path: ROUTES.ADMIN_BAN },
-      { icon: ClipboardCheck, label: 'Điểm danh', path: ROUTES.ADMIN_ATTENDANCE },
-      // Removed Certificates and Statistics as requested
-      // { icon: Award, label: 'Chứng nhận', path: ROUTES.ADMIN_CERTIFICATES },
-      // { icon: BarChart3, label: 'Thống kê', path: ROUTES.ADMIN_STATISTICS },
-      { icon: UserPlus, label: 'Quản lý tài khoản', path: ROUTES.ADMIN_ACCOUNTS },
-      { icon: BarChart2, label: 'Thống kê tài khoản', path: ROUTES.ADMIN_ACCOUNT_STATISTICS },
-      { icon: User, label: 'Hồ sơ cá nhân', path: ROUTES.PROFILE },
-      { icon: ScrollText, label: 'System Log', path: '/admin/system-log' },
-      { icon: Shield, label: 'Cài đặt & Phân quyền', path: ROUTES.ADMIN_SETTINGS },
-    ],
-    [ROLES.BCH]: [
-      { icon: LayoutDashboard, label: 'Dashboard', path: ROUTES.BCH_DASHBOARD },
-      { icon: Activity, label: 'Hoạt động', path: ROUTES.BCH_ACTIVITIES },
-      { icon: ClipboardCheck, label: 'Điểm danh', path: ROUTES.BCH_ATTENDANCE },
-      { icon: Award, label: 'Quét QR', path: ROUTES.BCH_SCAN_QR },
-      { icon: User, label: 'Hồ sơ cá nhân', path: ROUTES.PROFILE },
-    ],
-    [ROLES.SINHVIEN]: [
-      { icon: LayoutDashboard, label: 'Dashboard', path: ROUTES.STUDENT_DASHBOARD },
-      { icon: Calendar, label: 'Đăng ký hoạt động', path: ROUTES.STUDENT_REGISTER_ACTIVITIES },
-      { icon: ClipboardCheck, label: 'Hoạt động của tôi', path: ROUTES.STUDENT_MY_ACTIVITIES },
-      { icon: BarChart3, label: 'Điểm rèn luyện', path: ROUTES.STUDENT_TRAINING_POINTS },
-      { icon: User, label: 'Hồ sơ cá nhân', path: ROUTES.STUDENT_PROFILE },
-    ],
-  };
+  const isAdmin = user?.vaiTro === ROLES.ADMIN;
 
-  const currentMenuItems = menuItems[user?.vaiTro] || [];
+  // Section quản trị: ADMIN role luôn thấy, người khác thấy nếu có ít nhất 1 quyền quản trị
+  // → GV001 (Bí thư, 100% quyền) sẽ thấy menu quản trị đầy đủ
+  const showAdminSection = isAdmin || hasAnyPermission(ADMIN_SECTION_PERMS);
+
+  // BCH section: dùng flag laBCH từ backend
+  // SINH_VIEN là BCH → laBCH=true → thấy BCH section
+  // GIANG_VIEN là BCH → laBCH=true → thấy BCH section
+  const showBCH = laBCH;
+
+  // Student section: chỉ SINH_VIEN (kể cả SINH_VIEN là BCH, vaiTro vẫn là SINH_VIEN)
+  const showStudent = user?.vaiTro === ROLES.SINHVIEN;
 
   const handleLogout = async () => {
     try {
@@ -82,6 +117,59 @@ const Sidebar = () => {
       console.error('Logout error:', error);
     }
   };
+
+  // Lấy tên chức vụ hiển thị (chỉ BCH)
+  const chucVuLabel = () => {
+    if (isAdmin) return 'Quản trị viên';
+    if (danhSachChucVu?.length > 0) return danhSachChucVu[0].tenChucVu;
+    if (user?.vaiTro === ROLES.BCH) return 'BCH Đoàn - Hội';
+    if (user?.vaiTro === ROLES.SINHVIEN) return 'Sinh viên';
+    if (user?.vaiTro === ROLES.GIANG_VIEN) return 'Giảng viên';
+    if (user?.vaiTro === ROLES.CHUYEN_VIEN) return 'Chuyên viên';
+    return user?.vaiTro || '';
+  };
+
+  // Render một menu item
+  const renderItem = (item) => {
+    // Ẩn item nếu thiếu quyền (item.permission !== null)
+    if (item.permission && !hasPermission(item.permission)) return null;
+
+    const Icon = item.icon;
+    const isActive = location.pathname === item.path;
+
+    return (
+      <li key={item.path}>
+        <Link
+          to={item.path}
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
+            isActive
+              ? 'bg-primary text-white'
+              : 'text-gray-700 hover:bg-gray-100'
+          } ${isCollapsed ? 'justify-center' : ''}`}
+          title={isCollapsed ? item.label : ''}
+        >
+          <Icon className="w-5 h-5 flex-shrink-0" />
+          {!isCollapsed && (
+            <span className="text-sm font-medium truncate">{item.label}</span>
+          )}
+        </Link>
+      </li>
+    );
+  };
+
+  // Render một section với tiêu đề
+  const renderSection = (title, items) => (
+    <div className="mb-2">
+      {title && !isCollapsed && (
+        <p className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          {title}
+        </p>
+      )}
+      <ul className="space-y-1">
+        {items.map((item) => renderItem(item))}
+      </ul>
+    </div>
+  );
 
   return (
     <aside
@@ -129,43 +217,59 @@ const Sidebar = () => {
               <p className="text-sm font-medium text-gray-900 truncate">
                 {user?.hoTen || user?.username}
               </p>
-              <p className="text-xs text-gray-500 truncate">
-                {user?.vaiTro === ROLES.ADMIN && 'Quản trị viên'}
-                {user?.vaiTro === ROLES.BCH && 'BCH Đoàn - Hội'}
-                {user?.vaiTro === ROLES.SINHVIEN && 'Sinh viên'}
-              </p>
+              <p className="text-xs text-gray-500 truncate">{chucVuLabel()}</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Navigation - Scrollable Area */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-4 custom-scrollbar">
-        <ul className="space-y-1">
-          {currentMenuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+      {/* Navigation - Scrollable */}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 custom-scrollbar space-y-1">
+        {/* Admin section: ADMIN role hoặc ai có quyền quản trị (GV001, BCH cấp cao...) */}
+        {showAdminSection && renderSection(
+          showBCH || showStudent ? 'Quản trị' : null,
+          ADMIN_MENU
+        )}
 
-            return (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                    isActive
-                      ? 'bg-primary text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
-                  title={isCollapsed ? item.label : ''}
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {!isCollapsed && (
-                    <span className="text-sm font-medium truncate">{item.label}</span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        {/* Divider */}
+        {showAdminSection && showBCH && !isCollapsed && (
+          <div className="border-t border-gray-100 my-2" />
+        )}
+
+        {/* BCH section */}
+        {showBCH && renderSection(
+          showAdminSection || showStudent ? 'Ban Chấp hành' : null,
+          BCH_MENU
+        )}
+
+        {/* Divider */}
+        {(showAdminSection || showBCH) && showStudent && !isCollapsed && (
+          <div className="border-t border-gray-100 my-2" />
+        )}
+
+        {/* Student section */}
+        {showStudent && renderSection(
+          showAdminSection || showBCH ? 'Sinh viên' : null,
+          STUDENT_MENU
+        )}
+
+        {/* Fallback: GIANG_VIEN/CHUYEN_VIEN không có quyền nào → chỉ thấy hồ sơ */}
+        {!showAdminSection && !showBCH && !showStudent && (
+          <ul className="space-y-1">
+            <li>
+              <Link
+                to={ROUTES.PROFILE}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                  location.pathname === ROUTES.PROFILE ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
+                } ${isCollapsed ? 'justify-center' : ''}`}
+                title={isCollapsed ? 'Hồ sơ cá nhân' : ''}
+              >
+                <User className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="text-sm font-medium">Hồ sơ cá nhân</span>}
+              </Link>
+            </li>
+          </ul>
+        )}
       </nav>
 
       {/* Logout Button */}

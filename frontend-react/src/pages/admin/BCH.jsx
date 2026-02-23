@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import { Plus, Edit, Trash2, Eye, RefreshCw, Settings } from 'lucide-react';
 import bchService from '../../services/bchService';
 import chucVuService from '../../services/chucVuService';
@@ -17,6 +19,9 @@ import BCHDetailView from '../../components/admin/BCHDetailView';
 
 const BCH = () => {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canView   = hasPermission(PERMISSIONS.VIEW_BCH);
+  const canManage = hasPermission(PERMISSIONS.MANAGE_BCH);
   const [search, setSearch] = useState('');
   const [nhiemKyFilter, setNhiemKyFilter] = useState('');
   const [loaiThanhVienFilter, setLoaiThanhVienFilter] = useState('');
@@ -169,28 +174,34 @@ const BCH = () => {
             onClick={() => handleView(row)}
             title="Xem chi tiết"
           />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Edit}
-            onClick={() => handleEdit(row)}
-            title="Chỉnh sửa"
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Settings}
-            onClick={() => handleManageChucVu(row)}
-            title="Quản lý chức vụ"
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-red-600 hover:text-red-700"
-            icon={Trash2}
-            onClick={() => handleDelete(row)}
-            title="Xóa"
-          />
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Edit}
+              onClick={() => handleEdit(row)}
+              title="Chỉnh sửa"
+            />
+          )}
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Settings}
+              onClick={() => handleManageChucVu(row)}
+              title="Quản lý chức vụ"
+            />
+          )}
+          {canManage && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-red-600 hover:text-red-700"
+              icon={Trash2}
+              onClick={() => handleDelete(row)}
+              title="Xóa"
+            />
+          )}
         </div>
       ),
     },
@@ -262,9 +273,11 @@ const BCH = () => {
           <h1 className="text-3xl font-bold text-gray-900">Quản lý Ban Chấp hành</h1>
           <p className="text-gray-600 mt-1">Quản lý thành viên Ban Chấp hành Đoàn - Hội</p>
         </div>
-        <Button icon={Plus} onClick={handleCreate}>
-          Thêm BCH mới
-        </Button>
+        {canManage && (
+          <Button icon={Plus} onClick={handleCreate}>
+            Thêm BCH mới
+          </Button>
+        )}
       </div>
 
       {/* Statistics Cards */}

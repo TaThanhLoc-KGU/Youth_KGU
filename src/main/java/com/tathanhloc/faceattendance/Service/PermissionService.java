@@ -31,27 +31,28 @@ public class PermissionService {
     private final SystemLogService systemLogService;
     private final HttpServletRequest request;
 
-    // Bảng quy đổi chức vụ BCH → quyền chức năng
+    // Bảng quy đổi chức vụ BCH → quyền chức năng (fallback khi DB chưa cấu hình)
+    // Tên quyền khớp với bảng permissions trong DB sau migration V_permissions_cleanup.sql
     private static final Map<String, Set<String>> CHUC_VU_PERMISSION_MAP = new HashMap<>();
     static {
         CHUC_VU_PERMISSION_MAP.put("QUAN_LY_CAP_1", new HashSet<>(java.util.Arrays.asList(
-            "QUAN_LY_HOAT_DONG", "DUYET_HOAT_DONG", "DIEM_DANH",
-            "PHAN_CONG_DIEM_DANH", "QUAN_LY_DANG_KY", "XEM_BAO_CAO",
-            "XUAT_BAO_CAO", "QUAN_LY_THANH_VIEN"
+            "TAO_HOAT_DONG", "SUA_HOAT_DONG", "XOA_HOAT_DONG", "DUYET_HOAT_DONG",
+            "QUET_QR", "PHAN_CONG_DIEM_DANH", "QUAN_LY_DANG_KY",
+            "XEM_BAO_CAO", "XUAT_BAO_CAO", "THEM_BCH", "SUA_BCH"
         )));
         CHUC_VU_PERMISSION_MAP.put("QUAN_LY_CAP_2", new HashSet<>(java.util.Arrays.asList(
-            "QUAN_LY_HOAT_DONG", "DIEM_DANH", "PHAN_CONG_DIEM_DANH",
+            "TAO_HOAT_DONG", "SUA_HOAT_DONG", "QUET_QR", "PHAN_CONG_DIEM_DANH",
             "QUAN_LY_DANG_KY", "XEM_BAO_CAO"
         )));
         CHUC_VU_PERMISSION_MAP.put("QUAN_LY_CAP_3", new HashSet<>(java.util.Arrays.asList(
-            "TAO_HOAT_DONG", "DIEM_DANH", "QUAN_LY_DANG_KY", "XEM_BAO_CAO"
+            "TAO_HOAT_DONG", "QUET_QR", "QUAN_LY_DANG_KY", "XEM_BAO_CAO"
         )));
         CHUC_VU_PERMISSION_MAP.put("PHU_VU_CAP_2", new HashSet<>(java.util.Arrays.asList(
-            "TAO_HOAT_DONG", "DIEM_DANH", "PHAN_CONG_DIEM_DANH",
+            "TAO_HOAT_DONG", "QUET_QR", "PHAN_CONG_DIEM_DANH",
             "QUAN_LY_DANG_KY", "XEM_BAO_CAO"
         )));
         CHUC_VU_PERMISSION_MAP.put("PHU_VU_CAP_3", new HashSet<>(java.util.Arrays.asList(
-            "DIEM_DANH", "XEM_DANH_SACH_DANG_KY"
+            "QUET_QR", "XEM_DIEM_DANH"
         )));
     }
 
@@ -70,29 +71,35 @@ public class PermissionService {
             String nhomVaiTro = getNhomVaiTro(vaiTro);
             switch (nhomVaiTro) {
                 case "THAM_GIA":
-                    permissions.add("DANG_NHAP");
                     permissions.add("DOI_MAT_KHAU");
+                    permissions.add("XEM_THONG_TIN_CA_NHAN");
+                    permissions.add("SUA_THONG_TIN_CA_NHAN");
                     permissions.add("DANG_KY_HOAT_DONG");
+                    permissions.add("HUY_DANG_KY_HOAT_DONG");
                     permissions.add("XEM_HOAT_DONG");
+                    permissions.add("XEM_LICH_SU_THAM_GIA");
                     break;
                 case "PHU_VU":
-                    permissions.add("DANG_NHAP");
                     permissions.add("DOI_MAT_KHAU");
-                    permissions.add("DANG_KY_HOAT_DONG");
+                    permissions.add("XEM_THONG_TIN_CA_NHAN");
+                    permissions.add("SUA_THONG_TIN_CA_NHAN");
                     permissions.add("XEM_HOAT_DONG");
-                    permissions.add("DIEM_DANH");
-                    permissions.add("XEM_DANH_SACH_DANG_KY");
+                    permissions.add("QUET_QR");
+                    permissions.add("QUAN_LY_DANG_KY");
                     break;
                 case "QUAN_LY":
-                    permissions.add("DANG_NHAP");
                     permissions.add("DOI_MAT_KHAU");
+                    permissions.add("XEM_THONG_TIN_CA_NHAN");
+                    permissions.add("SUA_THONG_TIN_CA_NHAN");
                     permissions.add("TAO_HOAT_DONG");
                     permissions.add("SUA_HOAT_DONG");
                     permissions.add("XOA_HOAT_DONG");
-                    permissions.add("DIEM_DANH");
+                    permissions.add("DUYET_HOAT_DONG");
+                    permissions.add("QUET_QR");
                     permissions.add("QUAN_LY_DANG_KY");
-                    permissions.add("XEM_BAO_CAO");
                     permissions.add("PHAN_CONG_DIEM_DANH");
+                    permissions.add("XEM_BAO_CAO");
+                    permissions.add("XUAT_BAO_CAO");
                     break;
             }
         }
@@ -139,6 +146,13 @@ public class PermissionService {
         int cap = (thuTu != null && thuTu <= 2) ? (thuTu == 1 ? 1 : 2) : 3;
         String fallbackKey = (isQuanLy ? "QUAN_LY" : "PHU_VU") + "_CAP_" + cap;
         return new HashSet<>(CHUC_VU_PERMISSION_MAP.getOrDefault(fallbackKey, new HashSet<>()));
+    }
+
+    // Lấy quyền của chính mình (dùng username từ JWT, không cần ID)
+    public AccountPermissionDTO getMyPermissions(String username) {
+        TaiKhoan taiKhoan = taiKhoanRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + username));
+        return getAccountPermissions(taiKhoan.getId());
     }
 
     // Lấy toàn bộ quyền của account (merge)

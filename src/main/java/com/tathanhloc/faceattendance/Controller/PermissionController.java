@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -18,22 +19,32 @@ import java.util.stream.Collectors;
 public class PermissionController {
     private final PermissionService service;
 
+    /**
+     * Lấy quyền của chính mình - mọi người dùng đã đăng nhập đều gọi được.
+     * Dùng JWT principal (username) để xác định tài khoản, không cần truyền ID.
+     */
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyPermissions(Principal principal) {
+        return ResponseEntity.ok(ApiResponse.builder().success(true)
+            .data(service.getMyPermissions(principal.getName())).build());
+    }
+
     @GetMapping("/all")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_NHOM')")
     public ResponseEntity<?> getAllGrouped() {
         return ResponseEntity.ok(ApiResponse.builder().success(true)
             .data(service.getAllPermissionsGrouped()).build());
     }
 
     @GetMapping("/role/{roleName}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_NHOM')")
     public ResponseEntity<?> getRolePermissions(@PathVariable String roleName) {
         return ResponseEntity.ok(ApiResponse.builder().success(true)
             .data(service.getRolePermissionIds(roleName)).build());
     }
 
     @PutMapping("/role/{roleName}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_NHOM')")
     public ResponseEntity<?> updateRolePermissions(@PathVariable String roleName,
             @RequestBody Map<String, Object> body) {
         try {
@@ -51,14 +62,14 @@ public class PermissionController {
     }
 
     @GetMapping("/account/{taiKhoanId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_TAI_KHOAN')")
     public ResponseEntity<?> getAccountPermissions(@PathVariable Long taiKhoanId) {
         return ResponseEntity.ok(ApiResponse.builder().success(true)
             .data(service.getAccountPermissions(taiKhoanId)).build());
     }
 
     @PutMapping("/account/{taiKhoanId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_TAI_KHOAN')")
     public ResponseEntity<?> updateAccountPermissions(@PathVariable Long taiKhoanId,
             @RequestBody Map<String, Object> body, HttpServletRequest request) {
         try {
@@ -82,7 +93,7 @@ public class PermissionController {
     }
 
     @DeleteMapping("/account/{taiKhoanId}/reset")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_TAI_KHOAN')")
     public ResponseEntity<?> resetAccountPermissions(@PathVariable Long taiKhoanId,
             @RequestBody Map<String, String> body) {
         try {

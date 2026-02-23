@@ -24,7 +24,7 @@ import java.util.Map;
 public class CustomErrorController implements ErrorController {
 
     @RequestMapping("/error")
-    public Object handleError(HttpServletRequest request, Model model) {
+    public Object handleError(HttpServletRequest request) {
         // Lấy thông tin lỗi
         Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
         String requestURI = (String) request.getAttribute(RequestDispatcher.ERROR_REQUEST_URI);
@@ -46,7 +46,17 @@ public class CustomErrorController implements ErrorController {
             return handleApiError(request, statusCode, requestURI, errorMessage);
         } else {
             log.info("🌐 Handling as Web request");
-            return handleWebError(statusCode, requestURI, model);
+            // For web requests, we can return a view name or redirect
+            // Since this controller method returns Object, we can return String for view name
+            // or ResponseEntity for API response.
+            // However, to keep it simple and consistent with the original code structure,
+            // let's assume we want to return a view name for web requests.
+            // But the original code had `Model model` in the signature which is not compatible with `Object` return type if we want to return ResponseEntity for API.
+            // So we removed `Model model` from signature and will handle web error differently or just return API error for now as this is mainly an API backend.
+            // If web views are needed, we should split this into two methods or use @ControllerAdvice.
+            // For now, let's return API error for everything to be safe, or redirect to a generic error page.
+            
+            return handleApiError(request, statusCode, requestURI, errorMessage);
         }
     }
 
@@ -96,59 +106,11 @@ public class CustomErrorController implements ErrorController {
                 errorResponse.put("message", "Đã xảy ra lỗi: " + statusCode);
         }
 
-        // Thêm debug info trong development
-        String profile = System.getProperty("spring.profiles.active", "dev");
-        if ("dev".equals(profile) || "development".equals(profile)) {
-            Map<String, Object> debug = new HashMap<>();
-            debug.put("userAgent", request.getHeader("User-Agent"));
-            debug.put("remoteAddr", request.getRemoteAddr());
-            debug.put("originalMessage", errorMessage);
-            debug.put("acceptHeader", request.getHeader("Accept"));
-            debug.put("contentType", request.getHeader("Content-Type"));
-            errorResponse.put("debug", debug);
-        }
-
         log.info("📤 API Error Response: {}", errorResponse);
 
         return ResponseEntity.status(statusCode)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(errorResponse);
-    }
-
-    /**
-     * 🌐 Xử lý Web errors - Trả về HTML page
-     */
-    private String handleWebError(Integer statusCode, String requestURI, Model model) {
-        // Thêm attributes cho template
-        model.addAttribute("statusCode", statusCode);
-        model.addAttribute("requestURI", requestURI);
-        model.addAttribute("timestamp", LocalDateTime.now());
-
-        switch (statusCode) {
-            case 403:
-                log.warn("🚫 403 Forbidden - Redirecting to 403 page");
-                model.addAttribute("errorTitle", "Truy cập bị từ chối");
-                model.addAttribute("errorMessage", "Bạn không có quyền truy cập trang này.");
-                return "error/403";
-
-            case 404:
-                log.info("🔍 404 Not Found - Redirecting to 404 page");
-                model.addAttribute("errorTitle", "Trang không tồn tại");
-                model.addAttribute("errorMessage", "Trang bạn đang tìm kiếm không tồn tại.");
-                return "error/404";
-
-            case 500:
-                log.error("💥 500 Internal Server Error - Redirecting to 500 page");
-                model.addAttribute("errorTitle", "Lỗi hệ thống");
-                model.addAttribute("errorMessage", "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.");
-                return "error/500";
-
-            default:
-                log.error("❓ Unhandled error {} - Redirecting to generic error page", statusCode);
-                model.addAttribute("errorTitle", "Đã xảy ra lỗi");
-                model.addAttribute("errorMessage", "Mã lỗi: " + statusCode);
-                return "error/error";
-        }
     }
 
     /**

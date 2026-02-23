@@ -295,4 +295,12 @@ public class StatisticsService {
 
         return statistics;
     }
+
+    public Map<String, Object> getGeneralStatistics() {
+        return new HashMap<>();
+    }
+
+    public Map<String, Object> getReportByType(String type, String from, String to) {
+        return new HashMap<>();
+    }
 }

@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ public class ChungNhanHoatDongController {
 
     @GetMapping
     @Operation(summary = "Lấy tất cả chứng nhận")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<List<ChungNhanHoatDongDTO>>> getAll() {
         log.info("GET /api/chung-nhan - Get all certificates");
         List<ChungNhanHoatDongDTO> certificates = chungNhanService.getAll();
@@ -37,6 +39,7 @@ public class ChungNhanHoatDongController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy chi tiết chứng nhận")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<ChungNhanHoatDongDTO>> getById(@PathVariable Long id) {
         log.info("GET /api/chung-nhan/{}", id);
         ChungNhanHoatDongDTO certificate = chungNhanService.getById(id);
@@ -45,6 +48,7 @@ public class ChungNhanHoatDongController {
 
     @GetMapping("/code/{maChungNhan}")
     @Operation(summary = "Tìm chứng nhận theo mã")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<ChungNhanHoatDongDTO>> getByCode(
             @PathVariable String maChungNhan) {
         log.info("GET /api/chung-nhan/code/{}", maChungNhan);
@@ -56,6 +60,7 @@ public class ChungNhanHoatDongController {
 
     @PostMapping("/issue/auto")
     @Operation(summary = "Cấp chứng nhận tự động")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<ChungNhanHoatDongDTO>> issueAuto(
             @RequestParam String maSv,
             @RequestParam String maHoatDong) {
@@ -67,6 +72,7 @@ public class ChungNhanHoatDongController {
 
     @PostMapping("/issue/manual")
     @Operation(summary = "Cấp chứng nhận thủ công (Admin)")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<ChungNhanHoatDongDTO>> issueManual(
             @RequestBody ChungNhanHoatDongDTO dto) {
         log.info("POST /api/chung-nhan/issue/manual");
@@ -77,6 +83,7 @@ public class ChungNhanHoatDongController {
 
     @PostMapping("/issue/bulk/{maHoatDong}")
     @Operation(summary = "Cấp hàng loạt chứng nhận")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<List<ChungNhanHoatDongDTO>>> issueBulk(
             @PathVariable String maHoatDong) {
         log.info("POST /api/chung-nhan/issue/bulk/{}", maHoatDong);
@@ -89,6 +96,7 @@ public class ChungNhanHoatDongController {
 
     @PostMapping("/{id}/revoke")
     @Operation(summary = "Thu hồi chứng nhận")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<Void>> revoke(
             @PathVariable Long id,
             @RequestParam String lyDo) {
@@ -101,6 +109,7 @@ public class ChungNhanHoatDongController {
 
     @GetMapping("/student/{maSv}")
     @Operation(summary = "Danh sách chứng nhận của sinh viên")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<List<ChungNhanHoatDongDTO>>> getByStudent(
             @PathVariable String maSv) {
         log.info("GET /api/chung-nhan/student/{}", maSv);
@@ -110,6 +119,7 @@ public class ChungNhanHoatDongController {
 
     @GetMapping("/activity/{maHoatDong}")
     @Operation(summary = "Danh sách chứng nhận theo hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<List<ChungNhanHoatDongDTO>>> getByActivity(
             @PathVariable String maHoatDong) {
         log.info("GET /api/chung-nhan/activity/{}", maHoatDong);
@@ -119,6 +129,7 @@ public class ChungNhanHoatDongController {
 
     @GetMapping("/date-range")
     @Operation(summary = "Lọc theo khoảng thời gian")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<List<ChungNhanHoatDongDTO>>> getByDateRange(
             @RequestParam String startDate,
             @RequestParam String endDate) {

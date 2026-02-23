@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList } from 'lucide-react';
 import activityService from '../../services/activityService';
 import Table from '../../components/common/Table';
@@ -29,6 +31,12 @@ import { findTieuChi } from '../../constants/renLuyenCriteria';
 const Activities = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canView    = hasPermission(PERMISSIONS.XEM_HOAT_DONG);
+  const canCreate  = hasPermission(PERMISSIONS.TAO_HOAT_DONG);
+  const canEdit    = hasPermission(PERMISSIONS.SUA_HOAT_DONG);
+  const canDelete  = hasPermission(PERMISSIONS.XOA_HOAT_DONG);
+  const canApprove = hasPermission(PERMISSIONS.DUYET_HOAT_DONG);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
@@ -158,44 +166,38 @@ const Activities = () => {
             size="sm"
             variant="ghost"
             icon={Eye}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleView(row);
-            }}
+            onClick={(e) => { e.stopPropagation(); handleView(row); }}
             title="Xem chi tiết"
           />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={ClipboardList}
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/activities/${row.maHoatDong}/attendance`);
-            }}
-            title="Danh sách điểm danh"
-            className="text-blue-600 hover:text-blue-700"
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Edit}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEdit(row);
-            }}
-            title="Sửa"
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Trash2}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(row);
-            }}
-            title="Xóa"
-            className="text-red-600 hover:text-red-700"
-          />
+          {(canEdit || canApprove) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={ClipboardList}
+              onClick={(e) => { e.stopPropagation(); navigate(`/admin/activities/${row.maHoatDong}/attendance`); }}
+              title="Danh sách điểm danh"
+              className="text-blue-600 hover:text-blue-700"
+            />
+          )}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Edit}
+              onClick={(e) => { e.stopPropagation(); handleEdit(row); }}
+              title="Sửa"
+            />
+          )}
+          {canDelete && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Trash2}
+              onClick={(e) => { e.stopPropagation(); handleDelete(row); }}
+              title="Xóa"
+              className="text-red-600 hover:text-red-700"
+            />
+          )}
         </div>
       ),
     },
@@ -242,9 +244,11 @@ const Activities = () => {
             Quản lý các hoạt động Đoàn - Hội sinh viên
           </p>
         </div>
-        <Button icon={Plus} onClick={handleCreate}>
-          Tạo hoạt động mới
-        </Button>
+        {canCreate && (
+          <Button icon={Plus} onClick={handleCreate}>
+            Tạo hoạt động mới
+          </Button>
+        )}
       </div>
 
       {/* Filters */}

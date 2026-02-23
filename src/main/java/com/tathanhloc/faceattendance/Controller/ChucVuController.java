@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +26,7 @@ public class ChucVuController {
 
     @GetMapping
     @Operation(summary = "Lấy tất cả chức vụ")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<ChucVuDTO>>> getAll() {
         log.info("GET /api/chuc-vu");
         List<ChucVuDTO> list = chucVuService.getAll();
@@ -33,6 +35,7 @@ public class ChucVuController {
 
     @GetMapping("/{maChucVu}")
     @Operation(summary = "Lấy chi tiết chức vụ")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<ChucVuDTO>> getById(@PathVariable String maChucVu) {
         log.info("GET /api/chuc-vu/{}", maChucVu);
         ChucVuDTO dto = chucVuService.getById(maChucVu);
@@ -41,6 +44,7 @@ public class ChucVuController {
 
     @PostMapping
     @Operation(summary = "Tạo chức vụ mới")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUC_VU')")
     public ResponseEntity<ApiResponse<ChucVuDTO>> create(@RequestBody ChucVuDTO dto) {
         log.info("POST /api/chuc-vu: {}", dto.getMaChucVu());
         ChucVuDTO created = chucVuService.create(dto);
@@ -50,6 +54,7 @@ public class ChucVuController {
 
     @PutMapping("/{maChucVu}")
     @Operation(summary = "Cập nhật chức vụ")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUC_VU')")
     public ResponseEntity<ApiResponse<ChucVuDTO>> update(
             @PathVariable String maChucVu,
             @RequestBody ChucVuDTO dto) {
@@ -60,6 +65,7 @@ public class ChucVuController {
 
     @DeleteMapping("/{maChucVu}")
     @Operation(summary = "Xóa chức vụ (soft delete)")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUC_VU')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String maChucVu) {
         log.info("DELETE /api/chuc-vu/{}", maChucVu);
         chucVuService.delete(maChucVu);
@@ -68,6 +74,7 @@ public class ChucVuController {
 
     @GetMapping("/thuoc-ban/{thuocBan}")
     @Operation(summary = "Lọc chức vụ theo thuộc ban")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<List<ChucVuDTO>>> getByThuocBan(
             @PathVariable String thuocBan) {
         log.info("GET /api/chuc-vu/thuoc-ban/{}", thuocBan);
@@ -77,6 +84,7 @@ public class ChucVuController {
 
     @GetMapping("/statistics")
     @Operation(summary = "Thống kê chức vụ")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<ApiResponse<Map<String, Long>>> getStatistics() {
         log.info("GET /api/chuc-vu/statistics");
         Map<String, Long> stats = chucVuService.getStatistics();

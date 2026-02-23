@@ -1,6 +1,7 @@
 package com.tathanhloc.faceattendance.Controller;
 
 import com.tathanhloc.faceattendance.DTO.*;
+import com.tathanhloc.faceattendance.Model.TaiKhoan;
 import com.tathanhloc.faceattendance.Security.CustomUserDetails;
 import com.tathanhloc.faceattendance.Service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -123,18 +124,19 @@ public class AuthController {
 
         try {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            TaiKhoan taiKhoan = userDetails.getTaiKhoan();
 
             // Build UserDTO from current user
             UserDTO userDTO = UserDTO.builder()
-                    .id(userDetails.getTaiKhoan().getId())
+                    .id(taiKhoan.getId())
                     .username(userDetails.getUsername())
-                    .vaiTro(userDetails.getTaiKhoan().getVaiTro())
-                    .isActive(userDetails.getTaiKhoan().getIsActive())
+                    .vaiTro(taiKhoan.getVaiTro())
+                    .isActive(taiKhoan.getIsActive())
                     .build();
 
             // Add linked entity info
-            if (userDetails.getTaiKhoan().getSinhVien() != null) {
-                var sv = userDetails.getTaiKhoan().getSinhVien();
+            if (taiKhoan.getSinhVien() != null) {
+                var sv = taiKhoan.getSinhVien();
                 userDTO.setHoTen(sv.getHoTen());
                 userDTO.setEmail(sv.getEmail());
                 userDTO.setLinkedEntityId(sv.getMaSv());
@@ -143,8 +145,8 @@ public class AuthController {
                     userDTO.setMaLop(sv.getLop().getMaLop());
                     userDTO.setTenLop(sv.getLop().getTenLop());
                 }
-            } else if (userDetails.getTaiKhoan().getGiangVien() != null) {
-                var gv = userDetails.getTaiKhoan().getGiangVien();
+            } else if (taiKhoan.getGiangVien() != null) {
+                var gv = taiKhoan.getGiangVien();
                 userDTO.setHoTen(gv.getHoTen());
                 userDTO.setEmail(gv.getEmail());
                 userDTO.setLinkedEntityId(gv.getMaGv());

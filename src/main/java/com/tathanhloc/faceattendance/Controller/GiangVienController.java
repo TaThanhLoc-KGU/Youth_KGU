@@ -5,6 +5,7 @@ import com.tathanhloc.faceattendance.Service.GiangVienService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
@@ -21,27 +22,32 @@ public class GiangVienController {
     private final GiangVienService giangVienService;
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN')")
     public GiangVienDTO getById(@PathVariable String id) {
         return giangVienService.getById(id);
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'THEM_GIANG_VIEN')")
     public GiangVienDTO create(@RequestBody GiangVienDTO dto) {
         return giangVienService.create(dto);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'SUA_GIANG_VIEN')")
     public GiangVienDTO update(@PathVariable String id, @RequestBody GiangVienDTO dto) {
         return giangVienService.update(id, dto);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'XOA_GIANG_VIEN')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         giangVienService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/by-magv/{maGv}")
+    @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN')")
     public ResponseEntity<GiangVienDTO> getByMaGv(@PathVariable String maGv) {
         return ResponseEntity.ok(giangVienService.getByMaGv(maGv));
     }
@@ -52,6 +58,7 @@ public class GiangVienController {
      * Lấy danh sách với filter
      */
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN')")
     public ResponseEntity<List<GiangVienDTO>> getAll(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String search,
@@ -94,6 +101,7 @@ public class GiangVienController {
      * Khôi phục giảng viên
      */
     @PutMapping("/{id}/restore")
+    @PreAuthorize("hasPermission(null, 'SUA_GIANG_VIEN')")
     public ResponseEntity<Void> restore(@PathVariable String id) {
         giangVienService.restore(id);
         return ResponseEntity.noContent().build();
@@ -104,6 +112,7 @@ public class GiangVienController {
      * Lấy thống kê
      */
     @GetMapping("/statistics")
+    @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN')")
     public ResponseEntity<Map<String, Object>> getStatistics() {
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalLecturers", giangVienService.getAll().size());
@@ -118,6 +127,7 @@ public class GiangVienController {
      * Lấy danh sách giảng viên đang hoạt động
      */
     @GetMapping("/active")
+    @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN')")
     public ResponseEntity<List<GiangVienDTO>> getAllActive() {
         try {
             List<GiangVienDTO> activeGiangVien = giangVienService.getAllActive();
@@ -133,6 +143,7 @@ public class GiangVienController {
      * Lấy danh sách giảng viên không hoạt động
      */
     @GetMapping("/inactive")
+    @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN')")
     public ResponseEntity<List<GiangVienDTO>> getAllInactive() {
         try {
             List<GiangVienDTO> inactiveGiangVien = giangVienService.getAllInactive();
@@ -145,6 +156,7 @@ public class GiangVienController {
     }
 
     @GetMapping("/count")
+    @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN')")
     public ResponseEntity<Map<String, Object>> getTeacherCount() {
         try {
             long count = giangVienService.count();

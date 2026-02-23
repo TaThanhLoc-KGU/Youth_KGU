@@ -4,6 +4,7 @@ import com.tathanhloc.faceattendance.Security.CustomUserDetails;
 import com.tathanhloc.faceattendance.Service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -21,6 +22,7 @@ public class AdminDashboardController {
     private final LopService lopService;
 
     @GetMapping(value ={"/dashboard","/dashboard.html"})
+    @PreAuthorize("hasRole('ADMIN')")
     public String dashboard(Authentication authentication, Model model) {
         log.info("=== ADMIN DASHBOARD ACCESS ===");
         log.info("Authentication: {}", authentication);
@@ -61,6 +63,7 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/khoa")
+    @PreAuthorize("hasRole('ADMIN')")
     public String khoaManagement(Authentication authentication, Model model) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/?error=not_authenticated";
@@ -73,6 +76,7 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/nganh")
+    @PreAuthorize("hasRole('ADMIN')")
     public String nganhManagement(Authentication authentication, Model model) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/?error=not_authenticated";
@@ -85,6 +89,7 @@ public class AdminDashboardController {
 
 
     @GetMapping("/giangvien")
+    @PreAuthorize("hasRole('ADMIN')")
     public String giangvienManagement(Authentication authentication, Model model) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/?error=not_authenticated";
@@ -96,6 +101,7 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/sinhvien")
+    @PreAuthorize("hasRole('ADMIN')")
     public String sinhvienManagement(Authentication authentication, Model model) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/?error=not_authenticated";
@@ -107,6 +113,7 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/lop")
+    @PreAuthorize("hasRole('ADMIN')")
     public String lopManagement(Authentication authentication, Model model) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/?error=not_authenticated";
@@ -117,6 +124,7 @@ public class AdminDashboardController {
         return "admin/lop";
     }
     @GetMapping("/taikhoan")
+    @PreAuthorize("hasRole('ADMIN')")
     public String taikhoanManagement(Authentication authentication, Model model) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/?error=not_authenticated";
@@ -130,6 +138,7 @@ public class AdminDashboardController {
 
 
     @GetMapping("/logs")
+    @PreAuthorize("hasRole('ADMIN')")
     public String logManagement(Authentication authentication, Model model) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/?error=not_authenticated";

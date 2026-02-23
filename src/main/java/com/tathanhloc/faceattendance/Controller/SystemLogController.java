@@ -12,12 +12,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController @RequestMapping("/api/admin/logs")
-@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor @Slf4j
 public class SystemLogController {
     private final SystemLogService service;
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'XEM_SYSTEM_LOG')")
     public ResponseEntity<?> search(
             @RequestParam(required = false) String module,
             @RequestParam(required = false) String action,

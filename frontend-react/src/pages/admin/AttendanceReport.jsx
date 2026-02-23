@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Download, RefreshCw, BarChart3, TrendingUp } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import attendanceService from '../../services/attendanceService';
+import useAuthStore from '../../stores/authStore';
+import { PERMISSIONS } from '../../utils/constants';
 import lopService from '../../services/lopService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
@@ -13,6 +15,8 @@ import Badge from '../../components/common/Badge';
 import { toast } from 'react-toastify';
 
 const AttendanceReport = () => {
+  const { hasPermission } = useAuthStore();
+  const canExport = hasPermission(PERMISSIONS.EXPORT_BAO_CAO);
   const [search, setSearch] = useState('');
   const [lopFilter, setLopFilter] = useState('');
   const [startDate, setStartDate] = useState(
@@ -97,9 +101,11 @@ const AttendanceReport = () => {
           <h1 className="text-2xl font-bold text-gray-900">Báo cáo Điểm danh</h1>
           <p className="text-gray-600 mt-1">Thống kê và báo cáo điểm danh sinh viên</p>
         </div>
-        <Button variant="outline" icon={Download} onClick={handleExport}>
-          Xuất Excel
-        </Button>
+        {canExport && (
+          <Button variant="outline" icon={Download} onClick={handleExport}>
+            Xuất Excel
+          </Button>
+        )}
       </div>
 
       {/* Statistics Cards */}

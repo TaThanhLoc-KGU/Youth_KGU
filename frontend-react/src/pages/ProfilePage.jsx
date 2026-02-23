@@ -1,74 +1,124 @@
 import React, { useState, useRef } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import accountService from '../services/accountService';
-import banService from '../services/banService'; // Import banService
+import authService from '../services/authService'; // Import authService
+import banService from '../services/banService';
 import ImageUpload from '../components/common/ImageUpload';
+import Modal from '../components/common/Modal'; // Import Modal
 import {
   ROLE_LABELS,
   GENDER_LABELS,
   PHONE_PATTERN,
-  DEPARTMENT_OPTIONS // Import DEPARTMENT_OPTIONS directly
 } from '../constants/accountConstants';
 import { formatDate } from '../utils/dateFormat';
 import useAuthStore from '../stores/authStore';
+import { toast } from 'react-toastify';
+import { Lock, Key } from 'lucide-react'; // Import icons
 
 export default function ProfilePage() {
-  const { user: authUser } = useAuthStore();
+  const { user: authUser, setUser: setAuthUser } = useAuthStore();
   const userId = authUser?.id;
+  const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const fileInputRef = useRef(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false); // State for password modal
 
   // Query: Get Current User
-  const { data: user = {}, isLoading } = useQuery({
+  const { data: user, isLoading } = useQuery({
     queryKey: ['userProfile', userId],
-    queryFn: () => accountService.getAccount(userId),
-    enabled: !!userId
+    queryFn: async () => {
+      const userData = await accountService.getAccount(userId);
+      return userData; // Return the user data directly
+    },
+    enabled: !!userId,
   });
 
   // Query: Get Ban List
   const { data: banList = [] } = useQuery({
     queryKey: ['banList'],
     queryFn: () => banService.getAll(),
-    enabled: isEditing // Only fetch when editing
+    enabled: isEditing,
   });
 
+  // Form for Profile Update
   const {
     register,
     handleSubmit,
     control,
     formState: { errors },
     reset,
-    watch
+    watch,
   } = useForm({
-    defaultValues: user,
-    values: user
+    defaultValues: user || {},
+    values: user, // Update form values when user data changes
   });
+
+  // Form for Password Change
+  const {
+    register: registerPassword,
+    handleSubmit: handleSubmitPassword,
+    formState: { errors: passwordErrors },
+    reset: resetPassword,
+    watch: watchPassword,
+  } = useForm();
 
   // Mutation: Update Profile
   const updateMutation = useMutation({
     mutationFn: (data) => accountService.updateProfile(userId, data),
-    onSuccess: () => {
-      setSuccessMessage('Cập nhật hồ sơ thành công!');
+    onSuccess: (updatedData) => {
+      toast.success('Cập nhật hồ sơ thành công!');
       setIsEditing(false);
-      setTimeout(() => setSuccessMessage(''), 3000);
-    }
+      queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
+      // Assuming updatedData is the response object, check structure if needed
+      // If updateProfile returns data directly like getAccount, use updatedData
+      // If it returns full response, use updatedData.data
+      // Based on accountService.updateProfile, it returns response.data.data
+      setAuthUser({ ...authUser, ...updatedData });
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Lỗi cập nhật hồ sơ');
+    },
+  });
+
+  // Mutation: Change Password
+  const changePasswordMutation = useMutation({
+    mutationFn: (data) => authService.changePassword(data),
+    onSuccess: () => {
+      toast.success('Đổi mật khẩu thành công!');
+      setIsPasswordModalOpen(false);
+      resetPassword();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Đổi mật khẩu thất bại');
+    },
   });
 
   const onSubmit = (data) => {
+    if (data.banChuyenMon === '') {
+      data.banChuyenMon = null;
+    }
     updateMutation.mutate(data);
   };
 
+  const onSubmitPassword = (data) => {
+    changePasswordMutation.mutate({
+      username: user.username,
+      oldPassword: data.currentPassword,
+      newPassword: data.newPassword,
+      confirmPassword: data.confirmPassword
+    });
+  };
+
   const avatarValue = watch('avatar');
+  const newPasswordValue = watchPassword('newPassword');
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <svg
-            className="w-12 h-12 animate-spin mx-auto mb-4"
+            className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-600"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -86,7 +136,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!userId) {
+  if (!userId || !user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center text-red-600">
@@ -98,16 +148,21 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-800">Hồ sơ cá nhân</h1>
               <p className="text-gray-600 mt-1">Quản lý thông tin tài khoản của bạn</p>
             </div>
             <button
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={() => {
+                setIsEditing(!isEditing);
+                if (!isEditing) {
+                  reset(user);
+                }
+              }}
               className={`px-6 py-2 rounded-lg font-semibold transition ${
                 isEditing
                   ? 'bg-gray-300 hover:bg-gray-400 text-gray-800'
@@ -119,20 +174,12 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Success Message */}
-        {successMessage && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-green-800">{successMessage}</p>
-          </div>
-        )}
-
         {/* Profile Content */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Avatar Section */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold mb-4">Ảnh đại diện</h2>
             <div className="flex flex-col md:flex-row gap-6 items-start">
-              {/* Current Avatar */}
               <div className="flex-shrink-0">
                 {avatarValue ? (
                   <img
@@ -157,7 +204,6 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Upload Section */}
               {isEditing && (
                 <div className="flex-1">
                   <Controller
@@ -165,11 +211,9 @@ export default function ProfilePage() {
                     control={control}
                     render={({ field }) => (
                       <ImageUpload
-                        label="Tải ảnh lên"
-                        value={field.value}
-                        onChange={(e) =>
-                          field.onChange(e.target.value)
-                        }
+                        label="Tải ảnh lên (URL hoặc Base64)"
+                        value={field.value || ''}
+                        onChange={(value) => field.onChange(value)}
                         containerClassName="mb-0"
                       />
                     )}
@@ -177,11 +221,10 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Display Existing */}
               {!isEditing && (
-                <div className="flex-1">
+                <div className="flex-1 pt-2">
                   <p className="text-gray-600">
-                    Bạn có thể thay đổi ảnh đại diện bằng cách nhấn nút "Chỉnh sửa"
+                    Bạn có thể thay đổi ảnh đại diện bằng cách nhấn nút "Chỉnh sửa".
                   </p>
                 </div>
               )}
@@ -192,7 +235,6 @@ export default function ProfilePage() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold mb-4">Thông tin cơ bản</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Username (Read-only) */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Tên đăng nhập
@@ -205,7 +247,6 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Email (Read-only) */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Email
@@ -218,8 +259,7 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Full Name */}
-              <div className={`${isEditing ? '' : 'md:col-span-2'}`}>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Họ tên {isEditing && <span className="text-red-500">*</span>}
                 </label>
@@ -234,19 +274,13 @@ export default function ProfilePage() {
                     }`}
                   />
                 ) : (
-                  <input
-                    type="text"
-                    value={user.hoTen || ''}
-                    disabled
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
-                  />
+                  <p className="text-gray-900 text-lg">{user.hoTen || 'Chưa cập nhật'}</p>
                 )}
                 {errors.hoTen && (
                   <p className="text-red-500 text-sm mt-1">{errors.hoTen.message}</p>
                 )}
               </div>
 
-              {/* Phone */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Số điện thoại {isEditing && <span className="text-red-500">*</span>}
@@ -266,19 +300,13 @@ export default function ProfilePage() {
                     }`}
                   />
                 ) : (
-                  <input
-                    type="text"
-                    value={user.soDienThoai || 'Chưa cập nhật'}
-                    disabled
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
-                  />
+                  <p className="text-gray-900">{user.soDienThoai || 'Chưa cập nhật'}</p>
                 )}
                 {errors.soDienThoai && (
                   <p className="text-red-500 text-sm mt-1">{errors.soDienThoai.message}</p>
                 )}
               </div>
 
-              {/* Date of Birth */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Ngày sinh {isEditing && <span className="text-red-500">*</span>}
@@ -294,19 +322,13 @@ export default function ProfilePage() {
                     }`}
                   />
                 ) : (
-                  <input
-                    type="text"
-                    value={user.ngaySinh ? formatDate(user.ngaySinh) : 'Chưa cập nhật'}
-                    disabled
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
-                  />
+                  <p className="text-gray-900">{user.ngaySinh ? formatDate(user.ngaySinh) : 'Chưa cập nhật'}</p>
                 )}
                 {errors.ngaySinh && (
                   <p className="text-red-500 text-sm mt-1">{errors.ngaySinh.message}</p>
                 )}
               </div>
 
-              {/* Gender */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Giới tính {isEditing && <span className="text-red-500">*</span>}
@@ -326,16 +348,9 @@ export default function ProfilePage() {
                     <option value="KHAC">Khác</option>
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    value={
-                      user.gioiTinh
-                        ? GENDER_LABELS[user.gioiTinh]
-                        : 'Chưa cập nhật'
-                    }
-                    disabled
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
-                  />
+                  <p className="text-gray-900">
+                    {user.gioiTinh ? GENDER_LABELS[user.gioiTinh] : 'Chưa cập nhật'}
+                  </p>
                 )}
                 {errors.gioiTinh && (
                   <p className="text-red-500 text-sm mt-1">{errors.gioiTinh.message}</p>
@@ -348,20 +363,13 @@ export default function ProfilePage() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold mb-4">Thông tin vai trò</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Role */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Vai trò
                 </label>
-                <input
-                  type="text"
-                  value={ROLE_LABELS[user.vaiTro] || user.vaiTro || 'Chưa cấp'}
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
-                />
+                <p className="text-gray-900">{ROLE_LABELS[user.vaiTro] || user.vaiTro || 'Chưa cấp'}</p>
               </div>
 
-              {/* Department */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Ban chuyên môn
@@ -371,7 +379,7 @@ export default function ProfilePage() {
                     {...register('banChuyenMon')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">-- Chọn ban chuyên môn --</option>
+                    <option value="">-- Không thuộc ban nào --</option>
                     {banList.map(ban => (
                       <option key={ban.maBan} value={ban.maBan}>
                         {ban.tenBan}
@@ -379,50 +387,55 @@ export default function ProfilePage() {
                     ))}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    value={
-                      user.banChuyenMon
-                        ? (banList.find(b => b.maBan === user.banChuyenMon)?.tenBan || user.tenBanChuyenMon || user.banChuyenMon)
-                        : 'Chưa cập nhật'
-                    }
-                    disabled
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
-                  />
+                  <p className="text-gray-900">{user.tenBanChuyenMon || 'Chưa cập nhật'}</p>
                 )}
               </div>
 
-              {/* Approval Status */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Trạng thái phê duyệt
                 </label>
-                <input
-                  type="text"
-                  value={
-                    user.trangThaiPheDuyet === 'CHO_PHE_DUYET'
-                      ? 'Chờ phê duyệt'
-                      : user.trangThaiPheDuyet === 'DA_PHE_DUYET'
-                      ? 'Đã phê duyệt'
-                      : 'Từ chối'
-                  }
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
-                />
+                <p className={`font-semibold ${user.trangThaiPheDuyet === 'DA_PHE_DUYET' ? 'text-green-600' : 'text-yellow-600'}`}>
+                  {user.trangThaiPheDuyet === 'CHO_PHE_DUYET'
+                    ? 'Chờ phê duyệt'
+                    : user.trangThaiPheDuyet === 'DA_PHE_DUYET'
+                    ? 'Đã phê duyệt'
+                    : 'Từ chối'}
+                </p>
               </div>
 
-              {/* Account Status */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Trạng thái tài khoản
                 </label>
-                <input
-                  type="text"
-                  value={user.isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
-                />
+                <p className={`font-semibold ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                  {user.isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
+                </p>
               </div>
+            </div>
+          </div>
+
+          {/* Security Section */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-gray-500" /> Bảo mật
+                </h2>
+                <p className="text-gray-600 mt-1 text-sm">
+                  Đổi mật khẩu và quản lý bảo mật tài khoản
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  resetPassword();
+                  setIsPasswordModalOpen(true);
+                }}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition flex items-center gap-2"
+              >
+                <Key className="w-4 h-4" /> Đổi mật khẩu
+              </button>
             </div>
           </div>
 
@@ -432,11 +445,11 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
               <div>
                 <p className="font-semibold">Ngày tạo tài khoản:</p>
-                <p>{user.createdAt ? formatDate(user.createdAt) : 'N/A'}</p>
+                <p>{user.createdAt ? formatDateTime(user.createdAt) : 'N/A'}</p>
               </div>
               <div>
                 <p className="font-semibold">Cập nhật lần cuối:</p>
-                <p>{user.updatedAt ? formatDate(user.updatedAt) : 'N/A'}</p>
+                <p>{user.updatedAt ? formatDateTime(user.updatedAt) : 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -460,16 +473,134 @@ export default function ProfilePage() {
               </button>
             </div>
           )}
-
-          {updateMutation.isError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-700">
-                {updateMutation.error || 'Lỗi cập nhật hồ sơ'}
-              </p>
-            </div>
-          )}
         </form>
       </div>
+
+      {/* Change Password Modal */}
+      <Modal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        title="Đổi mật khẩu"
+      >
+        <form onSubmit={handleSubmitPassword(onSubmitPassword)} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Mật khẩu hiện tại <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="password"
+              {...registerPassword('currentPassword', {
+                required: 'Vui lòng nhập mật khẩu hiện tại',
+              })}
+              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                passwordErrors.currentPassword ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Nhập mật khẩu hiện tại"
+            />
+            {passwordErrors.currentPassword && (
+              <p className="text-red-500 text-sm mt-1">
+                {passwordErrors.currentPassword.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Mật khẩu mới <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="password"
+              {...registerPassword('newPassword', {
+                required: 'Vui lòng nhập mật khẩu mới',
+                minLength: {
+                  value: 6,
+                  message: 'Mật khẩu phải có ít nhất 6 ký tự',
+                },
+              })}
+              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                passwordErrors.newPassword ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Nhập mật khẩu mới"
+            />
+            {passwordErrors.newPassword && (
+              <p className="text-red-500 text-sm mt-1">
+                {passwordErrors.newPassword.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Xác nhận mật khẩu mới <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="password"
+              {...registerPassword('confirmPassword', {
+                required: 'Vui lòng xác nhận mật khẩu mới',
+                validate: (val) =>
+                  val === newPasswordValue || 'Mật khẩu xác nhận không khớp',
+              })}
+              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                passwordErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Nhập lại mật khẩu mới"
+            />
+            {passwordErrors.confirmPassword && (
+              <p className="text-red-500 text-sm mt-1">
+                {passwordErrors.confirmPassword.message}
+              </p>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t mt-6">
+            <button
+              type="button"
+              onClick={() => setIsPasswordModalOpen(false)}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={changePasswordMutation.isPending}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition flex items-center gap-2"
+            >
+              {changePasswordMutation.isPending && (
+                <svg
+                  className="w-4 h-4 animate-spin"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              )}
+              Lưu mật khẩu
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
+
+// Helper to format date and time
+const formatDateTime = (isoString) => {
+  if (!isoString) return 'N/A';
+  try {
+    return new Date(isoString).toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (error) {
+    return 'Invalid Date';
+  }
+};

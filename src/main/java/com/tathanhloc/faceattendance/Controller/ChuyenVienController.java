@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +26,7 @@ public class ChuyenVienController {
 
     @GetMapping
     @Operation(summary = "Lấy tất cả chuyên viên")
+    @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<List<ChuyenVienDTO>>> getAll() {
         log.info("GET /api/chuyenvien");
         List<ChuyenVienDTO> list = chuyenVienService.getAll();
@@ -33,6 +35,7 @@ public class ChuyenVienController {
 
     @GetMapping("/statistics")
     @Operation(summary = "Lấy thống kê chuyên viên")
+    @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics() {
         log.info("GET /api/chuyenvien/statistics");
         Map<String, Object> stats = chuyenVienService.getStatistics();
@@ -41,6 +44,7 @@ public class ChuyenVienController {
 
     @GetMapping("/{maChuyenVien}")
     @Operation(summary = "Lấy chi tiết chuyên viên")
+    @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<ChuyenVienDTO>> getById(@PathVariable String maChuyenVien) {
         log.info("GET /api/chuyenvien/{}", maChuyenVien);
         ChuyenVienDTO dto = chuyenVienService.getById(maChuyenVien);
@@ -49,6 +53,7 @@ public class ChuyenVienController {
 
     @PostMapping
     @Operation(summary = "Tạo chuyên viên mới")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<ChuyenVienDTO>> create(@RequestBody ChuyenVienDTO dto) {
         log.info("POST /api/chuyenvien: {}", dto.getMaChuyenVien());
         ChuyenVienDTO created = chuyenVienService.create(dto);
@@ -58,6 +63,7 @@ public class ChuyenVienController {
 
     @PutMapping("/{maChuyenVien}")
     @Operation(summary = "Cập nhật chuyên viên")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<ChuyenVienDTO>> update(
             @PathVariable String maChuyenVien,
             @RequestBody ChuyenVienDTO dto) {
@@ -68,6 +74,7 @@ public class ChuyenVienController {
 
     @DeleteMapping("/{maChuyenVien}")
     @Operation(summary = "Xóa chuyên viên (soft delete)")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String maChuyenVien) {
         log.info("DELETE /api/chuyenvien/{}", maChuyenVien);
         chuyenVienService.delete(maChuyenVien);
@@ -76,6 +83,7 @@ public class ChuyenVienController {
 
     @GetMapping("/search")
     @Operation(summary = "Tìm kiếm chuyên viên")
+    @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<List<ChuyenVienDTO>>> search(@RequestParam String keyword) {
         log.info("GET /api/chuyenvien/search?keyword={}", keyword);
         List<ChuyenVienDTO> list = chuyenVienService.searchByKeyword(keyword);
@@ -84,6 +92,7 @@ public class ChuyenVienController {
 
     @GetMapping("/khoa/{maKhoa}")
     @Operation(summary = "Lọc chuyên viên theo khoa")
+    @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<List<ChuyenVienDTO>>> getByKhoa(@PathVariable String maKhoa) {
         log.info("GET /api/chuyenvien/khoa/{}", maKhoa);
         List<ChuyenVienDTO> list = chuyenVienService.getByKhoa(maKhoa);
@@ -92,6 +101,7 @@ public class ChuyenVienController {
 
     @GetMapping("/count")
     @Operation(summary = "Đếm số chuyên viên active")
+    @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<Long>> getCount() {
         log.info("GET /api/chuyenvien/count");
         long count = chuyenVienService.getTotalActive();

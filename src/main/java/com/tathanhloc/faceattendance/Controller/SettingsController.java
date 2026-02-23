@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +26,7 @@ public class SettingsController {
 
     @GetMapping("/permissions")
     @Operation(summary = "Lấy tất cả quyền theo nhóm category")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<ApiResponse<Map<String, List<PermissionDTO>>>> getAllPermissions() {
         log.info("GET /api/settings/permissions");
         Map<String, List<PermissionDTO>> result = settingsService.getAllPermissions();
@@ -33,6 +35,7 @@ public class SettingsController {
 
     @GetMapping("/permissions/accounts")
     @Operation(summary = "Lấy danh sách tài khoản quản lý")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<List<AccountPermissionDTO>>> getManagementAccounts() {
         log.info("GET /api/settings/permissions/accounts");
         List<AccountPermissionDTO> accounts = settingsService.getManagementAccounts();
@@ -41,6 +44,7 @@ public class SettingsController {
 
     @GetMapping("/permissions/accounts/{id}")
     @Operation(summary = "Lấy danh sách quyền của 1 tài khoản")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<List<Long>>> getAccountPermissions(@PathVariable Long id) {
         log.info("GET /api/settings/permissions/accounts/{}", id);
         List<Long> permissionIds = settingsService.getAccountPermissions(id);
@@ -49,6 +53,7 @@ public class SettingsController {
 
     @PutMapping("/permissions/accounts/{id}")
     @Operation(summary = "Gán quyền cho tài khoản")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_TAI_KHOAN')")
     public ResponseEntity<ApiResponse<Void>> assignPermissions(
             @PathVariable Long id,
             @RequestBody List<Long> permissionIds) {
@@ -59,6 +64,7 @@ public class SettingsController {
 
     @PostMapping("/permissions/init")
     @Operation(summary = "Khởi tạo dữ liệu quyền mặc định")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<ApiResponse<Integer>> initPermissions() {
         log.info("POST /api/settings/permissions/init");
         int count = settingsService.initDefaultPermissions();

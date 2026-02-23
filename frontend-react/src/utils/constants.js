@@ -7,6 +7,116 @@ export const ROLES = {
   CHUYEN_VIEN: 'CHUYEN_VIEN',
 };
 
+// Permissions — values MUST match Permission.name in DB (V_permissions_cleanup.sql)
+// ID cố định 1-58, tham chiếu PERMISSIONS_REFERENCE.md để biết chi tiết
+export const PERMISSIONS = {
+  // ─── HE_THONG (id 1-4) ────────────────────────────────────────────────────
+  DOI_MAT_KHAU:                    'DOI_MAT_KHAU',                   // 1
+  XEM_THONG_TIN_CA_NHAN:           'XEM_THONG_TIN_CA_NHAN',          // 2
+  SUA_THONG_TIN_CA_NHAN:           'SUA_THONG_TIN_CA_NHAN',          // 3
+  CAI_DAT_HE_THONG:                'CAI_DAT_HE_THONG',               // 4
+
+  // ─── SINH_VIEN (id 5-9) ───────────────────────────────────────────────────
+  XEM_SINH_VIEN:                   'XEM_SINH_VIEN',                  // 5
+  THEM_SINH_VIEN:                  'THEM_SINH_VIEN',                 // 6
+  SUA_SINH_VIEN:                   'SUA_SINH_VIEN',                  // 7
+  XOA_SINH_VIEN:                   'XOA_SINH_VIEN',                  // 8
+  IMPORT_SINH_VIEN:                'IMPORT_SINH_VIEN',               // 9
+
+  // ─── GIANG_VIEN (id 10-13) ────────────────────────────────────────────────
+  XEM_GIANG_VIEN:                  'XEM_GIANG_VIEN',                 // 10
+  THEM_GIANG_VIEN:                 'THEM_GIANG_VIEN',                // 11
+  SUA_GIANG_VIEN:                  'SUA_GIANG_VIEN',                 // 12
+  XOA_GIANG_VIEN:                  'XOA_GIANG_VIEN',                 // 13
+
+  // ─── CHUYEN_VIEN (id 14-15) ───────────────────────────────────────────────
+  XEM_CHUYEN_VIEN:                 'XEM_CHUYEN_VIEN',                // 14
+  QUAN_LY_CHUYEN_VIEN:             'QUAN_LY_CHUYEN_VIEN',            // 15
+
+  // ─── TO_CHUC (id 16-27) ───────────────────────────────────────────────────
+  XEM_KHOA:                        'XEM_KHOA',                       // 16
+  QUAN_LY_KHOA:                    'QUAN_LY_KHOA',                   // 17
+  XEM_NGANH:                       'XEM_NGANH',                      // 18
+  QUAN_LY_NGANH:                   'QUAN_LY_NGANH',                  // 19
+  XEM_LOP:                         'XEM_LOP',                        // 20
+  QUAN_LY_LOP:                     'QUAN_LY_LOP',                    // 21
+  XEM_KHOA_HOC:                    'XEM_KHOA_HOC',                   // 22
+  QUAN_LY_KHOA_HOC:                'QUAN_LY_KHOA_HOC',               // 23
+  XEM_HOC_KY:                      'XEM_HOC_KY',                     // 24
+  QUAN_LY_HOC_KY:                  'QUAN_LY_HOC_KY',                 // 25
+  XEM_NAM_HOC:                     'XEM_NAM_HOC',                    // 26
+  QUAN_LY_NAM_HOC:                 'QUAN_LY_NAM_HOC',                // 27
+
+  // ─── HOAT_DONG (id 28-36) ─────────────────────────────────────────────────
+  XEM_HOAT_DONG:                   'XEM_HOAT_DONG',                  // 28
+  TAO_HOAT_DONG:                   'TAO_HOAT_DONG',                  // 29
+  SUA_HOAT_DONG:                   'SUA_HOAT_DONG',                  // 30
+  XOA_HOAT_DONG:                   'XOA_HOAT_DONG',                  // 31
+  DUYET_HOAT_DONG:                 'DUYET_HOAT_DONG',                // 32
+  DANG_KY_HOAT_DONG:               'DANG_KY_HOAT_DONG',              // 33
+  HUY_DANG_KY_HOAT_DONG:          'HUY_DANG_KY_HOAT_DONG',          // 34
+  XEM_LICH_SU_THAM_GIA:            'XEM_LICH_SU_THAM_GIA',           // 35
+  QUAN_LY_DANG_KY:                 'QUAN_LY_DANG_KY',                // 36
+
+  // ─── DIEM_DANH (id 37-40) ─────────────────────────────────────────────────
+  QUET_QR:                         'QUET_QR',                        // 37
+  PHAN_CONG_DIEM_DANH:             'PHAN_CONG_DIEM_DANH',            // 38
+  XEM_DIEM_DANH:                   'XEM_DIEM_DANH',                  // 39
+  CHINH_SUA_DIEM_DANH:             'CHINH_SUA_DIEM_DANH',            // 40
+
+  // ─── BCH (id 41-46) ───────────────────────────────────────────────────────
+  XEM_BCH:                         'XEM_BCH',                        // 41
+  THEM_BCH:                        'THEM_BCH',                       // 42
+  SUA_BCH:                         'SUA_BCH',                        // 43
+  XOA_BCH:                         'XOA_BCH',                        // 44
+  QUAN_LY_CHUC_VU:                 'QUAN_LY_CHUC_VU',                // 45
+  QUAN_LY_BAN:                     'QUAN_LY_BAN',                    // 46
+
+  // ─── TAI_KHOAN (id 47-51) ─────────────────────────────────────────────────
+  XEM_TAI_KHOAN:                   'XEM_TAI_KHOAN',                  // 47
+  DUYET_TAI_KHOAN:                 'DUYET_TAI_KHOAN',                // 48
+  TAO_TAI_KHOAN:                   'TAO_TAI_KHOAN',                  // 49
+  SUA_TAI_KHOAN:                   'SUA_TAI_KHOAN',                  // 50
+  XOA_TAI_KHOAN:                   'XOA_TAI_KHOAN',                  // 51
+
+  // ─── PHAN_QUYEN (id 52-53) ────────────────────────────────────────────────
+  QUAN_LY_PHAN_QUYEN_NHOM:         'QUAN_LY_PHAN_QUYEN_NHOM',        // 52
+  QUAN_LY_PHAN_QUYEN_TAI_KHOAN:    'QUAN_LY_PHAN_QUYEN_TAI_KHOAN',   // 53
+
+  // ─── BAO_CAO (id 54-56) ───────────────────────────────────────────────────
+  XEM_BAO_CAO:                     'XEM_BAO_CAO',                    // 54
+  XUAT_BAO_CAO:                    'XUAT_BAO_CAO',                   // 55
+  XEM_THONG_KE:                    'XEM_THONG_KE',                   // 56
+
+  // ─── SYSTEM (id 57-58) ────────────────────────────────────────────────────
+  XEM_SYSTEM_LOG:                  'XEM_SYSTEM_LOG',                 // 57
+  XUAT_SYSTEM_LOG:                 'XUAT_SYSTEM_LOG',                // 58
+
+  // ─── Aliases giữ tương thích ngược với code cũ ────────────────────────────
+  // (value đã được sửa để khớp DB — cập nhật dần references sang tên mới)
+  VIEW_SINH_VIEN:                  'XEM_SINH_VIEN',
+  MANAGE_SINH_VIEN:                'THEM_SINH_VIEN',
+  VIEW_GIANG_VIEN:                 'XEM_GIANG_VIEN',
+  MANAGE_GIANG_VIEN:               'XEM_CHUYEN_VIEN',
+  VIEW_BCH:                        'XEM_BCH',
+  MANAGE_BCH:                      'QUAN_LY_CHUC_VU',
+  VIEW_TAI_KHOAN:                  'XEM_TAI_KHOAN',
+  VIEW_THONG_KE:                   'XEM_THONG_KE',
+  VIEW_SYSTEM_LOG:                 'XEM_SYSTEM_LOG',
+  EXPORT_SYSTEM_LOG:               'XUAT_SYSTEM_LOG',
+  EXPORT_BAO_CAO:                  'XUAT_BAO_CAO',
+  VIEW_BAO_CAO:                    'XEM_BAO_CAO',
+  MANAGE_DIEM_DANH:                'XEM_DIEM_DANH',
+  MANAGE_ROLE_PERMISSIONS:         'QUAN_LY_PHAN_QUYEN_NHOM',
+  MANAGE_ACCOUNT_PERMISSIONS:      'QUAN_LY_PHAN_QUYEN_TAI_KHOAN',
+
+  // ─── Aliases cho tài khoản (giữ tương thích với code cũ) ──────────────────
+  APPROVE_TAI_KHOAN:               'DUYET_TAI_KHOAN',
+  CREATE_TAI_KHOAN:                'TAO_TAI_KHOAN',
+  EDIT_TAI_KHOAN:                  'SUA_TAI_KHOAN',
+  DELETE_TAI_KHOAN:                'XOA_TAI_KHOAN',
+};
+
 // Activity Status
 export const ACTIVITY_STATUS = {
   CHUA_MO_DANG_KY: 'CHUA_MO_DANG_KY',

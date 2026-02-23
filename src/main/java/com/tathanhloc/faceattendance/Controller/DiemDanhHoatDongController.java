@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -29,6 +30,7 @@ public class DiemDanhHoatDongController {
 
     @PostMapping("/scan")
     @Operation(summary = "⭐ Quét QR Code để điểm danh (Check-in)")
+    @PreAuthorize("hasPermission(null, 'QUET_QR')")
     public ResponseEntity<DiemDanhQRResponse> scanQRCode(
             @RequestBody DiemDanhQRRequest request) {
         log.info("POST /api/diem-danh/scan - Scanning QR: {}", request.getMaQR());
@@ -43,6 +45,7 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/validate")
     @Operation(summary = "Validate QR Code trước khi quét")
+    @PreAuthorize("hasPermission(null, 'QUET_QR')")
     public ResponseEntity<QRValidationResult> validateQR(
             @RequestParam String maQR,
             @RequestParam String maHoatDong) {
@@ -53,6 +56,7 @@ public class DiemDanhHoatDongController {
 
     @PostMapping("/check-out")
     @Operation(summary = "Check-out khi kết thúc (Dùng ID hoặc QR)")
+    @PreAuthorize("hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<DiemDanhHoatDongDTO>> checkOut(
             @RequestBody CheckOutRequest request) {
         log.info("POST /api/diem-danh/check-out - ID: {}, QR: {}", request.getDiemDanhId(), request.getMaQR());
@@ -64,6 +68,7 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/activity/{maHoatDong}")
     @Operation(summary = "Danh sách điểm danh theo hoạt động")
+    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
     public ResponseEntity<ApiResponse<List<DiemDanhHoatDongDTO>>> getByActivity(
             @PathVariable String maHoatDong) {
         log.info("GET /api/diem-danh/activity/{}", maHoatDong);
@@ -73,6 +78,7 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/activity/{maHoatDong}/checked-in")
     @Operation(summary = "Danh sách đã check-in")
+    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
     public ResponseEntity<ApiResponse<List<DiemDanhHoatDongDTO>>> getCheckedIn(
             @PathVariable String maHoatDong) {
         log.info("GET /api/diem-danh/activity/{}/checked-in", maHoatDong);
@@ -82,6 +88,7 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/activity/{maHoatDong}/not-checked-in")
     @Operation(summary = "Danh sách chưa check-in")
+    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getNotCheckedIn(
             @PathVariable String maHoatDong) {
         log.info("GET /api/diem-danh/activity/{}/not-checked-in", maHoatDong);
@@ -91,6 +98,7 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/student/{maSv}")
     @Operation(summary = "Lịch sử điểm danh của sinh viên")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<List<DiemDanhHoatDongDTO>>> getByStudent(
             @PathVariable String maSv) {
         log.info("GET /api/diem-danh/student/{}", maSv);
@@ -102,6 +110,7 @@ public class DiemDanhHoatDongController {
 
     @PostMapping("/manual")
     @Operation(summary = "Điểm danh thủ công hàng loạt (Admin/BCH)")
+    @PreAuthorize("hasPermission(null, 'CHINH_SUA_DIEM_DANH')")
     public ResponseEntity<ApiResponse<Map<String, String>>> manualCheckIn(
             @RequestBody ManualCheckInRequest request) {
         log.info("POST /api/diem-danh/manual - activity={}, count={}",
@@ -112,6 +121,7 @@ public class DiemDanhHoatDongController {
 
     @PostMapping("/mark-absent")
     @Operation(summary = "Đánh dấu vắng mặt (Admin)")
+    @PreAuthorize("hasPermission(null, 'CHINH_SUA_DIEM_DANH')")
     public ResponseEntity<ApiResponse<Void>> markAbsent(
             @RequestBody MarkAbsentRequest request) {
         log.info("POST /api/diem-danh/mark-absent - Student: {}, Activity: {}",
@@ -122,6 +132,7 @@ public class DiemDanhHoatDongController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa bản ghi điểm danh (Admin)")
+    @PreAuthorize("hasPermission(null, 'CHINH_SUA_DIEM_DANH')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         log.info("DELETE /api/diem-danh/{}", id);
         diemDanhService.deleteAttendance(id);
@@ -132,6 +143,7 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/statistics/{maHoatDong}")
     @Operation(summary = "Thống kê điểm danh")
+    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics(
             @PathVariable String maHoatDong) {
         log.info("GET /api/diem-danh/statistics/{}", maHoatDong);
@@ -141,6 +153,7 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/statistics/student/{maSv}")
     @Operation(summary = "Thống kê tham gia của sinh viên")
+    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStudentHistory(
             @PathVariable String maSv) {
         log.info("GET /api/diem-danh/statistics/student/{}", maSv);
@@ -150,6 +163,7 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/statistics")
     @Operation(summary = "Thống kê điểm danh tổng hợp")
+    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
     public ResponseEntity<ApiResponse<AttendanceStatisticsDTO>> getStatisticsOverview() {
         log.info("GET /api/diem-danh/statistics");
         AttendanceStatisticsDTO stats = diemDanhService.getAttendanceStatisticsOverview();
