@@ -36,6 +36,7 @@ public class DataInitializer implements ApplicationRunner {
         initializeChucVu();
         initializePermissions();
         initializeRolePermissions();
+        initializeENewsPermissions();
         initializeNamHocAndHocKy();
 
         log.info("System data initialization completed!");
@@ -216,6 +217,60 @@ public class DataInitializer implements ApplicationRunner {
         assignPermissionsToRole("SINH_VIEN", svPerms);
 
         log.info("Role Permissions initialized successfully");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // eNews Permissions — luôn chạy mỗi lần khởi động (idempotent)
+    // Thêm 7 permissions mới và gán cho từng role theo ENEWS_PERMISSIONS.md
+    // ─────────────────────────────────────────────────────────────────────────
+    private void initializeENewsPermissions() {
+        log.info("Initializing eNews Permissions...");
+
+        // ── eNews ────────────────────────────────────────────────────────────
+        createPermissionIfNotExists("DANG_TIN_TUC",       "Tạo và đăng bài viết eNews",           "NEWS");
+        createPermissionIfNotExists("SUA_TIN_TUC",        "Sửa bài viết eNews",                   "NEWS");
+        createPermissionIfNotExists("XOA_TIN_TUC",        "Xóa bài viết eNews",                   "NEWS");
+        createPermissionIfNotExists("DUYET_TIN_TUC",      "Duyệt bài viết trước khi publish",     "NEWS");
+        createPermissionIfNotExists("QUAN_LY_CHUYEN_MUC", "Thêm sửa xóa danh mục eNews",         "NEWS");
+        createPermissionIfNotExists("QUAN_LY_VAN_BAN",    "Upload và quản lý văn bản/kế hoạch",   "NEWS");
+        createPermissionIfNotExists("XOA_VAN_BAN",        "Xóa văn bản khỏi kho",                 "NEWS");
+
+        // ── ADMIN — toàn bộ NEWS permissions ─────────────────────────────────
+        assignPermissionsToRole("ADMIN", Arrays.asList(
+            "DANG_TIN_TUC", "SUA_TIN_TUC", "XOA_TIN_TUC", "DUYET_TIN_TUC",
+            "QUAN_LY_CHUYEN_MUC", "QUAN_LY_VAN_BAN", "XOA_VAN_BAN"
+        ));
+
+        // ── MANAGER (Bí thư, Chủ tịch, Thường vụ) ────────────────────────────
+        // Không có: DUYET_TIN_TUC (tự publish), QUAN_LY_CHUYEN_MUC, XOA_VAN_BAN
+        assignPermissionsToRole("MANAGER", Arrays.asList(
+            "DANG_TIN_TUC", "SUA_TIN_TUC", "XOA_TIN_TUC", "QUAN_LY_VAN_BAN"
+        ));
+
+        // ── STAFF (Trưởng ban, CTV) ────────────────────────────────────────────
+        // Không có: XOA_TIN_TUC, DUYET_TIN_TUC, QUAN_LY_CHUYEN_MUC, XOA_VAN_BAN
+        assignPermissionsToRole("STAFF", Arrays.asList(
+            "DANG_TIN_TUC", "SUA_TIN_TUC", "QUAN_LY_VAN_BAN"
+        ));
+
+        // SINH_VIEN, GIANG_VIEN, CHUYEN_VIEN — chỉ xem public, không cần thêm
+
+        log.info("eNews Permissions initialized successfully");
+    }
+
+    /**
+     * Tạo permission nếu chưa tồn tại (idempotent — an toàn khi restart).
+     * Khác với createPermission(): không dùng guard count() > 0.
+     */
+    private void createPermissionIfNotExists(String name, String description, String category) {
+        if (permissionRepository.findByName(name).isEmpty()) {
+            permissionRepository.save(Permission.builder()
+                    .name(name)
+                    .description(description)
+                    .category(category)
+                    .build());
+            log.debug("Created permission: {}", name);
+        }
     }
 
     private void assignPermissionsToRole(String roleName, List<String> permissionNames) {

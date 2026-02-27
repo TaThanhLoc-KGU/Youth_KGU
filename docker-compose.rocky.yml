@@ -1,0 +1,126 @@
+# ============================================================
+# Docker Compose for Face Attendance System (Rocky Linux Version)
+# ============================================================
+
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: youth-kgu-mysql-rocky
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: youth-kgu
+      MYSQL_USER: myuser
+      MYSQL_PASSWORD: secret
+      TZ: 'Asia/Ho_Chi_Minh'
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data_rocky:/var/lib/mysql
+    networks:
+      - attendance-network-rocky
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+      interval: 10s
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin-dashboard-rocky
+    restart: always
+    environment:
+      PMA_HOST: mysql
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - '8081:80'
+    depends_on:
+      - mysql
+    networks:
+      - attendance-network-rocky
+
+  # Spring Boot Backend (Rocky Linux)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.rocky
+    container_name: youth-kgu-backend-rocky
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/youth-kgu?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: myuser
+      SPRING_DATASOURCE_PASSWORD: secret
+      SERVER_PORT: 8080
+      QR_CODE_STORAGE_PATH: /app/uploads/qrcodes
+      # (Các biến môi trường khác giữ nguyên từ docker-compose gốc)
+      JWT_SECRET: QYy0wNoeGemcPHjmaBkm+epqyvAwdicu/pqbCjItiWoowerJT8ZRyqiv8adtu6iPFWgakx+GAR36tU406+pKzP24UTrNc4iF4VptdaUS05rlXkcThrrxxBVVwqDdEe4X42fLFNsUfhTs5+ZkXSu6rzj2ekH9gicIcQ+JShdpquawDfWOE1CNhA9Icdx/SRLCsNdErWfuUOE4a04Q4Znl6oTOevb6eV9EZ3S5jupxdOhP/iI+0ssKKDQwE3uomWp/
+      JWT_EXPIRATION: 8640000000000
+      JWT_REFRESH_TOKEN_EXPIRATION: 604800000000
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - backend_uploads_rocky:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - attendance-network-rocky
+    restart: unless-stopped
+
+  # React Frontend (Rocky Linux)
+  frontend:
+    build:
+      context: ./frontend-react
+      dockerfile: Dockerfile.rocky
+    container_name: youth-kgu-frontend-rocky
+    environment:
+      VITE_API_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - attendance-network-rocky
+    restart: unless-stopped
+
+  # ============================================================
+  # ngrok Tunnels (Mở rộng để test từ mạng ngoài)
+  # ============================================================
+  ngrok-frontend:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    command:
+      - "http"
+      - "frontend:3000"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    depends_on:
+      - frontend
+    networks:
+      - attendance-network-rocky
+
+  ngrok-backend:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    command:
+      - "http"
+      - "backend:8080"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    depends_on:
+      - backend
+    networks:
+      - attendance-network-rocky
+
+networks:
+  attendance-network-rocky:
+    driver: bridge
+
+volumes:
+  mysql_data_rocky:
+    driver: local
+  backend_uploads_rocky:
+    driver: local
