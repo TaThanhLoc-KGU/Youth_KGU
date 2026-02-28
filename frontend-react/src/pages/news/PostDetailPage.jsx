@@ -111,7 +111,7 @@ const PostDetailPage = ({ post }) => {
         {/* Nội dung */}
         {safeHtml && (
           <div
-            className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-a:text-enews-600 prose-img:rounded-xl"
+            className="enews-article-content"
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
         )}

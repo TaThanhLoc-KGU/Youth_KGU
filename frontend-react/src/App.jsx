@@ -54,6 +54,8 @@ import AdminChuyenMucManage from './pages/admin/news/ChuyenMucManage';
 // eNews — BCH manage pages
 import BCHTinTucManage from './pages/bch/news/TinTucManage';
 import BCHVanBanManage from './pages/bch/news/VanBanManage';
+// eNews — shared editor page
+import TinTucEditorPage from './pages/news/TinTucEditorPage';
 
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from './utils/constants';
@@ -291,6 +293,16 @@ function App() {
               <AdminTinTucManage />
             </PermissionGate>
           } />
+          <Route path="news/create" element={
+            <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
+              <TinTucEditorPage backPath="/admin/news" basePath="/admin/news" />
+            </PermissionGate>
+          } />
+          <Route path="news/:id/edit" element={
+            <PermissionGate permission={PERMISSIONS.SUA_TIN_TUC}>
+              <TinTucEditorPage backPath="/admin/news" basePath="/admin/news" />
+            </PermissionGate>
+          } />
           <Route path="van-ban" element={
             <PermissionGate permission={PERMISSIONS.QUAN_LY_VAN_BAN}>
               <AdminVanBanManage />
@@ -347,6 +359,16 @@ function App() {
           <Route path="news" element={
             <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
               <BCHTinTucManage />
+            </PermissionGate>
+          } />
+          <Route path="news/create" element={
+            <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
+              <TinTucEditorPage backPath="/bch/news" basePath="/bch/news" />
+            </PermissionGate>
+          } />
+          <Route path="news/:id/edit" element={
+            <PermissionGate permission={PERMISSIONS.SUA_TIN_TUC}>
+              <TinTucEditorPage backPath="/bch/news" basePath="/bch/news" />
             </PermissionGate>
           } />
           <Route path="van-ban" element={

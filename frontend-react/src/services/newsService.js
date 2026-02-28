@@ -67,22 +67,28 @@ const newsService = {
     return response.data;
   },
 
-  /** Upload ảnh đính kèm cho bài */
+  /**
+   * Upload ảnh vào bài viết (nội dung hoặc đại diện).
+   * Trả về URL string của ảnh đã upload.
+   */
   uploadAnh: async (id, file) => {
     const formData = new FormData();
     formData.append('file', file);
     const response = await api.post(`/api/news/${id}/upload-image`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return response.data;
+    // Handle both { url } object and plain string response
+    const data = response.data;
+    return typeof data === 'string' ? data : (data.url || data.fileUrl || data);
   },
 
-  /** Upload ảnh đại diện cho bài (dùng endpoint upload-image, file = anhDaiDien) */
-  uploadAnhDaiDien: async (id, file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await api.post(`/api/news/${id}/upload-image`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+  /** Upload ảnh đại diện — alias của uploadAnh */
+  uploadAnhDaiDien: async (id, file) => newsService.uploadAnh(id, file),
+
+  /** Bài viết nổi bật (ghim / featured) */
+  getNoiBat: async (size = 5) => {
+    const response = await api.get('/api/public/news', {
+      params: { isGhim: true, size, page: 0 },
     });
     return response.data;
   },

@@ -161,3 +161,55 @@
 .skeleton {
   @apply animate-pulse bg-gray-200;
 }
+
+/* ── eNews Article Content ── */
+.enews-article-content {
+  @apply leading-relaxed text-gray-800;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+.enews-article-content h1,
+.enews-article-content h2,
+.enews-article-content h3,
+.enews-article-content h4 {
+  @apply font-bold text-gray-900 mt-6 mb-3;
+}
+.enews-article-content h1 { @apply text-2xl; }
+.enews-article-content h2 { @apply text-xl; }
+.enews-article-content h3 { @apply text-lg; }
+.enews-article-content p  { @apply mb-4; }
+.enews-article-content a  { @apply text-enews-600 hover:text-enews-700 underline underline-offset-2; }
+.enews-article-content ul { @apply list-disc pl-6 mb-4 space-y-1; }
+.enews-article-content ol { @apply list-decimal pl-6 mb-4 space-y-1; }
+.enews-article-content img {
+  @apply max-w-full h-auto rounded-xl my-4 shadow-sm mx-auto block;
+}
+.enews-article-content blockquote {
+  @apply border-l-4 border-enews-400 bg-enews-50 px-4 py-3 my-4 rounded-r-xl;
+  font-style: italic;
+  color: #374151;
+}
+.enews-article-content pre,
+.enews-article-content code {
+  @apply bg-gray-100 rounded text-sm font-mono;
+}
+.enews-article-content pre { @apply p-4 overflow-x-auto; }
+.enews-article-content code { @apply px-1.5 py-0.5; }
+.enews-article-content table {
+  @apply w-full border-collapse text-sm my-4;
+}
+.enews-article-content table th,
+.enews-article-content table td {
+  @apply border border-gray-200 px-3 py-2 text-left;
+}
+.enews-article-content table th {
+  @apply bg-enews-50 font-semibold text-gray-700;
+}
+.enews-article-content table tr:nth-child(even) {
+  @apply bg-gray-50;
+}
+
+/* Mobile tap target improvements */
+@media (max-width: 640px) {
+  .enews-article-content a { padding: 2px 0; }
+}

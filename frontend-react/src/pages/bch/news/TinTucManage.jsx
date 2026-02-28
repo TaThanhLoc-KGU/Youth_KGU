@@ -1,11 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Plus, Edit, Trash2, Eye, Send, Archive, RotateCcw } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import { PERMISSIONS } from '../../../utils/constants';
 import newsService from '../../../services/newsService';
-import TinTucForm from '../../../components/news/manage/TinTucForm';
 import Badge from '../../../components/common/Badge';
 import Modal from '../../../components/common/Modal';
 import Button from '../../../components/common/Button';
@@ -28,6 +28,7 @@ const TRANG_THAI_OPTIONS = [
 const PAGE_SIZE = 10;
 
 const BCHTinTucManage = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
 
@@ -40,8 +41,6 @@ const BCHTinTucManage = () => {
   const [search, setSearch]       = useState('');
   const [keyword, setKeyword]     = useState('');
   const [trangThai, setTrangThai] = useState('');
-  const [modalOpen, setModalOpen]     = useState(false);
-  const [selectedId, setSelectedId]   = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const { data, isLoading } = useQuery({
@@ -79,9 +78,8 @@ const BCHTinTucManage = () => {
   });
 
   const handleSearch = () => { setKeyword(search); setPage(0); };
-  const openCreate = () => { setSelectedId(null); setModalOpen(true); };
-  const openEdit   = (id) => { setSelectedId(id); setModalOpen(true); };
-  const handleSaved = () => { setModalOpen(false); invalidate(); };
+  const openCreate = () => navigate('/bch/news/create');
+  const openEdit   = (id) => navigate(`/bch/news/${id}/edit`);
 
   return (
     <div className="space-y-4">
@@ -214,15 +212,6 @@ const BCHTinTucManage = () => {
             <Button variant="secondary" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>Sau</Button>
           </div>
         </div>
-      )}
-
-      {/* Form modal */}
-      {modalOpen && (
-        <TinTucForm
-          tinTucId={selectedId}
-          onClose={() => setModalOpen(false)}
-          onSaved={handleSaved}
-        />
       )}
 
       {/* Delete confirm */}
