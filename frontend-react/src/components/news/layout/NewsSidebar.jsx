@@ -25,8 +25,8 @@ const NewsSidebar = () => {
       {/* Bài viết nổi bật */}
       {featured.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-red-50">
-            <TrendingUp className="w-4 h-4 text-red-500" />
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-enews-50">
+            <TrendingUp className="w-4 h-4 text-enews-500" />
             <h3 className="font-semibold text-sm text-gray-800">Tin nổi bật</h3>
           </div>
           <ul className="divide-y divide-gray-50">

@@ -10,7 +10,7 @@ const TreeNode = ({ node, depth = 0 }) => {
 
   return (
     <li>
-      <div className={`flex items-center gap-1 group rounded-lg ${isActive ? 'bg-red-50' : 'hover:bg-gray-50'} transition-colors`}>
+      <div className={`flex items-center gap-1 group rounded-lg ${isActive ? 'bg-enews-50' : 'hover:bg-gray-50'} transition-colors`}>
         {hasChildren ? (
           <button
             onClick={() => setExpanded((v) => !v)}
@@ -26,7 +26,7 @@ const TreeNode = ({ node, depth = 0 }) => {
         <Link
           to={`/${node.fullPathSlug}`}
           className={`flex-1 flex items-center gap-2 py-1.5 pr-2 text-sm truncate ${
-            isActive ? 'text-red-700 font-semibold' : 'text-gray-700'
+            isActive ? 'text-enews-700 font-semibold' : 'text-gray-700'
           }`}
           style={{ paddingLeft: depth * 8 }}
         >

@@ -33,7 +33,7 @@ const Breadcrumb = ({ items = [], currentTitle }) => {
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
       <nav aria-label="breadcrumb" className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
-        <Link to="/news" className="flex items-center gap-1 hover:text-red-600 transition-colors">
+        <Link to="/news" className="flex items-center gap-1 hover:text-enews-600 transition-colors">
           <Home className="w-3.5 h-3.5" />
           <span>Trang chủ</span>
         </Link>
@@ -42,7 +42,7 @@ const Breadcrumb = ({ items = [], currentTitle }) => {
             <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
             <Link
               to={`/${item.fullPathSlug}`}
-              className="hover:text-red-600 transition-colors"
+              className="hover:text-enews-600 transition-colors"
             >
               {item.ten}
             </Link>

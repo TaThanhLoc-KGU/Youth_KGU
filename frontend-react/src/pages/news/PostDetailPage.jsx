@@ -65,7 +65,7 @@ const PostDetailPage = ({ post }) => {
 
         {/* Category tag */}
         {post.chuyenMuc && (
-          <span className="inline-block bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full mb-3">
+          <span className="inline-block bg-enews-100 text-enews-700 text-xs font-semibold px-2.5 py-1 rounded-full mb-3">
             {post.chuyenMuc.ten}
           </span>
         )}
@@ -97,7 +97,7 @@ const PostDetailPage = ({ post }) => {
 
         {/* Tóm tắt */}
         {post.tomTat && (
-          <p className="text-base text-gray-600 italic leading-relaxed mb-5 bg-gray-50 border-l-4 border-red-400 px-4 py-3 rounded-r-xl">
+          <p className="text-base text-gray-600 italic leading-relaxed mb-5 bg-gray-50 border-l-4 border-enews-400 px-4 py-3 rounded-r-xl">
             {post.tomTat}
           </p>
         )}
@@ -111,7 +111,7 @@ const PostDetailPage = ({ post }) => {
         {/* Nội dung */}
         {safeHtml && (
           <div
-            className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-a:text-red-600 prose-img:rounded-xl"
+            className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-a:text-enews-600 prose-img:rounded-xl"
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
         )}
@@ -147,7 +147,7 @@ const PostDetailPage = ({ post }) => {
             <span className="text-sm text-gray-400">Chuyên mục:</span>
             {(post.breadcrumb || []).map((b) => (
               <a key={b.fullPathSlug} href={`/${b.fullPathSlug}`}
-                className="text-sm bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-700 px-2.5 py-1 rounded-full transition-colors">
+                className="text-sm bg-gray-100 text-gray-600 hover:bg-enews-50 hover:text-enews-700 px-2.5 py-1 rounded-full transition-colors">
                 {b.ten}
               </a>
             ))}
@@ -158,7 +158,7 @@ const PostDetailPage = ({ post }) => {
       {/* Bài viết liên quan */}
       {related.length > 0 && (
         <section className="mt-10 pt-8 border-t border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900 border-l-4 border-red-600 pl-3 mb-5">Bài viết liên quan</h2>
+          <h2 className="text-lg font-bold text-gray-900 border-l-4 border-enews-600 pl-3 mb-5">Bài viết liên quan</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {related.map((p) => <PostCard key={p.id} post={p} />)}
           </div>

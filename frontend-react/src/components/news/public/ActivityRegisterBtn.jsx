@@ -16,7 +16,7 @@ const ActivityRegisterBtn = ({ hoatDongId, trangThaiHoatDong, hanDangKy, soChoCo
   // Đã hủy
   if (trangThaiHoatDong === 'DA_HUY') {
     return (
-      <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
+      <div className="flex items-center gap-2 bg-enews-50 border border-enews-200 text-enews-700 rounded-xl px-4 py-3 text-sm font-medium">
         <CalendarX className="w-4 h-4 flex-shrink-0" />
         Hoạt động này đã bị hủy
       </div>

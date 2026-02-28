@@ -12,8 +12,7 @@ const NewsFooter = () => (
             <span className="text-white font-bold text-lg">Youth KGU</span>
           </div>
           <p className="text-sm leading-relaxed">
-            Website chính thức của Đoàn Thanh niên – Hội Sinh viên<br />
-            Trường Đại học Kiên Giang
+            Trang thông tin điện tử chính thức của <br/>Đoàn Thanh niên - Hội Sinh viên Trường Đại học Kiên Giang
           </p>
         </div>
         <div>
@@ -28,14 +27,13 @@ const NewsFooter = () => (
         <div>
           <h4 className="text-white font-semibold mb-3">Liên hệ</h4>
           <ul className="space-y-2 text-sm">
-            <li>📍 Số 30, đường Lê Duẩn, TP. Rạch Giá, Kiên Giang</li>
-            <li>📞 (0297) 3867 117</li>
-            <li>✉️ doanhoikgu@kgu.edu.vn</li>
+            <li>📍 320A Quốc lộ 61, Xã Châu Thành, tỉnh An Giang</li>
+            <li>✉️ doanthanhnien@vnkgu.edu.vn</li>
           </ul>
         </div>
       </div>
       <div className="border-t border-gray-700 mt-6 pt-6 text-center text-sm">
-        © {new Date().getFullYear()} Đoàn Thanh niên – Hội Sinh viên Trường Đại học Kiên Giang
+        © 2026 Tạ Thành Lộc
       </div>
     </div>
   </footer>

@@ -18,8 +18,8 @@ const PostCard = ({ post }) => {
             className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-44 bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
-            <Tag className="w-10 h-10 text-red-300" />
+          <div className="w-full h-44 bg-gradient-to-br from-enews-100 to-enews-200 flex items-center justify-center">
+            <Tag className="w-10 h-10 text-enews-300" />
           </div>
         )}
       </Link>
@@ -27,13 +27,13 @@ const PostCard = ({ post }) => {
         {post.chuyenMuc && (
           <Link
             to={`/${post.chuyenMuc.fullPathSlug}`}
-            className="text-xs font-semibold text-red-600 uppercase tracking-wide hover:text-red-700"
+            className="text-xs font-semibold text-enews-600 uppercase tracking-wide hover:text-enews-700"
           >
             {post.chuyenMuc.ten}
           </Link>
         )}
         <Link to={`/${post.fullUrlPath}`}>
-          <h3 className="mt-1 font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-red-700 transition-colors">
+          <h3 className="mt-1 font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-enews-700 transition-colors">
             {post.tieuDe}
           </h3>
         </Link>

@@ -49,14 +49,14 @@ const VanBanListPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={keyword} onChange={(e) => setKeyword(e.target.value)}
               placeholder="Tìm theo số hiệu hoặc trích yếu..."
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-red-400" />
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-enews-400" />
           </div>
-          <button type="submit" className="px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors">
+          <button type="submit" className="px-4 py-2.5 bg-enews-600 text-white text-sm font-medium rounded-xl hover:bg-enews-700 transition-colors">
             Tìm
           </button>
         </form>
         <select value={loai} onChange={(e) => { setLoai(e.target.value); setPage(0); }}
-          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-red-400 bg-white">
+          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-enews-400 bg-white">
           {LOAI_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>
@@ -82,7 +82,7 @@ const VanBanListPage = () => {
           {[...Array(Math.min(totalPages, 7))].map((_, i) => (
             <button key={i} onClick={() => setPage(i)}
               className={`w-9 h-9 rounded-xl text-sm font-medium transition-colors ${
-                i === page ? 'bg-red-600 text-white' : 'border border-gray-200 hover:bg-gray-50 text-gray-700'
+                i === page ? 'bg-enews-600 text-white' : 'border border-gray-200 hover:bg-gray-50 text-gray-700'
               }`}>{i + 1}</button>
           ))}
           <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}

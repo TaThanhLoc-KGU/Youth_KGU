@@ -45,6 +45,7 @@ import BCHScanQR from './pages/bch/ScanQR';
 import NewsLayout from './components/news/layout/NewsLayout';
 // eNews — public pages
 import NewsHomePage from './pages/news/NewsHomePage';
+import VanBanListPage from './pages/news/VanBanListPage';
 import NewsResolver from './components/news/public/NewsResolver';
 // eNews — admin manage pages
 import AdminTinTucManage from './pages/admin/news/TinTucManage';
@@ -116,7 +117,8 @@ const ADMIN_SECTION_PERMS = [
 const SmartRedirect = () => {
   const { isAuthenticated, user, permissions, laBCH } = useAuthStore();
   if (!isAuthenticated) {
-    return <Navigate to={ROUTES.LOGIN} replace />;
+    // Khách chưa đăng nhập → trang tin tức (trang chủ công khai)
+    return <Navigate to={ROUTES.NEWS_HOME} replace />;
   }
   const hasAdminPerm = ADMIN_SECTION_PERMS.some((p) => permissions.includes(p));
   if (user?.vaiTro === ROLES.ADMIN || hasAdminPerm) {
@@ -363,6 +365,8 @@ function App() {
         {/* eNews — explicit home route (faster, no API call) */}
         <Route path="/news" element={<NewsLayout />}>
           <Route index element={<NewsHomePage />} />
+          {/* Trang văn bản — khớp trực tiếp, không cần resolve API */}
+          <Route path="van-ban" element={<VanBanListPage />} />
           <Route path="*" element={<NewsResolver />} />
         </Route>
 

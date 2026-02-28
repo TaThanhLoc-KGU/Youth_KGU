@@ -42,8 +42,8 @@ const VanBanCard = ({ vanBan }) => {
 
   return (
     <div className="flex items-start gap-4 bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow">
-      <div className="flex-shrink-0 w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
-        <FileText className="w-5 h-5 text-red-500" />
+      <div className="flex-shrink-0 w-10 h-10 bg-enews-50 rounded-lg flex items-center justify-center">
+        <FileText className="w-5 h-5 text-enews-500" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 flex-wrap">

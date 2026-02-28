@@ -62,10 +62,10 @@ const NewsHomePage = () => {
                       )}
                       <div className="p-3 flex flex-col justify-center min-w-0">
                         {post.chuyenMuc && (
-                          <span className="text-xs font-semibold text-red-600 uppercase">{post.chuyenMuc.ten}</span>
+                          <span className="text-xs font-semibold text-enews-600 uppercase">{post.chuyenMuc.ten}</span>
                         )}
                         <Link to={`/${post.fullUrlPath}`}>
-                          <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 hover:text-red-700 transition-colors mt-0.5">
+                          <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 hover:text-enews-700 transition-colors mt-0.5">
                             {post.tieuDe}
                           </h3>
                         </Link>
@@ -89,8 +89,8 @@ const NewsHomePage = () => {
       {/* Latest news */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-gray-900 border-l-4 border-red-600 pl-3">Tin mới nhất</h2>
-          <Link to="/news?sort=latest" className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700">
+          <h2 className="text-lg font-bold text-gray-900 border-l-4 border-enews-600 pl-3">Tin mới nhất</h2>
+          <Link to="/news?sort=latest" className="flex items-center gap-1 text-sm text-enews-600 hover:text-enews-700">
             Xem thêm <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
@@ -122,8 +122,8 @@ const CategorySection = ({ category }) => {
   return (
     <section className="mb-8">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-gray-900 border-l-4 border-red-600 pl-3">{category.ten}</h2>
-        <Link to={`/${category.fullPathSlug}`} className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700">
+        <h2 className="text-lg font-bold text-gray-900 border-l-4 border-enews-600 pl-3">{category.ten}</h2>
+        <Link to={`/${category.fullPathSlug}`} className="flex items-center gap-1 text-sm text-enews-600 hover:text-enews-700">
           Xem thêm <ChevronRight className="w-4 h-4" />
         </Link>
       </div>

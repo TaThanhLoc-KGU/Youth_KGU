@@ -7,6 +7,19 @@ export default {
   theme: {
     extend: {
       colors: {
+        // eNews brand color — xanh Đoàn #00b0f0
+        enews: {
+          50:  '#e6f9ff',
+          100: '#b3edff',
+          200: '#66d9fc',
+          300: '#33ccf7',
+          400: '#1ac4f5',
+          500: '#00b8f2',
+          600: '#00b0f0',
+          700: '#0090c8',
+          800: '#006e98',
+          900: '#004d70',
+        },
         primary: {
           DEFAULT: '#1c6681',
           50: '#f0f9ff',

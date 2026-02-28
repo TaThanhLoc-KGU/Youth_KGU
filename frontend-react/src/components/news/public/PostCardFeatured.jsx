@@ -17,19 +17,19 @@ const PostCardFeatured = ({ post }) => {
           className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-red-900" />
+        <div className="absolute inset-0 bg-gradient-to-br from-enews-600 to-enews-900" />
       )}
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
       <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
         {post.chuyenMuc && (
-          <span className="inline-block bg-red-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full mb-2">
+          <span className="inline-block bg-enews-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full mb-2">
             {post.chuyenMuc.ten}
           </span>
         )}
         <Link to={`/${post.fullUrlPath}`}>
-          <h2 className="text-lg md:text-xl font-bold leading-tight line-clamp-2 hover:text-red-200 transition-colors">
+          <h2 className="text-lg md:text-xl font-bold leading-tight line-clamp-2 hover:text-enews-200 transition-colors">
             {post.tieuDe}
           </h2>
         </Link>

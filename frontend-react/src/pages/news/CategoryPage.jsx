@@ -51,7 +51,7 @@ const CategoryPage = ({ category, initialPosts }) => {
         <div className="flex flex-wrap gap-2 mb-6">
           {category.children.map((sub) => (
             <a key={sub.id} href={`/${sub.fullPathSlug}`}
-              className="text-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 px-3 py-1.5 rounded-full transition-colors">
+              className="text-sm bg-enews-50 text-enews-700 border border-enews-200 hover:bg-enews-100 px-3 py-1.5 rounded-full transition-colors">
               {sub.ten}
             </a>
           ))}
@@ -83,7 +83,7 @@ const CategoryPage = ({ category, initialPosts }) => {
           {[...Array(totalPages)].map((_, i) => (
             <button key={i} onClick={() => setPage(i)}
               className={`w-9 h-9 rounded-xl text-sm font-medium transition-colors ${
-                i === page ? 'bg-red-600 text-white' : 'border border-gray-200 hover:bg-gray-50 text-gray-700'
+                i === page ? 'bg-enews-600 text-white' : 'border border-gray-200 hover:bg-gray-50 text-gray-700'
               }`}>
               {i + 1}
             </button>

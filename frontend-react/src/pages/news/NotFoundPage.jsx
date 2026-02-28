@@ -14,7 +14,7 @@ const NotFoundPage = () => (
       <p className="text-gray-500 max-w-sm mb-8">
         Trang bạn tìm kiếm có thể đã bị xóa, đổi địa chỉ hoặc chưa tồn tại.
       </p>
-      <Link to="/news" className="bg-red-600 hover:bg-red-700 text-white font-medium px-6 py-2.5 rounded-xl transition-colors">
+      <Link to="/news" className="bg-enews-600 hover:bg-enews-700 text-white font-medium px-6 py-2.5 rounded-xl transition-colors">
         Về trang chủ
       </Link>
     </div>
