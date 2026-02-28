@@ -1,0 +1,99 @@
+import api from './api';
+
+const newsService = {
+  // ── Public ──────────────────────────────────────────────────────────────────
+
+  /** Resolve một path URL → { type, post, category, posts, redirectTo } */
+  resolve: async (path) => {
+    const response = await api.get('/api/public/resolve', {
+      params: { path },
+    });
+    return response.data;
+  },
+
+  /** Danh sách bài viết PUBLISHED cho public */
+  getDanhSach: async (params = {}) => {
+    const response = await api.get('/api/public/news', { params });
+    return response.data;
+  },
+
+  /** Cây danh mục cho mega menu */
+  getCayDanhMuc: async () => {
+    const response = await api.get('/api/public/chuyen-muc/tree');
+    return response.data;
+  },
+
+  // ── Manage (cần JWT) ─────────────────────────────────────────────────────────
+
+  /** Tạo bài đăng mới (DRAFT) */
+  create: async (data) => {
+    const response = await api.post('/api/news', data);
+    return response.data;
+  },
+
+  /** Danh sách bài của đơn vị mình (admin thấy tất cả) */
+  getDanhSachManage: async (params = {}) => {
+    const response = await api.get('/api/news', { params });
+    return response.data;
+  },
+
+  /** Chi tiết bài viết (manage) */
+  getById: async (id) => {
+    const response = await api.get(`/api/news/${id}`);
+    return response.data;
+  },
+
+  /** Sửa bài viết */
+  update: async (id, data) => {
+    const response = await api.put(`/api/news/${id}`, data);
+    return response.data;
+  },
+
+  /** Xóa mềm bài viết */
+  delete: async (id) => {
+    const response = await api.delete(`/api/news/${id}`);
+    return response.data;
+  },
+
+  /** Publish bài viết (cần DUYET_TIN_TUC) */
+  publish: async (id) => {
+    const response = await api.post(`/api/news/${id}/publish`);
+    return response.data;
+  },
+
+  /** Archive bài viết */
+  archive: async (id) => {
+    const response = await api.post(`/api/news/${id}/archive`);
+    return response.data;
+  },
+
+  /** Upload ảnh đính kèm cho bài */
+  uploadAnh: async (id, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/api/news/${id}/upload-image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  /** Upload ảnh đại diện cho bài (dùng endpoint upload-image, file = anhDaiDien) */
+  uploadAnhDaiDien: async (id, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/api/news/${id}/upload-image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  /** Tìm văn bản để autocomplete khi tạo bài */
+  searchVanBan: async (keyword) => {
+    const response = await api.get('/api/news/van-ban/search', {
+      params: { keyword },
+    });
+    return response.data;
+  },
+};
+
+export default newsService;

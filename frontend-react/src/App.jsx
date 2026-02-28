@@ -41,6 +41,18 @@ import BCHDashboard from './pages/bch/Dashboard';
 import BCHActivities from './pages/bch/Activities';
 import BCHAttendance from './pages/bch/Attendance';
 import BCHScanQR from './pages/bch/ScanQR';
+// eNews — layout
+import NewsLayout from './components/news/layout/NewsLayout';
+// eNews — public pages
+import NewsHomePage from './pages/news/NewsHomePage';
+import NewsResolver from './components/news/public/NewsResolver';
+// eNews — admin manage pages
+import AdminTinTucManage from './pages/admin/news/TinTucManage';
+import AdminVanBanManage from './pages/admin/news/VanBanManage';
+import AdminChuyenMucManage from './pages/admin/news/ChuyenMucManage';
+// eNews — BCH manage pages
+import BCHTinTucManage from './pages/bch/news/TinTucManage';
+import BCHVanBanManage from './pages/bch/news/VanBanManage';
 
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from './utils/constants';
@@ -91,6 +103,9 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
   PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
   PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
+  // eNews
+  PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.SUA_TIN_TUC, PERMISSIONS.DUYET_TIN_TUC,
+  PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
 ];
 
 /**
@@ -157,6 +172,9 @@ function App() {
               PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
               PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
               PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
+              // eNews
+              PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.SUA_TIN_TUC, PERMISSIONS.DUYET_TIN_TUC,
+              PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
             ]}>
               <MainLayout title="Admin" />
             </ProtectedRoute>
@@ -265,6 +283,22 @@ function App() {
               <SettingsPermissionsPage />
             </PermissionGate>
           } />
+          {/* eNews admin routes */}
+          <Route path="news" element={
+            <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
+              <AdminTinTucManage />
+            </PermissionGate>
+          } />
+          <Route path="van-ban" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_VAN_BAN}>
+              <AdminVanBanManage />
+            </PermissionGate>
+          } />
+          <Route path="chuyen-muc" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_CHUYEN_MUC}>
+              <AdminChuyenMucManage />
+            </PermissionGate>
+          } />
         </Route>
 
         {/* Student Routes - chỉ SINH_VIEN (kể cả SINH_VIEN là BCH, vaiTro vẫn là SINH_VIEN) */}
@@ -292,7 +326,10 @@ function App() {
         <Route
           path={ROUTES.BCH}
           element={
-            <ProtectedRoute requiredPermissions={[PERMISSIONS.TAO_HOAT_DONG, PERMISSIONS.QUET_QR]}>
+            <ProtectedRoute requiredPermissions={[
+              PERMISSIONS.TAO_HOAT_DONG, PERMISSIONS.QUET_QR,
+              PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.QUAN_LY_VAN_BAN,
+            ]}>
               <MainLayout title="BCH" />
             </ProtectedRoute>
           }
@@ -304,6 +341,17 @@ function App() {
           <Route path="activities/:id/attendance" element={<ActivityAttendancePage />} />
           <Route path="attendance" element={<BCHAttendance />} />
           <Route path="scan-qr" element={<BCHScanQR />} />
+          {/* eNews BCH routes */}
+          <Route path="news" element={
+            <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
+              <BCHTinTucManage />
+            </PermissionGate>
+          } />
+          <Route path="van-ban" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_VAN_BAN}>
+              <BCHVanBanManage />
+            </PermissionGate>
+          } />
           {/* VẤN ĐỀ 4: /bch/profile redirect về /profile duy nhất */}
           <Route path="profile" element={<Navigate to={ROUTES.PROFILE} replace />} />
         </Route>
@@ -312,8 +360,16 @@ function App() {
         <Route path="/unauthorized" element={<ForbiddenPage />} />
         <Route path="/403" element={<ForbiddenPage />} />
 
-        {/* 404 Not Found */}
-        <Route path="*" element={<NotFound />} />
+        {/* eNews — explicit home route (faster, no API call) */}
+        <Route path="/news" element={<NewsLayout />}>
+          <Route index element={<NewsHomePage />} />
+          <Route path="*" element={<NewsResolver />} />
+        </Route>
+
+        {/* eNews — catch-all: resolve arbitrary public URLs via NewsResolver */}
+        <Route path="*" element={<NewsLayout />}>
+          <Route path="*" element={<NewsResolver />} />
+        </Route>
 
         {/* Home - smart redirect: chưa đăng nhập → login, đã đăng nhập → dashboard */}
         <Route path={ROUTES.HOME} element={<SmartRedirect />} />

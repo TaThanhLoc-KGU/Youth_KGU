@@ -24,6 +24,9 @@ import {
   Shield,
   QrCode,
   TrendingUp,
+  Newspaper,
+  FileText,
+  FolderOpen,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
@@ -49,6 +52,10 @@ const ADMIN_MENU = [
   // ── Hoạt động & Điểm danh ─────────────────────────────────────────────────
   { icon: Activity,        label: 'Hoạt động',             path: ROUTES.ADMIN_ACTIVITIES,         permission: PERMISSIONS.XEM_HOAT_DONG },
   { icon: ClipboardCheck,  label: 'Điểm danh',             path: ROUTES.ADMIN_ATTENDANCE,         permission: PERMISSIONS.MANAGE_DIEM_DANH },
+  // ── eNews ─────────────────────────────────────────────────────────────────
+  { icon: Newspaper,       label: 'Tin tức',               path: ROUTES.ADMIN_NEWS,               permission: PERMISSIONS.DANG_TIN_TUC },
+  { icon: FileText,        label: 'Văn bản',               path: ROUTES.ADMIN_VAN_BAN,            permission: PERMISSIONS.QUAN_LY_VAN_BAN },
+  { icon: FolderOpen,      label: 'Chuyên mục',            path: ROUTES.ADMIN_CHUYEN_MUC,         permission: PERMISSIONS.QUAN_LY_CHUYEN_MUC },
   // ── Tài khoản & Thống kê ──────────────────────────────────────────────────
   { icon: UserPlus,        label: 'Quản lý tài khoản',    path: ROUTES.ADMIN_ACCOUNTS,           permission: PERMISSIONS.VIEW_TAI_KHOAN },
   { icon: BarChart2,       label: 'Thống kê tài khoản',   path: ROUTES.ADMIN_ACCOUNT_STATISTICS, permission: PERMISSIONS.VIEW_THONG_KE },
@@ -63,7 +70,10 @@ const BCH_MENU = [
   { icon: LayoutDashboard, label: 'Dashboard BCH',       path: ROUTES.BCH_DASHBOARD,  permission: PERMISSIONS.TAO_HOAT_DONG },
   { icon: Activity,        label: 'Quản lý Hoạt động',  path: ROUTES.BCH_ACTIVITIES, permission: PERMISSIONS.TAO_HOAT_DONG },
   { icon: ClipboardCheck,  label: 'Điểm danh',           path: ROUTES.BCH_ATTENDANCE, permission: PERMISSIONS.QUET_QR },
-  { icon: QrCode,          label: 'Quét QR',             path: ROUTES.BCH_SCAN_QR,   permission: PERMISSIONS.QUET_QR },
+  { icon: QrCode,          label: 'Quét QR',             path: ROUTES.BCH_SCAN_QR,    permission: PERMISSIONS.QUET_QR },
+  // ── eNews BCH ─────────────────────────────────────────────────────────────
+  { icon: Newspaper,       label: 'Đăng bài viết',       path: ROUTES.BCH_NEWS,       permission: PERMISSIONS.DANG_TIN_TUC },
+  { icon: FileText,        label: 'Văn bản',              path: ROUTES.BCH_VAN_BAN,    permission: PERMISSIONS.QUAN_LY_VAN_BAN },
 ];
 
 // ─── Menu sinh viên — 4 quyền cứng, mọi sinh viên đều có, không kiểm tra permission ─
@@ -87,6 +97,9 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
   PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
   PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
+  // eNews
+  PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.SUA_TIN_TUC, PERMISSIONS.DUYET_TIN_TUC,
+  PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────

@@ -92,6 +92,15 @@ export const PERMISSIONS = {
   XEM_SYSTEM_LOG:                  'XEM_SYSTEM_LOG',                 // 57
   XUAT_SYSTEM_LOG:                 'XUAT_SYSTEM_LOG',                // 58
 
+  // ─── NEWS / eNews ─────────────────────────────────────────────────────────
+  DANG_TIN_TUC:                    'DANG_TIN_TUC',
+  SUA_TIN_TUC:                     'SUA_TIN_TUC',
+  XOA_TIN_TUC:                     'XOA_TIN_TUC',
+  DUYET_TIN_TUC:                   'DUYET_TIN_TUC',
+  QUAN_LY_CHUYEN_MUC:              'QUAN_LY_CHUYEN_MUC',
+  QUAN_LY_VAN_BAN:                 'QUAN_LY_VAN_BAN',
+  XOA_VAN_BAN:                     'XOA_VAN_BAN',
+
   // ─── Aliases giữ tương thích ngược với code cũ ────────────────────────────
   // (value đã được sửa để khớp DB — cập nhật dần references sang tên mới)
   VIEW_SINH_VIEN:                  'XEM_SINH_VIEN',
@@ -266,4 +275,18 @@ export const ROUTES = {
   BCH_ACTIVITIES: '/bch/activities',
   BCH_ATTENDANCE: '/bch/attendance',
   BCH_SCAN_QR: '/bch/scan-qr',
+
+  // eNews — Public
+  NEWS_HOME: '/news',
+
+  // eNews — Admin manage
+  ADMIN_NEWS: '/admin/news',
+  ADMIN_VAN_BAN: '/admin/van-ban',
+  ADMIN_CHUYEN_MUC: '/admin/chuyen-muc',
+
+  // eNews — BCH manage
+  BCH_NEWS: '/bch/news',
+  BCH_NEWS_CREATE: '/bch/news/create',
+  BCH_VAN_BAN: '/bch/van-ban',
+  BCH_VAN_BAN_CREATE: '/bch/van-ban/create',
 };
