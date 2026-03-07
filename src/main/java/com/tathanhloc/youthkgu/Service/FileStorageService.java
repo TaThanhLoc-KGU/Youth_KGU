@@ -9,11 +9,22 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
 
@@ -63,19 +74,74 @@ public class FileStorageService {
         }
     }
 
-    // ── Ảnh bài viết ───────────────────────────────────────────────────────────
+    // ── Ảnh media (slider, banner, ...) ────────────────────────────────────────
 
     /**
-     * Lưu ảnh bài viết vào /uploads/tin-tuc/yyyy/MM/{uuid}.ext
-     * Trả về relative path.
+     * Lưu ảnh media (slider, banner) vào /uploads/media/yyyy/MM/{uuid}.jpg
+     * Tự động nén về JPEG quality=75%, max width=1920px.
      */
-    public String saveNewsImage(MultipartFile file) {
+    public String saveMediaImage(MultipartFile file) {
         validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE,
                 "Chỉ chấp nhận: JPG, PNG, GIF, WebP");
 
+        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        Path dir = Paths.get(uploadBasePath, "media", yearMonth);
+
+        try {
+            Files.createDirectories(dir);
+            String storedName = UUID.randomUUID() + ".jpg";
+            Path dest = dir.resolve(storedName);
+            byte[] compressed = compressImage(file.getInputStream(), 1920, 0.75f);
+            Files.write(dest, compressed);
+
+            String relativePath = "/uploads/media/" + yearMonth + "/" + storedName;
+            log.info("Saved media image (compressed): {} ({} KB)", relativePath, compressed.length / 1024);
+            return relativePath;
+        } catch (IOException e) {
+            throw new BusinessException("FILE_SAVE_ERROR", "Lỗi lưu ảnh: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Liệt kê tất cả ảnh trong /uploads/media/ (đệ quy).
+     * Trả về danh sách relative path.
+     */
+    public java.util.List<String> listMediaImages() {
+        Path mediaDir = Paths.get(uploadBasePath, "media");
+        if (!Files.exists(mediaDir)) return java.util.Collections.emptyList();
+        try (java.util.stream.Stream<Path> stream = Files.walk(mediaDir)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .filter(p -> {
+                        String n = p.getFileName().toString().toLowerCase();
+                        return n.endsWith(".jpg") || n.endsWith(".jpeg")
+                                || n.endsWith(".png") || n.endsWith(".gif") || n.endsWith(".webp");
+                    })
+                    .map(p -> {
+                        String rel = Paths.get(uploadBasePath).relativize(p).toString().replace("\\", "/");
+                        return "/uploads/" + rel;
+                    })
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .collect(java.util.stream.Collectors.toList());
+        } catch (IOException e) {
+            log.warn("Lỗi liệt kê media images: {}", e.getMessage());
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    // ── Biểu mẫu (form files) ──────────────────────────────────────────────────
+
+    /**
+     * Lưu file biểu mẫu vào /uploads/bieu-mau/yyyy/MM/{uuid}.ext
+     * Trả về relative path.
+     */
+    public String saveBieuMauFile(MultipartFile file) {
+        validateFile(file, ALLOWED_DOC_TYPES, MAX_DOC_SIZE,
+                "Chỉ chấp nhận: PDF, Word, Excel, PowerPoint");
+
         String ext = getExtension(file.getOriginalFilename());
         String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
-        Path dir = Paths.get(uploadBasePath, "tin-tuc", yearMonth);
+        Path dir = Paths.get(uploadBasePath, "bieu-mau", yearMonth);
 
         try {
             Files.createDirectories(dir);
@@ -83,8 +149,36 @@ public class FileStorageService {
             Path dest = dir.resolve(storedName);
             Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
 
+            String relativePath = "/uploads/bieu-mau/" + yearMonth + "/" + storedName;
+            log.info("Saved bieu-mau file: {}", relativePath);
+            return relativePath;
+        } catch (IOException e) {
+            throw new BusinessException("FILE_SAVE_ERROR", "Lỗi lưu file biểu mẫu: " + e.getMessage());
+        }
+    }
+
+    // ── Ảnh bài viết ───────────────────────────────────────────────────────────
+
+    /**
+     * Lưu ảnh bài viết vào /uploads/tin-tuc/yyyy/MM/{uuid}.jpg
+     * Tự động nén về JPEG quality=75%, max width=1200px để giảm dung lượng.
+     */
+    public String saveNewsImage(MultipartFile file) {
+        validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE,
+                "Chỉ chấp nhận: JPG, PNG, GIF, WebP");
+
+        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        Path dir = Paths.get(uploadBasePath, "tin-tuc", yearMonth);
+
+        try {
+            Files.createDirectories(dir);
+            String storedName = UUID.randomUUID() + ".jpg";
+            Path dest = dir.resolve(storedName);
+            byte[] compressed = compressImage(file.getInputStream(), 1200, 0.75f);
+            Files.write(dest, compressed);
+
             String relativePath = "/uploads/tin-tuc/" + yearMonth + "/" + storedName;
-            log.info("Saved news image: {}", relativePath);
+            log.info("Saved news image (compressed): {} ({} KB)", relativePath, compressed.length / 1024);
             return relativePath;
         } catch (IOException e) {
             throw new BusinessException("FILE_SAVE_ERROR", "Lỗi lưu ảnh: " + e.getMessage());
@@ -99,9 +193,11 @@ public class FileStorageService {
     public Resource loadAsResource(String relativePath) {
         try {
             // relativePath ví dụ: /uploads/van-ban/2025/03/{uuid}.pdf
+            // Bỏ dấu "/" đầu → "uploads/van-ban/..."
+            // Bỏ tiếp "uploads/" vì uploadBasePath đã trỏ vào thư mục uploads/
             String cleanPath = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
-            Path filePath = Paths.get(uploadBasePath).resolve(
-                    cleanPath.replace("/uploads/", "")).normalize();
+            String subPath   = cleanPath.startsWith("uploads/") ? cleanPath.substring("uploads/".length()) : cleanPath;
+            Path filePath = Paths.get(uploadBasePath).resolve(subPath).normalize();
             Resource resource = new UrlResource(filePath.toUri());
             if (resource.exists() && resource.isReadable()) {
                 return resource;
@@ -119,8 +215,8 @@ public class FileStorageService {
         if (relativePath == null || relativePath.isBlank()) return;
         try {
             String cleanPath = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
-            Path filePath = Paths.get(uploadBasePath).resolve(
-                    cleanPath.replace("/uploads/", "")).normalize();
+            String subPath   = cleanPath.startsWith("uploads/") ? cleanPath.substring("uploads/".length()) : cleanPath;
+            Path filePath = Paths.get(uploadBasePath).resolve(subPath).normalize();
             Files.deleteIfExists(filePath);
             log.info("Deleted file: {}", relativePath);
         } catch (IOException e) {
@@ -153,5 +249,66 @@ public class FileStorageService {
     public String getOriginalFilename(String relativePath) {
         if (relativePath == null) return "";
         return Paths.get(relativePath).getFileName().toString();
+    }
+
+    // ── Image compression ─────────────────────────────────────────────────────
+
+    /**
+     * Nén ảnh sang JPEG với quality cho trước, thu nhỏ về maxWidth nếu lớn hơn.
+     * Hỗ trợ PNG có alpha channel (tự fill nền trắng trước khi sang JPEG).
+     *
+     * @param inputStream  InputStream của ảnh gốc
+     * @param maxWidth     Chiều rộng tối đa (px); nếu ảnh nhỏ hơn thì giữ nguyên
+     * @param quality      JPEG quality 0.0–1.0 (ví dụ: 0.75f)
+     * @return byte[] JPEG đã nén
+     */
+    private byte[] compressImage(InputStream inputStream, int maxWidth, float quality) throws IOException {
+        BufferedImage original = ImageIO.read(inputStream);
+        if (original == null) {
+            throw new BusinessException("IMAGE_READ_ERROR", "Không thể đọc file ảnh");
+        }
+
+        // Scale down nếu quá rộng
+        int origWidth  = original.getWidth();
+        int origHeight = original.getHeight();
+        BufferedImage resized;
+        if (origWidth > maxWidth) {
+            int newHeight = (int) Math.round((double) origHeight * maxWidth / origWidth);
+            Image scaled = original.getScaledInstance(maxWidth, newHeight, Image.SCALE_SMOOTH);
+            resized = new BufferedImage(maxWidth, newHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2d = resized.createGraphics();
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2d.drawImage(scaled, 0, 0, null);
+            g2d.dispose();
+        } else {
+            // Chỉ chuyển sang RGB (loại bỏ alpha để JPEG hóa được)
+            resized = new BufferedImage(origWidth, origHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2d = resized.createGraphics();
+            g2d.setColor(Color.WHITE);
+            g2d.fillRect(0, 0, origWidth, origHeight);
+            g2d.drawImage(original, 0, 0, null);
+            g2d.dispose();
+        }
+
+        // Ghi ra JPEG với quality tùy chỉnh
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpeg");
+        if (!writers.hasNext()) {
+            throw new BusinessException("IMAGE_WRITE_ERROR", "Không tìm thấy JPEG writer");
+        }
+        ImageWriter writer = writers.next();
+        ImageWriteParam param = writer.getDefaultWriteParam();
+        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        param.setCompressionQuality(quality);
+
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
+            writer.setOutput(ios);
+            writer.write(null, new IIOImage(resized, null, null), param);
+        } finally {
+            writer.dispose();
+        }
+
+        return baos.toByteArray();
     }
 }

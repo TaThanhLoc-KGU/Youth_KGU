@@ -61,27 +61,33 @@ public class TinTucService {
         return repo.findByChuyenMucSubtree("", TrangThaiTinTuc.PUBLISHED, pageable).map(this::toDTO);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TinTucDetailDTO getDetailPublic(Long id) {
         TinTuc t = repo.findById(id)
                 .filter(tt -> tt.getTrangThai() == TrangThaiTinTuc.PUBLISHED
                            && !Boolean.TRUE.equals(tt.getIsDeleted()))
                 .orElseThrow(() -> new ResourceNotFoundException("Bài viết không tồn tại"));
 
-        // Tăng lượt xem
-        repo.findById(id).ifPresent(tt -> { tt.setLuotXem(tt.getLuotXem() + 1); repo.save(tt); });
+        // Tăng lượt xem trực tiếp trên managed entity — Hibernate tự flush khi commit
+        t.setLuotXem((t.getLuotXem() == null ? 0 : t.getLuotXem()) + 1);
 
         return toDetailDTO(t);
     }
 
     // ── Management queries ──────────────────────────────────────────────────────
 
+    /**
+     * Danh sách bài quản lý — tất cả BCH/Admin đều xem được toàn bộ bài,
+     * hỗ trợ filter keyword và trangThai.
+     */
     @Transactional(readOnly = true)
-    public Page<TinTucDTO> getDanhSach(String username, boolean isAdmin, Pageable pageable) {
-        if (isAdmin) {
-            return repo.findByIsDeletedFalseOrderByCreatedAtDesc(pageable).map(this::toDTO);
+    public Page<TinTucDTO> getDanhSach(String keyword, String trangThai, Pageable pageable) {
+        TrangThaiTinTuc ttEnum = null;
+        if (trangThai != null && !trangThai.isBlank()) {
+            try { ttEnum = TrangThaiTinTuc.valueOf(trangThai); } catch (IllegalArgumentException ignored) {}
         }
-        return repo.findByNguoiTaoAndIsDeletedFalseOrderByCreatedAtDesc(username, pageable).map(this::toDTO);
+        String kw = (keyword != null && !keyword.isBlank()) ? keyword : null;
+        return repo.searchManage(kw, ttEnum, pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
@@ -113,6 +119,7 @@ public class TinTucService {
                 .trangThai(TrangThaiTinTuc.DRAFT)
                 .isGhim(Boolean.TRUE.equals(dto.getIsGhim()))
                 .nguoiTao(username)
+                .tacGia(dto.getTacGia())
                 .donViDang(dto.getDonViDang())
                 .luotXem(0)
                 .isDeleted(false);
@@ -152,6 +159,7 @@ public class TinTucService {
         t.setNoiDung(dto.getNoiDung());
         t.setAnhDaiDien(dto.getAnhDaiDien());
         t.setDonViDang(dto.getDonViDang());
+        t.setTacGia(dto.getTacGia());
         if (dto.getIsGhim() != null) t.setIsGhim(dto.getIsGhim());
 
         // Đổi chuyên mục → cần đổi fullUrlPath
@@ -244,7 +252,7 @@ public class TinTucService {
 
     // ── Resolve URL (public endpoint) ────────────────────────────────────────────
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ResolveResultDTO resolve(String path) {
         // 1. Kiểm tra redirect
         var redirect = redirectRepo.findByUrlCu(path);
@@ -260,8 +268,8 @@ public class TinTucService {
                 path, TrangThaiTinTuc.PUBLISHED);
         if (tinTuc.isPresent()) {
             TinTuc t = tinTuc.get();
-            t.setLuotXem(t.getLuotXem() + 1);
-            repo.save(t);
+            // Tăng lượt xem trực tiếp trên managed entity — Hibernate tự flush khi commit
+            t.setLuotXem((t.getLuotXem() == null ? 0 : t.getLuotXem()) + 1);
             return ResolveResultDTO.builder()
                     .type("POST")
                     .post(toDetailDTO(t))
@@ -302,6 +310,7 @@ public class TinTucService {
                 .trangThai(t.getTrangThai() != null ? t.getTrangThai().name() : null)
                 .isGhim(t.getIsGhim())
                 .nguoiTao(t.getNguoiTao())
+                .tacGia(t.getTacGia())
                 .donViDang(t.getDonViDang())
                 .luotXem(t.getLuotXem())
                 .ngayXuatBan(t.getNgayXuatBan())
@@ -320,16 +329,37 @@ public class TinTucService {
                 .trangThai(t.getTrangThai() != null ? t.getTrangThai().name() : null)
                 .ngayXuatBan(t.getNgayXuatBan())
                 .nguoiTao(t.getNguoiTao())
+                .tacGia(t.getTacGia())
                 .donViDang(t.getDonViDang())
                 .luotXem(t.getLuotXem())
                 .fullUrlPath(t.getFullUrlPath())
                 .chuyenMuc(t.getChuyenMuc() != null ? chuyenMucService.toDTO(t.getChuyenMuc()) : null)
                 .breadcrumb(buildBreadcrumb(t.getChuyenMuc()))
                 .hoatDongId(t.getHoatDongId())
+                .vanBan(t.getVanBan() != null ? toVanBanSimple(t.getVanBan()) : null)
                 .anhList(t.getAnhList() != null
                         ? t.getAnhList().stream().map(this::toAnhDTO).collect(Collectors.toList())
                         : Collections.emptyList())
                 .build();
+    }
+
+    /** Chuyển VanBan entity → VanBanDTO tóm tắt (dùng cho TinTucDetailDTO). */
+    private VanBanDTO toVanBanSimple(com.tathanhloc.youthkgu.Model.VanBan vb) {
+        if (vb == null) return null;
+        VanBanDTO.VanBanDTOBuilder b = VanBanDTO.builder()
+                .id(vb.getId())
+                .soHieu(vb.getSoHieu())
+                .trichYeu(vb.getTrichYeu())
+                .loaiVanBan(vb.getLoaiVanBan() != null ? vb.getLoaiVanBan().name() : null)
+                .ngayBanHanh(vb.getNgayBanHanh())
+                .trangThai(vb.getTrangThai() != null ? vb.getTrangThai().name() : null);
+        if (vb.getFile() != null) {
+            b.tenFile(vb.getFile().getTenHienThi())
+             .duongDanFile(vb.getFile().getDuongDan())
+             .loaiFile(vb.getFile().getLoaiFile())
+             .kichThuocFile(vb.getFile().getKichThuoc());
+        }
+        return b.build();
     }
 
     private TinTucAnhDTO toAnhDTO(TinTucAnh a) {

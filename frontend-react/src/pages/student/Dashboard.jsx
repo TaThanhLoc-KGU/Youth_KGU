@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CheckCircle2,
   XCircle,
+  Newspaper,
 } from 'lucide-react';
 import {
   BarChart,
@@ -150,13 +151,21 @@ const StudentDashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Xin chào, {user?.hoTen || user?.username}!
-        </h1>
-        <p className="text-gray-500 mt-1">
-          Chào mừng bạn đến với hệ thống quản lý hoạt động Đoàn - Hội KGU
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Xin chào, {user?.hoTen || user?.username}!
+          </h1>
+          <p className="text-gray-500 mt-1">
+            Chào mừng bạn đến với hệ thống quản lý hoạt động Đoàn - Hội KGU
+          </p>
+        </div>
+        <Link
+          to={ROUTES.NEWS_HOME}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition shadow-sm"
+        >
+          <Newspaper className="w-4 h-4" /> Tin tức KGU
+        </Link>
       </div>
 
       {/* Stat Cards */}

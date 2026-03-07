@@ -1,5 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+
+const PAGE_SIZE = 20;
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
 import accountService from '../../services/accountService';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
@@ -47,6 +50,8 @@ export default function AccountManagementPage() {
   const [activeTab, setActiveTab] = useState('all'); // all | pending | create | bulk
   const [searchKeyword, setSearchKeyword] = useState('');
   const [allSearchKeyword, setAllSearchKeyword] = useState('');
+  const [appliedAllSearch, setAppliedAllSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState('ALL'); // ALL | SINH_VIEN | GV_CV | QUAN_TRI
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [showApproveModal, setShowApproveModal] = useState(false);
@@ -57,10 +62,10 @@ export default function AccountManagementPage() {
   const [approveNote, setApproveNote] = useState('');
   const [createFormData, setCreateFormData] = useState({
     username: '', email: '', password: '', hoTen: '',
-    soDienThoai: '', ngaySinh: '', gioiTinh: '', vaiTro: '', banChuyenMon: ''
+    soDienThoai: '', ngaySinh: '', gioiTinh: '', vaiTro: '', banChuyenMon: '', bchLevel: ''
   });
   const [editFormData, setEditFormData] = useState({
-    hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: ''
+    hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '', bchLevel: ''
   });
   const [createErrors, setCreateErrors] = useState({});
   const [editErrors, setEditErrors] = useState({});
@@ -116,6 +121,7 @@ export default function AccountManagementPage() {
   });
 
   // Client-side filtered accounts for the 'all' tab
+  // appliedAllSearch chỉ cập nhật khi nhấn Enter hoặc nút Tìm (không real-time)
   const filteredAccounts = useMemo(() => {
     let result = allAccounts;
     if (roleFilter === 'SINH_VIEN') {
@@ -125,8 +131,8 @@ export default function AccountManagementPage() {
     } else if (roleFilter === 'QUAN_TRI') {
       result = result.filter(a => a.vaiTro !== 'SINH_VIEN' && a.vaiTro !== 'GIANG_VIEN' && a.vaiTro !== 'CHUYEN_VIEN');
     }
-    if (allSearchKeyword.trim()) {
-      const kw = allSearchKeyword.toLowerCase();
+    if (appliedAllSearch.trim()) {
+      const kw = appliedAllSearch.toLowerCase();
       result = result.filter(a =>
         a.username?.toLowerCase().includes(kw) ||
         a.email?.toLowerCase().includes(kw) ||
@@ -134,7 +140,22 @@ export default function AccountManagementPage() {
       );
     }
     return result;
-  }, [allAccounts, roleFilter, allSearchKeyword]);
+  }, [allAccounts, roleFilter, appliedAllSearch]);
+
+  // Reset về trang 1 khi filter/search thay đổi
+  useEffect(() => { setCurrentPage(1); }, [roleFilter, appliedAllSearch]);
+
+  const totalPages = Math.ceil(filteredAccounts.length / PAGE_SIZE);
+
+  const paginatedAccounts = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredAccounts.slice(start, start + PAGE_SIZE);
+  }, [filteredAccounts, currentPage]);
+
+  const handleApplySearch = useCallback(() => {
+    setAppliedAllSearch(allSearchKeyword);
+    setCurrentPage(1);
+  }, [allSearchKeyword]);
 
   // =================== Mutations ===================
 
@@ -203,7 +224,7 @@ export default function AccountManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['pendingAccounts'] });
       setShowEditModal(false);
       setSelectedAccount(null);
-      setEditFormData({ hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '' });
+      setEditFormData({ hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '', bchLevel: '' });
       setEditErrors({});
     },
     onError: (error) => {
@@ -219,6 +240,16 @@ export default function AccountManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['pendingAccounts'] });
       setShowDeleteModal(false);
       setSelectedAccount(null);
+    }
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: (accountId) => accountService.resetPassword(accountId),
+    onSuccess: (message) => {
+      toast.success(message || 'Đã reset mật khẩu về KGU@123456');
+    },
+    onError: (error) => {
+      toast.error(typeof error === 'string' ? error : 'Lỗi reset mật khẩu');
     }
   });
 
@@ -247,7 +278,8 @@ export default function AccountManagementPage() {
       hoTen: account.hoTen || '', soDienThoai: account.soDienThoai || '',
       ngaySinh: account.ngaySinh || '', gioiTinh: account.gioiTinh || '',
       avatar: account.avatar || '', vaiTro: account.vaiTro || '',
-      banChuyenMon: account.banChuyenMon || ''
+      banChuyenMon: account.banChuyenMon || '',
+      bchLevel: account.bchLevel != null ? String(account.bchLevel) : '',
     });
     setShowEditModal(true);
   };
@@ -372,6 +404,7 @@ export default function AccountManagementPage() {
             <th className="px-4 py-3 text-left font-semibold text-gray-700">Email</th>
             <th className="px-4 py-3 text-left font-semibold text-gray-700">Họ tên</th>
             <th className="px-4 py-3 text-left font-semibold text-gray-700">Vai trò</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700">Cấp BCH</th>
             <th className="px-4 py-3 text-left font-semibold text-gray-700">Trạng thái</th>
             {showActions && (
               <th className="px-4 py-3 text-left font-semibold text-gray-700">Hành động</th>
@@ -381,11 +414,11 @@ export default function AccountManagementPage() {
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={showActions ? '6' : '5'} className="px-4 py-4 text-center text-gray-500">Đang tải...</td>
+              <td colSpan={showActions ? '7' : '6'} className="px-4 py-4 text-center text-gray-500">Đang tải...</td>
             </tr>
           ) : accounts.length === 0 ? (
             <tr>
-              <td colSpan={showActions ? '6' : '5'} className="px-4 py-4 text-center text-gray-500">Không có dữ liệu</td>
+              <td colSpan={showActions ? '7' : '6'} className="px-4 py-4 text-center text-gray-500">Không có dữ liệu</td>
             </tr>
           ) : (
             accounts.map((account) => (
@@ -394,6 +427,20 @@ export default function AccountManagementPage() {
                 <td className="px-4 py-3 text-sm">{account.email}</td>
                 <td className="px-4 py-3">{account.hoTen || 'N/A'}</td>
                 <td className="px-4 py-3 text-sm">{ROLE_LABELS[account.vaiTro] || account.vaiTro}</td>
+                <td className="px-4 py-3 text-sm">
+                  {account.vaiTro === 'BCH' && account.bchLevel ? (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      account.bchLevel === 1 ? 'bg-red-100 text-red-700' :
+                      account.bchLevel === 2 ? 'bg-orange-100 text-orange-700' :
+                      account.bchLevel === 3 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-purple-100 text-purple-700'
+                    }`}>
+                      Level {account.bchLevel}
+                    </span>
+                  ) : (
+                    <span className="text-gray-300">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <span
                     className="px-3 py-1 rounded-full text-xs font-semibold text-white"
@@ -429,6 +476,17 @@ export default function AccountManagementPage() {
                             <button onClick={() => handleDeleteConfirm(account)}
                               className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-sm rounded">
                               Xóa
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Reset mật khẩu của "${account.hoTen || account.username}" về KGU@123456?`))
+                                  resetPasswordMutation.mutate(account.id);
+                              }}
+                              disabled={resetPasswordMutation.isPending}
+                              className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white text-sm rounded">
+                              Reset MK
                             </button>
                           )}
                           <button onClick={() => handleHistoryView(account)}
@@ -490,7 +548,7 @@ export default function AccountManagementPage() {
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setSearchKeyword(''); setAllSearchKeyword(''); setRoleFilter('ALL'); }}
+            onClick={() => { setActiveTab(tab.key); setSearchKeyword(''); setAllSearchKeyword(''); setAppliedAllSearch(''); setRoleFilter('ALL'); setCurrentPage(1); }}
             className={`px-4 py-2 font-semibold border-b-2 ${
               activeTab === tab.key
                 ? 'border-blue-600 text-blue-600'
@@ -508,14 +566,36 @@ export default function AccountManagementPage() {
         {activeTab === 'all' && (
           <div className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <h2 className="text-xl font-bold">Tất cả tài khoản</h2>
-              <input
-                type="text"
-                placeholder="Tìm kiếm username, email, họ tên..."
-                value={allSearchKeyword}
-                onChange={(e) => setAllSearchKeyword(e.target.value)}
-                className="sm:w-72 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <h2 className="text-xl font-bold">
+                Tất cả tài khoản
+                <span className="ml-2 text-sm font-normal text-gray-400">
+                  ({filteredAccounts.length} / {allAccounts.length})
+                </span>
+              </h2>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nhập mã / họ tên → Enter"
+                  value={allSearchKeyword}
+                  onChange={(e) => setAllSearchKeyword(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleApplySearch(); }}
+                  className="sm:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={handleApplySearch}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 whitespace-nowrap"
+                >
+                  Tìm
+                </button>
+                {appliedAllSearch && (
+                  <button
+                    onClick={() => { setAllSearchKeyword(''); setAppliedAllSearch(''); }}
+                    className="px-3 py-2 bg-gray-100 text-gray-600 text-sm rounded-lg hover:bg-gray-200"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Role filter sub-tabs */}
@@ -540,7 +620,49 @@ export default function AccountManagementPage() {
               ))}
             </div>
 
-            <AccountTable accounts={filteredAccounts} loading={allAccountsLoading} showActions={true} />
+            <AccountTable accounts={paginatedAccounts} loading={allAccountsLoading} showActions={true} />
+
+            {/* Phân trang */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 px-2">
+                <span className="text-sm text-gray-500">
+                  Trang {currentPage}/{totalPages} · Hiển thị {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredAccounts.length)} / {filteredAccounts.length} tài khoản
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                  >«</button>
+                  <button
+                    onClick={() => setCurrentPage(p => p - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                  >‹</button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+                    const page = start + i;
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-1 text-sm border rounded ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}`}
+                      >{page}</button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                  >›</button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                  >»</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -599,7 +721,7 @@ export default function AccountManagementPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ngày sinh</label>
-                <input type="date" name="ngaySinh" value={createFormData.ngaySinh} onChange={handleCreateFormChange}
+                <input type="date" lang="vi" name="ngaySinh" value={createFormData.ngaySinh} onChange={handleCreateFormChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
@@ -621,6 +743,19 @@ export default function AccountManagementPage() {
                 </select>
                 {createErrors.vaiTro && <p className="text-red-500 text-xs mt-1">{createErrors.vaiTro}</p>}
               </div>
+              {createFormData.vaiTro === 'BCH' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Cấp BCH *</label>
+                  <select name="bchLevel" value={createFormData.bchLevel} onChange={handleCreateFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Chọn cấp</option>
+                    <option value="1">Level 1 – Bí thư / Chủ tịch HSV</option>
+                    <option value="2">Level 2 – Phó Bí thư / Phó Chủ tịch</option>
+                    <option value="3">Level 3 – Ủy viên BCH / Ban thư ký</option>
+                    <option value="4">Level 4 – Quyền đặc biệt</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ban chuyên môn</label>
                 <select name="banChuyenMon" value={createFormData.banChuyenMon} onChange={handleCreateFormChange}
@@ -650,7 +785,7 @@ export default function AccountManagementPage() {
             </p>
 
             {/* Source type selector */}
-            <div className="flex gap-3 mb-5">
+            <div className="flex flex-wrap gap-3 mb-5">
               {[
                 { value: 'SINH_VIEN', label: 'Sinh viên' },
                 { value: 'GIANG_VIEN', label: 'Giảng viên' },
@@ -671,7 +806,7 @@ export default function AccountManagementPage() {
             </div>
 
             {/* Default password */}
-            <div className="flex items-center gap-4 mb-5 p-4 bg-gray-50 rounded-lg">
+            <div className="flex flex-wrap items-center gap-4 mb-5 p-4 bg-gray-50 rounded-lg">
               <label className="text-sm font-semibold text-gray-700 shrink-0">Mật khẩu mặc định:</label>
               <input
                 type="text"
@@ -749,7 +884,7 @@ export default function AccountManagementPage() {
                   </table>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="text-sm text-gray-500">
                     Đã chọn <strong>{selectedMas.size}</strong> / {withoutList.length} bản ghi
                   </span>
@@ -837,7 +972,7 @@ export default function AccountManagementPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ngày sinh</label>
-                <input type="date" name="ngaySinh" value={editFormData.ngaySinh} onChange={handleEditFormChange}
+                <input type="date" lang="vi" name="ngaySinh" value={editFormData.ngaySinh} onChange={handleEditFormChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
@@ -865,6 +1000,19 @@ export default function AccountManagementPage() {
                 </select>
                 {editErrors.vaiTro && <p className="text-red-500 text-xs mt-1">{editErrors.vaiTro}</p>}
               </div>
+              {editFormData.vaiTro === 'BCH' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Cấp BCH *</label>
+                  <select name="bchLevel" value={editFormData.bchLevel ?? ''} onChange={handleEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Chọn cấp</option>
+                    <option value="1">Level 1 – Bí thư / Chủ tịch HSV</option>
+                    <option value="2">Level 2 – Phó Bí thư / Phó Chủ tịch</option>
+                    <option value="3">Level 3 – Ủy viên BCH / Ban thư ký</option>
+                    <option value="4">Level 4 – Quyền đặc biệt</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ban chuyên môn</label>
                 <select name="banChuyenMon" value={editFormData.banChuyenMon} onChange={handleEditFormChange}

@@ -49,11 +49,14 @@ public class WebConfig implements WebMvcConfigurer {
                 .resourceChain(false);
         log.info("✅ Added CLASSPATH streams handler");
 
-        // ✅ UPLOADS configuration
+        // ✅ UPLOADS configuration — phục vụ từ thư mục uploads/ trên disk
+        // Cache 1 ngày (86400s) để trình duyệt không gửi lại request mỗi lần load ảnh
+        String uploadsPath = new File("uploads").getAbsolutePath().replace("\\", "/");
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("classpath:/static/uploads/")
-                .setCachePeriod(0)
-                .resourceChain(false);
+                .addResourceLocations("file:///" + uploadsPath + "/")
+                .setCachePeriod(86400)
+                .resourceChain(true);
+        log.info("✅ Serving uploads from: file:///{}", uploadsPath);
 
         // ✅ STATIC resources configuration
         registry.addResourceHandler("/static/**")
@@ -76,7 +79,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(org.springframework.web.servlet.config.annotation.CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:3000", "http://localhost:4200")
+                .allowedOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:5173")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)

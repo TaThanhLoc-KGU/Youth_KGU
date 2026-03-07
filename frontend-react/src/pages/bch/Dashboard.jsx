@@ -11,6 +11,7 @@ import {
   AlertCircle,
   QrCode,
   Plus,
+  Newspaper,
 } from 'lucide-react';
 import activityService from '../../services/activityService';
 import attendanceService from '../../services/attendanceService';
@@ -98,7 +99,7 @@ const BCHDashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             Xin chào, {user?.hoTen || user?.username}!
@@ -111,7 +112,7 @@ const BCHDashboard = () => {
         </div>
 
         {/* Quick actions */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {hasPermission(PERMISSIONS.TAO_HOAT_DONG) && (
             <Link
               to={`${ROUTES.BCH}/activities/create`}
@@ -128,6 +129,12 @@ const BCHDashboard = () => {
               <QrCode className="w-4 h-4" /> Quét QR
             </Link>
           )}
+          <Link
+            to={ROUTES.BCH_NEWS}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition shadow-sm"
+          >
+            <Newspaper className="w-4 h-4" /> Tin tức
+          </Link>
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+// Authentication và JoinPoint vẫn dùng cho getCurrentUserInfo() và logDataOperation()
 import org.springframework.stereotype.Component;
 
 import java.lang.annotation.ElementType;
@@ -134,31 +135,9 @@ public class LoggingAspect {
         }
     }
 
-    // =================== AOP: Authentication events ===================
-
-    @AfterReturning(
-        pointcut  = "execution(* org.springframework.security.authentication.AuthenticationManager.authenticate(..))",
-        returning = "authentication"
-    )
-    public void logSuccessfulAuthentication(Authentication authentication) {
-        if (authentication != null && authentication.isAuthenticated()) {
-            String name = authentication.getName();
-            logService.logAuthentication("LOGIN_SUCCESS", name, name, true,
-                    name + " đã đăng nhập thành công");
-        }
-    }
-
-    @AfterThrowing(
-        pointcut = "execution(* org.springframework.security.authentication.AuthenticationManager.authenticate(..))",
-        throwing = "ex"
-    )
-    public void logFailedAuthentication(JoinPoint joinPoint, Exception ex) {
-        Object[] args    = joinPoint.getArgs();
-        String username  = args.length > 0 && args[0] instanceof Authentication
-                ? ((Authentication) args[0]).getName() : "unknown";
-        logService.logAuthentication("LOGIN_FAILED", username, username, false,
-                username + " đăng nhập thất bại");
-    }
+    // NOTE: Authentication logging (LOGIN_SUCCESS / LOGIN_FAILED) được xử lý trực tiếp
+    // trong AuthService.login() qua systemLogService.log(...) — không dùng AOP ở đây
+    // để tránh ghi trùng log 2–3 lần mỗi lần đăng nhập.
 
     // =================== AOP: CRUD trên Service layer ===================
 
