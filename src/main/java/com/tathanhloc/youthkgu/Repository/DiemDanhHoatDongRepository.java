@@ -117,4 +117,8 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
 
     @Query("SELECT COUNT(d) FROM DiemDanhHoatDong d WHERE d.trangThai = :trangThai")
     long countByTrangThai(@Param("trangThai") TrangThaiThamGiaEnum trangThai);
+
+    /** Tổng số lượt điểm danh — 1 query thay vì N trong statistics overview */
+    @Query("SELECT COUNT(dd) FROM DiemDanhHoatDong dd")
+    long countAll();
 }

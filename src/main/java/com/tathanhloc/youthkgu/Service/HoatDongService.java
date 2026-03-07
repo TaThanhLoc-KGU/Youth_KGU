@@ -8,6 +8,8 @@ import com.tathanhloc.youthkgu.Repository.*;
 import com.tathanhloc.youthkgu.Util.AcademicCalendarUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -43,15 +45,21 @@ public class HoatDongService {
     @Transactional(readOnly = true)
     public List<HoatDongDTO> getAll() {
         log.debug("Getting all active activities");
-        return hoatDongRepository.findByIsActiveTrue().stream()
-                .map(this::toDTO)
+        List<HoatDong> list = hoatDongRepository.findByIsActiveTrue();
+        // Bulk load số đăng ký 1 lần — tránh N+1
+        Map<String, Long> countMap = buildDangKyCountMap();
+        return list.stream()
+                .map(hd -> toDTO(hd, countMap.getOrDefault(hd.getMaHoatDong(), 0L)))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public Page<HoatDongDTO> getAllWithPagination(Pageable pageable) {
         log.debug("Getting all activities with pagination");
-        return hoatDongRepository.findByIsActive(true, pageable).map(this::toDTO);
+        // Bulk load số đăng ký 1 lần cho trang hiện tại
+        Map<String, Long> countMap = buildDangKyCountMap();
+        return hoatDongRepository.findByIsActive(true, pageable)
+                .map(hd -> toDTO(hd, countMap.getOrDefault(hd.getMaHoatDong(), 0L)));
     }
 
     @Transactional(readOnly = true)
@@ -62,6 +70,7 @@ public class HoatDongService {
         return toDTO(hoatDong);
     }
 
+    @CacheEvict(value = {"thong-ke", "thong-ke-overview", "hoatdong-list"}, allEntries = true)
     @Transactional
     public HoatDongDTO create(HoatDongDTO dto) {
         log.info("Creating new activity: {}", dto.getMaHoatDong());
@@ -91,6 +100,7 @@ public class HoatDongService {
         return toDTO(hoatDong);
     }
 
+    @CacheEvict(value = {"thong-ke", "thong-ke-overview", "hoatdong-list"}, allEntries = true)
     @Transactional
     public HoatDongDTO update(String maHoatDong, HoatDongDTO dto) {
         log.info("Updating activity: {}", maHoatDong);
@@ -108,6 +118,7 @@ public class HoatDongService {
         return toDTO(existing);
     }
 
+    @CacheEvict(value = {"thong-ke", "thong-ke-overview", "hoatdong-list"}, allEntries = true)
     @Transactional
     public void delete(String maHoatDong) {
         log.info("Soft deleting activity: {}", maHoatDong);
@@ -307,6 +318,7 @@ public class HoatDongService {
         return stats;
     }
 
+    @Cacheable(value = "thong-ke", key = "'byStatus'")
     @Transactional(readOnly = true)
     public Map<String, Long> getStatisticsByStatus() {
         List<Object[]> results = hoatDongRepository.countByTrangThai();
@@ -318,63 +330,62 @@ public class HoatDongService {
     }
 
     /**
-     * Lấy thống kê hoạt động tổng hợp
+     * Lấy thống kê hoạt động tổng hợp.
+     * Cache 10 phút — giảm tải dashboard gọi liên tục.
+     * Đã refactor từ N+1 loop → GROUP BY aggregation (giảm từ 30+ queries xuống còn 5 queries).
      */
+    @Cacheable(value = "thong-ke-overview", key = "'overview'")
+    @Transactional(readOnly = true)
     public Map<String, Object> getActivityStatisticsOverview() {
-        log.debug("Getting overall activity statistics");
+        log.debug("Getting overall activity statistics (cache miss — querying DB)");
 
         Map<String, Long> statusStats = getStatisticsByStatus();
 
         Map<String, Object> overview = new HashMap<>();
         overview.put("tongHoatDong", statusStats.values().stream().mapToLong(Long::longValue).sum());
-        overview.put("hoatDongSapDienRa", statusStats.getOrDefault("SAP_DIEN_RA", 0L));
-        overview.put("hoatDongDangDienRa", statusStats.getOrDefault("DANG_DIEN_RA", 0L));
-        overview.put("hoatDongDaHoanThanh", statusStats.getOrDefault("DA_HOAN_THANH", 0L));
-        overview.put("hoatDongDaHuy", statusStats.getOrDefault("DA_HUY", 0L));
+        overview.put("hoatDongSapDienRa",    statusStats.getOrDefault("SAP_DIEN_RA",    0L));
+        overview.put("hoatDongDangDienRa",   statusStats.getOrDefault("DANG_DIEN_RA",   0L));
+        overview.put("hoatDongDaHoanThanh",  statusStats.getOrDefault("DA_HOAN_THANH",  0L));
+        overview.put("hoatDongDaHuy",        statusStats.getOrDefault("DA_HUY",         0L));
 
-        // Thống kê theo loại
-        Map<String, Long> byType = new HashMap<>();
-        Arrays.stream(LoaiHoatDongEnum.values()).forEach(loai -> {
-            long count = hoatDongRepository.findByLoaiHoatDong(loai).stream()
-                    .filter(hd -> hd.getIsActive())
-                    .count();
-            byType.put(loai.name(), count);
-        });
+        // Thống kê theo loại — 1 GROUP BY query thay vì N findByLoaiHoatDong()
+        Map<String, Long> byType = hoatDongRepository.countByLoaiHoatDong().stream()
+                .collect(Collectors.toMap(
+                        row -> ((LoaiHoatDongEnum) row[0]).name(),
+                        row -> (Long) row[1]
+                ));
+        // Đảm bảo đủ tất cả enum values (không có trong DB → 0)
+        Arrays.stream(LoaiHoatDongEnum.values())
+                .forEach(l -> byType.putIfAbsent(l.name(), 0L));
         overview.put("thongKeTheoLoai", byType);
 
-        // Thống kê theo cấp độ
-        Map<String, Long> byLevel = new HashMap<>();
-        Arrays.stream(CapDoEnum.values()).forEach(capDo -> {
-            long count = hoatDongRepository.findByCapDo(capDo).stream()
-                    .filter(hd -> hd.getIsActive())
-                    .count();
-            byLevel.put(capDo.name(), count);
-        });
+        // Thống kê theo cấp độ — 1 GROUP BY query thay vì N findByCapDo()
+        Map<String, Long> byLevel = hoatDongRepository.countByCapDo().stream()
+                .collect(Collectors.toMap(
+                        row -> ((CapDoEnum) row[0]).name(),
+                        row -> (Long) row[1]
+                ));
+        Arrays.stream(CapDoEnum.values())
+                .forEach(c -> byLevel.putIfAbsent(c.name(), 0L));
         overview.put("thongKeTheoCapDo", byLevel);
 
-        // Tính tổng đăng ký và tham gia
-        long totalRegistrations = hoatDongRepository.findByIsActiveTrue().stream()
-                .mapToLong(hd -> dangKyRepository.countByHoatDongMaHoatDongAndIsActiveTrue(hd.getMaHoatDong()))
-                .sum();
-        overview.put("tongLuotDangKy", totalRegistrations);
-
-        long totalParticipation = hoatDongRepository.findByIsActiveTrue().stream()
-                .mapToLong(hd -> diemDanhRepository.countByHoatDongMaHoatDong(hd.getMaHoatDong()))
-                .sum();
+        // Tổng đăng ký và tham gia — mỗi cái 1 query (không còn vòng lặp N)
+        long totalRegistrations = dangKyRepository.countAllActive();
+        long totalParticipation = diemDanhRepository.countAll();
+        overview.put("tongLuotDangKy",  totalRegistrations);
         overview.put("tongLuotThamGia", totalParticipation);
 
-        double avgParticipationRate = totalRegistrations > 0 ?
-                (double) totalParticipation / totalRegistrations * 100 : 0;
-        overview.put("tiLeThamGiaTrungBinh", Math.round(avgParticipationRate * 100.0) / 100.0);
+        double avgRate = totalRegistrations > 0
+                ? (double) totalParticipation / totalRegistrations * 100 : 0;
+        overview.put("tiLeThamGiaTrungBinh", Math.round(avgRate * 100.0) / 100.0);
 
-        // Tính tổng điểm rèn luyện
-        int totalPoints = hoatDongRepository.findByIsActiveTrue().stream()
-                .mapToInt(hd -> hd.getDiemRenLuyen() != null ? hd.getDiemRenLuyen() : 0)
-                .sum();
+        // Tổng điểm rèn luyện — 1 aggregation query
+        Object[] sumCount = hoatDongRepository.sumAndCountDiemRenLuyen();
+        long totalPoints = sumCount[0] != null ? ((Number) sumCount[0]).longValue() : 0L;
+        long totalCount  = sumCount[1] != null ? ((Number) sumCount[1]).longValue() : 0L;
         overview.put("tongDiemRenLuyen", totalPoints);
-
-        overview.put("diemRenLuyenTrungBinh", hoatDongRepository.findByIsActiveTrue().isEmpty() ? 0 :
-                Math.round((double) totalPoints / hoatDongRepository.findByIsActiveTrue().size() * 100.0) / 100.0);
+        overview.put("diemRenLuyenTrungBinh",
+                totalCount > 0 ? Math.round((double) totalPoints / totalCount * 100.0) / 100.0 : 0);
 
         return overview;
     }
@@ -538,6 +549,71 @@ public class HoatDongService {
     }
 
     // ========== MAPPING METHODS ==========
+
+    /**
+     * Bulk load số lượt đăng ký theo hoạt động — 1 GROUP BY query, tránh N+1.
+     * Dùng trước khi stream danh sách để truyền count vào toDTO(entity, count).
+     */
+    private Map<String, Long> buildDangKyCountMap() {
+        return dangKyRepository.countGroupByHoatDong().stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> (Long) row[1]
+                ));
+    }
+
+    /** toDTO với count được bulk-load sẵn — không query DB. */
+    private HoatDongDTO toDTO(HoatDong entity, long soNguoiDangKy) {
+        if (entity == null) return null;
+        return HoatDongDTO.builder()
+                .maHoatDong(entity.getMaHoatDong())
+                .tenHoatDong(entity.getTenHoatDong())
+                .moTa(entity.getMoTa())
+                .loaiHoatDong(entity.getLoaiHoatDong())
+                .capDo(entity.getCapDo())
+                .ngayToChuc(entity.getNgayToChuc())
+                .gioToChuc(entity.getGioToChuc())
+                .thoiGianBatDau(entity.getThoiGianBatDau())
+                .thoiGianKetThuc(entity.getThoiGianKetThuc())
+                .thoiGianTreToiDa(entity.getThoiGianTreToiDa())
+                .thoiGianToiThieu(entity.getThoiGianToiThieu())
+                .choPhepCheckInSom(entity.getChoPhepCheckInSom())
+                .yeuCauCheckOut(entity.getYeuCauCheckOut())
+                .viDo(entity.getViDo())
+                .kinhDo(entity.getKinhDo())
+                .khoangCachToiDa(entity.getKhoangCachToiDa())
+                .ketThucSom(entity.getKetThucSom())
+                .thoiGianKetThucThucTe(entity.getThoiGianKetThucThucTe())
+                .thoiGianChoPhepCheckOut(entity.getThoiGianChoPhepCheckOut())
+                .diaDiem(entity.getDiaDiem())
+                .maPhong(entity.getPhongHoc() != null ? entity.getPhongHoc().getMaPhong() : null)
+                .tenPhong(entity.getPhongHoc() != null ? entity.getPhongHoc().getTenPhong() : null)
+                .soLuongToiDa(entity.getSoLuongToiDa())
+                .soNguoiDangKy(soNguoiDangKy)
+                .diemRenLuyen(entity.getDiemRenLuyen())
+                .maDanhMucRenLuyen(entity.getMaDanhMucRenLuyen())
+                .maTieuChiRenLuyen(entity.getMaTieuChiRenLuyen())
+                .diemToiDaTieuChi(entity.getDiemToiDaTieuChi())
+                .maBchPhuTrach(entity.getNguoiPhuTrach() != null ? entity.getNguoiPhuTrach().getMaBch() : null)
+                .tenNguoiPhuTrach(entity.getNguoiPhuTrach() != null ? entity.getNguoiPhuTrach().getSinhVien().getHoTen() : null)
+                .maKhoa(entity.getKhoa() != null ? entity.getKhoa().getMaKhoa() : null)
+                .tenKhoa(entity.getKhoa() != null ? entity.getKhoa().getTenKhoa() : null)
+                .maNganh(entity.getNganh() != null ? entity.getNganh().getMaNganh() : null)
+                .tenNganh(entity.getNganh() != null ? entity.getNganh().getTenNganh() : null)
+                .soHocKy(entity.getSoHocKy())
+                .maNamHoc(entity.getNamHoc() != null ? entity.getNamHoc().getMaNamHoc() : null)
+                .tenNamHoc(entity.getNamHoc() != null ? entity.getNamHoc().getTenNamHoc() : null)
+                .trangThai(computeTrangThai(entity))
+                .yeuCauDiemDanh(entity.getYeuCauDiemDanh())
+                .choPhepDangKy(entity.getChoPhepDangKy())
+                .hanDangKy(entity.getHanDangKy())
+                .hinhAnhPoster(entity.getHinhAnhPoster())
+                .ghiChu(entity.getGhiChu())
+                .isActive(entity.getIsActive())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
 
     private HoatDongDTO toDTO(HoatDong entity) {
         if (entity == null) return null;

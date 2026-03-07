@@ -49,4 +49,13 @@ public interface DangKyHoatDongRepository extends JpaRepository<DangKyHoatDong, 
             @Param("startDate") java.time.LocalDate startDate,
             @Param("endDate") java.time.LocalDate endDate
     );
+
+    /** Tổng số đăng ký active — 1 query thay vì N trong statistics overview */
+    @Query("SELECT COUNT(dk) FROM DangKyHoatDong dk WHERE dk.isActive = true")
+    long countAllActive();
+
+    /** Map mã hoạt động → số đăng ký — dùng cho bulk load tránh N+1 trong getAll() */
+    @Query("SELECT dk.hoatDong.maHoatDong, COUNT(dk) FROM DangKyHoatDong dk " +
+            "WHERE dk.isActive = true GROUP BY dk.hoatDong.maHoatDong")
+    List<Object[]> countGroupByHoatDong();
 }
