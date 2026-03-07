@@ -20,16 +20,19 @@ public class LopService {
     private final SinhVienRepository sinhVienRepository;
 
     // Lấy tất cả lớp (bao gồm cả đã xóa)
+    @Transactional(readOnly = true)
     public List<LopDTO> getAll() {
         return lopRepository.findAll().stream().map(this::toDTO).toList();
     }
 
     // Chỉ lấy lớp đang hoạt động
+    @Transactional(readOnly = true)
     public List<LopDTO> getAllActive() {
         return lopRepository.findByIsActiveTrue().stream().map(this::toDTO).toList();
     }
 
     // Chỉ lấy lớp đã bị xóa mềm
+    @Transactional(readOnly = true)
     public List<LopDTO> getAllDeleted() {
         return lopRepository.findByIsActiveFalse().stream().map(this::toDTO).toList();
     }

@@ -5,12 +5,12 @@ import com.tathanhloc.youthkgu.Exception.ResourceNotFoundException;
 import com.tathanhloc.youthkgu.Model.Nganh;
 import com.tathanhloc.youthkgu.Repository.KhoaRepository;
 import com.tathanhloc.youthkgu.Repository.NganhRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 
@@ -43,6 +43,7 @@ public class NganhService extends BaseService<Nganh, String, NganhDTO> {
 
     @Override
     @Cacheable(value = "nganh")
+    @Transactional(readOnly = true)
     public List<NganhDTO> getAllActive() {
         log.debug("Lấy danh sách ngành đang hoạt động từ database");
         return super.getAllActive();
@@ -50,6 +51,7 @@ public class NganhService extends BaseService<Nganh, String, NganhDTO> {
 
     @Override
     @Cacheable(value = "nganh", key = "#id")
+    @Transactional(readOnly = true)
     public NganhDTO getById(String id) {
         log.debug("Lấy thông tin ngành với ID {} từ database", id);
         return super.getById(id);
