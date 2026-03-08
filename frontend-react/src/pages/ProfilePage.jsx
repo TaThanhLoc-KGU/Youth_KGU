@@ -147,11 +147,11 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center">
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+          <div className="flex flex-wrap justify-between items-start gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-800">Hồ sơ cá nhân</h1>
-              <p className="text-gray-600 mt-1">Quản lý thông tin tài khoản của bạn</p>
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-800">Hồ sơ cá nhân</h1>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">Quản lý thông tin tài khoản của bạn</p>
             </div>
             <button
               onClick={() => {
@@ -160,7 +160,7 @@ export default function ProfilePage() {
                   reset(user);
                 }
               }}
-              className={`px-6 py-2 rounded-lg font-semibold transition ${
+              className={`px-4 sm:px-6 py-2 rounded-lg font-semibold transition text-sm sm:text-base flex-shrink-0 ${
                 isEditing
                   ? 'bg-gray-300 hover:bg-gray-400 text-gray-800'
                   : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -311,6 +311,7 @@ export default function ProfilePage() {
                 {isEditing ? (
                   <input
                     type="date"
+                    lang="vi"
                     {...register('ngaySinh', {
                       required: 'Ngày sinh không được để trống'
                     })}

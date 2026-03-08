@@ -81,7 +81,7 @@ const VanBanCard = ({ vanBan }) => {
           {vanBan.ngayBanHanh && (
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
-              {new Date(vanBan.ngayBanHanh).toLocaleDateString('vi-VN')}
+              {new Date(vanBan.ngayBanHanh).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
             </span>
           )}
           {vanBan.kichThuocFile && (

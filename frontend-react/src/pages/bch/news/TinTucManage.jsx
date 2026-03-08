@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Eye, Send, Archive, RotateCcw } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Send, Archive, RotateCcw, Bell } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import { PERMISSIONS } from '../../../utils/constants';
 import newsService from '../../../services/newsService';
@@ -77,6 +77,17 @@ const BCHTinTucManage = () => {
     onError: (e) => toast.error(e.response?.data?.message || 'Xóa thất bại'),
   });
 
+  const broadcastMutation = useMutation({
+    mutationFn: (post) => newsService.broadcastNotification({
+      title: `📰 Tin tức mới: ${post.tieuDe}`,
+      message: post.tomTat || post.tieuDe,
+      type: 'TIN_TUC',
+      relatedId: post.id,
+    }),
+    onSuccess: (count) => toast.success(`Đã gửi thông báo đến ${count} người dùng`),
+    onError: (e) => toast.error(e.response?.data?.message || 'Gửi thông báo thất bại'),
+  });
+
   const handleSearch = () => { setKeyword(search); setPage(0); };
   const openCreate = () => navigate('/bch/news/create');
   const openEdit   = (id) => navigate(`/bch/news/${id}/edit`);
@@ -84,7 +95,7 @@ const BCHTinTucManage = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Đăng bài viết</h1>
           <p className="text-sm text-gray-500 mt-0.5">Quản lý tin tức do đơn vị đăng tải</p>
@@ -188,6 +199,16 @@ const BCHTinTucManage = () => {
                     <button onClick={() => publishMutation.mutate(post.id)}
                       className="p-1.5 text-gray-400 hover:text-green-600 rounded" title="Đăng lại">
                       <RotateCcw className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canPublish && post.trangThai === 'PUBLISHED' && (
+                    <button
+                      onClick={() => broadcastMutation.mutate(post)}
+                      disabled={broadcastMutation.isPending}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 rounded disabled:opacity-50"
+                      title="Gửi thông báo đến tất cả người dùng"
+                    >
+                      <Bell className="w-4 h-4" />
                     </button>
                   )}
                   {canDelete && (

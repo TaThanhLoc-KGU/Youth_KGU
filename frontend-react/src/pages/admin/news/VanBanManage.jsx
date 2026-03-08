@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Send, Download, ExternalLink } from 'lucide-react';
+import { Plus, Edit, Trash2, Send, Download, ExternalLink, Bell } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import { PERMISSIONS } from '../../../utils/constants';
 import vanBanService from '../../../services/vanBanService';
+import newsService from '../../../services/newsService';
 import VanBanForm from '../../../components/news/manage/VanBanForm';
 import Table from '../../../components/common/Table';
 import Button from '../../../components/common/Button';
@@ -92,6 +93,17 @@ const VanBanManage = () => {
     onError: (e) => toast.error(e.response?.data?.message || 'Xóa thất bại'),
   });
 
+  const broadcastMutation = useMutation({
+    mutationFn: (row) => newsService.broadcastNotification({
+      title: `📄 Văn bản mới: ${row.soHieu || row.trichYeu}`,
+      message: row.trichYeu,
+      type: 'VAN_BAN',
+      relatedId: row.id,
+    }),
+    onSuccess: (count) => toast.success(`Đã gửi thông báo đến ${count} người dùng`),
+    onError: (e) => toast.error(e.response?.data?.message || 'Gửi thông báo thất bại'),
+  });
+
   const handleDownload = async (id, soHieu) => {
     try {
       const blob = await vanBanService.taiVe(id);
@@ -177,6 +189,16 @@ const VanBanManage = () => {
               <Send className="w-4 h-4" />
             </button>
           )}
+          {canManage && row.trangThai === 'PUBLISHED' && (
+            <button
+              onClick={() => broadcastMutation.mutate(row)}
+              disabled={broadcastMutation.isPending}
+              className="p-1.5 text-gray-400 hover:text-indigo-600 rounded disabled:opacity-50"
+              title="Gửi thông báo đến tất cả người dùng"
+            >
+              <Bell className="w-4 h-4" />
+            </button>
+          )}
           {canDelete && (
             <button onClick={() => setConfirmDelete(row)}
               className="p-1.5 text-gray-400 hover:text-red-600 rounded" title="Xóa">
@@ -191,7 +213,7 @@ const VanBanManage = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Quản lý Văn bản</h1>
           <p className="text-sm text-gray-500 mt-0.5">Kho văn bản, kế hoạch, công văn của Đoàn – Hội KGU</p>

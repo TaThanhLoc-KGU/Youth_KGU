@@ -82,6 +82,13 @@ public class TaiKhoan {
     @Column(name = "ghi_chu", columnDefinition = "TEXT")
     private String ghiChu;
 
+    /**
+     * Cấp độ BCH: 1 = Bí thư/Chủ tịch, 2 = Trưởng ban/Phó ban, 3 = Thành viên.
+     * Chỉ áp dụng khi vaiTro == BCH. Null nếu không phải BCH.
+     */
+    @Column(name = "bch_level")
+    private Integer bchLevel;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

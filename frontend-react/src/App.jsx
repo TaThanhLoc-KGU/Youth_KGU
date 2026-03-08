@@ -23,6 +23,7 @@ import GiangVien from './pages/admin/GiangVien';
 import Taikhoan from './pages/admin/Taikhoan';
 import SystemLogPage from './pages/admin/SystemLogPage';
 import SettingsPermissionsPage from './pages/admin/SettingsPermissionsPage';
+import PermissionMatrixPage from './pages/admin/PermissionMatrixPage';
 import AttendanceReport from './pages/admin/AttendanceReport';
 import ChuyenVien from './pages/admin/ChuyenVien';
 import SettingsPage from './pages/admin/SettingsPage';
@@ -32,7 +33,7 @@ import StudentMyActivities from './pages/student/MyActivities';
 import StudentTrainingPoints from './pages/student/TrainingPoints';
 import StudentProfile from './pages/student/Profile';
 import Activities from './pages/admin/Activities';
-import CreateHoatDong from './pages/HoatDong/CreateHoatDong';
+import HoatDongEditorPage from './pages/HoatDong/HoatDongEditorPage';
 import ActivityAttendancePage from './pages/admin/ActivityAttendancePage';
 import StudentActivities from './pages/student/Activities';
 import ForbiddenPage from './pages/ForbiddenPage';
@@ -56,9 +57,25 @@ import BCHTinTucManage from './pages/bch/news/TinTucManage';
 import BCHVanBanManage from './pages/bch/news/VanBanManage';
 // eNews — shared editor page
 import TinTucEditorPage from './pages/news/TinTucEditorPage';
+// Dashboard layout editor
+import LayoutEditorPage from './pages/admin/LayoutEditorPage';
+// News page layout editor
+import NewsLayoutEditorPage from './pages/admin/NewsLayoutEditorPage';
+// Content managers
+import SliderManagerPage    from './pages/admin/SliderManagerPage';
+import TickerManagerPage    from './pages/admin/TickerManagerPage';
+import AdBannerManagerPage  from './pages/admin/AdBannerManagerPage';
+import BieuMauManagePage    from './pages/admin/BieuMauManagePage';
 
 import useAuthStore from './stores/authStore';
+import useSessionTimeout from './hooks/useSessionTimeout';
 import { ROUTES, ROLES, PERMISSIONS } from './utils/constants';
+
+/** Component không render gì — chỉ chạy hook theo dõi session timeout */
+const SessionTimeoutWatcher = () => {
+  useSessionTimeout();
+  return null;
+};
 
 // Hiển thị inline khi người dùng gõ URL trực tiếp nhưng không có quyền
 // Render TRONG layout (sidebar vẫn hiển thị) thay vì redirect 403 toàn trang
@@ -111,39 +128,25 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
 ];
 
-/**
- * SmartRedirect: dùng cho path "/".
- * - Chưa đăng nhập → /login
- * - Đã đăng nhập   → dashboard phù hợp với role/permission
- */
-const SmartRedirect = () => {
-  const { isAuthenticated, user, permissions, laBCH } = useAuthStore();
-  if (!isAuthenticated) {
-    // Khách chưa đăng nhập → trang tin tức (trang chủ công khai)
-    return <Navigate to={ROUTES.NEWS_HOME} replace />;
-  }
-  const hasAdminPerm = ADMIN_SECTION_PERMS.some((p) => permissions.includes(p));
-  if (user?.vaiTro === ROLES.ADMIN || hasAdminPerm) {
-    return <Navigate to={ROUTES.ADMIN_DASHBOARD} replace />;
-  }
-  if (laBCH) {
-    return <Navigate to={ROUTES.BCH_DASHBOARD} replace />;
-  }
-  if (user?.vaiTro === ROLES.SINHVIEN) {
-    return <Navigate to={ROUTES.STUDENT_DASHBOARD} replace />;
-  }
-  return <Navigate to={ROUTES.PROFILE} replace />;
-};
+
 
 function App() {
-  const { checkAuth } = useAuthStore();
+  const { checkAuth, refreshPermissions } = useAuthStore();
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    const auth = checkAuth();
+    // Nếu user đã đăng nhập (token còn trong localStorage), tải lại permissions mới nhất từ server.
+    // Đảm bảo BCH user luôn có permissions cập nhật sau khi admin cấu hình matrix,
+    // mà không cần phải đăng xuất / đăng nhập lại.
+    if (auth) {
+      refreshPermissions().catch(() => {/* silent — token hết hạn sẽ tự redirect login */});
+    }
+  }, []);
 
   return (
     <ErrorBoundary>
+      {/* Theo dõi session timeout 1 giờ — không render gì */}
+      <SessionTimeoutWatcher />
       <Routes>
         {/* Public Routes */}
         <Route path={ROUTES.LOGIN} element={<Login />} />
@@ -208,7 +211,12 @@ function App() {
           } />
           <Route path="activities/create" element={
             <PermissionGate permission={PERMISSIONS.TAO_HOAT_DONG}>
-              <CreateHoatDong />
+              <HoatDongEditorPage backPath="/admin/activities" />
+            </PermissionGate>
+          } />
+          <Route path="activities/:id/edit" element={
+            <PermissionGate permission={PERMISSIONS.SUA_HOAT_DONG}>
+              <HoatDongEditorPage backPath="/admin/activities" />
             </PermissionGate>
           } />
           <Route path="activities/:id/attendance" element={
@@ -287,6 +295,12 @@ function App() {
               <SettingsPermissionsPage />
             </PermissionGate>
           } />
+          {/* Phân quyền BCH theo Level — Bí thư Level 1 cũng truy cập được */}
+          <Route path="phan-quyen" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM}>
+              <PermissionMatrixPage />
+            </PermissionGate>
+          } />
           {/* eNews admin routes */}
           <Route path="news" element={
             <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
@@ -313,6 +327,15 @@ function App() {
               <AdminChuyenMucManage />
             </PermissionGate>
           } />
+          {/* Layout editor — admin only, no sidebar */}
+          <Route path="layout-editor" element={<LayoutEditorPage />} />
+          {/* News page layout editor — admin only, no sidebar */}
+          <Route path="news-layout-editor" element={<NewsLayoutEditorPage />} />
+          {/* Content managers */}
+          <Route path="slider-manager"    element={<SliderManagerPage />} />
+          <Route path="ticker-manager"    element={<TickerManagerPage />} />
+          <Route path="ad-banner-manager" element={<AdBannerManagerPage />} />
+          <Route path="bieu-mau"          element={<BieuMauManagePage />} />
         </Route>
 
         {/* Student Routes - chỉ SINH_VIEN (kể cả SINH_VIEN là BCH, vaiTro vẫn là SINH_VIEN) */}
@@ -351,7 +374,8 @@ function App() {
           <Route index element={<Navigate to={ROUTES.BCH_DASHBOARD} replace />} />
           <Route path="dashboard" element={<BCHDashboard />} />
           <Route path="activities" element={<BCHActivities />} />
-          <Route path="activities/create" element={<CreateHoatDong />} />
+          <Route path="activities/create" element={<HoatDongEditorPage backPath="/bch/activities" />} />
+          <Route path="activities/:id/edit" element={<HoatDongEditorPage backPath="/bch/activities" />} />
           <Route path="activities/:id/attendance" element={<ActivityAttendancePage />} />
           <Route path="attendance" element={<BCHAttendance />} />
           <Route path="scan-qr" element={<BCHScanQR />} />
@@ -376,7 +400,12 @@ function App() {
               <BCHVanBanManage />
             </PermissionGate>
           } />
-          {/* VẤN ĐỀ 4: /bch/profile redirect về /profile duy nhất */}
+          {/* Phân quyền theo Level — dành cho Bí thư (Level 1) */}
+          <Route path="phan-quyen" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM}>
+              <PermissionMatrixPage />
+            </PermissionGate>
+          } />
           <Route path="profile" element={<Navigate to={ROUTES.PROFILE} replace />} />
         </Route>
 
@@ -384,21 +413,14 @@ function App() {
         <Route path="/unauthorized" element={<ForbiddenPage />} />
         <Route path="/403" element={<ForbiddenPage />} />
 
-        {/* eNews — explicit home route (faster, no API call) */}
-        <Route path="/news" element={<NewsLayout />}>
+        {/* eNews — Trang chủ và các trang công khai đặt tại gốc / */}
+        <Route path="/" element={<NewsLayout />}>
           <Route index element={<NewsHomePage />} />
-          {/* Trang văn bản — khớp trực tiếp, không cần resolve API */}
+          <Route path="news" element={<Navigate to="/" replace />} />
           <Route path="van-ban" element={<VanBanListPage />} />
+          {/* Catch-all cho các URL động của tin tức (slug chuyên mục/bài viết) */}
           <Route path="*" element={<NewsResolver />} />
         </Route>
-
-        {/* eNews — catch-all: resolve arbitrary public URLs via NewsResolver */}
-        <Route path="*" element={<NewsLayout />}>
-          <Route path="*" element={<NewsResolver />} />
-        </Route>
-
-        {/* Home - smart redirect: chưa đăng nhập → login, đã đăng nhập → dashboard */}
-        <Route path={ROUTES.HOME} element={<SmartRedirect />} />
       </Routes>
     </ErrorBoundary>
   );

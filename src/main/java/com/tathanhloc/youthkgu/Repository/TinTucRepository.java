@@ -63,6 +63,21 @@ public interface TinTucRepository extends JpaRepository<TinTuc, Long> {
     // Toàn bộ bài (ADMIN/MANAGER xem tất cả)
     Page<TinTuc> findByIsDeletedFalseOrderByCreatedAtDesc(Pageable pageable);
 
+    // Tìm kiếm bài quản lý theo keyword và/hoặc trangThai (dùng cho manage endpoint)
+    @Query("""
+            SELECT t FROM TinTuc t
+            WHERE t.isDeleted = false
+              AND (:trangThai IS NULL OR t.trangThai = :trangThai)
+              AND (:keyword IS NULL OR :keyword = ''
+                   OR LOWER(t.tieuDe) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(COALESCE(t.tomTat, '')) LIKE LOWER(CONCAT('%', :keyword, '%')))
+            ORDER BY t.createdAt DESC
+            """)
+    Page<TinTuc> searchManage(
+            @Param("keyword") String keyword,
+            @Param("trangThai") TrangThaiTinTuc trangThai,
+            Pageable pageable);
+
     // Kiểm tra full_url_path đã tồn tại chưa (khi tạo bài)
     boolean existsByFullUrlPath(String fullUrlPath);
 

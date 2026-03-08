@@ -2,9 +2,7 @@ package com.tathanhloc.youthkgu.Controller;
 
 import com.tathanhloc.youthkgu.DTO.*;
 import com.tathanhloc.youthkgu.Model.VanBanFile;
-import com.tathanhloc.youthkgu.Service.ChuyenMucService;
-import com.tathanhloc.youthkgu.Service.TinTucService;
-import com.tathanhloc.youthkgu.Service.VanBanService;
+import com.tathanhloc.youthkgu.Service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -33,6 +31,9 @@ public class PublicNewsController {
     private final TinTucService tinTucService;
     private final VanBanService vanBanService;
     private final ChuyenMucService chuyenMucService;
+    private final SliderItemService sliderItemService;
+    private final TickerItemService tickerItemService;
+    private final AdBannerService adBannerService;
 
     // ── Resolve URL ───────────────────────────────────────────────────────────
 
@@ -124,6 +125,49 @@ public class PublicNewsController {
     public ResponseEntity<List<ChuyenMucTreeDTO>> getCayDanhMuc() {
         log.info("Get chuyen muc tree");
         return ResponseEntity.ok(chuyenMucService.getTree());
+    }
+
+    // ── Slider, Ticker, Banners ───────────────────────────────────────────────
+
+    /**
+     * GET /api/public/slider
+     * Danh sách slide đang active.
+     */
+    @GetMapping("/slider")
+    public ResponseEntity<ApiResponse<List<SliderItemDTO>>> getSlider() {
+        log.info("Public get active slider items");
+        return ResponseEntity.ok(ApiResponse.success(sliderItemService.getActive()));
+    }
+
+    /**
+     * GET /api/public/ticker
+     * Danh sách tin chạy chữ đang active.
+     */
+    @GetMapping("/ticker")
+    public ResponseEntity<ApiResponse<List<TickerItemDTO>>> getTicker() {
+        log.info("Public get active ticker items");
+        return ResponseEntity.ok(ApiResponse.success(tickerItemService.getActive()));
+    }
+
+    /**
+     * GET /api/public/ad-banners
+     * Danh sách banner đang active.
+     */
+    @GetMapping("/ad-banners")
+    public ResponseEntity<ApiResponse<List<AdBannerDTO>>> getAdBanners() {
+        log.info("Public get active ad banners");
+        return ResponseEntity.ok(ApiResponse.success(adBannerService.getActive()));
+    }
+
+    /**
+     * GET /api/public/ad-banners/loai/{loai}
+     * Danh sách banner đang active theo loại (MAIN/SIDEBAR).
+     */
+    @GetMapping("/ad-banners/loai/{loai}")
+    public ResponseEntity<ApiResponse<List<AdBannerDTO>>> getAdBannersByLoai(@PathVariable String loai) {
+        log.info("Public get active ad banners by loai: {}", loai);
+        return ResponseEntity.ok(ApiResponse.success(
+            adBannerService.getActiveByLoai(loai.toUpperCase())));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

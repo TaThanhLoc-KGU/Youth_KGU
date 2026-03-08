@@ -22,10 +22,51 @@ import {
   StopCircle,
   LogOut,
   Video,
+  MapPin,
+  ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 import activityService from '../../services/activityService';
 import diemDanhService from '../../services/diemDanhService';
 import { format } from 'date-fns';
+
+// ─── Haversine distance (metres) ─────────────────────────────────────────────
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ─── Location flag component ─────────────────────────────────────────────────
+function LocationFlag({ item, activity }) {
+  if (!item.latitude || !item.longitude) return <span className="text-gray-300 text-xs">—</span>;
+  if (!activity?.viDo || !activity?.kinhDo) {
+    return (
+      <span title="Có vị trí nhưng hoạt động chưa cấu hình toạ độ" className="text-xs text-gray-400 flex items-center gap-1">
+        <MapPin className="w-3 h-3" /> Có vị trí
+      </span>
+    );
+  }
+  const dist = haversineMeters(item.latitude, item.longitude, activity.viDo, activity.kinhDo);
+  const limit = activity.khoangCachToiDa;
+  const distLabel = dist < 1000 ? `${Math.round(dist)}m` : `${(dist / 1000).toFixed(1)}km`;
+  const isOk = !limit || dist <= limit;
+  return (
+    <span
+      title={isOk ? `Trong phạm vi (${distLabel})` : `Nghi ngờ điểm danh hộ — cách ${distLabel} (giới hạn ${limit}m)`}
+      className={`flex items-center gap-1 text-xs font-medium ${isOk ? 'text-green-600' : 'text-red-600'}`}
+    >
+      {isOk
+        ? <ShieldCheck className="w-3.5 h-3.5" />
+        : <ShieldAlert className="w-3.5 h-3.5" />}
+      {distLabel}
+    </span>
+  );
+}
 
 // ─── Geolocation helper ──────────────────────────────────────────────────────
 function getBrowserLocation() {
@@ -117,6 +158,7 @@ function QRScannerPanel({ maHoatDong, onClose, onResult, scanMode = 'CHECK_IN' }
   const [lastScan, setLastScan] = useState(null);
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
+  const [brightness, setBrightness] = useState(100);
 
   const stopCamera = useCallback(() => {
     if (animRef.current) cancelAnimationFrame(animRef.current);
@@ -154,24 +196,27 @@ function QRScannerPanel({ maHoatDong, onClose, onResult, scanMode = 'CHECK_IN' }
   const scanLoop = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || !streamRef.current) return;
 
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
+    if (video && canvas && streamRef.current && video.readyState === video.HAVE_ENOUGH_DATA) {
+      // Scale xuống 480px để jsQR xử lý nhanh hơn nhiều
+      const scale = Math.min(1, 480 / video.videoWidth);
+      canvas.width  = Math.round(video.videoWidth  * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const code = jsQR(imageData.data, imageData.width, imageData.height, {
         inversionAttempts: 'dontInvert',
       });
 
-      if (code && code.data && !cooldownRef.current.has(code.data)) {
+      if (code?.data && !cooldownRef.current.has(code.data)) {
         cooldownRef.current.add(code.data);
-        setTimeout(() => cooldownRef.current.delete(code.data), 4000);
+        setTimeout(() => cooldownRef.current.delete(code.data), 8000);
         handleQRDetected(code.data);
       }
     }
+
     animRef.current = requestAnimationFrame(scanLoop);
   }, []); // Removed handleQRDetected from dependencies
 
@@ -192,10 +237,14 @@ function QRScannerPanel({ maHoatDong, onClose, onResult, scanMode = 'CHECK_IN' }
       };
       setLastScan(scanInfo);
       onResult(scanInfo);
-    } catch {
+    } catch (err) {
+      const isNetwork = !err.response;
+      const msg = isNetwork
+        ? 'Mất kết nối máy chủ'
+        : (err.response?.data?.message || 'Lỗi điểm danh');
       const scanInfo = {
         success: false,
-        message: 'Lỗi kết nối. Thử lại.',
+        message: msg,
         hoTen: '',
         maSv: '',
         time: new Date().toLocaleTimeString('vi-VN'),
@@ -252,13 +301,26 @@ function QRScannerPanel({ maHoatDong, onClose, onResult, scanMode = 'CHECK_IN' }
           className="w-full object-cover"
           playsInline
           muted
-          style={{ display: cameraError ? 'none' : 'block', maxHeight: 400 }}
+          style={{ display: cameraError ? 'none' : 'block', maxHeight: 400, filter: `brightness(${brightness}%)` }}
         />
         {!cameraError && !isStarting && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-52 h-52 border-2 border-green-400 rounded-lg opacity-80" style={{
-              boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)',
-            }} />
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <style>{`
+              @keyframes qr-sweep-admin {
+                0%   { top: 5%;  opacity: 0; }
+                8%   { opacity: 1; }
+                92%  { opacity: 1; }
+                100% { top: 95%; opacity: 0; }
+              }
+            `}</style>
+            <div
+              className="absolute left-4 right-4 h-px"
+              style={{
+                background: 'linear-gradient(90deg, transparent, #34d399, #6ee7b7, #34d399, transparent)',
+                boxShadow: '0 0 8px 2px rgba(52,211,153,0.6)',
+                animation: 'qr-sweep-admin 2.2s ease-in-out infinite',
+              }}
+            />
           </div>
         )}
         <canvas ref={canvasRef} className="hidden" />
@@ -283,6 +345,20 @@ function QRScannerPanel({ maHoatDong, onClose, onResult, scanMode = 'CHECK_IN' }
           </div>
         </div>
       )}
+
+      {/* Brightness control */}
+      <div className="px-4 py-2 flex items-center gap-3">
+        <span className="text-xs text-gray-400 w-16 flex-shrink-0">Độ sáng</span>
+        <input
+          type="range"
+          min="40"
+          max="150"
+          value={brightness}
+          onChange={(e) => setBrightness(Number(e.target.value))}
+          className="flex-1 accent-indigo-500"
+        />
+        <span className="text-xs text-gray-400 w-8 text-right">{brightness}%</span>
+      </div>
 
       {/* Mode indicator */}
       <div className={`px-4 py-2 text-xs font-semibold text-center ${scanMode === 'CHECK_OUT' ? 'bg-orange-800 text-orange-200' : 'bg-indigo-800 text-indigo-200'}`}>
@@ -540,7 +616,7 @@ export default function ActivityAttendancePage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="flex gap-3 flex-shrink-0">
+          <div className="flex flex-wrap gap-3">
             <div className="bg-white border rounded-lg p-3 px-4 shadow-sm text-center">
               <p className="text-xs text-gray-500 font-semibold uppercase">Tổng</p>
               <p className="text-xl font-bold text-gray-800">{stats.total}</p>
@@ -698,7 +774,7 @@ export default function ActivityAttendancePage() {
       {/* ── Manual Checkout Panel ── */}
       {mode === 'CHECKOUT_MANUAL' && (
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b bg-orange-50 flex items-center justify-between gap-3">
+          <div className="px-5 py-4 border-b bg-orange-50 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <LogOut className="w-5 h-5 text-orange-600" />
               <h3 className="font-semibold text-orange-800">Checkout thủ công</h3>
@@ -777,7 +853,7 @@ export default function ActivityAttendancePage() {
       {/* ── Manual Attendance Panel ── */}
       {mode === 'MANUAL' && (
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b bg-emerald-50 flex items-center justify-between gap-3">
+          <div className="px-5 py-4 border-b bg-emerald-50 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-emerald-600" />
               <h3 className="font-semibold text-emerald-800">Điểm danh thủ công</h3>
@@ -921,7 +997,7 @@ export default function ActivityAttendancePage() {
 
                     <td className="p-4">
                       {item.thoiGianCheckIn ? (
-                        <div>
+                        <div className="space-y-1">
                           <p className="font-medium text-gray-900">
                             {format(new Date(item.thoiGianCheckIn), 'HH:mm')}
                           </p>
@@ -934,6 +1010,7 @@ export default function ActivityAttendancePage() {
                               ? 'Đúng giờ'
                               : `Trễ ${item.soPhutTre || 0}p`}
                           </span>
+                          <div><LocationFlag item={item} activity={activity} /></div>
                         </div>
                       ) : (
                         <span className="text-gray-300">—</span>
@@ -989,7 +1066,7 @@ export default function ActivityAttendancePage() {
           </table>
         </div>
 
-        <div className="p-4 border-t bg-gray-50 text-xs text-gray-500 flex justify-between items-center">
+        <div className="p-4 border-t bg-gray-50 text-xs text-gray-500 flex flex-wrap justify-between items-center gap-2">
           <span>Hiển thị {filteredList.length} / {attendanceList.length} sinh viên</span>
           <span className="text-green-600 font-medium">
             {stats.checkedIn}/{stats.total} đã điểm danh

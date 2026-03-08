@@ -21,6 +21,7 @@ public class TinTucDetailDTO {
     private String trangThai;
     private LocalDateTime ngayXuatBan;
     private String nguoiTao;
+    private String tacGia;   // Tên hiển thị tác giả
     private String donViDang;
     private Integer luotXem;
     private String fullUrlPath;

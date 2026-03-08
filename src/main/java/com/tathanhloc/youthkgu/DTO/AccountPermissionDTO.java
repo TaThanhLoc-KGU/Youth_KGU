@@ -28,8 +28,10 @@ public class AccountPermissionDTO {
     private String vaiTroGoc;       // VaiTroEnum name gốc
     private String tenVaiTroGoc;    // Display name gốc
 
-    // Thông tin chức vụ BCH (nếu có)
+    // Thông tin BCH
     private boolean laBCH;
+    /** Cấp BCH: 1 = Bí thư, 2 = Trưởng ban, 3 = Thành viên. Null nếu không phải BCH. */
+    private Integer bchLevel;
     private List<ChucVuInfoDTO> danhSachChucVu;
     
     // Quyền tổng hợp (Names) - để hiển thị nếu cần

@@ -362,14 +362,11 @@ public class AccountService {
     }
 
     /**
-     * Tạo tài khoản thủ công (Admin only)
-     * @param request Thông tin tài khoản mới
-     * @return AccountDTO của tài khoản mới tạo
+     * Logic lõi để tạo tài khoản — không ghi SystemLog.
+     * Dùng nội bộ bởi createAccountManually() và createSingleAccountForBulk()
+     * để tránh ghi log N+1 khi tạo hàng loạt.
      */
-    @Transactional
-    public AccountDTO createAccountManually(CreateAccountRequest request) {
-        log.info("Tạo tài khoản thủ công: {}", request.getUsername());
-
+    private TaiKhoan createAccountManuallyCore(CreateAccountRequest request) {
         // Validate email format
         String emailValidationError = emailValidationService.validateEmailWithMessage(request.getEmail());
         if (!emailValidationError.isEmpty()) {
@@ -400,6 +397,7 @@ public class AccountService {
                 .gioiTinh(request.getGioiTinh())
                 .avatar(request.getAvatar())
                 .vaiTro(request.getVaiTro())
+                .bchLevel(request.getVaiTro() == VaiTroEnum.BCH ? request.getBchLevel() : null)
                 .isActive(true)
                 .trangThaiPheDuyet("DA_PHE_DUYET") // Tài khoản thủ công được phê duyệt ngay
                 .ngayPheDuyet(LocalDateTime.now())
@@ -423,9 +421,20 @@ public class AccountService {
         }
 
         TaiKhoan saved = taiKhoanRepository.save(newAccount);
-        log.info("Tạo tài khoản thủ công thành công: {}", saved.getUsername());
-        systemLogService.log("TAI_KHOAN", "CREATE_ACCOUNT_MANUALLY", String.valueOf(saved.getId()), saved.getUsername(), "TaiKhoan", String.valueOf(saved.getId()), "Tạo tài khoản thủ công", SystemLog.LogLevel.INFO, "SUCCESS", null, null, this.request);
+        log.info("Tạo tài khoản thành công: {}", saved.getUsername());
+        return saved;
+    }
 
+    /**
+     * Tạo tài khoản thủ công (Admin only)
+     * @param request Thông tin tài khoản mới
+     * @return AccountDTO của tài khoản mới tạo
+     */
+    @Transactional
+    public AccountDTO createAccountManually(CreateAccountRequest request) {
+        log.info("Tạo tài khoản thủ công: {}", request.getUsername());
+        TaiKhoan saved = createAccountManuallyCore(request);
+        systemLogService.log("TAI_KHOAN", "CREATE_ACCOUNT_MANUALLY", String.valueOf(saved.getId()), saved.getUsername(), "TaiKhoan", String.valueOf(saved.getId()), "Tạo tài khoản thủ công", SystemLog.LogLevel.INFO, "SUCCESS", null, null, this.request);
         return toDTO(saved);
     }
 
@@ -462,6 +471,7 @@ public class AccountService {
                 .isActive(taiKhoan.getIsActive())
                 .createdAt(taiKhoan.getCreatedAt())
                 .updatedAt(taiKhoan.getUpdatedAt())
+                .bchLevel(taiKhoan.getBchLevel())
                 .build();
     }
 
@@ -506,6 +516,8 @@ public class AccountService {
         }
         if (request.getVaiTro() != null) {
             account.setVaiTro(request.getVaiTro());
+            // bchLevel chỉ lưu khi vaiTro = BCH; vai trò khác → null
+            account.setBchLevel(request.getVaiTro() == VaiTroEnum.BCH ? request.getBchLevel() : null);
         }
         if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().isEmpty()) {
             Ban ban = banRepository.findById(request.getBanChuyenMon())
@@ -538,6 +550,28 @@ public class AccountService {
         taiKhoanRepository.delete(account);
         log.info("Xóa tài khoản thành công: {}", account.getUsername());
         systemLogService.log("TAI_KHOAN", "DELETE_ACCOUNT", String.valueOf(account.getId()), account.getUsername(), "TaiKhoan", String.valueOf(account.getId()), "Xóa tài khoản", SystemLog.LogLevel.INFO, "SUCCESS", null, null, request);
+    }
+
+    /**
+     * Reset mật khẩu tài khoản về mật khẩu mặc định: KGU@123456
+     */
+    @Transactional
+    public String resetPassword(Long accountId) {
+        TaiKhoan account = taiKhoanRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
+
+        final String DEFAULT_PASSWORD = "KGU@123456";
+        account.setPasswordHash(passwordEncoder.encode(DEFAULT_PASSWORD));
+        taiKhoanRepository.save(account);
+
+        log.info("Reset mật khẩu tài khoản: {} (ID={})", account.getUsername(), accountId);
+        systemLogService.log("TAI_KHOAN", "RESET_PASSWORD",
+                String.valueOf(account.getId()), account.getUsername(),
+                "TaiKhoan", String.valueOf(account.getId()),
+                "Reset mật khẩu về mặc định cho: " + account.getUsername(),
+                SystemLog.LogLevel.INFO, "SUCCESS", null, null, request);
+
+        return account.getUsername();
     }
 
     /**
@@ -588,12 +622,13 @@ public class AccountService {
     }
 
     /**
-     * Tạo một tài khoản đơn lẻ trong transaction riêng biệt (REQUIRES_NEW)
-     * Được gọi từ bulkCreateAccounts thông qua proxy để tách transaction
+     * Tạo một tài khoản đơn lẻ trong transaction riêng biệt (REQUIRES_NEW).
+     * Được gọi từ bulkCreateAccounts thông qua proxy để tách transaction.
+     * Không ghi SystemLog riêng — bulkCreateAccounts sẽ ghi 1 log tổng hợp.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AccountDTO createSingleAccountForBulk(CreateAccountRequest request) {
-        return createAccountManually(request);
+        return toDTO(createAccountManuallyCore(request));
     }
 
     /**

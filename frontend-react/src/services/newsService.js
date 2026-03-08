@@ -23,7 +23,21 @@ const newsService = {
     return response.data;
   },
 
-  // ── Manage (cần JWT) ─────────────────────────────────────────────────────────
+  /**
+   * Upload ảnh chung (không gán ID bài viết ngay).
+   * Trả về { url: "..." }
+   */
+  uploadImage: async (formData) => {
+    const response = await api.post('/api/news/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    const data = response.data;
+    // Normalize: backend có thể trả về { url }, { fileUrl }, hay string trực tiếp
+    const url = typeof data === 'string'
+      ? data
+      : (data?.url || data?.fileUrl || data?.data?.url || null);
+    return { url };
+  },
 
   /** Tạo bài đăng mới (DRAFT) */
   create: async (data) => {
@@ -99,6 +113,24 @@ const newsService = {
       params: { keyword },
     });
     return response.data;
+  },
+
+  /**
+   * Gửi thông báo broadcast đến toàn bộ người dùng đang hoạt động.
+   * @param {string} title     - Tiêu đề thông báo
+   * @param {string} message   - Nội dung thông báo
+   * @param {string} type      - Loại: TIN_TUC | VAN_BAN | HOAT_DONG
+   * @param {string} relatedId - ID bài/văn bản/hoạt động liên quan
+   * @returns {Promise<number>} số người dùng đã nhận thông báo
+   */
+  broadcastNotification: async ({ title, message, type, relatedId }) => {
+    const response = await api.post('/api/notifications/broadcast', {
+      title,
+      message,
+      type,
+      relatedId: relatedId != null ? String(relatedId) : null,
+    });
+    return response.data?.data ?? 0;
   },
 };
 

@@ -114,17 +114,17 @@ const VanBanForm = ({ initial = null, onClose }) => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ngày ban hành</label>
-              <input type="date" value={form.ngayBanHanh} onChange={(e) => set('ngayBanHanh', e.target.value)} disabled={isPublished}
+              <input type="date" lang="vi" value={form.ngayBanHanh} onChange={(e) => set('ngayBanHanh', e.target.value)} disabled={isPublished}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-red-400 disabled:bg-gray-50" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Có hiệu lực</label>
-              <input type="date" value={form.ngayHieuLuc} onChange={(e) => set('ngayHieuLuc', e.target.value)} disabled={isPublished}
+              <input type="date" lang="vi" value={form.ngayHieuLuc} onChange={(e) => set('ngayHieuLuc', e.target.value)} disabled={isPublished}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-red-400 disabled:bg-gray-50" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Hết hạn</label>
-              <input type="date" value={form.ngayHetHan} onChange={(e) => set('ngayHetHan', e.target.value)}
+              <input type="date" lang="vi" value={form.ngayHetHan} onChange={(e) => set('ngayHetHan', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-red-400" />
             </div>
           </div>

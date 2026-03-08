@@ -1,15 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import {
-  ArrowLeft, Save, Send, Image as ImageIcon, Pin, X,
-  ChevronRight, FileText, Loader2, Upload,
+  ArrowLeft, Save, Send, ChevronRight, FileText, Loader2, Pin, User
 } from 'lucide-react';
 import newsService from '../../services/newsService';
 import RichTextEditor from '../../components/news/manage/RichTextEditor';
 import TreePickerModal from '../../components/news/manage/TreePickerModal';
 import VanBanSearchBox from '../../components/news/manage/VanBanSearchBox';
+import HoatDongSearchBox from '../../components/news/manage/HoatDongSearchBox';
+import AvatarUploader from '../../components/news/manage/AvatarUploader';
 
 // Slug preview (client-side only)
 const toSlugPreview = (str) =>
@@ -26,19 +27,14 @@ const toSlugPreview = (str) =>
 
 /**
  * Full-page editor cho Tin tức — Create & Edit.
- *
- * Props:
- *   backPath  – path để quay lại sau khi save (vd: '/admin/news')
- *   basePath  – prefix dùng để redirect sau create (vd: '/admin/news')
  */
 const TinTucEditorPage = ({ backPath = '/admin/news', basePath = '/admin/news' }) => {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { id } = useParams();           // undefined for create
-  const [searchParams] = useSearchParams();
+  const { id } = useParams();
   const isEdit = !!id;
 
-  // ── Load existing post when editing ──
+  // ── Load existing post ──
   const { data: existing, isLoading: loadingExisting } = useQuery({
     queryKey: ['tin-tuc-detail', id],
     queryFn: () => newsService.getById(id),
@@ -56,22 +52,17 @@ const TinTucEditorPage = ({ backPath = '/admin/news', basePath = '/admin/news' }
     chuyenMucId: null,
     vanBanId: null,
     hoatDongId: '',
+    donViDang: '',
+    tacGia: '',
   });
   const [chuyenMuc, setChuyenMuc] = useState(null);
-  const [vanBan, setVanBan] = useState(null);
+  const [vanBan,    setVanBan]    = useState(null);
+  const [hoatDong,  setHoatDong]  = useState(null); // object đầy đủ từ HoatDongSearchBox
   const [showPicker, setShowPicker] = useState(false);
-
-  // ── Thumbnail upload state ──
-  const [thumbFile, setThumbFile]       = useState(null);    // File object
-  const [thumbPreview, setThumbPreview] = useState(null);    // blob URL
-  const thumbInputRef = useRef(null);
-
-  // ── Article ID tracking (for image uploads in create mode) ──
-  const [articleId, setArticleId] = useState(id ? Number(id) : null);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  // ── Populate from existing post ──
+  // ── Populate from existing ──
   useEffect(() => {
     if (existing) {
       setForm({
@@ -83,99 +74,43 @@ const TinTucEditorPage = ({ backPath = '/admin/news', basePath = '/admin/news' }
         chuyenMucId: existing.chuyenMuc?.id || null,
         vanBanId:    existing.vanBan?.id  || null,
         hoatDongId:  existing.hoatDongId  || '',
+        donViDang:   existing.donViDang   || '',
+        tacGia:      existing.tacGia      || '',
       });
-      setChuyenMuc(existing.chuyenMuc  || null);
-      setVanBan   (existing.vanBan     || null);
-      setArticleId(existing.id);
+      setChuyenMuc(existing.chuyenMuc || null);
+      setVanBan(existing.vanBan || null);
+      // Khôi phục hoạt động liên kết (chỉ có maHoatDong — hiển thị minimal card)
+      if (existing.hoatDongId) {
+        setHoatDong({ maHoatDong: existing.hoatDongId, tenHoatDong: existing.tenHoatDong || '' });
+      }
     }
   }, [existing]);
 
-  // Sync chuyenMucId / vanBanId into form
   useEffect(() => { set('chuyenMucId', chuyenMuc?.id || null); }, [chuyenMuc]);
   useEffect(() => { set('vanBanId',    vanBan?.id    || null); }, [vanBan]);
-
-  // ── Thumbnail file picker ──
-  const onThumbChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (thumbPreview) URL.revokeObjectURL(thumbPreview);
-    setThumbFile(file);
-    setThumbPreview(URL.createObjectURL(file));
-  };
-  const clearThumb = () => {
-    if (thumbPreview) URL.revokeObjectURL(thumbPreview);
-    setThumbFile(null);
-    setThumbPreview(null);
-    set('anhDaiDien', '');
-    if (thumbInputRef.current) thumbInputRef.current.value = '';
-  };
-
-  // ── Inline image upload handler for RichTextEditor ──
-  const handleInlineImageUpload = useCallback(async (file) => {
-    try {
-      let useId = articleId;
-      // If no article ID yet, auto-create a draft first
-      if (!useId) {
-        const draft = await newsService.create({
-          tieuDe:      form.tieuDe || 'Bài viết mới',
-          tomTat:      form.tomTat,
-          noiDung:     '',
-          anhDaiDien:  '',
-          isGhim:      false,
-          chuyenMucId: form.chuyenMucId,
-        });
-        useId = draft.id;
-        setArticleId(useId);
-        toast.info('Đã tự động tạo nháp để upload ảnh');
-      }
-      const url = await newsService.uploadAnh(useId, file);
-      return url;
-    } catch (err) {
-      toast.error('Lỗi upload ảnh: ' + (err.response?.data?.message || err.message));
-      throw err;
-    }
-  }, [articleId, form.tieuDe, form.tomTat, form.chuyenMucId]);
+  useEffect(() => { set('hoatDongId',  hoatDong?.maHoatDong || ''); }, [hoatDong]);
 
   // ── Save mutation ──
   const saveMutation = useMutation({
     mutationFn: async ({ action }) => {
       if (!form.tieuDe.trim()) throw new Error('Vui lòng nhập tiêu đề');
-      if (!form.chuyenMucId)   throw new Error('Vui lòng chọn chuyên mục');
+      if (!form.chuyenMucId) throw new Error('Vui lòng chọn chuyên mục');
 
       const payload = { ...form };
-      let useId = articleId;
-
-      // Step 1: Create or update article
-      let result;
-      if (useId) {
-        result = await newsService.update(useId, payload);
+      let saved;
+      if (isEdit) {
+        saved = await newsService.update(id, payload);
       } else {
-        result = await newsService.create(payload);
-        useId = result.id;
-        setArticleId(useId);
+        saved = await newsService.create(payload);
       }
 
-      // Step 2: Upload thumbnail if a new file was selected
-      if (thumbFile) {
-        const url = await newsService.uploadAnhDaiDien(useId, thumbFile);
-        // Update anhDaiDien with the returned URL
-        await newsService.update(useId, { ...payload, anhDaiDien: url });
-        set('anhDaiDien', url);
-        setThumbFile(null);
-        if (thumbPreview) URL.revokeObjectURL(thumbPreview);
-        setThumbPreview(null);
-      }
-
-      // Step 3: Publish if requested
       if (action === 'publish') {
-        await newsService.publish(useId);
+        await newsService.publish(saved.id);
       }
-
-      return { id: useId, action };
+      return { id: saved.id, action };
     },
     onSuccess: ({ id: savedId, action }) => {
       qc.invalidateQueries({ queryKey: ['admin-tin-tuc'] });
-      qc.invalidateQueries({ queryKey: ['bch-tin-tuc'] });
       qc.invalidateQueries({ queryKey: ['tin-tuc-detail', String(savedId)] });
       toast.success(action === 'publish' ? 'Đã đăng bài viết!' : 'Đã lưu nháp');
       navigate(backPath);
@@ -185,14 +120,9 @@ const TinTucEditorPage = ({ backPath = '/admin/news', basePath = '/admin/news' }
     },
   });
 
-  const handleSave   = () => saveMutation.mutate({ action: 'draft' });
-  const handlePublish = () => saveMutation.mutate({ action: 'publish' });
-
   const slugPreview = chuyenMuc
     ? `${chuyenMuc.fullPathSlug}/${toSlugPreview(form.tieuDe)}`
     : toSlugPreview(form.tieuDe);
-
-  const thumbSrc = thumbPreview || form.anhDaiDien;
 
   if (isEdit && loadingExisting) {
     return (
@@ -203,288 +133,172 @@ const TinTucEditorPage = ({ backPath = '/admin/news', basePath = '/admin/news' }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* ── Sticky top bar ── */}
+    <div className="min-h-screen bg-gray-50 pb-12">
+      {/* Sticky top bar */}
       <div className="sticky top-0 z-20 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
-          {/* Back button */}
           <button
             onClick={() => navigate(backPath)}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors mr-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Bài viết</span>
+            <span className="hidden sm:inline">Quay lại</span>
           </button>
 
-          {/* Breadcrumb */}
           <div className="flex items-center gap-1.5 text-sm text-gray-500 flex-1 min-w-0">
-            <ChevronRight className="w-4 h-4 flex-shrink-0" />
             <span className="truncate font-medium text-gray-800">
               {isEdit ? 'Sửa bài viết' : 'Tạo bài viết mới'}
             </span>
-            {form.tieuDe && (
-              <>
-                <ChevronRight className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate text-gray-400">{form.tieuDe}</span>
-              </>
-            )}
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2">
             <button
-              type="button"
-              onClick={handleSave}
+              onClick={() => saveMutation.mutate({ action: 'draft' })}
               disabled={saveMutation.isPending}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-              {saveMutation.isPending && saveMutation.variables?.action === 'draft'
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Save className="w-4 h-4" />}
-              <span className="hidden sm:inline">Lưu nháp</span>
+              <Save className="w-4 h-4" />
+              Lưu nháp
             </button>
             <button
-              type="button"
-              onClick={handlePublish}
+              onClick={() => saveMutation.mutate({ action: 'publish' })}
               disabled={saveMutation.isPending}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-enews-600 hover:bg-enews-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
             >
-              {saveMutation.isPending && saveMutation.variables?.action === 'publish'
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Send className="w-4 h-4" />}
-              <span className="hidden sm:inline">Đăng bài</span>
+              <Send className="w-4 h-4" />
+              Đăng bài
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Main content ── */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex flex-col xl:flex-row gap-6">
-
-          {/* ═══ Left — main editor ═══ */}
-          <div className="flex-1 min-w-0 space-y-5">
-
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Main Column */}
+          <div className="flex-1 space-y-6">
             {/* Title */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
               <input
                 value={form.tieuDe}
                 onChange={(e) => set('tieuDe', e.target.value)}
                 placeholder="Tiêu đề bài viết..."
-                className="w-full text-2xl font-bold text-gray-900 placeholder-gray-300 border-none outline-none resize-none"
+                className="w-full text-3xl font-bold text-gray-900 placeholder-gray-200 border-none outline-none focus:ring-0"
               />
               {form.tieuDe && (
-                <p className="mt-2 text-xs text-gray-400 flex items-center gap-1">
-                  <span className="font-medium text-gray-500">🔗 URL:</span>
-                  <span className="font-mono">{slugPreview}</span>
-                </p>
+                <div className="mt-3 py-1 px-3 bg-gray-50 rounded text-xs text-gray-500 flex items-center gap-2">
+                  <span className="font-semibold text-gray-400">URL:</span>
+                  <span className="font-mono truncate">{slugPreview}</span>
+                </div>
               )}
-            </div>
-
-            {/* Category */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Chuyên mục <span className="text-red-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowPicker(true)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-left hover:border-enews-400 transition-colors bg-gray-50 hover:bg-white"
-              >
-                {chuyenMuc ? (
-                  <span className="flex items-center gap-1 text-enews-700 flex-wrap">
-                    <span>Trang chủ</span>
-                    {chuyenMuc.fullPathSlug?.split('/').map((part, i) => (
-                      <span key={i} className="flex items-center gap-1">
-                        <ChevronRight className="w-3 h-3" />{part}
-                      </span>
-                    ))}
-                  </span>
-                ) : (
-                  <span className="text-gray-400">Chọn chuyên mục...</span>
-                )}
-              </button>
             </div>
 
             {/* Summary */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Tóm tắt
-                <span className="ml-2 text-xs text-gray-400 font-normal">{form.tomTat.length}/300</span>
-              </label>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Tóm tắt ngắn</label>
               <textarea
                 value={form.tomTat}
-                onChange={(e) => set('tomTat', e.target.value.slice(0, 300))}
+                onChange={(e) => set('tomTat', e.target.value)}
                 rows={3}
-                maxLength={300}
-                placeholder="Tóm tắt ngắn gọn hiển thị trên trang danh sách bài viết..."
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-enews-400 resize-none bg-gray-50 focus:bg-white transition-colors"
+                placeholder="Nhập tóm tắt ngắn gọn hiển thị trên trang danh sách..."
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
               />
             </div>
 
-            {/* Rich text content */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Nội dung bài viết
-              </label>
+            {/* Content Editor */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Nội dung chi tiết</h3>
+              </div>
               <RichTextEditor
                 value={form.noiDung}
                 onChange={(v) => set('noiDung', v)}
-                onImageUpload={handleInlineImageUpload}
-                height={500}
+                placeholder="Bắt đầu viết nội dung bài viết của bạn tại đây..."
+                height={560}
               />
-            </div>
-
-            {/* VanBan + HoatDong (optional) */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700">Thông tin bổ sung</h3>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  <FileText className="w-3.5 h-3.5 inline mr-1" />
-                  Văn bản đính kèm (tuỳ chọn)
-                </label>
-                <VanBanSearchBox value={vanBan} onChange={setVanBan} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Mã hoạt động liên kết (tuỳ chọn)
-                </label>
-                <input
-                  value={form.hoatDongId}
-                  onChange={(e) => set('hoatDongId', e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-enews-400 bg-gray-50 focus:bg-white"
-                  placeholder="Nhập mã hoạt động (để trống nếu không liên quan)"
-                />
-              </div>
             </div>
           </div>
 
-          {/* ═══ Right — sidebar settings ═══ */}
-          <div className="xl:w-80 space-y-4 flex-shrink-0">
+          {/* Sidebar */}
+          <div className="lg:w-96 space-y-6">
+            {/* Category selection */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <label className="block text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Chuyên mục *</label>
+              <button
+                onClick={() => setShowPicker(true)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg hover:border-blue-400 transition-colors text-sm"
+              >
+                {chuyenMuc ? (
+                  <span className="text-blue-700 font-medium">{chuyenMuc.ten}</span>
+                ) : (
+                  <span className="text-gray-400">Chọn chuyên mục bài viết</span>
+                )}
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
 
-            {/* Thumbnail upload */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-gray-500" />
-                Ảnh đại diện
-              </label>
-
-              {/* Preview */}
-              {thumbSrc ? (
-                <div className="relative mb-3">
-                  <img
-                    src={thumbSrc}
-                    alt="Ảnh đại diện"
-                    className="w-full aspect-video object-cover rounded-lg border border-gray-200"
-                  />
-                  <button
-                    type="button"
-                    onClick={clearThumb}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow"
-                    title="Xóa ảnh"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <div
-                  className="w-full aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-enews-300 transition-colors mb-3"
-                  onClick={() => thumbInputRef.current?.click()}
-                >
-                  <Upload className="w-8 h-8 text-gray-300 mb-2" />
-                  <p className="text-xs text-gray-400">Click để chọn ảnh</p>
-                  <p className="text-xs text-gray-300">JPG, PNG, WebP</p>
-                </div>
-              )}
-
-              <input
-                ref={thumbInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onThumbChange}
+            {/* Avatar Uploader */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <AvatarUploader
+                value={form.anhDaiDien}
+                onChange={(url) => set('anhDaiDien', url)}
+                label="Ảnh đại diện bài viết"
               />
+            </div>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => thumbInputRef.current?.click()}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  {thumbSrc ? 'Đổi ảnh' : 'Chọn ảnh'}
-                </button>
-              </div>
+            {/* Additional Settings */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-5">
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 border-b pb-2">Cài đặt bổ sung</h3>
 
-              {/* URL input fallback */}
-              <div className="mt-3">
-                <label className="block text-xs text-gray-400 mb-1">Hoặc nhập URL ảnh</label>
+              {/* Tác giả */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1">
+                  <User className="w-3 h-3" /> Tác giả hiển thị
+                </label>
                 <input
-                  value={form.anhDaiDien}
-                  onChange={(e) => {
-                    set('anhDaiDien', e.target.value);
-                    if (thumbPreview) { URL.revokeObjectURL(thumbPreview); setThumbPreview(null); }
-                    setThumbFile(null);
-                  }}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-enews-400 bg-gray-50"
-                  placeholder="https://..."
+                  type="text"
+                  value={form.tacGia}
+                  onChange={(e) => set('tacGia', e.target.value)}
+                  placeholder="Ví dụ: Ban Học thuật KGU, Đoàn Trường..."
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                 />
+                <p className="text-[11px] text-gray-400 mt-1">Tên tác giả / đơn vị hiển thị trên bài viết</p>
               </div>
-            </div>
 
-            {/* Options */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Tùy chọn</h3>
-              <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={form.isGhim}
-                    onChange={(e) => set('isGhim', e.target.checked)}
-                    className="peer sr-only"
-                  />
-                  <div className="w-10 h-5 bg-gray-200 peer-checked:bg-enews-500 rounded-full transition-colors" />
-                  <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
-                </div>
-                <Pin className="w-4 h-4 text-gray-400 group-hover:text-enews-500 transition-colors" />
-                <span className="text-sm text-gray-700">Ghim bài lên đầu</span>
-              </label>
-            </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1">
+                  <FileText className="w-3 h-3" /> Văn bản liên quan
+                </label>
+                <VanBanSearchBox value={vanBan} onChange={setVanBan} />
+              </div>
 
-            {/* Quick actions (duplicated for sidebar convenience) */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700">Xuất bản</h3>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saveMutation.isPending}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
-              >
-                <Save className="w-4 h-4" />
-                Lưu nháp
-              </button>
-              <button
-                type="button"
-                onClick={handlePublish}
-                disabled={saveMutation.isPending}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-enews-600 hover:bg-enews-700 text-white rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
-              >
-                <Send className="w-4 h-4" />
-                Đăng bài ngay
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate(backPath)}
-                className="w-full px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                Hủy thay đổi
-              </button>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-2">Hoạt động liên kết</label>
+                <HoatDongSearchBox value={hoatDong} onChange={setHoatDong} />
+              </div>
+
+              <div className="pt-2">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={form.isGhim}
+                      onChange={(e) => set('isGhim', e.target.checked)}
+                      className="peer sr-only"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-checked:bg-blue-600 rounded-full transition-colors" />
+                    <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5 shadow-sm" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Pin className={`w-4 h-4 ${form.isGhim ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <span className="text-sm font-medium text-gray-700">Ghim bài lên đầu</span>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* TreePicker modal */}
       {showPicker && (
         <TreePickerModal
           value={chuyenMuc}

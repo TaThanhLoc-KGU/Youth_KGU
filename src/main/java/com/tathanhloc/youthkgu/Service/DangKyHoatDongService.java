@@ -309,4 +309,25 @@ public class DangKyHoatDongService {
                 .map(DangKyHoatDong::getMaQR)
                 .orElse(null);
     }
+
+    /**
+     * Sinh viên gửi vị trí GPS khi mở màn hình hiển thị QR code.
+     * Dữ liệu này được lưu vào DangKyHoatDong và sau đó được ghi vào
+     * DiemDanhHoatDong khi BCH quét QR — dùng để phát hiện điểm danh hộ.
+     *
+     * @param maQR      mã QR của sinh viên (unique key)
+     * @param latitude  vĩ độ GPS
+     * @param longitude kinh độ GPS
+     */
+    @Transactional
+    public void updateStudentLocation(String maQR, Double latitude, Double longitude) {
+        DangKyHoatDong reg = dangKyRepository.findByMaQR(maQR)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký với mã QR: " + maQR));
+
+        reg.setStudentLatitude(latitude);
+        reg.setStudentLongitude(longitude);
+        reg.setStudentLocationTime(LocalDateTime.now());
+        dangKyRepository.save(reg);
+        log.info("Updated student location for QR {} → ({}, {})", maQR, latitude, longitude);
+    }
 }

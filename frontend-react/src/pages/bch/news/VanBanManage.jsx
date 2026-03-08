@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Send, Download, ExternalLink, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Send, Download, ExternalLink, FileText, Bell } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import { PERMISSIONS } from '../../../utils/constants';
 import vanBanService from '../../../services/vanBanService';
+import newsService from '../../../services/newsService';
 import VanBanForm from '../../../components/news/manage/VanBanForm';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
@@ -82,6 +83,17 @@ const BCHVanBanManage = () => {
     onError: (e) => toast.error(e.response?.data?.message || 'Xóa thất bại'),
   });
 
+  const broadcastMutation = useMutation({
+    mutationFn: (vb) => newsService.broadcastNotification({
+      title: `📄 Văn bản mới: ${vb.soHieu || vb.trichYeu}`,
+      message: vb.trichYeu,
+      type: 'VAN_BAN',
+      relatedId: vb.id,
+    }),
+    onSuccess: (count) => toast.success(`Đã gửi thông báo đến ${count} người dùng`),
+    onError: (e) => toast.error(e.response?.data?.message || 'Gửi thông báo thất bại'),
+  });
+
   const handleDownload = async (id, soHieu) => {
     try {
       const blob = await vanBanService.taiVe(id);
@@ -102,7 +114,7 @@ const BCHVanBanManage = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Văn bản – Tài liệu</h1>
           <p className="text-sm text-gray-500 mt-0.5">Đăng tải văn bản, kế hoạch, công văn</p>
@@ -200,6 +212,16 @@ const BCHVanBanManage = () => {
                     <button onClick={() => publishMutation.mutate(vb.id)}
                       className="p-1.5 text-gray-400 hover:text-green-600 rounded" title="Đăng">
                       <Send className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canManage && vb.trangThai === 'PUBLISHED' && (
+                    <button
+                      onClick={() => broadcastMutation.mutate(vb)}
+                      disabled={broadcastMutation.isPending}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 rounded disabled:opacity-50"
+                      title="Gửi thông báo đến tất cả người dùng"
+                    >
+                      <Bell className="w-4 h-4" />
                     </button>
                   )}
                   {canDelete && (

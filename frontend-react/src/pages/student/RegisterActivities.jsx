@@ -163,7 +163,7 @@ const RegisterActivities = () => {
       </div>
 
       {/* Results count */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-gray-500">
           Hiển thị <span className="font-medium text-gray-900">{activities.length}</span> hoạt động
         </p>

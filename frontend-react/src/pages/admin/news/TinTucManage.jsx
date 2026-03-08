@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Eye, Archive, Send, RotateCcw, Pin } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Archive, Send, RotateCcw, Pin, Bell } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import { PERMISSIONS } from '../../../utils/constants';
 import newsService from '../../../services/newsService';
@@ -72,6 +72,17 @@ const TinTucManage = () => {
     mutationFn: (id) => newsService.delete(id),
     onSuccess: () => { toast.success('Đã xóa bài viết'); setConfirmDelete(null); invalidate(); },
     onError: (e) => toast.error(e.response?.data?.message || 'Xóa thất bại'),
+  });
+
+  const broadcastMutation = useMutation({
+    mutationFn: (row) => newsService.broadcastNotification({
+      title: `📰 Tin tức mới: ${row.tieuDe}`,
+      message: row.tomTat || row.tieuDe,
+      type: 'TIN_TUC',
+      relatedId: row.id,
+    }),
+    onSuccess: (count) => toast.success(`Đã gửi thông báo đến ${count} người dùng`),
+    onError: (e) => toast.error(e.response?.data?.message || 'Gửi thông báo thất bại'),
   });
 
   const handleSearch = () => { setKeyword(search); setPage(0); };
@@ -154,6 +165,16 @@ const TinTucManage = () => {
               <RotateCcw className="w-4 h-4" />
             </button>
           )}
+          {canPublish && row.trangThai === 'PUBLISHED' && (
+            <button
+              onClick={() => broadcastMutation.mutate(row)}
+              disabled={broadcastMutation.isPending}
+              className="p-1.5 text-gray-400 hover:text-indigo-600 rounded disabled:opacity-50"
+              title="Gửi thông báo đến tất cả người dùng"
+            >
+              <Bell className="w-4 h-4" />
+            </button>
+          )}
           {canDelete && (
             <button onClick={() => setConfirmDelete(row)}
               className="p-1.5 text-gray-400 hover:text-red-600 rounded" title="Xóa">
@@ -168,7 +189,7 @@ const TinTucManage = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Quản lý Tin tức</h1>
           <p className="text-sm text-gray-500 mt-0.5">Danh sách bài viết tin tức – Đoàn Hội KGU</p>

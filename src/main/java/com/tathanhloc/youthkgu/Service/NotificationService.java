@@ -6,6 +6,7 @@ import com.tathanhloc.youthkgu.Model.Notification;
 import com.tathanhloc.youthkgu.Repository.HoatDongRepository;
 import com.tathanhloc.youthkgu.Repository.NotificationRepository;
 import com.tathanhloc.youthkgu.Repository.SinhVienRepository;
+import com.tathanhloc.youthkgu.Repository.TaiKhoanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,6 +28,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final SinhVienRepository sinhVienRepository;
     private final HoatDongRepository hoatDongRepository;
+    private final TaiKhoanRepository taiKhoanRepository;
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     public SseEmitter createEmitter(String userId) {
@@ -80,6 +82,23 @@ public class NotificationService {
         sinhVienRepository.findAll().forEach(sv -> {
             sendNotification(sv.getMaSv(), title, message, type, relatedId);
         });
+    }
+
+    /**
+     * Gửi thông báo đến TẤT CẢ tài khoản đang hoạt động trong hệ thống.
+     * Dùng khi Bí thư / Admin muốn broadcast tin tức, văn bản, hoạt động.
+     * Trả về số lượng tài khoản đã nhận.
+     */
+    @Transactional
+    public int sendBroadcastNotification(String title, String message, String type, String relatedId) {
+        log.info("Broadcasting notification to all active users: type={} relatedId={}", type, relatedId);
+        List<String> usernames = taiKhoanRepository.findAll().stream()
+                .filter(tk -> Boolean.TRUE.equals(tk.getIsActive()))
+                .map(tk -> tk.getUsername())
+                .toList();
+        usernames.forEach(username -> sendNotification(username, title, message, type, relatedId));
+        log.info("Broadcast sent to {} users", usernames.size());
+        return usernames.size();
     }
 
     public List<Notification> getNotifications(String userId) {

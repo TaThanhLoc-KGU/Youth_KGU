@@ -5,50 +5,38 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --sat: env(safe-area-inset-top);
+    --sar: env(safe-area-inset-right);
+    --sab: env(safe-area-inset-bottom);
+    --sal: env(safe-area-inset-left);
+  }
+
   body {
     @apply bg-gray-50 font-sans text-gray-900;
+    padding-top: var(--sat);
+    padding-right: var(--sar);
+    padding-bottom: var(--sab);
+    padding-left: var(--sal);
+    min-height: 100vh;
+    /* fix cho mobile viewport height */
+    min-height: -webkit-fill-available;
+  }
+
+  html {
+    height: -webkit-fill-available;
   }
 }
 
 @layer components {
-  /* Button Styles */
-  .btn {
-    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-600 focus:ring-primary-500;
-  }
-
-  .btn-secondary {
-    @apply bg-secondary-200 text-secondary-900 hover:bg-secondary-300 focus:ring-secondary-500;
-  }
-
-  .btn-outline {
-    @apply border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary-500;
-  }
-
-  .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
-  }
-
-  /* Card Styles */
-  .card {
-    @apply rounded-lg border border-gray-200 bg-white shadow-sm;
-  }
-
-  .card-header {
-    @apply border-b border-gray-200 px-6 py-4;
-  }
-
-  .card-body {
-    @apply p-6;
-  }
-
+  /* ... rest of components ... */
   /* Form Styles */
   .form-input {
-    @apply block w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-gray-50;
+    @apply block w-full rounded-lg border border-gray-300 px-4 py-2 text-base focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-gray-50;
+    /* Trên iOS, font-size < 16px sẽ gây tự động zoom khi focus */
+    font-size: 16px !important;
   }
+
 
   .form-label {
     @apply mb-2 block text-sm font-medium text-gray-700;
@@ -161,6 +149,8 @@
 .skeleton {
   @apply animate-pulse bg-gray-200;
 }
+
+
 
 /* ── eNews Article Content ── */
 .enews-article-content {

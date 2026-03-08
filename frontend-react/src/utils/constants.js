@@ -251,6 +251,7 @@ export const ROUTES = {
   ADMIN_CERTIFICATES: '/admin/certificates',
   ADMIN_STATISTICS: '/admin/statistics',
   ADMIN_SETTINGS: '/admin/settings',
+  ADMIN_PHAN_QUYEN: '/admin/phan-quyen',
   ADMIN_ACCOUNTS: '/admin/accounts',
   ADMIN_ACCOUNT_STATISTICS: '/admin/account-statistics',
   ADMIN_SYSTEM_LOG: '/admin/system-log',
@@ -275,6 +276,7 @@ export const ROUTES = {
   BCH_ACTIVITIES: '/bch/activities',
   BCH_ATTENDANCE: '/bch/attendance',
   BCH_SCAN_QR: '/bch/scan-qr',
+  BCH_PHAN_QUYEN: '/bch/phan-quyen',
 
   // eNews — Public
   NEWS_HOME: '/news',
@@ -289,4 +291,14 @@ export const ROUTES = {
   BCH_NEWS_CREATE: '/bch/news/create',
   BCH_VAN_BAN: '/bch/van-ban',
   BCH_VAN_BAN_CREATE: '/bch/van-ban/create',
+
+  // Layout editors (admin only)
+  ADMIN_LAYOUT_EDITOR:      '/admin/layout-editor',
+  ADMIN_NEWS_LAYOUT_EDITOR: '/admin/news-layout-editor',
+
+  // Content managers (admin only)
+  ADMIN_SLIDER_MANAGER:     '/admin/slider-manager',
+  ADMIN_TICKER_MANAGER:     '/admin/ticker-manager',
+  ADMIN_AD_BANNER_MANAGER:  '/admin/ad-banner-manager',
+  ADMIN_BIEU_MAU_MANAGER:   '/admin/bieu-mau',
 };

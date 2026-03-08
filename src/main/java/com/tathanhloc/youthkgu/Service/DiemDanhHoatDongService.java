@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.ByteArrayInputStream;
@@ -170,8 +171,10 @@ public class DiemDanhHoatDongService {
                 .soPhutTre(soPhutTre)
                 .nguoiCheckIn(nguoiXacNhan)
                 .thietBiQuet(request.getThietBi())
-                .latitude(request.getLatitude())
-                .longitude(request.getLongitude())
+                // Ưu tiên dùng vị trí sinh viên đã gửi trước (chống điểm danh hộ);
+                // fallback sang vị trí scanner nếu sinh viên chưa gửi
+                .latitude(dangKy.getStudentLatitude() != null ? dangKy.getStudentLatitude() : request.getLatitude())
+                .longitude(dangKy.getStudentLongitude() != null ? dangKy.getStudentLongitude() : request.getLongitude())
                 .ghiChu(request.getGhiChu())
                 .build();
 
@@ -445,96 +448,299 @@ public class DiemDanhHoatDongService {
 
         List<DiemDanhHoatDongDTO> attendanceList = getByActivity(maHoatDong);
         List<Map<String, Object>> notCheckedIn = getNotCheckedInStudents(maHoatDong);
+        long tongDangKy = attendanceList.size() + notCheckedIn.size();
+        long daThamGia  = attendanceList.size();
 
-        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            // Sheet 1: Thống kê tổng hợp & Theo Khoa
-            Sheet summarySheet = workbook.createSheet("Thống kê chung");
-            
-            Row r0 = summarySheet.createRow(0);
-            r0.createCell(0).setCellValue("HOẠT ĐỘNG:");
-            r0.createCell(1).setCellValue(hoatDong.getTenHoatDong());
-            
-            Row r1 = summarySheet.createRow(1);
-            r1.createCell(0).setCellValue("Ngày tổ chức:");
-            r1.createCell(1).setCellValue(hoatDong.getNgayToChuc() != null ? hoatDong.getNgayToChuc().toString() : "");
+        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            // Thống kê theo Khoa (Đoàn khoa)
-            Row r3 = summarySheet.createRow(3);
-            r3.createCell(0).setCellValue("THỐNG KÊ THEO ĐOÀN KHOA");
-            
-            Row r4 = summarySheet.createRow(4);
-            String[] summaryCols = {"STT", "Tên Khoa/Đơn vị", "Tổng Đăng Ký", "Đã Tham Gia", "Tỷ lệ (%)"};
-            for(int i=0; i<summaryCols.length; i++) summarySheet.getRow(4).createCell(i).setCellValue(summaryCols[i]);
-            
-            // Logic tính toán theo khoa
-            Map<String, Long> regByKhoa = new HashMap<>();
-            Map<String, Long> attByKhoa = new HashMap<>();
-            
-            // Gom nhóm từ danh sách tham gia
-            attendanceList.forEach(a -> {
-                String khoa = a.getTenLop() != null && a.getTenLop().contains("-") ? a.getTenLop().split("-")[0] : "Khác";
-                attByKhoa.put(khoa, attByKhoa.getOrDefault(khoa, 0L) + 1);
-                regByKhoa.put(khoa, regByKhoa.getOrDefault(khoa, 0L) + 1);
-            });
-            // Gom nhóm từ danh sách vắng
-            notCheckedIn.forEach(m -> {
-                String khoa = "Chưa rõ"; // Có thể join thêm bảng Khoa nếu cần
-                regByKhoa.put(khoa, regByKhoa.getOrDefault(khoa, 0L) + 1);
-            });
+            // ─── Styles ──────────────────────────────────────────────────────────
 
-            int sIdx = 5;
+            // Title: large bold
+            CellStyle titleStyle = workbook.createCellStyle();
+            Font titleFont = workbook.createFont();
+            titleFont.setBold(true);
+            titleFont.setFontHeightInPoints((short) 14);
+            titleStyle.setFont(titleFont);
+
+            // Header: dark-blue BG, white bold, centered, bordered
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerFont.setFontHeightInPoints((short) 11);
+            headerStyle.setFont(headerFont);
+            setBorder(headerStyle);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            // Label: bold, light-yellow BG
+            CellStyle labelStyle = workbook.createCellStyle();
+            Font labelFont = workbook.createFont();
+            labelFont.setBold(true);
+            labelStyle.setFont(labelFont);
+            labelStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+            labelStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            setBorder(labelStyle);
+
+            // Section divider: cornflower-blue BG, bold
+            CellStyle sectionStyle = workbook.createCellStyle();
+            sectionStyle.setFillForegroundColor(IndexedColors.CORNFLOWER_BLUE.getIndex());
+            sectionStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font sectionFont = workbook.createFont();
+            sectionFont.setBold(true);
+            sectionFont.setFontHeightInPoints((short) 11);
+            sectionStyle.setFont(sectionFont);
+            setBorder(sectionStyle);
+
+            // Data: bordered, wrap text
+            CellStyle dataStyle = workbook.createCellStyle();
+            setBorder(dataStyle);
+            dataStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            // Alt-row: bordered + light yellow
+            CellStyle altStyle = workbook.createCellStyle();
+            altStyle.cloneStyleFrom(dataStyle);
+            altStyle.setFillForegroundColor(IndexedColors.LEMON_CHIFFON.getIndex());
+            altStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            // Center: bordered, centered
+            CellStyle centerStyle = workbook.createCellStyle();
+            centerStyle.cloneStyleFrom(dataStyle);
+            centerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // Center-alt: bordered, centered + alt BG
+            CellStyle centerAltStyle = workbook.createCellStyle();
+            centerAltStyle.cloneStyleFrom(altStyle);
+            centerAltStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // Absent: rose BG, bordered
+            CellStyle absentStyle = workbook.createCellStyle();
+            absentStyle.cloneStyleFrom(dataStyle);
+            absentStyle.setFillForegroundColor(IndexedColors.ROSE.getIndex());
+            absentStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            // Center-absent
+            CellStyle centerAbsentStyle = workbook.createCellStyle();
+            centerAbsentStyle.cloneStyleFrom(absentStyle);
+            centerAbsentStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // Total: bold, tan BG, bordered
+            CellStyle totalStyle = workbook.createCellStyle();
+            Font totalFont = workbook.createFont();
+            totalFont.setBold(true);
+            totalStyle.setFont(totalFont);
+            totalStyle.setFillForegroundColor(IndexedColors.TAN.getIndex());
+            totalStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            setBorder(totalStyle);
+            totalStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // ─── Sheet 1: Thống kê chung ─────────────────────────────────────────
+            Sheet s1 = workbook.createSheet("Thống kê chung");
+            s1.setColumnWidth(0, 1600);   // STT
+            s1.setColumnWidth(1, 10000);  // Tên Khoa
+            s1.setColumnWidth(2, 4500);   // Tổng ĐK
+            s1.setColumnWidth(3, 4500);   // Đã tham gia
+            s1.setColumnWidth(4, 4000);   // Tỷ lệ
+
+            // Row 0 – tiêu đề
+            Row s1r0 = s1.createRow(0);
+            s1r0.setHeightInPoints(32);
+            Cell s1TitleCell = s1r0.createCell(0);
+            s1TitleCell.setCellValue("BÁO CÁO ĐĂNG KÝ THAM GIA HOẠT ĐỘNG");
+            s1TitleCell.setCellStyle(titleStyle);
+            s1.addMergedRegion(new CellRangeAddress(0, 0, 0, 4));
+
+            // Row 1 – tên hoạt động
+            Row s1r1 = s1.createRow(1);
+            s1r1.setHeightInPoints(20);
+            Cell s1Lbl1 = s1r1.createCell(0); s1Lbl1.setCellValue("Hoạt động:"); s1Lbl1.setCellStyle(labelStyle);
+            Cell s1Val1 = s1r1.createCell(1); s1Val1.setCellValue(hoatDong.getTenHoatDong());
+            s1.addMergedRegion(new CellRangeAddress(1, 1, 1, 4));
+
+            // Row 2 – ngày tổ chức
+            Row s1r2 = s1.createRow(2);
+            Cell s1Lbl2 = s1r2.createCell(0); s1Lbl2.setCellValue("Ngày tổ chức:"); s1Lbl2.setCellStyle(labelStyle);
+            s1r2.createCell(1).setCellValue(hoatDong.getNgayToChuc() != null ? hoatDong.getNgayToChuc().toString() : "");
+
+            // Row 3 – tổng số liệu
+            Row s1r3 = s1.createRow(3);
+            Cell s1Lbl3 = s1r3.createCell(0); s1Lbl3.setCellValue("Tổng đăng ký:"); s1Lbl3.setCellStyle(labelStyle);
+            s1r3.createCell(1).setCellValue(tongDangKy);
+            Cell s1Lbl3b = s1r3.createCell(2); s1Lbl3b.setCellValue("Đã tham gia:"); s1Lbl3b.setCellStyle(labelStyle);
+            s1r3.createCell(3).setCellValue(daThamGia);
+            s1r3.createCell(4).setCellValue(String.format("%.1f%%", tongDangKy > 0 ? (double) daThamGia / tongDangKy * 100 : 0));
+
+            // Row 4 – trống
+            s1.createRow(4);
+
+            // Row 5 – section header
+            Row s1SecRow = s1.createRow(5);
+            s1SecRow.setHeightInPoints(22);
+            Cell s1SecCell = s1SecRow.createCell(0);
+            s1SecCell.setCellValue("THỐNG KÊ THEO KHOA / ĐƠN VỊ");
+            s1SecCell.setCellStyle(sectionStyle);
+            for (int i = 1; i <= 4; i++) s1SecRow.createCell(i).setCellStyle(sectionStyle);
+            s1.addMergedRegion(new CellRangeAddress(5, 5, 0, 4));
+
+            // Row 6 – column headers
+            Row s1HdrRow = s1.createRow(6);
+            s1HdrRow.setHeightInPoints(22);
+            String[] s1Cols = {"STT", "Tên Khoa / Đơn vị", "Tổng Đăng Ký", "Đã Tham Gia", "Tỷ lệ (%)"};
+            for (int i = 0; i < s1Cols.length; i++) {
+                Cell c = s1HdrRow.createCell(i);
+                c.setCellValue(s1Cols[i]);
+                c.setCellStyle(headerStyle);
+            }
+
+            // Gom nhóm theo tenKhoa thực tế
+            Map<String, Long> regByKhoa = new LinkedHashMap<>();
+            Map<String, Long> attByKhoa = new LinkedHashMap<>();
+            for (DiemDanhHoatDongDTO a : attendanceList) {
+                String khoa = (a.getTenKhoa() != null && !a.getTenKhoa().isBlank()) ? a.getTenKhoa() : "Chưa xác định";
+                attByKhoa.merge(khoa, 1L, Long::sum);
+                regByKhoa.merge(khoa, 1L, Long::sum);
+            }
+            for (Map<String, Object> m : notCheckedIn) {
+                String khoa = (m.get("tenKhoa") != null && !m.get("tenKhoa").toString().isBlank())
+                        ? m.get("tenKhoa").toString() : "Chưa xác định";
+                regByKhoa.merge(khoa, 1L, Long::sum);
+            }
+
+            int sIdx = 7;
             int stt = 1;
-            for(String k : regByKhoa.keySet()) {
-                Row row = summarySheet.createRow(sIdx++);
-                row.createCell(0).setCellValue(stt++);
-                row.createCell(1).setCellValue(k);
-                row.createCell(2).setCellValue(regByKhoa.get(k));
-                row.createCell(3).setCellValue(attByKhoa.getOrDefault(k, 0L));
-                long total = regByKhoa.get(k);
-                row.createCell(4).setCellValue(total > 0 ? (double)attByKhoa.getOrDefault(k, 0L)/total*100 : 0);
+            for (Map.Entry<String, Long> entry : regByKhoa.entrySet()) {
+                Row row = s1.createRow(sIdx++);
+                long reg = entry.getValue();
+                long att = attByKhoa.getOrDefault(entry.getKey(), 0L);
+                CellStyle cs = (stt % 2 == 0) ? centerAltStyle : centerStyle;
+                CellStyle ds = (stt % 2 == 0) ? altStyle : dataStyle;
+                row.createCell(0).setCellStyle(cs);
+                row.getCell(0).setCellValue(stt++);
+                Cell c1 = row.createCell(1); c1.setCellValue(entry.getKey()); c1.setCellStyle(ds);
+                Cell c2 = row.createCell(2); c2.setCellValue(reg);            c2.setCellStyle(cs);
+                Cell c3 = row.createCell(3); c3.setCellValue(att);            c3.setCellStyle(cs);
+                Cell c4 = row.createCell(4); c4.setCellValue(String.format("%.1f%%", reg > 0 ? (double) att / reg * 100 : 0)); c4.setCellStyle(cs);
             }
 
-            // Sheet 2: Danh sách chi tiết
-            Sheet detailSheet = workbook.createSheet("Danh sách chi tiết");
-            Row headerRow = detailSheet.createRow(0);
-            String[] columns = {"STT", "Mã SV", "Họ Tên", "Lớp", "Check-in", "Trạng thái CI", "Check-out", "Trạng thái CO", "Trạng thái tham gia", "Ghi chú"};
-            for (int i = 0; i < columns.length; i++) {
-                Cell cell = headerRow.createCell(i);
-                cell.setCellValue(columns[i]);
+            // Total row
+            Row totalRow = s1.createRow(sIdx);
+            totalRow.setHeightInPoints(20);
+            totalRow.createCell(0).setCellStyle(totalStyle);
+            Cell tLbl = totalRow.createCell(1); tLbl.setCellValue("TỔNG CỘNG"); tLbl.setCellStyle(totalStyle);
+            Cell tReg = totalRow.createCell(2); tReg.setCellValue(tongDangKy);  tReg.setCellStyle(totalStyle);
+            Cell tAtt = totalRow.createCell(3); tAtt.setCellValue(daThamGia);   tAtt.setCellStyle(totalStyle);
+            Cell tRate = totalRow.createCell(4); tRate.setCellValue(String.format("%.1f%%", tongDangKy > 0 ? (double) daThamGia / tongDangKy * 100 : 0)); tRate.setCellStyle(totalStyle);
+
+            s1.createFreezePane(0, 7);
+
+            // ─── Sheet 2: Danh sách chi tiết ─────────────────────────────────────
+            Sheet s2 = workbook.createSheet("Danh sách chi tiết");
+            // Cols: STT | Mã SV | Họ Tên | Lớp | Khoa | Check-in | TT CI | Check-out | TT CO | Trạng thái | Ghi chú
+            int[] s2Widths = {1600, 3500, 8000, 3500, 6500, 6000, 4500, 6000, 4500, 4500, 6000};
+            for (int i = 0; i < s2Widths.length; i++) s2.setColumnWidth(i, s2Widths[i]);
+
+            // Row 0 – tiêu đề
+            Row s2Title = s2.createRow(0);
+            s2Title.setHeightInPoints(32);
+            Cell s2TCell = s2Title.createCell(0);
+            s2TCell.setCellValue("DANH SÁCH ĐĂNG KÝ THAM GIA: " + hoatDong.getTenHoatDong().toUpperCase());
+            s2TCell.setCellStyle(titleStyle);
+            s2.addMergedRegion(new CellRangeAddress(0, 0, 0, 10));
+
+            // Row 1 – thông tin tóm tắt
+            Row s2Info = s2.createRow(1);
+            s2Info.createCell(0).setCellValue(
+                    "Ngày: " + (hoatDong.getNgayToChuc() != null ? hoatDong.getNgayToChuc() : "")
+                    + "   |   Tổng đăng ký: " + tongDangKy
+                    + "   |   Đã tham gia: " + daThamGia
+                    + "   |   Vắng mặt: " + notCheckedIn.size());
+            s2.addMergedRegion(new CellRangeAddress(1, 1, 0, 10));
+
+            // Row 2 – column headers
+            Row s2Hdr = s2.createRow(2);
+            s2Hdr.setHeightInPoints(25);
+            String[] s2Cols = {"STT", "Mã SV", "Họ và Tên", "Lớp", "Khoa",
+                    "Check-in", "TT Check-in", "Check-out", "TT Check-out", "Trạng thái", "Ghi chú"};
+            for (int i = 0; i < s2Cols.length; i++) {
+                Cell c = s2Hdr.createCell(i);
+                c.setCellValue(s2Cols[i]);
+                c.setCellStyle(headerStyle);
             }
 
-            int rowIdx = 1;
-            for (DiemDanhHoatDongDTO dto : attendanceList) {
-                Row row = detailSheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(rowIdx - 1);
-                row.createCell(1).setCellValue(String.valueOf(dto.getMaSv()));
-                row.createCell(2).setCellValue(String.valueOf(dto.getHoTenSinhVien()));
-                row.createCell(3).setCellValue(String.valueOf(dto.getTenLop()));
-                row.createCell(4).setCellValue(dto.getThoiGianCheckIn() != null ? dto.getThoiGianCheckIn().toString() : "");
-                row.createCell(5).setCellValue(dto.getTrangThaiCheckIn() != null ? dto.getTrangThaiCheckIn() : "");
-                row.createCell(6).setCellValue(dto.getThoiGianCheckOut() != null ? dto.getThoiGianCheckOut().toString() : "");
-                row.createCell(7).setCellValue(dto.getTrangThaiCheckOut() != null ? dto.getTrangThaiCheckOut() : "");
-                row.createCell(8).setCellValue(dto.getTrangThai() != null ? dto.getTrangThai().name() : "");
-                row.createCell(9).setCellValue(String.valueOf(dto.getGhiChu() != null ? dto.getGhiChu() : ""));
+            int rowIdx = 3;
+
+            // --- Phần 1: Đã tham gia ---
+            if (!attendanceList.isEmpty()) {
+                Row secARow = s2.createRow(rowIdx++);
+                secARow.setHeightInPoints(20);
+                Cell secACell = secARow.createCell(0);
+                secACell.setCellValue("✓  ĐÃ THAM GIA  (" + attendanceList.size() + " người)");
+                secACell.setCellStyle(sectionStyle);
+                for (int i = 1; i <= 10; i++) secARow.createCell(i).setCellStyle(sectionStyle);
+                s2.addMergedRegion(new CellRangeAddress(rowIdx - 1, rowIdx - 1, 0, 10));
+
+                int idx = 1;
+                for (DiemDanhHoatDongDTO dto : attendanceList) {
+                    Row row = s2.createRow(rowIdx++);
+                    row.setHeightInPoints(18);
+                    boolean alt = (idx % 2 == 0);
+                    CellStyle cs = alt ? centerAltStyle : centerStyle;
+                    CellStyle ds = alt ? altStyle : dataStyle;
+
+                    row.createCell(0).setCellValue(idx++);   row.getCell(0).setCellStyle(cs);
+                    row.createCell(1).setCellValue(dto.getMaSv() != null ? dto.getMaSv() : "");                          row.getCell(1).setCellStyle(cs);
+                    row.createCell(2).setCellValue(dto.getHoTenSinhVien() != null ? dto.getHoTenSinhVien() : "");        row.getCell(2).setCellStyle(ds);
+                    row.createCell(3).setCellValue(dto.getMaLop() != null ? dto.getMaLop() : "");                        row.getCell(3).setCellStyle(cs);
+                    row.createCell(4).setCellValue(dto.getTenKhoa() != null ? dto.getTenKhoa() : "");                    row.getCell(4).setCellStyle(ds);
+                    row.createCell(5).setCellValue(dto.getThoiGianCheckIn() != null ? dto.getThoiGianCheckIn().toString().replace("T", " ") : ""); row.getCell(5).setCellStyle(cs);
+                    row.createCell(6).setCellValue(dto.getTrangThaiCheckIn() != null ? dto.getTrangThaiCheckIn() : "");  row.getCell(6).setCellStyle(cs);
+                    row.createCell(7).setCellValue(dto.getThoiGianCheckOut() != null ? dto.getThoiGianCheckOut().toString().replace("T", " ") : ""); row.getCell(7).setCellStyle(cs);
+                    row.createCell(8).setCellValue(dto.getTrangThaiCheckOut() != null ? dto.getTrangThaiCheckOut() : ""); row.getCell(8).setCellStyle(cs);
+                    row.createCell(9).setCellValue(dto.getTrangThai() != null ? dto.getTrangThai().name() : "");          row.getCell(9).setCellStyle(cs);
+                    row.createCell(10).setCellValue(dto.getGhiChu() != null ? dto.getGhiChu() : "");                     row.getCell(10).setCellStyle(ds);
+                }
             }
 
-            for (Map<String, Object> map : notCheckedIn) {
-                Row row = detailSheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(rowIdx - 1);
-                row.createCell(1).setCellValue(String.valueOf(map.get("maSv")));
-                row.createCell(2).setCellValue(String.valueOf(map.get("hoTen")));
-                row.createCell(3).setCellValue("");
-                row.createCell(4).setCellValue("");
-                row.createCell(5).setCellValue("");
-                row.createCell(6).setCellValue("");
-                row.createCell(7).setCellValue("");
-                row.createCell(8).setCellValue("VANG_MAT");
-                row.createCell(9).setCellValue("Chưa quét mã QR");
+            // --- Phần 2: Vắng mặt ---
+            if (!notCheckedIn.isEmpty()) {
+                Row secBRow = s2.createRow(rowIdx++);
+                secBRow.setHeightInPoints(20);
+                Cell secBCell = secBRow.createCell(0);
+                secBCell.setCellValue("✗  VẮNG MẶT  (" + notCheckedIn.size() + " người)");
+                secBCell.setCellStyle(sectionStyle);
+                for (int i = 1; i <= 10; i++) secBRow.createCell(i).setCellStyle(sectionStyle);
+                s2.addMergedRegion(new CellRangeAddress(rowIdx - 1, rowIdx - 1, 0, 10));
+
+                int idx = 1;
+                for (Map<String, Object> m : notCheckedIn) {
+                    Row row = s2.createRow(rowIdx++);
+                    row.setHeightInPoints(18);
+                    row.createCell(0).setCellValue(idx++);       row.getCell(0).setCellStyle(centerAbsentStyle);
+                    row.createCell(1).setCellValue(m.get("maSv") != null ? m.get("maSv").toString() : "");     row.getCell(1).setCellStyle(centerAbsentStyle);
+                    row.createCell(2).setCellValue(m.get("hoTen") != null ? m.get("hoTen").toString() : "");   row.getCell(2).setCellStyle(absentStyle);
+                    row.createCell(3).setCellValue(m.get("maLop") != null ? m.get("maLop").toString() : "");   row.getCell(3).setCellStyle(centerAbsentStyle);
+                    row.createCell(4).setCellValue(m.get("tenKhoa") != null ? m.get("tenKhoa").toString() : ""); row.getCell(4).setCellStyle(absentStyle);
+                    for (int i = 5; i <= 9; i++) row.createCell(i).setCellStyle(centerAbsentStyle);
+                    row.getCell(9).setCellValue("VẮNG MẶT");
+                    row.createCell(10).setCellValue("Chưa quét mã QR"); row.getCell(10).setCellStyle(absentStyle);
+                }
             }
+
+            s2.createFreezePane(0, 3);
 
             workbook.write(out);
             return new ByteArrayInputStream(out.toByteArray());
         }
+    }
+
+    /** Helper: áp dụng viền mỏng 4 phía cho CellStyle */
+    private void setBorder(CellStyle style) {
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
     }
 
     @Transactional(readOnly = true)
@@ -561,10 +767,12 @@ public class DiemDanhHoatDongService {
 
         return results.stream().map(row -> {
             Map<String, Object> map = new HashMap<>();
-            map.put("maSv", row[0]);
-            map.put("hoTen", row[1]);
-            map.put("maQR", row[2]);
+            map.put("maSv",       row[0]);
+            map.put("hoTen",      row[1]);
+            map.put("maQR",       row[2]);
             map.put("ngayDangKy", row[3]);
+            map.put("maLop",      row[4] != null ? row[4].toString() : "");
+            map.put("tenKhoa",    row[5] != null ? row[5].toString() : "");
             return map;
         }).collect(Collectors.toList());
     }
@@ -777,7 +985,10 @@ public class DiemDanhHoatDongService {
                 .maSv(entity.getSinhVien().getMaSv())
                 .hoTenSinhVien(entity.getSinhVien().getHoTen())
                 .emailSinhVien(entity.getSinhVien().getEmail())
-                .tenLop(entity.getSinhVien().getLop().getTenLop())
+                .maLop(entity.getSinhVien().getLop() != null ? entity.getSinhVien().getLop().getMaLop() : null)
+                .tenLop(entity.getSinhVien().getLop() != null ? entity.getSinhVien().getLop().getTenLop() : null)
+                .tenKhoa(entity.getSinhVien().getLop() != null && entity.getSinhVien().getLop().getMaKhoa() != null
+                        ? entity.getSinhVien().getLop().getMaKhoa().getTenKhoa() : null)
                 .maQRDaQuet(entity.getMaQRDaQuet())
                 .trangThai(entity.getTrangThai())
                 .thoiGianCheckIn(entity.getThoiGianCheckIn())

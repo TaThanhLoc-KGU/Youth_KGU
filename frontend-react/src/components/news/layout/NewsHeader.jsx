@@ -4,11 +4,22 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, User, LogIn, Menu, X, ChevronDown, ChevronRight } from 'lucide-react';
 import newsService from '../../../services/newsService';
 import useAuthStore from '../../../stores/authStore';
+import { PERMISSIONS } from '../../../utils/constants';
 
 const NewsHeader = ({ onMenuToggle, menuOpen }) => {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, permissions } = useAuthStore();
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Quyền vào trang quản trị
+  const canAdmin = isAuthenticated && permissions.some(p => [
+    PERMISSIONS.DANG_TIN_TUC,
+    PERMISSIONS.SUA_TIN_TUC,
+    PERMISSIONS.DUYET_TIN_TUC,
+    PERMISSIONS.QUAN_LY_VAN_BAN,
+    PERMISSIONS.XEM_THONG_KE,
+    PERMISSIONS.XEM_HOAT_DONG
+  ].includes(p));
   const [searchQuery, setSearchQuery] = useState('');
   const [openMenu, setOpenMenu] = useState(null);
   const headerRef = useRef(null);
@@ -76,7 +87,7 @@ const NewsHeader = ({ onMenuToggle, menuOpen }) => {
           cats: flattenChildren(chungCats),
         }]
       : []),
-    { label: 'Văn bản', path: '/news/van-ban', cats: [] },
+    { label: 'Văn bản', path: '/van-ban', cats: [] },
   ];
 
   const navLinkCls =
@@ -133,10 +144,21 @@ const NewsHeader = ({ onMenuToggle, menuOpen }) => {
           )}
 
           {isAuthenticated ? (
-            <Link to="/profile" className="flex items-center gap-1.5 text-sm hover:bg-enews-600 px-3 py-1.5 rounded-lg transition-colors">
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline truncate max-w-24">{user?.hoTen || user?.username}</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              {canAdmin && (
+                <Link
+                  to="/admin/dashboard"
+                  className="flex items-center gap-1.5 text-xs bg-enews-600 hover:bg-enews-500 border border-enews-400 px-3 py-1.5 rounded-lg font-medium transition-colors"
+                >
+                  <span className="hidden sm:inline">Quản trị</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+              <Link to="/profile" className="flex items-center gap-1.5 text-sm hover:bg-enews-600 px-3 py-1.5 rounded-lg transition-colors">
+                <User className="w-4 h-4" />
+                <span className="hidden sm:inline truncate max-w-24">{user?.hoTen || user?.username}</span>
+              </Link>
+            </div>
           ) : (
             <Link
               to="/login"

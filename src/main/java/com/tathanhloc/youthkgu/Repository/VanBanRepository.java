@@ -15,14 +15,13 @@ public interface VanBanRepository extends JpaRepository<VanBan, Long> {
 
     Optional<VanBan> findByIdAndIsDeletedFalse(Long id);
 
-    // Search autocomplete khi tạo bài — tìm theo số hiệu hoặc trích yếu
+    // Search autocomplete khi tạo bài — tìm theo số hiệu hoặc trích yếu (cả DRAFT lẫn PUBLISHED)
     @Query("""
             SELECT v FROM VanBan v
             WHERE (LOWER(v.soHieu) LIKE LOWER(CONCAT('%', :keyword, '%'))
                 OR LOWER(v.trichYeu) LIKE LOWER(CONCAT('%', :keyword, '%')))
-              AND v.trangThai = 'PUBLISHED'
               AND v.isDeleted = false
-            ORDER BY v.ngayBanHanh DESC, v.createdAt DESC
+            ORDER BY v.trangThai DESC, v.ngayBanHanh DESC, v.createdAt DESC
             """)
     List<VanBan> searchForAutocomplete(@Param("keyword") String keyword, Pageable pageable);
 

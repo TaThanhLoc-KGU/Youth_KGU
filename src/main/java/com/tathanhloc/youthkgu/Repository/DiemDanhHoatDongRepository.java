@@ -37,7 +37,9 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             "AND dd.trangThai = 'DA_THAM_GIA' ORDER BY dd.thoiGianCheckIn DESC")
     List<DiemDanhHoatDong> findCheckedInStudents(@Param("maHoatDong") String maHoatDong);
 
-    @Query("SELECT sv.maSv, sv.hoTen, dk.maQR, dk.ngayDangKy " +
+    @Query("SELECT sv.maSv, sv.hoTen, dk.maQR, dk.ngayDangKy, " +
+            "CASE WHEN sv.lop IS NOT NULL THEN sv.lop.maLop ELSE NULL END, " +
+            "CASE WHEN sv.lop IS NOT NULL AND sv.lop.maKhoa IS NOT NULL THEN sv.lop.maKhoa.tenKhoa ELSE NULL END " +
             "FROM DangKyHoatDong dk " +
             "JOIN dk.sinhVien sv " +
             "WHERE dk.hoatDong.maHoatDong = :maHoatDong " +

@@ -51,4 +51,7 @@ public class AccountDTO {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    /** Cấp BCH: 1/2/3/4. Null nếu không phải BCH. */
+    private Integer bchLevel;
 }

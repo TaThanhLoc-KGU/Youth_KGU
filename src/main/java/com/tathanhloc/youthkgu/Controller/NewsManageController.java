@@ -36,8 +36,23 @@ public class NewsManageController {
     private final TinTucService tinTucService;
     private final VanBanService vanBanService;
     private final ChuyenMucService chuyenMucService;
+    private final com.tathanhloc.youthkgu.Service.FileStorageService fileStorageService;
 
     // ── Tin Tức CRUD ──────────────────────────────────────────────────────────
+
+    /**
+     * POST /api/news/upload-image
+     * Upload ảnh chung (avatar bài viết hoặc chèn vào editor).
+     * Trả về { "url": "..." }
+     */
+    @PostMapping("/upload-image")
+    @PreAuthorize("hasPermission(null, 'DANG_TIN_TUC')")
+    public ResponseEntity<java.util.Map<String, String>> uploadGeneralImage(
+            @RequestParam("file") MultipartFile file) {
+        log.info("Upload general news image: {}", file.getOriginalFilename());
+        String url = fileStorageService.saveNewsImage(file);
+        return ResponseEntity.ok(java.util.Map.of("url", url));
+    }
 
     /**
      * POST /api/news
@@ -53,20 +68,23 @@ public class NewsManageController {
     }
 
     /**
-     * GET /api/news?page=0&size=10
-     * Danh sách bài viết — ADMIN thấy tất cả, user khác chỉ thấy bài của đơn vị mình.
+     * GET /api/news?page=0&size=10&keyword=abc&trangThai=PUBLISHED
+     * Danh sách bài viết — tất cả BCH/Admin đều thấy toàn bộ bài,
+     * hỗ trợ filter keyword và trangThai.
      */
     @GetMapping
     @PreAuthorize("hasPermission(null, 'DANG_TIN_TUC')")
     public ResponseEntity<Page<TinTucDTO>> getDanhSach(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String trangThai,
             Authentication auth) {
-        log.info("Get news list for user={}", auth.getName());
-        boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        log.info("Get news list for user={} keyword={} trangThai={}", auth.getName(), keyword, trangThai);
+        // Tất cả người có quyền DANG_TIN_TUC đều thấy toàn bộ bài
+        // (BCH muốn cộng tác, review bài của các ban khác)
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(tinTucService.getDanhSach(auth.getName(), isAdmin, pageable));
+        return ResponseEntity.ok(tinTucService.getDanhSach(keyword, trangThai, pageable));
     }
 
     /**
@@ -154,7 +172,7 @@ public class NewsManageController {
      * Chỉ trả về văn bản PUBLISHED.
      */
     @GetMapping("/van-ban/search")
-    @PreAuthorize("hasPermission(null, 'DANG_TIN_TUC')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<VanBanSearchResultDTO>> searchVanBan(
             @RequestParam String keyword) {
         log.info("Search van ban autocomplete - keyword={}", keyword);

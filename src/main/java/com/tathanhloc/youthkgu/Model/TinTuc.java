@@ -70,6 +70,9 @@ public class TinTuc {
     @Column(name = "nguoi_tao", nullable = false, length = 50)
     private String nguoiTao;    // FK mềm → tai_khoan.username
 
+    @Column(name = "tac_gia", length = 150)
+    private String tacGia;      // Tên hiển thị tác giả (ví dụ: "Ban Học thuật KGU")
+
     @Column(name = "don_vi_dang", length = 100)
     private String donViDang;
 

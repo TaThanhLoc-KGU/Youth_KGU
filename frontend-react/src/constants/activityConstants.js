@@ -1,24 +1,28 @@
-// Loại hoạt động
+// Loại hoạt động — PHẢI khớp với LoaiHoatDongEnum.java ở backend
 export const LOAI_HOAT_DONG = {
-  HOI_THAO: { value: 'HOI_THAO', label: 'Hội thảo', color: '#3B82F6' },
-  SINH_HOAT: { value: 'SINH_HOAT', label: 'Sinh hoạt', color: '#10B981' },
-  THAM_QUAN: { value: 'THAM_QUAN', label: 'Tham quan', color: '#F59E0B' },
-  TINH_NGUYEN: { value: 'TINH_NGUYEN', label: 'Tình nguyện', color: '#EF4444' },
-  VAN_HOA_VAN_NGHE: { value: 'VAN_HOA_VAN_NGHE', label: 'Văn hóa văn nghệ', color: '#8B5CF6' },
-  THE_THAO: { value: 'THE_THAO', label: 'Thể thao', color: '#EC4899' },
-  HOC_TAP: { value: 'HOC_TAP', label: 'Học tập', color: '#6366F1' },
-  KHAC: { value: 'KHAC', label: 'Khác', color: '#6B7280' },
+  CHINH_TRI:         { value: 'CHINH_TRI',         label: 'Chính trị',           color: '#3B82F6' },
+  VAN_HOA_NGHE_THUAT:{ value: 'VAN_HOA_NGHE_THUAT',label: 'Văn hóa - Nghệ thuật', color: '#8B5CF6' },
+  THE_THAO:          { value: 'THE_THAO',           label: 'Thể thao',            color: '#EC4899' },
+  TINH_NGUYEN:       { value: 'TINH_NGUYEN',        label: 'Tình nguyện',         color: '#EF4444' },
+  HOC_THUAT:         { value: 'HOC_THUAT',          label: 'Học thuật',           color: '#6366F1' },
+  KY_NANG_MEM:       { value: 'KY_NANG_MEM',        label: 'Kỹ năng mềm',        color: '#F59E0B' },
+  DOAN_HOI:          { value: 'DOAN_HOI',           label: 'Đoàn - Hội',          color: '#10B981' },
+  CONG_DONG:         { value: 'CONG_DONG',          label: 'Cộng đồng',           color: '#06B6D4' },
+  KHAC:              { value: 'KHAC',               label: 'Khác',                color: '#6B7280' },
 };
 
 export const LOAI_HOAT_DONG_OPTIONS = Object.values(LOAI_HOAT_DONG);
 
-// Cấp độ
+// Cấp độ — PHẢI khớp với CapDoEnum.java ở backend
 export const CAP_DO = {
-  KHOA: { value: 'KHOA', label: 'Khoa', color: '#3B82F6' },
-  TRUONG: { value: 'TRUONG', label: 'Trường', color: '#10B981' },
-  DOAN_TRUONG: { value: 'DOAN_TRUONG', label: 'Đoàn trường', color: '#F59E0B' },
-  THANH_PHO: { value: 'THANH_PHO', label: 'Thành phố', color: '#EF4444' },
-  QUOC_GIA: { value: 'QUOC_GIA', label: 'Quốc gia', color: '#8B5CF6' },
+  DOAN_TRUONG:        { value: 'DOAN_TRUONG',        label: 'Đoàn trường',          color: '#3B82F6' },
+  HOI_SINH_VIEN:      { value: 'HOI_SINH_VIEN',      label: 'Hội sinh viên',        color: '#10B981' },
+  TRUONG:             { value: 'TRUONG',             label: 'Trường',               color: '#F59E0B' },
+  PHONG:              { value: 'PHONG',              label: 'Phòng',                color: '#8B5CF6' },
+  KHOA:               { value: 'KHOA',               label: 'Khoa',                 color: '#EF4444' },
+  CHI_DOAN:           { value: 'CHI_DOAN',           label: 'Chi đoàn',             color: '#6366F1' },
+  TINH_DOAN:          { value: 'TINH_DOAN',          label: 'Tỉnh đoàn',            color: '#EC4899' },
+  HOAT_DONG_PHOI_HOP: { value: 'HOAT_DONG_PHOI_HOP', label: 'Hoạt động phối hợp',  color: '#6B7280' },
 };
 
 export const CAP_DO_OPTIONS = Object.values(CAP_DO);

@@ -9,13 +9,12 @@ import PostCard from '../../components/news/public/PostCard';
 const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://youth-kgu.edu.vn';
 const PAGE_SIZE = 12;
 
-const CategoryPage = ({ category, initialPosts }) => {
+const CategoryPage = ({ category }) => {
   const [page, setPage] = useState(0);
 
   const { data, isLoading } = useQuery({
     queryKey: ['news-category', category?.id, page],
     queryFn: () => newsService.getDanhSach({ chuyenMucId: category?.id, page, size: PAGE_SIZE }),
-    initialData: page === 0 ? initialPosts : undefined,
     staleTime: 5 * 60 * 1000,
     enabled: !!category?.id,
   });

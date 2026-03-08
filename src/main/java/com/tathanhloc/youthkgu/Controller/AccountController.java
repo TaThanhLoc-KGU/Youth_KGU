@@ -425,6 +425,30 @@ public class AccountController {
     }
 
     /**
+     * Reset mật khẩu về mặc định KGU@123456
+     * Yêu cầu quyền SUA_TAI_KHOAN (Admin hoặc BCH Level 1)
+     */
+    @PostMapping("/{accountId}/reset-password")
+    @PreAuthorize("hasPermission(null, 'SUA_TAI_KHOAN')")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@PathVariable Long accountId) {
+        log.info("POST /api/accounts/{}/reset-password - Reset mật khẩu", accountId);
+        try {
+            String username = accountService.resetPassword(accountId);
+            return ResponseEntity.ok(
+                    ApiResponse.<Void>builder()
+                            .success(true)
+                            .message("Đã reset mật khẩu của \"" + username + "\" về KGU@123456")
+                            .build());
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.<Void>builder().success(false).message(e.getMessage()).build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<Void>builder().success(false).message(e.getMessage()).build());
+        }
+    }
+
+    /**
      * Kích hoạt/Vô hiệu hóa tài khoản (Admin only)
      */
     @PatchMapping("/{accountId}/active")

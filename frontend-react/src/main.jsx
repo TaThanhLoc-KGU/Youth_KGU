@@ -20,12 +20,11 @@ const queryClient = new QueryClient({
 })
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <App />
-          <ToastContainer
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <App />
+        <ToastContainer
           position="top-right"
           autoClose={3000}
           hideProgressBar={false}
@@ -36,9 +35,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           draggable
           pauseOnHover
           theme="light"
-          />
-        </BrowserRouter>
-      </QueryClientProvider>
-    </HelmetProvider>
-  </React.StrictMode>,
+        />
+      </BrowserRouter>
+    </QueryClientProvider>
+  </HelmetProvider>,
 )

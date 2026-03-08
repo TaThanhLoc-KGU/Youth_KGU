@@ -16,6 +16,18 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
 ];
 
+/**
+ * Kiểm tra user mới đăng nhập có thể vào đường dẫn `from` không.
+ * Tránh redirect user A vào route của user B sau khi đổi tài khoản.
+ */
+const canAccessFromPath = (from, vaiTro, laBCHFlag, hasAdminPerm) => {
+  if (!from || from === ROUTES.LOGIN || from === '/') return false;
+  if (from.startsWith('/admin'))   return vaiTro === ROLES.ADMIN || hasAdminPerm;
+  if (from.startsWith('/bch'))     return laBCHFlag;
+  if (from.startsWith('/student')) return vaiTro === ROLES.SINHVIEN;
+  return true; // /profile và các route công khai
+};
+
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,11 +45,12 @@ const Login = () => {
   useEffect(() => {
     if (!isAuthenticated || !authUser) return;
     const from = location.state?.from?.pathname;
-    if (from && from !== ROUTES.LOGIN) {
+    const hasAdminPerm = ADMIN_SECTION_PERMS.some((p) => permissions.includes(p));
+    // Validate: chỉ redirect về `from` nếu user này thực sự có quyền vào đó
+    if (canAccessFromPath(from, authUser.vaiTro, laBCH, hasAdminPerm)) {
       navigate(from, { replace: true });
       return;
     }
-    const hasAdminPerm = ADMIN_SECTION_PERMS.some((p) => permissions.includes(p));
     if (authUser.vaiTro === ROLES.ADMIN || hasAdminPerm) {
       navigate(ROUTES.ADMIN_DASHBOARD, { replace: true });
     } else if (laBCH) {
@@ -68,13 +81,6 @@ const Login = () => {
       // 2. Clear query cache again after login just in case
       queryClient.clear();
 
-      // Nếu có trang được yêu cầu trước đó, quay lại trang đó
-      const from = location.state?.from?.pathname;
-      if (from && from !== ROUTES.LOGIN) {
-        navigate(from);
-        return;
-      }
-
       // Redirect theo role + permissions
       const vaiTro = result.user.vaiTro;
       const laBCH  = result.laBCH;
@@ -82,6 +88,14 @@ const Login = () => {
       // Lấy permissions từ store sau khi login đã cập nhật xong
       const { permissions: loadedPerms } = useAuthStore.getState();
       const hasAdminPerm = ADMIN_SECTION_PERMS.some((p) => loadedPerms.includes(p));
+
+      // Nếu có trang được yêu cầu trước đó, quay lại — nhưng chỉ khi user này có quyền vào đó.
+      // Tránh trường hợp user A logout ở /admin/students → user B login → bị redirect vào /admin/students
+      const from = location.state?.from?.pathname;
+      if (canAccessFromPath(from, vaiTro, laBCH, hasAdminPerm)) {
+        navigate(from, { replace: true });
+        return;
+      }
 
       if (vaiTro === ROLES.ADMIN) {
         // ADMIN role → dashboard quản trị

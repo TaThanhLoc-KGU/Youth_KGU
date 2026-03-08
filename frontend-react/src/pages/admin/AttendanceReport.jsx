@@ -85,12 +85,12 @@ const ActivityReportTab = ({ canExport }) => {
         <div className="p-4 flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Từ ngày</label>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+            <input type="date" lang="vi" value={startDate} onChange={e => setStartDate(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Đến ngày</label>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+            <input type="date" lang="vi" value={endDate} onChange={e => setEndDate(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
           </div>
           <Button variant="outline" icon={RefreshCw} onClick={() => refetch()}>Làm mới</Button>

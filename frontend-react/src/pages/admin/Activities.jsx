@@ -3,16 +3,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
-import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList, Bell } from 'lucide-react';
 import activityService from '../../services/activityService';
+import newsService from '../../services/newsService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import SearchInput from '../../components/common/SearchInput';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
-import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
-import ActivityForm from '../../components/activity/ActivityForm';
+import Modal from '../../components/common/Modal';
 import ActivityCard from '../../components/activity/ActivityCard';
 import ActivityDetail from '../../components/admin/ActivityDetail';
 import { formatDate } from '../../utils/dateFormat';
@@ -42,16 +42,15 @@ const Activities = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
-  const [modalMode, setModalMode] = useState('create');
 
-  // Fetch activities with pagination
+  // Fetch activities with pagination — chỉ khi có quyền xem
   const { data: activitiesData, isLoading, refetch } = useQuery({
     queryKey: ['activities', page, size, search, statusFilter],
     queryFn: () => activityService.getAllWithPagination({ page, size }),
-    keepPreviousData: true
+    keepPreviousData: true,
+    enabled: canView,
   });
 
   // Delete mutation
@@ -64,6 +63,18 @@ const Activities = () => {
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Xóa hoạt động thất bại!');
     },
+  });
+
+  // Broadcast notification mutation
+  const broadcastMutation = useMutation({
+    mutationFn: (row) => newsService.broadcastNotification({
+      title: `🎯 Hoạt động mới: ${row.tenHoatDong}`,
+      message: `Hoạt động "${row.tenHoatDong}" sẽ diễn ra vào ${row.ngayToChuc ? new Date(row.ngayToChuc).toLocaleDateString('vi-VN') : ''}. Đăng ký ngay!`,
+      type: 'HOAT_DONG',
+      relatedId: row.maHoatDong,
+    }),
+    onSuccess: (count) => toast.success(`Đã gửi thông báo đến ${count} người dùng`),
+    onError: (e) => toast.error(e.response?.data?.message || 'Gửi thông báo thất bại'),
   });
 
   // Table columns
@@ -188,6 +199,17 @@ const Activities = () => {
               title="Sửa"
             />
           )}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Bell}
+              onClick={(e) => { e.stopPropagation(); broadcastMutation.mutate(row); }}
+              title="Gửi thông báo đến tất cả người dùng"
+              disabled={broadcastMutation.isPending}
+              className="text-indigo-500 hover:text-indigo-700"
+            />
+          )}
           {canDelete && (
             <Button
               size="sm"
@@ -208,14 +230,7 @@ const Activities = () => {
   };
 
   const handleEdit = (activity) => {
-    // For now, we can use the modal or navigate to an edit page
-    // If using modal:
-    setModalMode('edit');
-    setSelectedActivity(activity);
-    setIsModalOpen(true);
-    
-    // If you want to navigate to an edit page later:
-    // navigate(`/admin/activities/edit/${activity.maHoatDong}`);
+    navigate(`/admin/activities/${activity.maHoatDong}/edit`);
   };
 
   const handleView = (activity) => {
@@ -227,11 +242,6 @@ const Activities = () => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa hoạt động "${activity.tenHoatDong}"?`)) {
       deleteMutation.mutate(activity.maHoatDong);
     }
-  };
-
-  const handleFormSuccess = () => {
-    setIsModalOpen(false);
-    queryClient.invalidateQueries(['activities']);
   };
 
   return (
@@ -291,21 +301,6 @@ const Activities = () => {
           loading={isLoading}
         />
       </Card>
-
-      {/* Create/Edit Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={modalMode === 'create' ? 'Tạo hoạt động mới' : 'Chỉnh sửa hoạt động'}
-        size="xl"
-      >
-        <ActivityForm
-          initialData={selectedActivity}
-          mode={modalMode}
-          onSuccess={handleFormSuccess}
-          onCancel={() => setIsModalOpen(false)}
-        />
-      </Modal>
 
       {/* Detail Modal */}
       <Modal

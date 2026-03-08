@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import QRCode from 'react-qr-code';
@@ -12,6 +12,9 @@ import {
   Search,
   RefreshCw,
   Trash2,
+  Navigation,
+  NavigationOff,
+  Loader2,
 } from 'lucide-react';
 import dangKyService from '../../services/dangKyService';
 import useAuthStore from '../../stores/authStore';
@@ -56,6 +59,8 @@ const MyActivities = () => {
   const [filterAttended, setFilterAttended] = useState('all');
   const [selectedReg, setSelectedReg] = useState(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [locationStatus, setLocationStatus] = useState('idle'); // idle | loading | sent | denied | error
+  const locationSentRef = useRef(false); // tránh gửi nhiều lần trong 1 lần mở
 
   // Fetch student's registrations
   const { data: registrations = [], isLoading, refetch } = useQuery({
@@ -92,6 +97,32 @@ const MyActivities = () => {
   const handleShowQR = (reg) => {
     setSelectedReg(reg);
     setQrModalOpen(true);
+    setLocationStatus('loading');
+    locationSentRef.current = false;
+
+    // Lấy GPS sinh viên ngay khi mở QR (chống điểm danh hộ)
+    if (!navigator.geolocation) {
+      setLocationStatus('denied');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        if (locationSentRef.current) return;
+        locationSentRef.current = true;
+        try {
+          await dangKyService.submitCheckInLocation(
+            reg.maQR,
+            pos.coords.latitude,
+            pos.coords.longitude,
+          );
+          setLocationStatus('sent');
+        } catch {
+          setLocationStatus('error');
+        }
+      },
+      () => setLocationStatus('denied'),
+      { timeout: 8000, maximumAge: 0 },
+    );
   };
 
   const handleCancel = (reg) => {
@@ -329,6 +360,30 @@ const MyActivities = () => {
                 {selectedReg.maQR}
               </p>
             </div>
+
+            {/* Location status */}
+            {!selectedReg.daDiemDanh && (
+              <div className={`flex items-center gap-2 text-xs rounded-lg p-2.5 border ${
+                locationStatus === 'sent'
+                  ? 'bg-green-50 text-green-700 border-green-200'
+                  : locationStatus === 'denied' || locationStatus === 'error'
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-gray-50 text-gray-500 border-gray-200'
+              }`}>
+                {locationStatus === 'loading' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {locationStatus === 'sent'    && <Navigation className="w-3.5 h-3.5" />}
+                {locationStatus === 'denied'  && <NavigationOff className="w-3.5 h-3.5" />}
+                {locationStatus === 'error'   && <NavigationOff className="w-3.5 h-3.5" />}
+                {locationStatus === 'idle'    && <Navigation className="w-3.5 h-3.5" />}
+                <span>
+                  {locationStatus === 'loading' && 'Đang xác định vị trí...'}
+                  {locationStatus === 'sent'    && 'Vị trí đã được ghi nhận'}
+                  {locationStatus === 'denied'  && 'Không thể xác định vị trí (cấp quyền trên trình duyệt)'}
+                  {locationStatus === 'error'   && 'Ghi vị trí thất bại — tiếp tục điểm danh bình thường'}
+                  {locationStatus === 'idle'    && ''}
+                </span>
+              </div>
+            )}
 
             {selectedReg.daDiemDanh ? (
               <div className="flex items-center justify-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-3">

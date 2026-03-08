@@ -46,6 +46,18 @@ public class DangKyHoatDong {
     @Builder.Default
     private Boolean isActive = true;
 
+    /** Vĩ độ sinh viên lúc mở QR code để điểm danh (chống điểm danh hộ) */
+    @Column(name = "student_latitude")
+    private Double studentLatitude;
+
+    /** Kinh độ sinh viên lúc mở QR code để điểm danh */
+    @Column(name = "student_longitude")
+    private Double studentLongitude;
+
+    /** Thời điểm sinh viên gửi vị trí lên */
+    @Column(name = "student_location_time")
+    private LocalDateTime studentLocationTime;
+
     @CreationTimestamp
     @Column(name = "ngay_dang_ky")
     private LocalDateTime ngayDangKy;

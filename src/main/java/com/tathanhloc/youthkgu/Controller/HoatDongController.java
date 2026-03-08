@@ -171,7 +171,7 @@ public class HoatDongController {
 
     @GetMapping("/search")
     @Operation(summary = "Tìm kiếm hoạt động")
-    @PreAuthorize("hasPermission(null, 'XEM_HOAT_DONG')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> search(
             @RequestParam String keyword) {
         log.info("GET /api/hoat-dong/search?keyword={}", keyword);

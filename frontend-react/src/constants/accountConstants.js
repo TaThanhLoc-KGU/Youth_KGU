@@ -45,6 +45,7 @@ export const ROLE_SINHVIEN = 'SINH_VIEN';
 export const ROLE_LABELS = {
   // System Roles
   ADMIN: 'Quản trị viên',
+  BCH: 'Ban Chấp Hành',
   GIANG_VIEN: 'Giảng viên',
   SINH_VIEN: 'Sinh viên',
   CHUYEN_VIEN: 'Chuyên viên',
@@ -69,7 +70,8 @@ export const DEPARTMENT_DOAN = {
   BAN_GIAO_LUU_HOP_TAC_DOAN: 'BAN_GIAO_LUU_HOP_TAC_DOAN'
 };
 
-export const DEPARTMENT_HOI = {
+export const
+    DEPARTMENT_HOI = {
   BAN_TU_VAN_HOI: 'BAN_TU_VAN_HOI',
   BAN_DAO_TAO_HO_TRO_HOI: 'BAN_DAO_TAO_HO_TRO_HOI',
   BAN_CHUONG_TRINH_HOI: 'BAN_CHUONG_TRINH_HOI',
@@ -174,6 +176,7 @@ export const ACCOUNT_API = {
 
 export const ROLE_OPTIONS = [
   { value: 'ADMIN', label: 'Quản trị viên', group: 'Hệ thống' },
+  { value: 'BCH', label: 'Ban Chấp Hành (BCH)', group: 'Tổ chức' },
   { value: 'GIANG_VIEN', label: 'Giảng viên', group: 'Hệ thống' },
   { value: 'SINH_VIEN', label: 'Sinh viên', group: 'Hệ thống' },
   { value: 'CHUYEN_VIEN', label: 'Chuyên viên', group: 'Hệ thống' }

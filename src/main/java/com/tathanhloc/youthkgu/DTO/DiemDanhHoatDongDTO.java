@@ -24,7 +24,9 @@ public class DiemDanhHoatDongDTO {
     private String maSv;
     private String hoTenSinhVien; // Thêm để hiển thị
     private String emailSinhVien; // Thêm để hiển thị
-    private String tenLop; // Thêm để hiển thị
+    private String maLop;         // Mã lớp (dùng trong Excel)
+    private String tenLop;        // Tên lớp
+    private String tenKhoa;       // Tên khoa (dùng trong Excel)
 
     /**
      * Mã QR đã được quét

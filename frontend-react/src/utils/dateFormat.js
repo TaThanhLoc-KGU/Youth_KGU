@@ -1,9 +1,9 @@
 // Date utility functions for Vietnamese format
 
 /**
- * Format date to Vietnamese format DD-MM-YYYY
+ * Format date to Vietnamese format DD/MM/YYYY
  * @param {Date | string} date - Date object or ISO string
- * @returns {string} Formatted date string (DD-MM-YYYY)
+ * @returns {string} Formatted date string (DD/MM/YYYY)
  */
 export const formatDate = (date) => {
   if (!date) return '';
@@ -15,7 +15,7 @@ export const formatDate = (date) => {
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
-    return `${day}-${month}-${year}`;
+    return `${day}/${month}/${year}`;
   } catch (error) {
     console.error('Date formatting error:', error);
     return '';
@@ -23,7 +23,7 @@ export const formatDate = (date) => {
 };
 
 /**
- * Format date with time to Vietnamese format DD-MM-YYYY HH:mm
+ * Format date with time to Vietnamese format DD/MM/YYYY HH:mm
  * @param {Date | string} date - Date object or ISO string
  * @returns {string} Formatted date string with time
  */
@@ -39,7 +39,7 @@ export const formatDateTime = (date) => {
     const year = d.getFullYear();
     const hours = String(d.getHours()).padStart(2, '0');
     const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${day}-${month}-${year} ${hours}:${minutes}`;
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
   } catch (error) {
     console.error('DateTime formatting error:', error);
     return '';
@@ -106,15 +106,15 @@ export const getDateInputValue = (date) => {
 };
 
 /**
- * Parse DD-MM-YYYY string to Date object
- * @param {string} dateString - Date string in DD-MM-YYYY format
+ * Parse DD/MM/YYYY string to Date object
+ * @param {string} dateString - Date string in DD/MM/YYYY format
  * @returns {Date | null} Date object or null if invalid
  */
 export const parseDate = (dateString) => {
   if (!dateString) return null;
-  
+
   try {
-    const parts = dateString.split('-');
+    const parts = dateString.split(/[\/\-]/);
     if (parts.length !== 3) return null;
     
     const day = parseInt(parts[0], 10);

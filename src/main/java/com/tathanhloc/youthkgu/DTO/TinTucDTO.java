@@ -18,6 +18,7 @@ public class TinTucDTO {
     private Long vanBanId;
     private String hoatDongId;
     private String donViDang;
+    private String tacGia;   // Tên hiển thị tác giả (ví dụ: "Ban Học thuật KGU")
     private Boolean isGhim;
 
     // Response fields

@@ -31,6 +31,7 @@ const Input = forwardRef(
           )}
           <input
             ref={ref}
+            lang={props.type === 'date' ? 'vi' : undefined}
             className={clsx(
               'form-input',
               LeftIcon && 'pl-10',

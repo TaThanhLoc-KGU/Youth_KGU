@@ -183,6 +183,28 @@ public class DangKyHoatDongController {
         return ResponseEntity.ok(ApiResponse.success("Lấy mã QR thành công", maHoatDong + maSv));
     }
 
+    /**
+     * Sinh viên gửi vị trí GPS khi mở màn hình hiển thị QR code.
+     * Không cần đăng nhập đặc biệt — dùng permission DANG_KY_HOAT_DONG (sinh viên đã đăng ký).
+     * Vị trí này được dùng để phát hiện điểm danh hộ trong báo cáo điểm danh.
+     */
+    @PostMapping("/check-in-location")
+    @Operation(summary = "Sinh viên gửi vị trí GPS khi hiển thị QR")
+    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<Void>> submitCheckInLocation(
+            @RequestBody java.util.Map<String, Object> body) {
+        String maQR     = (String) body.get("maQR");
+        Double latitude  = body.get("latitude")  != null ? ((Number) body.get("latitude")).doubleValue()  : null;
+        Double longitude = body.get("longitude") != null ? ((Number) body.get("longitude")).doubleValue() : null;
+
+        if (maQR == null || maQR.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("maQR không được để trống"));
+        }
+        log.info("POST /api/dang-ky/check-in-location - maQR={} lat={} lng={}", maQR, latitude, longitude);
+        dangKyService.updateStudentLocation(maQR, latitude, longitude);
+        return ResponseEntity.ok(ApiResponse.success("Đã lưu vị trí", null));
+    }
+
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public void rethrowAccessDenied(org.springframework.security.access.AccessDeniedException e)
             throws org.springframework.security.access.AccessDeniedException {

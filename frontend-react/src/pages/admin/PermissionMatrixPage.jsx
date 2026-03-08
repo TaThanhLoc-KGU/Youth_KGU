@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Shield, Save, Loader2, CheckSquare, Square, Info, Users } from 'lucide-react';
+import { Shield, Save, Loader2, CheckSquare, Square, Info, Users, Search, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 import permissionService from '../../services/permissionService';
@@ -255,15 +255,54 @@ function LevelMatrixTab() {
 // ─── Tab 2: Quyền cá nhân (cấp thêm ngoài Level) ─────────────────────────────
 function AccountPermissionsTab() {
   const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [selectedAccountLabel, setSelectedAccountLabel] = useState('');
   const [extraGrantIds, setExtraGrantIds] = useState(new Set());
   const [ghiChu, setGhiChu] = useState('');
+
+  // Search state — chỉ gọi API khi nhấn Tìm (tránh spam server)
+  const [searchInput, setSearchInput] = useState('');
+  const [submittedKeyword, setSubmittedKeyword] = useState('');
+  const inputRef = useRef(null);
+
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ['allAccounts'],
-    queryFn: () => accountService.getAllAccounts(),
+  const {
+    data: searchResults = [],
+    isFetching: searching,
+    error: searchError,
+  } = useQuery({
+    queryKey: ['accountSearch', submittedKeyword],
+    queryFn: () => accountService.searchAccounts(submittedKeyword),
+    enabled: !!submittedKeyword,
+    staleTime: 30_000,
   });
+
+  const handleSearch = () => {
+    const kw = searchInput.trim();
+    if (!kw) return;
+    setSubmittedKeyword(kw);
+    // Reset tài khoản đã chọn khi tìm mới
+    setSelectedAccountId('');
+    setSelectedAccountLabel('');
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') handleSearch();
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSubmittedKeyword('');
+    setSelectedAccountId('');
+    setSelectedAccountLabel('');
+    inputRef.current?.focus();
+  };
+
+  const handleSelectAccount = (acc) => {
+    setSelectedAccountId(String(acc.id));
+    setSelectedAccountLabel(`${acc.hoTen || acc.username} (${acc.username})`);
+  };
 
   const { data: permData, isLoading: permLoading, error: permError } = useQuery({
     queryKey: ['accountPermissions', selectedAccountId],
@@ -335,28 +374,99 @@ function AccountPermissionsTab() {
 
   return (
     <div className="space-y-5">
-      {/* Chọn tài khoản */}
-      <div className="bg-white rounded-xl border p-5">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Chọn tài khoản cần cấp quyền đặc biệt
+      {/* Tìm kiếm tài khoản */}
+      <div className="bg-white rounded-xl border p-5 space-y-3">
+        <label className="block text-sm font-semibold text-gray-700">
+          Tìm tài khoản để cấp quyền đặc biệt
         </label>
-        <select
-          className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          value={selectedAccountId}
-          onChange={e => setSelectedAccountId(e.target.value)}>
-          <option value="">-- Chọn tài khoản --</option>
-          {accounts.map(acc => (
-            <option key={acc.id} value={acc.id}>
-              {acc.hoTen || acc.username} ({acc.username}) — {acc.vaiTro}
-            </option>
-          ))}
-        </select>
+
+        {/* Ô tìm kiếm */}
+        <div className="flex gap-2 max-w-lg">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Nhập tên hoặc tên đăng nhập..."
+              className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchInput && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={handleSearch}
+            disabled={!searchInput.trim() || searching}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 text-sm font-semibold flex items-center gap-2 shrink-0">
+            <Search className="w-4 h-4" />
+            {searching ? 'Đang tìm...' : 'Tìm'}
+          </button>
+        </div>
+
+        {/* Kết quả tìm kiếm */}
+        {submittedKeyword && !searching && (
+          <>
+            {searchError && (
+              <p className="text-sm text-red-500">Lỗi tìm kiếm: {searchError.message}</p>
+            )}
+            {!searchError && searchResults.length === 0 && (
+              <p className="text-sm text-gray-500">
+                Không tìm thấy tài khoản nào khớp với "<strong>{submittedKeyword}</strong>".
+              </p>
+            )}
+            {searchResults.length > 0 && (
+              <div className="border rounded-lg divide-y max-h-56 overflow-y-auto">
+                {searchResults.map(acc => (
+                  <button
+                    key={acc.id}
+                    onClick={() => handleSelectAccount(acc)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-blue-50 transition-colors ${
+                      selectedAccountId === String(acc.id) ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    }`}>
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0 text-gray-600 font-semibold text-sm">
+                      {(acc.hoTen || acc.username || '?')[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm truncate">
+                        {acc.hoTen || acc.username}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        <span className="font-mono">{acc.username}</span>
+                        {acc.vaiTro && <span className="ml-2">— {acc.vaiTro}</span>}
+                      </p>
+                    </div>
+                    {selectedAccountId === String(acc.id) && (
+                      <span className="text-xs text-blue-600 font-semibold shrink-0">✓ Đang xem</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Badge tài khoản đang được chọn */}
+        {selectedAccountId && selectedAccountLabel && (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <span className="text-gray-400">Đang cấu hình:</span>
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">
+              {selectedAccountLabel}
+            </span>
+          </div>
+        )}
       </div>
 
       {!selectedAccountId && (
         <div className="text-center py-16 text-gray-400 bg-white rounded-xl border">
           <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">Chọn tài khoản để cấp quyền ngoài Level</p>
+          <p className="font-medium">Tìm và chọn tài khoản để cấp quyền ngoài Level</p>
           <p className="text-sm mt-1 text-gray-400">Ví dụ: cấp thêm quyền xuất báo cáo cho một tài khoản Level 3</p>
         </div>
       )}

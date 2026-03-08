@@ -53,6 +53,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.web.cors.CorsUtils::isPreFlightRequest).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/api/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/permissions/me").authenticated()
                         .anyRequest().authenticated()
                 )
@@ -75,7 +77,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:4200"));
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000", "http://localhost:4200", "http://localhost:5173",
+                "http://34.10.108.252",
+                "https://ykgu.clbkcmc.io.vn"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

@@ -26,6 +26,9 @@ public class DataInitializer implements ApplicationRunner {
     private final NamHocRepository namHocRepository;
     private final HocKyRepository hocKyRepository;
     private final HocKyNamHocRepository hocKyNamHocRepository;
+    private final SliderItemRepository sliderItemRepository;
+    private final TickerItemRepository tickerItemRepository;
+    private final AdBannerRepository adBannerRepository;
 
     @Override
     @Transactional
@@ -38,6 +41,7 @@ public class DataInitializer implements ApplicationRunner {
         initializeRolePermissions();
         initializeENewsPermissions();
         initializeNamHocAndHocKy();
+        initializeSampleENewsData();
 
         log.info("System data initialization completed!");
     }
@@ -381,5 +385,57 @@ public class DataInitializer implements ApplicationRunner {
 
         log.info("NamHoc {} initialized: HK1={}->{}, HK2={}->{}, HK3={}->{}",
                 maNamHoc, hk1Start, hk1End, hk2Start, hk2End, hk3Start, hk3End);
+    }
+
+    private void initializeSampleENewsData() {
+        if (sliderItemRepository.count() == 0) {
+            log.info("Seeding sample Slider items...");
+            sliderItemRepository.save(SliderItem.builder()
+                    .tieuDe("Chào mừng bạn đến với eNews")
+                    .moTa("Cổng thông tin chính thức của Đoàn - Hội trường Đại học Kiên Giang")
+                    .hinhAnh("https://images.unsplash.com/photo-1523050335392-9ae38d19a09e?q=80&w=2070&auto=format&fit=crop")
+                    .thuTu(0)
+                    .isActive(true)
+                    .build());
+            sliderItemRepository.save(SliderItem.builder()
+                    .tieuDe("Hệ thống điểm danh thông minh")
+                    .moTa("Tham gia hoạt động và tích lũy điểm rèn luyện dễ dàng")
+                    .hinhAnh("https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=2070&auto=format&fit=crop")
+                    .thuTu(1)
+                    .isActive(true)
+                    .build());
+        }
+
+        if (tickerItemRepository.count() == 0) {
+            log.info("Seeding sample Ticker items...");
+            tickerItemRepository.save(TickerItem.builder()
+                    .noiDung("Chào mừng năm học mới 2025-2026! Chúc các bạn sinh viên một học kỳ thành công rực rỡ.")
+                    .isActive(true)
+                    .thuTu(0)
+                    .build());
+            tickerItemRepository.save(TickerItem.builder()
+                    .noiDung("Thông báo: Hạn chót đăng ký tham gia Chiến dịch Mùa hè xanh là ngày 15/03/2026.")
+                    .isActive(true)
+                    .thuTu(1)
+                    .build());
+        }
+
+        if (adBannerRepository.count() == 0) {
+            log.info("Seeding sample Ad Banners...");
+            adBannerRepository.save(AdBanner.builder()
+                    .tieuDe("Banner chính 1")
+                    .hinhAnh("https://images.unsplash.com/photo-1501504905252-473c47e087f8?q=80&w=1974&auto=format&fit=crop")
+                    .loai("MAIN")
+                    .isActive(true)
+                    .thuTu(0)
+                    .build());
+            adBannerRepository.save(AdBanner.builder()
+                    .tieuDe("Widget Sidebar 1")
+                    .hinhAnh("https://images.unsplash.com/photo-1544377193-33dcf4d68fb5?q=80&w=1932&auto=format&fit=crop")
+                    .loai("SIDEBAR")
+                    .isActive(true)
+                    .thuTu(0)
+                    .build());
+        }
     }
 }
