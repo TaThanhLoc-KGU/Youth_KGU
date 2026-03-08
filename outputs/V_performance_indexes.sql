@@ -1,7 +1,7 @@
 -- =============================================================
 -- V_performance_indexes.sql
 -- Thêm Database Index để tăng tốc query — chạy 1 lần trên server
--- DB: face_attendance_activity (MariaDB 10.4+)
+-- DB: youth-kgu (MariaDB 10.4+)
 -- Ngày tạo: 2026-03-07
 --
 -- Các index dưới đây nhắm vào các cột được WHERE/JOIN/ORDER BY nhiều nhất
@@ -105,23 +105,21 @@ CREATE INDEX IF NOT EXISTS idx_dd_thoi_gian_check_in
 -- 4. Bảng phụ trợ thường xuyên JOIN
 -- ============================================================
 
--- sinhvien — JOIN nhiều qua ma_sv
+-- sinhvien — JOIN nhiều qua ma_lop (nganh lấy gián tiếp qua lop, không có cột ma_nganh trực tiếp)
 CREATE INDEX IF NOT EXISTS idx_sv_ma_lop
     ON sinhvien (ma_lop);
-
-CREATE INDEX IF NOT EXISTS idx_sv_ma_nganh
-    ON sinhvien (ma_nganh);
 
 -- tai_khoan — login lookup và JOIN với BCH
 -- (username đã là UNIQUE nên MariaDB tự tạo index, nhưng kiểm tra thêm)
 -- Bỏ qua nếu đã có UNIQUE KEY trên username
 
 -- notifications — filter theo người nhận và trạng thái đọc
-CREATE INDEX IF NOT EXISTS idx_notif_tai_khoan_id
-    ON notifications (tai_khoan_id);
+-- Cột thực tế là user_id (không phải tai_khoan_id)
+CREATE INDEX IF NOT EXISTS idx_notif_user_id
+    ON notifications (user_id);
 
-CREATE INDEX IF NOT EXISTS idx_notif_is_read
-    ON notifications (tai_khoan_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_notif_user_is_read
+    ON notifications (user_id, is_read);
 
 -- ============================================================
 -- 5. Xác nhận index đã tạo (chạy sau để kiểm tra)
