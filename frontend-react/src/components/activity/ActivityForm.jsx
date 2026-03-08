@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import { MapPin, Loader2, X } from 'lucide-react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Textarea from '../common/Textarea';
@@ -15,6 +16,116 @@ import {
   TRANG_THAI_OPTIONS,
   HOC_KY_OPTIONS,
 } from '../../constants/activityConstants';
+
+// Nominatim location search — không cần API key, miễn phí
+const LocationInput = ({ diaDiem, viDo, kinhDo, onChange }) => {
+  const [query, setQuery] = useState(diaDiem || '');
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef(null);
+  const wrapperRef = useRef(null);
+
+  // Sync khi initialData thay đổi (edit mode)
+  useEffect(() => { setQuery(diaDiem || ''); }, [diaDiem]);
+
+  // Đóng dropdown khi click ra ngoài
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const search = (q) => {
+    if (!q || q.length < 3) { setSuggestions([]); setOpen(false); return; }
+    setLoading(true);
+    fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&countrycodes=vn&accept-language=vi`,
+      { headers: { 'Accept-Language': 'vi' } }
+    )
+      .then((r) => r.json())
+      .then((data) => { setSuggestions(data); setOpen(data.length > 0); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  const handleInput = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    onChange({ diaDiem: val, viDo: null, kinhDo: null }); // xóa coords khi đang gõ
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(val), 500);
+  };
+
+  const handleSelect = (item) => {
+    const name = item.display_name;
+    setQuery(name);
+    setSuggestions([]);
+    setOpen(false);
+    onChange({ diaDiem: name, viDo: parseFloat(item.lat), kinhDo: parseFloat(item.lon) });
+  };
+
+  const handleClear = () => {
+    setQuery('');
+    setSuggestions([]);
+    setOpen(false);
+    onChange({ diaDiem: '', viDo: null, kinhDo: null });
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm</label>
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={handleInput}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          placeholder="Tìm địa điểm tổ chức (ít nhất 3 ký tự)..."
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-14"
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {loading && <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />}
+          {query && (
+            <button type="button" onClick={handleClear} className="text-gray-400 hover:text-gray-600">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Dropdown gợi ý */}
+      {open && (
+        <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
+          {suggestions.map((item) => (
+            <li
+              key={item.place_id}
+              onMouseDown={() => handleSelect(item)}
+              className="px-3 py-2.5 text-sm hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
+            >
+              <div className="font-medium text-gray-900 truncate">
+                {item.display_name.split(',')[0]}
+              </div>
+              <div className="text-xs text-gray-400 truncate mt-0.5">{item.display_name}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Hiển thị GPS đã chọn */}
+      {viDo && kinhDo ? (
+        <div className="flex items-center gap-1 mt-1.5 text-xs text-green-600">
+          <MapPin className="w-3 h-3 flex-shrink-0" />
+          <span>GPS: {parseFloat(viDo).toFixed(5)}, {parseFloat(kinhDo).toFixed(5)}</span>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 mt-1">Chọn từ gợi ý để ghi nhận GPS phục vụ điểm danh định vị</p>
+      )}
+    </div>
+  );
+};
 
 const ActivityForm = ({
   initialData = null,
@@ -40,6 +151,9 @@ const ActivityForm = ({
     choPhepCheckInSom: 30,
     yeuCauCheckOut: false,
     diaDiem: '',
+    viDo: null,
+    kinhDo: null,
+    khoangCachToiDa: '',
     soLuongToiDa: '',
     diemRenLuyen: '',
     maDanhMucRenLuyen: '',
@@ -184,6 +298,9 @@ const ActivityForm = ({
       thoiGianToiThieu: formData.thoiGianToiThieu ? parseInt(formData.thoiGianToiThieu) : null,
       choPhepCheckInSom: formData.choPhepCheckInSom ? parseInt(formData.choPhepCheckInSom) : 30,
       soLuongToiDa: formData.soLuongToiDa ? parseInt(formData.soLuongToiDa) : null,
+      viDo: formData.viDo ? parseFloat(formData.viDo) : null,
+      kinhDo: formData.kinhDo ? parseFloat(formData.kinhDo) : null,
+      khoangCachToiDa: formData.khoangCachToiDa ? parseInt(formData.khoangCachToiDa) : null,
       diemRenLuyen: formData.diemRenLuyen !== '' && formData.diemRenLuyen !== null
         ? parseInt(formData.diemRenLuyen) : null,
       soHocKy: formData.soHocKy ? parseInt(formData.soHocKy) : null,
@@ -321,12 +438,24 @@ const ActivityForm = ({
             />
           </div>
 
+          <LocationInput
+            diaDiem={formData.diaDiem}
+            viDo={formData.viDo}
+            kinhDo={formData.kinhDo}
+            onChange={({ diaDiem, viDo, kinhDo }) =>
+              setFormData((prev) => ({ ...prev, diaDiem, viDo, kinhDo }))
+            }
+          />
+
           <Input
-            label="Địa điểm"
-            name="diaDiem"
-            value={formData.diaDiem}
+            label="Bán kính điểm danh (mét)"
+            type="number"
+            name="khoangCachToiDa"
+            value={formData.khoangCachToiDa}
             onChange={handleChange}
-            placeholder="VD: Tòa nhà A, Phòng 101"
+            min="0"
+            placeholder="VD: 200 — để trống = không kiểm tra vị trí"
+            className="max-w-xs"
           />
         </div>
       </Card>

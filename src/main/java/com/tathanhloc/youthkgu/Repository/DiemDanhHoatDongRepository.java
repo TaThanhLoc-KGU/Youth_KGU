@@ -37,7 +37,8 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             "AND dd.trangThai = 'DA_THAM_GIA' ORDER BY dd.thoiGianCheckIn DESC")
     List<DiemDanhHoatDong> findCheckedInStudents(@Param("maHoatDong") String maHoatDong);
 
-    @Query("SELECT sv.maSv, sv.hoTen, dk.maQR, dk.ngayDangKy " +
+    @Query("SELECT sv.maSv, sv.hoTen, dk.maQR, dk.ngayDangKy, " +
+            "COALESCE(sv.lop.tenLop, '') " +
             "FROM DangKyHoatDong dk " +
             "JOIN dk.sinhVien sv " +
             "WHERE dk.hoatDong.maHoatDong = :maHoatDong " +
@@ -47,7 +48,7 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             "  WHERE dd.hoatDong.maHoatDong = :maHoatDong " +
             "  AND dd.sinhVien.maSv = sv.maSv" +
             ") " +
-            "ORDER BY dk.ngayDangKy")
+            "ORDER BY sv.lop.tenLop, sv.hoTen")
     List<Object[]> findNotCheckedInStudents(@Param("maHoatDong") String maHoatDong);
 
     @Query("SELECT COUNT(dk) FROM DangKyHoatDong dk " +
