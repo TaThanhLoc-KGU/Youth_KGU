@@ -39,3 +39,6 @@ src.zip
 ### log ###
 logs
 /node_modules/
+
+# Production config with credentials - do not commit
+src/main/resources/application-prod.properties
