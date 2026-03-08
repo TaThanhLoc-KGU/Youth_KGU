@@ -94,9 +94,31 @@ public class DiemDanhHoatDongService {
                     .findBySinhVienMaSvAndHoatDongMaHoatDong(dangKy.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
             boolean alreadyCheckedIn = existingOpt.isPresent();
 
-            // STEP 6: Xác định mode dựa theo cửa sổ thời gian
+            // STEP 6: Phân nhánh theo chế độ điểm danh
+            CheDoDiemDanhEnum cheDoMode = hoatDong.getCheDoDiemDanh() != null
+                    ? hoatDong.getCheDoDiemDanh()
+                    : CheDoDiemDanhEnum.CHECKIN_CHECKOUT;
+
+            if (cheDoMode == CheDoDiemDanhEnum.AUTO_FULL) {
+                return DiemDanhQRResponse.failed("Hoạt động này dùng điểm danh tự động — không cần quét QR");
+            }
+
+            if (cheDoMode == CheDoDiemDanhEnum.CHECKOUT_ONLY) {
+                return processCheckoutOnlyMode(request, dangKy, hoatDong, today, now, existingOpt);
+            }
+
+            if (cheDoMode == CheDoDiemDanhEnum.CHECKIN_ONLY) {
+                if (!isInCheckInWindow(hoatDong, today, now)) {
+                    return DiemDanhQRResponse.failed("Ngoài thời gian điểm danh");
+                }
+                if (alreadyCheckedIn) {
+                    return DiemDanhQRResponse.failed("Mã QR này đã được quét rồi (đã check-in)");
+                }
+                return processCheckInByQR(request, dangKy, hoatDong, now);
+            }
+
+            // CHECKIN_CHECKOUT — hành vi gốc
             if (isInCheckoutWindow(hoatDong, today, now)) {
-                // Checkout mode
                 if (!alreadyCheckedIn) {
                     return DiemDanhQRResponse.failed("Bạn chưa check-in hoạt động này");
                 }
@@ -108,7 +130,6 @@ public class DiemDanhHoatDongService {
             }
 
             if (isInCheckInWindow(hoatDong, today, now)) {
-                // Check-in mode
                 if (alreadyCheckedIn) {
                     return DiemDanhQRResponse.failed("Mã QR này đã được quét rồi (đã check-in)");
                 }
@@ -187,6 +208,114 @@ public class DiemDanhHoatDongService {
         );
 
         return DiemDanhQRResponse.success("Check-in thành công", toDTO(diemDanh));
+    }
+
+    /**
+     * CHECKOUT_ONLY mode: không cần check-in vật lý.
+     * Khi QR được quét lần đầu → tạo record với thoiGianCheckIn = thoiGianBatDau (tự động),
+     * rồi xử lý checkout ngay. Lần quét sau → lỗi đã checkout.
+     */
+    private DiemDanhQRResponse processCheckoutOnlyMode(DiemDanhQRRequest request,
+                                                        DangKyHoatDong dangKy, HoatDong hoatDong,
+                                                        LocalDate today, LocalTime now,
+                                                        Optional<DiemDanhHoatDong> existingOpt) {
+        // Chỉ cho checkout sau khi hoạt động đã bắt đầu
+        if (hoatDong.getThoiGianBatDau() != null && now.isBefore(hoatDong.getThoiGianBatDau())) {
+            return DiemDanhQRResponse.failed("Hoạt động chưa bắt đầu — chưa thể điểm danh ra");
+        }
+
+        DiemDanhHoatDong diemDanh;
+
+        if (existingOpt.isPresent()) {
+            diemDanh = existingOpt.get();
+            if (diemDanh.getThoiGianCheckOut() != null) {
+                return DiemDanhQRResponse.failed("Bạn đã check-out rồi");
+            }
+        } else {
+            // Tạo auto check-in với thoiGianCheckIn = giờ bắt đầu hoạt động
+            LocalDateTime autoCheckInTime = hoatDong.getThoiGianBatDau() != null
+                    ? LocalDateTime.of(hoatDong.getNgayToChuc(), hoatDong.getThoiGianBatDau())
+                    : LocalDateTime.of(hoatDong.getNgayToChuc(), LocalTime.of(0, 0));
+
+            BCHDoanHoi nguoiXacNhan = request.getMaBchXacNhan() != null
+                    ? bchRepository.findById(request.getMaBchXacNhan()).orElse(null)
+                    : null;
+
+            diemDanh = DiemDanhHoatDong.builder()
+                    .hoatDong(hoatDong)
+                    .sinhVien(dangKy.getSinhVien())
+                    .maQRDaQuet(request.getMaQR())
+                    .trangThai(TrangThaiThamGiaEnum.DANG_KY)
+                    .thoiGianCheckIn(autoCheckInTime)
+                    .trangThaiCheckIn(TrangThaiCheckInEnum.TU_DONG)
+                    .soPhutTre(0)
+                    .nguoiCheckIn(nguoiXacNhan)
+                    .thietBiQuet(request.getThietBi())
+                    .latitude(dangKy.getStudentLatitude() != null ? dangKy.getStudentLatitude() : request.getLatitude())
+                    .longitude(dangKy.getStudentLongitude() != null ? dangKy.getStudentLongitude() : request.getLongitude())
+                    .ghiChu(request.getGhiChu())
+                    .build();
+            diemDanh = diemDanhRepository.save(diemDanh);
+            log.info("CHECKOUT_ONLY: auto check-in created for student={}, activity={}",
+                    dangKy.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
+        }
+
+        return processCheckoutByQR(request, diemDanh, hoatDong);
+    }
+
+    /**
+     * AUTO_FULL mode: BCH kích hoạt thủ công để điểm danh toàn bộ sinh viên đã đăng ký.
+     */
+    @Transactional
+    public int autoDiemDanhAll(String maHoatDong) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        List<DangKyHoatDong> danhSach = dangKyRepository.findByHoatDongMaHoatDongAndIsActiveTrue(maHoatDong);
+
+        LocalDateTime checkInTime = hoatDong.getThoiGianBatDau() != null
+                ? LocalDateTime.of(hoatDong.getNgayToChuc(), hoatDong.getThoiGianBatDau())
+                : LocalDateTime.of(hoatDong.getNgayToChuc(), LocalTime.of(0, 0));
+
+        LocalDateTime checkOutTime;
+        if (Boolean.TRUE.equals(hoatDong.getKetThucSom()) && hoatDong.getThoiGianKetThucThucTe() != null) {
+            checkOutTime = hoatDong.getThoiGianKetThucThucTe();
+        } else if (hoatDong.getThoiGianKetThuc() != null) {
+            checkOutTime = LocalDateTime.of(hoatDong.getNgayToChuc(), hoatDong.getThoiGianKetThuc());
+        } else {
+            checkOutTime = LocalDateTime.now();
+        }
+
+        long tongPhut = ChronoUnit.MINUTES.between(checkInTime, checkOutTime);
+        boolean datToiThieu = hoatDong.getThoiGianToiThieu() == null || tongPhut >= hoatDong.getThoiGianToiThieu();
+
+        int count = 0;
+        for (DangKyHoatDong dk : danhSach) {
+            boolean exists = diemDanhRepository
+                    .existsBySinhVienMaSvAndHoatDongMaHoatDong(dk.getSinhVien().getMaSv(), maHoatDong);
+            if (exists) continue;
+
+            DiemDanhHoatDong dd = DiemDanhHoatDong.builder()
+                    .hoatDong(hoatDong)
+                    .sinhVien(dk.getSinhVien())
+                    .maQRDaQuet(dk.getMaQR())
+                    .trangThai(TrangThaiThamGiaEnum.DA_THAM_GIA)
+                    .thoiGianCheckIn(checkInTime)
+                    .trangThaiCheckIn(TrangThaiCheckInEnum.TU_DONG)
+                    .soPhutTre(0)
+                    .thoiGianCheckOut(checkOutTime)
+                    .trangThaiCheckOut(TrangThaiCheckOutEnum.HOAN_THANH)
+                    .soPhutVeSom(0)
+                    .tongThoiGianThamGia((int) tongPhut)
+                    .datThoiGianToiThieu(datToiThieu)
+                    .tinhGioPhucVu(datToiThieu)
+                    .build();
+            diemDanhRepository.save(dd);
+            count++;
+        }
+
+        log.info("AUTO_FULL: created {} attendance records for activity={}", count, maHoatDong);
+        return count;
     }
 
     /**

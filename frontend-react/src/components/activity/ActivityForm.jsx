@@ -144,6 +144,7 @@ const ActivityForm = ({
     capDo: 'KHOA',
     ngayToChuc: '',
     gioToChuc: '',
+    cheDoDiemDanh: 'CHECKIN_CHECKOUT',
     thoiGianBatDau: '07:00',
     thoiGianKetThuc: '17:00',
     thoiGianTreToiDa: 15,
@@ -538,66 +539,108 @@ const ActivityForm = ({
       {/* Check-in Settings */}
       <Card>
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Cài đặt Check-in</h3>
+          <h3 className="font-semibold text-lg text-gray-900">Cài đặt điểm danh</h3>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Thời gian bắt đầu"
-              type="time"
-              name="thoiGianBatDau"
-              value={formData.thoiGianBatDau}
-              onChange={handleChange}
-            />
-            <Input
-              label="Thời gian kết thúc"
-              type="time"
-              name="thoiGianKetThuc"
-              value={formData.thoiGianKetThuc}
-              onChange={handleChange}
-            />
+          {/* Chế độ điểm danh */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Chế độ điểm danh</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'CHECKIN_CHECKOUT', label: 'Check-in & Check-out', desc: 'Yêu cầu cả check-in lẫn check-out', icon: '↔️' },
+                { value: 'CHECKIN_ONLY',     label: 'Chỉ Check-in',         desc: 'Chỉ cần quét QR khi đến',           icon: '→' },
+                { value: 'CHECKOUT_ONLY',    label: 'Chỉ Check-out',        desc: 'Chỉ quét QR khi ra về, check-in tự động', icon: '←' },
+                { value: 'AUTO_FULL',        label: 'Tự động toàn bộ',      desc: 'BCH xác nhận, toàn bộ đăng ký = tham gia', icon: '⚡' },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    formData.cheDoDiemDanh === opt.value
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cheDoDiemDanh"
+                    value={opt.value}
+                    checked={formData.cheDoDiemDanh === opt.value}
+                    onChange={handleChange}
+                    className="mt-0.5 w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{opt.icon} {opt.label}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Thời gian — ẩn khi AUTO_FULL */}
+          {formData.cheDoDiemDanh !== 'AUTO_FULL' && (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Thời gian bắt đầu"
+                type="time"
+                name="thoiGianBatDau"
+                value={formData.thoiGianBatDau}
+                onChange={handleChange}
+              />
+              <Input
+                label="Thời gian kết thúc"
+                type="time"
+                name="thoiGianKetThuc"
+                value={formData.thoiGianKetThuc}
+                onChange={handleChange}
+              />
+            </div>
+          )}
+
+          {/* Check-in fields — ẩn khi CHECKOUT_ONLY hoặc AUTO_FULL */}
+          {formData.cheDoDiemDanh !== 'CHECKOUT_ONLY' && formData.cheDoDiemDanh !== 'AUTO_FULL' && (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Cho phép check-in sớm (phút)"
+                type="number"
+                name="choPhepCheckInSom"
+                value={formData.choPhepCheckInSom}
+                onChange={handleChange}
+                min="0"
+              />
+              <Input
+                label="Thời gian trễ tối đa (phút)"
+                type="number"
+                name="thoiGianTreToiDa"
+                value={formData.thoiGianTreToiDa}
+                onChange={handleChange}
+                min="0"
+              />
+            </div>
+          )}
+
+          {/* Thời gian tối thiểu — ẩn khi AUTO_FULL */}
+          {formData.cheDoDiemDanh !== 'AUTO_FULL' && (
             <Input
-              label="Cho phép check-in sớm (phút)"
+              label="Thời gian tham gia tối thiểu (phút)"
               type="number"
-              name="choPhepCheckInSom"
-              value={formData.choPhepCheckInSom}
+              name="thoiGianToiThieu"
+              value={formData.thoiGianToiThieu}
               onChange={handleChange}
               min="0"
             />
-            <Input
-              label="Thời gian trễ tối đa (phút)"
-              type="number"
-              name="thoiGianTreToiDa"
-              value={formData.thoiGianTreToiDa}
-              onChange={handleChange}
-              min="0"
-            />
-          </div>
+          )}
 
-          <Input
-            label="Thời gian tham gia tối thiểu (phút)"
-            type="number"
-            name="thoiGianToiThieu"
-            value={formData.thoiGianToiThieu}
-            onChange={handleChange}
-            min="0"
-          />
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="yeuCauCheckOut"
-              name="yeuCauCheckOut"
-              checked={formData.yeuCauCheckOut}
-              onChange={handleChange}
-              className="w-4 h-4 text-primary rounded border-gray-300"
-            />
-            <label htmlFor="yeuCauCheckOut" className="ml-2 text-sm text-gray-700">
-              Yêu cầu check-out
-            </label>
-          </div>
+          {/* Mô tả chế độ đang chọn */}
+          {formData.cheDoDiemDanh === 'AUTO_FULL' && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+              ⚡ Chế độ tự động: Sau khi hoạt động kết thúc, BCH nhấn &quot;Xác nhận tham gia&quot; để tự động ghi nhận toàn bộ sinh viên đã đăng ký là đã tham gia. Không cần quét QR.
+            </div>
+          )}
+          {formData.cheDoDiemDanh === 'CHECKOUT_ONLY' && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+              ← Chế độ chỉ check-out: Check-in tự động ghi nhận theo giờ bắt đầu. Sinh viên chỉ cần quét QR khi ra về.
+            </div>
+          )}
         </div>
       </Card>
 

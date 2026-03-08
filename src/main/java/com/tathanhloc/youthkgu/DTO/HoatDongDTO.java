@@ -20,6 +20,9 @@ public class HoatDongDTO {
     private LocalDate ngayToChuc;
     private LocalTime gioToChuc;
 
+    // Chế độ điểm danh
+    private CheDoDiemDanhEnum cheDoDiemDanh;
+
     // Time tracking
     private LocalTime thoiGianBatDau;
     private LocalTime thoiGianKetThuc;
