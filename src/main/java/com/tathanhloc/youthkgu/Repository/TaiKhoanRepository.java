@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -62,4 +63,24 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
 
     @Query("SELECT tk.chuyenVien.maChuyenVien FROM TaiKhoan tk WHERE tk.chuyenVien IS NOT NULL")
     List<String> findAllLinkedChuyenVienIds();
+
+    // ========== PERFORMANCE QUERIES ==========
+
+    /**
+     * Đếm tài khoản tạo trong khoảng thời gian — thay thế findAll().stream().filter() trong getStatisticsByDateRange().
+     */
+    @Query("SELECT COUNT(tk) FROM TaiKhoan tk " +
+           "WHERE tk.createdAt >= :startDate AND tk.createdAt < :endDate")
+    long countByCreatedAtBetween(@Param("startDate") LocalDateTime startDate,
+                                 @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * Đếm tài khoản GROUP BY ban chuyên môn — thay thế vòng lặp N query trong getAccountsByDepartmentStatistics().
+     * Trả về: [maBan (String), tenBan (String), soLuong (Long)]
+     */
+    @Query("SELECT tk.banChuyenMon.maBan, tk.banChuyenMon.tenBan, COUNT(tk) " +
+           "FROM TaiKhoan tk " +
+           "WHERE tk.banChuyenMon IS NOT NULL " +
+           "GROUP BY tk.banChuyenMon.maBan, tk.banChuyenMon.tenBan")
+    List<Object[]> countGroupByBan();
 }

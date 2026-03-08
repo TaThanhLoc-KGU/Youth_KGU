@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+
 @Repository
 public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDong, Long> {
 
@@ -123,4 +124,35 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
     /** Tổng số lượt điểm danh — 1 query thay vì N trong statistics overview */
     @Query("SELECT COUNT(dd) FROM DiemDanhHoatDong dd")
     long countAll();
+
+    // ========== PERFORMANCE QUERIES (GROUP BY thay thế findAll) ==========
+
+    /**
+     * Đếm điểm danh theo khoa — native SQL thay thế findAll().forEach() trong getDashboardData/getGeneralStatistics.
+     * Trả về: [ten_khoa (String), tongDiemDanh (Long)]
+     */
+    @Query(value = "SELECT COALESCE(k.ten_khoa, 'Không xác định') as ten_khoa, " +
+            "COUNT(*) as tong_diem_danh " +
+            "FROM diem_danh_hoat_dong dd " +
+            "LEFT JOIN sinhvien sv ON dd.ma_sv = sv.ma_sv " +
+            "LEFT JOIN lop l ON sv.ma_lop = l.ma_lop " +
+            "LEFT JOIN khoa k ON l.ma_khoa = k.ma_khoa " +
+            "WHERE dd.trang_thai = 'DA_THAM_GIA' " +
+            "GROUP BY k.ma_khoa, k.ten_khoa",
+            nativeQuery = true)
+    List<Object[]> countDiemDanhGroupByKhoa();
+
+    /**
+     * Trend điểm danh 12 tháng — 1 native query thay vì vòng lặp trong getDashboardData.
+     * Trả về: [nam (Integer), thang (Integer), tongDiemDanh (Long)]
+     */
+    @Query(value = "SELECT YEAR(dd.thoi_gian_check_in) as nam, " +
+            "MONTH(dd.thoi_gian_check_in) as thang, " +
+            "COUNT(*) as tong_diem_danh " +
+            "FROM diem_danh_hoat_dong dd " +
+            "WHERE dd.thoi_gian_check_in >= :startDate " +
+            "GROUP BY YEAR(dd.thoi_gian_check_in), MONTH(dd.thoi_gian_check_in) " +
+            "ORDER BY nam, thang",
+            nativeQuery = true)
+    List<Object[]> findTrendDiemDanhLast12Months(@Param("startDate") LocalDateTime startDate);
 }

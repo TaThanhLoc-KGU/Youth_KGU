@@ -27,7 +27,7 @@ const dashboardService = {
   getStudentCount: async () => {
     try {
       const response = await api.get('/api/sinhvien/count');
-      return response.data.data || { count: 0 };
+      return response.data || { count: 0 };
     } catch (error) {
       console.error('Error fetching student count:', error);
       return { count: 0 };

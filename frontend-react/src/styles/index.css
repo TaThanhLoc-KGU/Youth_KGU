@@ -19,7 +19,6 @@
     padding-bottom: var(--sab);
     padding-left: var(--sal);
     min-height: 100vh;
-    /* fix cho mobile viewport height */
     min-height: -webkit-fill-available;
   }
 
@@ -29,12 +28,75 @@
 }
 
 @layer components {
-  /* ... rest of components ... */
+  /* Button Styles */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-600 focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary-200 text-secondary-900 hover:bg-secondary-300 focus:ring-secondary-500;
+  }
+
+  .btn-outline {
+    @apply border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary-500;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+
+  /* Card Styles */
+  .card {
+    @apply rounded-lg border border-gray-200 bg-white shadow-sm;
+  }
+
+  .card-header {
+    @apply border-b border-gray-200 px-6 py-4;
+  }
+
+  .card-body {
+    @apply p-6;
+  }
+
   /* Form Styles */
   .form-input {
     @apply block w-full rounded-lg border border-gray-300 px-4 py-2 text-base focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-gray-50;
-    /* Trên iOS, font-size < 16px sẽ gây tự động zoom khi focus */
     font-size: 16px !important;
+  }
+
+  /* Cải thiện hiển thị input date trên các trình duyệt */
+  .custom-date-input {
+    position: relative;
+  }
+
+  /* Ẩn nội dung mặc định của input date nhưng giữ lại icon và khả năng click */
+  .custom-date-input input[type="date"],
+  .custom-date-input input[type="datetime-local"] {
+    color: transparent !important;
+    position: relative;
+    z-index: 10;
+    background: transparent !important;
+  }
+
+  /* Lớp hiển thị đè lên */
+  .custom-date-display {
+    position: absolute;
+    top: 50%;
+    left: 1rem;
+    transform: translateY(-50%);
+    z-index: 5;
+    pointer-events: none;
+    color: #111827;
+    font-size: 1rem;
+  }
+
+  .custom-date-input input:focus + .custom-date-display,
+  .custom-date-input input:not(:placeholder-shown) + .custom-date-display {
+    display: block;
   }
 
 
@@ -149,8 +211,6 @@
 .skeleton {
   @apply animate-pulse bg-gray-200;
 }
-
-
 
 /* ── eNews Article Content ── */
 .enews-article-content {

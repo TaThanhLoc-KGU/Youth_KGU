@@ -58,4 +58,41 @@ public interface DangKyHoatDongRepository extends JpaRepository<DangKyHoatDong, 
     @Query("SELECT dk.hoatDong.maHoatDong, COUNT(dk) FROM DangKyHoatDong dk " +
             "WHERE dk.isActive = true GROUP BY dk.hoatDong.maHoatDong")
     List<Object[]> countGroupByHoatDong();
+
+    @Query("SELECT dk.sinhVien.lop.maKhoa.maKhoa, dk.sinhVien.lop.maKhoa.tenKhoa, COUNT(dk) " +
+            "FROM DangKyHoatDong dk " +
+            "WHERE dk.hoatDong.maHoatDong = :maHoatDong AND dk.isActive = true " +
+            "GROUP BY dk.sinhVien.lop.maKhoa.maKhoa, dk.sinhVien.lop.maKhoa.tenKhoa")
+    List<Object[]> countByFaculty(@Param("maHoatDong") String maHoatDong);
+
+    // ========== PERFORMANCE QUERIES (GROUP BY thay thế findAll) ==========
+
+    /**
+     * Đếm đăng ký theo khoa (toàn bộ) — native SQL thay thế findAll().forEach() trong getDashboardData.
+     * Trả về: [ten_khoa (String), tongDangKy (Long)]
+     */
+    @Query(value = "SELECT COALESCE(k.ten_khoa, 'Không xác định') as ten_khoa, " +
+            "COUNT(*) as tong_dang_ky " +
+            "FROM dang_ky_hoat_dong dk " +
+            "LEFT JOIN sinhvien sv ON dk.ma_sv = sv.ma_sv " +
+            "LEFT JOIN lop l ON sv.ma_lop = l.ma_lop " +
+            "LEFT JOIN khoa k ON l.ma_khoa = k.ma_khoa " +
+            "WHERE dk.is_active = true " +
+            "GROUP BY k.ma_khoa, k.ten_khoa",
+            nativeQuery = true)
+    List<Object[]> countDangKyGroupByKhoa();
+
+    /**
+     * Trend đăng ký 12 tháng — dùng cho getDashboardData.
+     * Trả về: [nam (Integer), thang (Integer), tongDangKy (Long)]
+     */
+    @Query(value = "SELECT YEAR(hd.ngay_to_chuc) as nam, MONTH(hd.ngay_to_chuc) as thang, " +
+            "COUNT(dk.ma_sv) as tong_dang_ky " +
+            "FROM dang_ky_hoat_dong dk " +
+            "JOIN hoat_dong hd ON dk.ma_hoat_dong = hd.ma_hoat_dong " +
+            "WHERE hd.ngay_to_chuc >= :startDate AND dk.is_active = true " +
+            "GROUP BY YEAR(hd.ngay_to_chuc), MONTH(hd.ngay_to_chuc) " +
+            "ORDER BY nam, thang",
+            nativeQuery = true)
+    List<Object[]> findTrendDangKyLast12Months(@Param("startDate") java.time.LocalDate startDate);
 }

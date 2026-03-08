@@ -25,6 +25,7 @@ public class DangKyHoatDongService {
     private final DangKyHoatDongRepository dangKyRepository;
     private final HoatDongRepository hoatDongRepository;
     private final SinhVienRepository sinhVienRepository;
+    private final KhoaRepository khoaRepository;
     private final DiemDanhHoatDongRepository diemDanhRepository;
     private final QRCodeService qrCodeService;
 
@@ -226,6 +227,53 @@ public class DangKyHoatDongService {
         stats.put("tyLeCheckIn", total > 0 ? (double) checkedIn / total * 100 : 0);
 
         return stats;
+    }
+
+    /**
+     * Thống kê đăng ký theo khoa cho một hoạt động cụ thể.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getFacultyRegistrationStats(String maHoatDong) {
+        // 1. Lấy tất cả khoa đang hoạt động
+        List<Khoa> allKhoa = khoaRepository.findByIsActiveTrue();
+
+        // 2. Lấy số lượng đăng ký theo khoa từ repository
+        List<Object[]> facultyCounts = dangKyRepository.countByFaculty(maHoatDong);
+
+        // 3. Chuyển kết quả count thành Map để dễ tra cứu
+        Map<String, Long> countMap = new HashMap<>();
+        for (Object[] row : facultyCounts) {
+            countMap.put((String) row[0], (Long) row[2]);
+        }
+
+        // 4. Phân loại khoa đã đăng ký và chưa đăng ký
+        List<Map<String, Object>> registeredFaculties = new ArrayList<>();
+        List<Map<String, Object>> missingFaculties = new ArrayList<>();
+
+        for (Khoa k : allKhoa) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("maKhoa", k.getMaKhoa());
+            item.put("tenKhoa", k.getTenKhoa());
+
+            Long count = countMap.get(k.getMaKhoa());
+            if (count != null && count > 0) {
+                item.put("count", count);
+                registeredFaculties.add(item);
+            } else {
+                missingFaculties.add(item);
+            }
+        }
+
+        // Sắp xếp theo số lượng giảm dần
+        registeredFaculties.sort((a, b) -> ((Long) b.get("count")).compareTo((Long) a.get("count")));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("maHoatDong", maHoatDong);
+        result.put("faculties", registeredFaculties);
+        result.put("missingFaculties", missingFaculties);
+        result.put("totalRegistered", countMap.values().stream().mapToLong(Long::longValue).sum());
+
+        return result;
     }
 
     // ========== MAPPING METHODS ==========

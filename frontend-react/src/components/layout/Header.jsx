@@ -40,16 +40,17 @@ const Header = ({ title, onMenuClick }) => {
     setupSSE();
 
     // Yêu cầu quyền browser notification (tự động, không-blocking)
+    let t;
     if (browserNotificationService.isSupported() &&
         browserNotificationService.getPermission() === 'default') {
       // Delay 3s sau khi Header mount để tránh popup quá sớm
-      const t = setTimeout(() => {
+      t = setTimeout(() => {
         browserNotificationService.requestPermission().catch(() => {/* silent */});
       }, 3000);
-      return () => clearTimeout(t);
     }
 
     return () => {
+      clearTimeout(t);
       if (eventSourceRef.current) eventSourceRef.current.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

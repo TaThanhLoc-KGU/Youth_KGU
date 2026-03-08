@@ -146,6 +146,16 @@ public class DangKyHoatDongController {
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
+    @GetMapping("/faculty-stats/{maHoatDong}")
+    @Operation(summary = "Thống kê đăng ký theo khoa")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_DANG_KY')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getFacultyStats(
+            @PathVariable String maHoatDong) {
+        log.info("GET /api/dang-ky/faculty-stats/{}", maHoatDong);
+        Map<String, Object> stats = dangKyService.getFacultyRegistrationStats(maHoatDong);
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
     // ========== ALIAS ENDPOINTS FOR COMPATIBILITY ==========
 
     @PostMapping("/tham-gia")

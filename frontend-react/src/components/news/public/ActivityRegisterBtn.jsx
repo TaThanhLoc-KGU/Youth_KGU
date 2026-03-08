@@ -112,7 +112,7 @@ const ActivityRegisterBtn = ({ hoatDongId, trangThaiHoatDong, hanDangKy, soChoCo
     setLoginLoading(true);
     setLoginError('');
     try {
-      const result = await login({ taiKhoan: loginForm.taiKhoan.trim(), matKhau: loginForm.matKhau });
+      const result = await login({ username: loginForm.taiKhoan.trim(), password: loginForm.matKhau });
       // login() updates auth store and returns { user, ... }
       setShowLoginForm(false);
       toast.success(`Chào ${result.user?.hoTen || result.user?.taiKhoan || 'bạn'}!`);

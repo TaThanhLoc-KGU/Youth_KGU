@@ -76,4 +76,31 @@ public interface HoatDongRepository extends JpaRepository<HoatDong, String> {
     @Query("SELECT dk.hoatDong.maHoatDong, COUNT(dk) FROM DangKyHoatDong dk " +
             "WHERE dk.isActive = true GROUP BY dk.hoatDong.maHoatDong")
     List<Object[]> countDangKyGroupByHoatDong();
+
+    // ========== PERFORMANCE QUERIES ==========
+
+    /**
+     * Trend tổng hợp 12 tháng: số hoạt động + đăng ký + điểm danh theo tháng.
+     * 1 native query thay thế vòng lặp 120–240 queries trong getDashboardData().
+     * Trả về: [nam (Integer), thang (Integer), soHoatDong (Long), tongDangKy (Long), tongDiemDanh (Long)]
+     */
+    @Query(value = "SELECT YEAR(hd.ngay_to_chuc) as nam, " +
+            "MONTH(hd.ngay_to_chuc) as thang, " +
+            "COUNT(DISTINCT hd.ma_hoat_dong) as so_hoat_dong, " +
+            "COALESCE(SUM(dk_agg.tong_dk), 0) as tong_dang_ky, " +
+            "COALESCE(SUM(dd_agg.tong_dd), 0) as tong_diem_danh " +
+            "FROM hoat_dong hd " +
+            "LEFT JOIN (" +
+            "  SELECT ma_hoat_dong, COUNT(*) as tong_dk " +
+            "  FROM dang_ky_hoat_dong WHERE is_active = true GROUP BY ma_hoat_dong" +
+            ") dk_agg ON dk_agg.ma_hoat_dong = hd.ma_hoat_dong " +
+            "LEFT JOIN (" +
+            "  SELECT ma_hoat_dong, COUNT(*) as tong_dd " +
+            "  FROM diem_danh_hoat_dong GROUP BY ma_hoat_dong" +
+            ") dd_agg ON dd_agg.ma_hoat_dong = hd.ma_hoat_dong " +
+            "WHERE hd.ngay_to_chuc >= :startDate AND hd.is_active = true " +
+            "GROUP BY YEAR(hd.ngay_to_chuc), MONTH(hd.ngay_to_chuc) " +
+            "ORDER BY nam ASC, thang ASC",
+            nativeQuery = true)
+    List<Object[]> findTrendDataLast12Months(@Param("startDate") LocalDate startDate);
 }

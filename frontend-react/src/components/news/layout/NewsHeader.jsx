@@ -238,7 +238,7 @@ const NewsHeader = ({ onMenuToggle, menuOpen }) => {
 
       {/* ── Mobile nav drawer ── */}
       {menuOpen && (
-        <div className="lg:hidden bg-enews-800 border-t border-enews-700">
+        <div className="lg:hidden bg-enews-800 border-t border-enews-700 max-h-[calc(100vh-64px)] overflow-y-auto shadow-inner">
           <ul className="py-2">
             {navItems.map((item) => (
               <li key={item.label}>

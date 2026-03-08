@@ -15,6 +15,7 @@ public interface SinhVienRepository extends JpaRepository<SinhVien, String> {
 
     @Query("SELECT COUNT(sv) FROM SinhVien sv WHERE sv.lop.maLop = :maLop AND sv.isActive = true")
     long countByLopMaLopAndIsActiveTrue(@Param("maLop") String maLop);
+
     // THÊM CÁC METHOD KHÁC
     List<SinhVien> findByIsActiveFalse();
     List<SinhVien> findByIsActive(Boolean isActive);

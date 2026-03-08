@@ -9,8 +9,20 @@ export const formatDate = (date) => {
   if (!date) return '';
 
   try {
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return ''; // Check for invalid date
+    let d;
+    if (typeof date === 'string') {
+      // Nếu là chuỗi YYYY-MM-DD, tạo Date mà không bị ảnh hưởng bởi múi giờ (UTC)
+      if (date.includes('-') && !date.includes('T') && !date.includes(':')) {
+        const [y, m, d_part] = date.split('-');
+        d = new Date(y, m - 1, d_part);
+      } else {
+        d = new Date(date);
+      }
+    } else {
+      d = new Date(date);
+    }
+
+    if (isNaN(d.getTime())) return '';
 
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -128,5 +140,28 @@ export const parseDate = (dateString) => {
   } catch (error) {
     console.error('Date parsing error:', error);
     return null;
+  }
+};
+
+/**
+ * Cộng/Trừ phút vào một chuỗi thời gian HH:mm hoặc HH:mm:ss
+ * @param {string} timeStr - Chuỗi thời gian gốc
+ * @param {number} minutes - Số phút cần cộng (dùng số âm để trừ)
+ * @returns {string} Chuỗi thời gian mới HH:mm:ss
+ */
+export const addMinutesToTime = (timeStr, minutes) => {
+  if (!timeStr) return '';
+  try {
+    const [h, m, s = 0] = timeStr.split(':').map(Number);
+    const date = new Date();
+    date.setHours(h, m, s, 0);
+    date.setMinutes(date.getMinutes() + minutes);
+    
+    const nh = String(date.getHours()).padStart(2, '0');
+    const nm = String(date.getMinutes()).padStart(2, '0');
+    const ns = String(date.getSeconds()).padStart(2, '0');
+    return `${nh}:${nm}:${ns}`;
+  } catch (e) {
+    return timeStr;
   }
 };

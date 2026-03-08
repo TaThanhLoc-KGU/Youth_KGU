@@ -10,6 +10,7 @@ import Card from '../common/Card';
 import ImageUpload from '../common/ImageUpload';
 import RenLuyenSelector from './RenLuyenSelector';
 import activityService from '../../services/activityService';
+import { formatDate, formatDateTime, addMinutesToTime } from '../../utils/dateFormat';
 import {
   LOAI_HOAT_DONG_OPTIONS,
   CAP_DO_OPTIONS,
@@ -397,20 +398,23 @@ const ActivityForm = ({
 
   // Khi người dùng thay đổi ngày tổ chức → cập nhật học kỳ và năm học tương ứng
   const handleNgayToChucChange = (e) => {
-    const ngay = e.target.value;
+    const ngay = e.target.value; // YYYY-MM-DD
     setFormData((prev) => {
       const updated = { ...prev, ngayToChuc: ngay };
       if (ngay) {
-        const date = new Date(ngay);
-        const month = date.getMonth() + 1;
-        const day   = date.getDate();
-        const year  = date.getFullYear();
+        const [yearStr, monthStr, dayStr] = ngay.split('-');
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStr);
+        const day = parseInt(dayStr);
+        
         let soHK;
         if (month >= 8 && month <= 11) soHK = 1;
         else if (month === 12 || month === 1 || month === 2 || (month === 3 && day < 15)) soHK = 2;
         else soHK = 3;
-        const startYear = month >= 8 ? year : year - 1;
+        
+        const startYear = (month >= 8) ? year : year - 1;
         const endYear = startYear + 1;
+        
         updated.soHocKy  = soHK;
         updated.maNamHoc = `NH${startYear}-${endYear}`;
         updated.tenNamHoc = `Năm học ${startYear}-${endYear}`;
@@ -583,14 +587,23 @@ const ActivityForm = ({
           <h3 className="font-semibold text-lg text-gray-900">Thời gian &amp; Địa điểm</h3>
 
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Ngày tổ chức *"
-              type="date"
-              name="ngayToChuc"
-              value={formData.ngayToChuc}
-              onChange={handleNgayToChucChange}
-              error={errors.ngayToChuc}
-            />
+            <div className="space-y-1">
+              <label className="form-label">Ngày tổ chức *</label>
+              <div className="custom-date-input">
+                <input
+                  type="date"
+                  name="ngayToChuc"
+                  value={formData.ngayToChuc || ""}
+                  onChange={handleNgayToChucChange}
+                  className={`form-input ${errors.ngayToChuc ? 'border-red-500' : ''}`}
+                  placeholder=" " 
+                />
+                <div className="custom-date-display">
+                  {formData.ngayToChuc ? formatDate(formData.ngayToChuc) : <span className="text-gray-400">dd/mm/yyyy</span>}
+                </div>
+              </div>
+              {errors.ngayToChuc && <p className="form-error">{errors.ngayToChuc}</p>}
+            </div>
             <div>
               <Input
                 label="Giờ khai mạc"
@@ -692,13 +705,23 @@ const ActivityForm = ({
 
           {/* Timeline hint */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 space-y-1">
-            <p className="font-medium">Luồng thời gian điểm danh:</p>
-            <p>
-              <span className="font-semibold">[Giờ bắt đầu − Cho phép sớm]</span>
-              {' '}→ Mở cổng check-in
-              {' '}→ <span className="font-semibold">[Giờ bắt đầu + Trễ tối đa]</span> = Đóng check-in muộn
-              {' '}→ <span className="font-semibold">[Giờ kết thúc]</span> = Mở cổng check-out
-              {' '}→ <span className="font-semibold">[Giờ kết thúc + 30 phút]</span> = Đóng check-out.
+            <p className="font-bold mb-1 underline">Mốc thời gian thực tế dựa trên cài đặt của bạn:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+              <p>
+                <span className="font-semibold">Mở Check-in:</span> {formData.thoiGianBatDau ? addMinutesToTime(formData.thoiGianBatDau, -(formData.choPhepCheckInSom || 30)) : '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Đóng Check-in:</span> {formData.thoiGianBatDau ? addMinutesToTime(formData.thoiGianBatDau, (formData.thoiGianTreToiDa || 15)) : '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Mở Check-out:</span> {formData.thoiGianKetThuc || '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Đóng Check-out:</span> {formData.thoiGianKetThuc ? addMinutesToTime(formData.thoiGianKetThuc, 30) : '—'}
+              </p>
+            </div>
+            <p className="mt-2 italic text-[10px] text-amber-600">
+              * Hệ thống sẽ tự động từ chối quét QR ngoài các khung giờ nêu trên.
             </p>
           </div>
 
@@ -829,13 +852,22 @@ const ActivityForm = ({
           <h3 className="font-semibold text-lg text-gray-900">Đăng ký &amp; Trạng thái</h3>
 
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Hạn đăng ký"
-              type="datetime-local"
-              name="hanDangKy"
-              value={formData.hanDangKy}
-              onChange={handleChange}
-            />
+            <div className="space-y-1">
+              <label className="form-label">Hạn đăng ký</label>
+              <div className="custom-date-input">
+                <input
+                  type="datetime-local"
+                  name="hanDangKy"
+                  value={formData.hanDangKy || ""}
+                  onChange={handleChange}
+                  className="form-input"
+                  placeholder=" "
+                />
+                <div className="custom-date-display">
+                  {formData.hanDangKy ? formatDateTime(formData.hanDangKy) : <span className="text-gray-400">dd/mm/yyyy HH:mm</span>}
+                </div>
+              </div>
+            </div>
 
             {/* Trạng thái: dropdown khi tạo mới, badge + action buttons khi edit */}
             {isEdit ? (

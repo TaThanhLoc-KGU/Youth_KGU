@@ -1,10 +1,11 @@
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { ShieldOff } from 'lucide-react';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import PermissionGate from './components/common/PermissionGate';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import MainLayout from './components/layout/MainLayout';
+import Loading from './components/common/Loading';
 import Login from './pages/auth/Login';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
@@ -131,23 +132,25 @@ const ADMIN_SECTION_PERMS = [
 
 
 function App() {
-  const { checkAuth, refreshPermissions } = useAuthStore();
+  const { checkAuth, refreshPermissions, isLoading: isAuthLoading } = useAuthStore();
 
   useEffect(() => {
     const auth = checkAuth();
-    // Nếu user đã đăng nhập (token còn trong localStorage), tải lại permissions mới nhất từ server.
-    // Đảm bảo BCH user luôn có permissions cập nhật sau khi admin cấu hình matrix,
-    // mà không cần phải đăng xuất / đăng nhập lại.
     if (auth) {
-      refreshPermissions().catch(() => {/* silent — token hết hạn sẽ tự redirect login */});
+      refreshPermissions().catch(() => {});
     }
   }, []);
 
   return (
     <ErrorBoundary>
+      {/* Hiển thị loading toàn màn hình khi đang xử lý đăng nhập/đăng xuất */}
+      {isAuthLoading && <Loading fullScreen text="Đang xử lý..." />}
+      
       {/* Theo dõi session timeout 1 giờ — không render gì */}
       <SessionTimeoutWatcher />
-      <Routes>
+      
+      <Suspense fallback={<Loading fullScreen text="Đang tải dữ liệu..." />}>
+        <Routes>
         {/* Public Routes */}
         <Route path={ROUTES.LOGIN} element={<Login />} />
         <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
@@ -422,6 +425,7 @@ function App() {
           <Route path="*" element={<NewsResolver />} />
         </Route>
       </Routes>
+      </Suspense>
     </ErrorBoundary>
   );
 }

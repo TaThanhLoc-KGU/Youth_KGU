@@ -66,11 +66,9 @@ export default function ProfilePage() {
     onSuccess: (updatedData) => {
       toast.success('Cập nhật hồ sơ thành công!');
       setIsEditing(false);
-      queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
-      // Assuming updatedData is the response object, check structure if needed
-      // If updateProfile returns data directly like getAccount, use updatedData
-      // If it returns full response, use updatedData.data
-      // Based on accountService.updateProfile, it returns response.data.data
+      // Ghi thẳng data mới vào React Query cache → form re-render ngay lập tức
+      queryClient.setQueryData(['userProfile', userId], updatedData);
+      // Đồng bộ Zustand store → header / navbar hiển thị tên mới
       setAuthUser({ ...authUser, ...updatedData });
     },
     onError: (error) => {

@@ -52,7 +52,7 @@ const NOTICES = [
     color: 'text-blue-600',
     bg: 'bg-blue-50 border-blue-200',
     title: 'Tên đăng nhập',
-    content: 'Sinh viên dùng mã số sinh viên (VD: KH001234). BCH và giảng viên dùng tài khoản do admin cấp.',
+    content: 'Sinh viên dùng mã số sinh viên (VD: 21072006095). Ban chấp hành Đoàn và Ban thư ký dùng tài khoản do admin cấp.',
   },
   {
     icon: ShieldCheck,
@@ -67,13 +67,17 @@ const NOTICES = [
     bg: 'bg-purple-50 border-purple-200',
     title: 'Hỗ trợ kỹ thuật',
     content: (
-      <>
-        Liên hệ BCH Đoàn qua email{' '}
-        <a href="mailto:thanhlocta2408@gmail.com" className="text-purple-700 underline font-medium">
-          thanhlocta2408@gmail.com
-        </a>{' '}
-        nếu quên mật khẩu hoặc gặp sự cố đăng nhập.
-      </>
+        <>
+          Liên hệ BCH Đoàn qua email{' '}
+          <a href="mailto:thanhlocta2408@gmail.com" className="text-purple-700 underline font-medium">
+            thanhlocta2408@gmail.com
+          </a>{' '}
+          hoặc gọi qua số điện thoại{' '}
+          <a href="tel:0967006704" className="text-purple-700 underline font-medium">
+            0967.006.704
+          </a>{' '}
+          nếu quên mật khẩu hoặc gặp sự cố đăng nhập.
+        </>
     ),
   },
 ];

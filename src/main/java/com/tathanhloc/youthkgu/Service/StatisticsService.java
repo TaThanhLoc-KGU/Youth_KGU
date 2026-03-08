@@ -35,7 +35,6 @@ public class StatisticsService {
     private final HoatDongRepository hoatDongRepository;
     private final DangKyHoatDongRepository dangKyHoatDongRepository;
     private final DiemDanhHoatDongRepository diemDanhHoatDongRepository;
-    private final BanRepository banRepository;
     private final KhoaRepository khoaRepository;
 
     // ==================== EXISTING METHODS (UNCHANGED) ====================
@@ -82,15 +81,15 @@ public class StatisticsService {
     public Map<String, Long> getAccountsByDepartmentStatistics() {
         log.info("Lấy thống kê tài khoản theo ban chuyên môn");
 
+        // Dùng GROUP BY 1 query thay vì N query (1 per ban)
         Map<String, Long> statistics = new LinkedHashMap<>();
-
-        for (Ban ban : banRepository.findAll()) {
-            long count = taiKhoanRepository.countByBanChuyenMon(ban);
+        taiKhoanRepository.countGroupByBan().forEach(row -> {
+            String tenBan = (String) row[1];
+            long count = ((Number) row[2]).longValue();
             if (count > 0) {
-                statistics.put(ban.getTenBan(), count);
+                statistics.put(tenBan, count);
             }
-        }
-
+        });
         return statistics;
     }
 
@@ -155,12 +154,8 @@ public class StatisticsService {
     public Map<String, Object> getStatisticsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         Map<String, Object> statistics = new LinkedHashMap<>();
 
-        var newAccounts = taiKhoanRepository.findAll()
-                .stream()
-                .filter(tk -> tk.getCreatedAt() != null &&
-                        tk.getCreatedAt().isAfter(startDate) &&
-                        tk.getCreatedAt().isBefore(endDate))
-                .count();
+        // Dùng COUNT query thay vì findAll().stream().filter() — tránh tải toàn bộ bảng vào bộ nhớ
+        long newAccounts = taiKhoanRepository.countByCreatedAtBetween(startDate, endDate);
 
         statistics.put("startDate", startDate);
         statistics.put("endDate", endDate);
@@ -234,25 +229,27 @@ public class StatisticsService {
 
         // ---- 1. Tổng quan ----
         long tongHoatDong = hoatDongRepository.count();
-        long tongDangKy = dangKyHoatDongRepository.count();
+        long tongDangKy   = dangKyHoatDongRepository.countAllActive();
         long tongDiemDanh = diemDanhHoatDongRepository.countByTrangThai(TrangThaiThamGiaEnum.DA_THAM_GIA);
         double tyLeThamGia = tongDangKy > 0
                 ? Math.round((double) tongDiemDanh / tongDangKy * 100 * 10.0) / 10.0 : 0.0;
 
-        // ---- Tính theoKhoa (dùng lại để tính soKhoaThamGia) ----
+        // ---- Tính theoKhoa dùng GROUP BY (thay thế findAll().forEach() — tránh load toàn bộ bảng) ----
         Map<String, long[]> facultyMap = new LinkedHashMap<>();
-        diemDanhHoatDongRepository.findAll().forEach(dd -> {
-            if (TrangThaiThamGiaEnum.DA_THAM_GIA.equals(dd.getTrangThai())) {
-                String tenKhoa = getFacultyName(dd.getSinhVien());
-                facultyMap.computeIfAbsent(tenKhoa, k -> new long[]{0, 0})[1]++;
-            }
+
+        // Điểm danh theo khoa — 1 native query
+        diemDanhHoatDongRepository.countDiemDanhGroupByKhoa().forEach(row -> {
+            String tenKhoa = row[0] != null ? row[0].toString() : "Không xác định";
+            long count = ((Number) row[1]).longValue();
+            facultyMap.computeIfAbsent(tenKhoa, k -> new long[]{0, 0})[1] = count;
         });
-        dangKyHoatDongRepository.findAll().stream()
-                .filter(dk -> Boolean.TRUE.equals(dk.getIsActive()))
-                .forEach(dk -> {
-                    String tenKhoa = getFacultyName(dk.getSinhVien());
-                    facultyMap.computeIfAbsent(tenKhoa, k -> new long[]{0, 0})[0]++;
-                });
+
+        // Đăng ký theo khoa — 1 native query
+        dangKyHoatDongRepository.countDangKyGroupByKhoa().forEach(row -> {
+            String tenKhoa = row[0] != null ? row[0].toString() : "Không xác định";
+            long count = ((Number) row[1]).longValue();
+            facultyMap.computeIfAbsent(tenKhoa, k -> new long[]{0, 0})[0] = count;
+        });
 
         long soKhoaThamGia = facultyMap.values().stream().filter(stats -> stats[1] > 0).count();
 
@@ -263,26 +260,35 @@ public class StatisticsService {
         tongQuan.put("soKhoaThamGia", soKhoaThamGia);
         result.put("tongQuan", tongQuan);
 
-        // ---- 2. Xu hướng theo tháng (12 tháng gần nhất) ----
+        // ---- 2. Xu hướng theo tháng (12 tháng gần nhất) — 1 native query thay vì 120–240 queries ----
+        LocalDate trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1);
+
+        // Index data từ native query theo "year-month"
+        Map<String, long[]> trendMap = new LinkedHashMap<>();
+        hoatDongRepository.findTrendDataLast12Months(trendStart).forEach(row -> {
+            int nam = ((Number) row[0]).intValue();
+            int thang = ((Number) row[1]).intValue();
+            long soHd  = ((Number) row[2]).longValue();
+            long sodk  = ((Number) row[3]).longValue();
+            long sodd  = ((Number) row[4]).longValue();
+            String key = nam + "-" + String.format("%02d", thang);
+            trendMap.put(key, new long[]{soHd, sodk, sodd});
+        });
+
+        // Đảm bảo đủ 12 tháng kể cả tháng không có dữ liệu
         List<Map<String, Object>> trend = new ArrayList<>();
         for (int i = 11; i >= 0; i--) {
             LocalDate month = LocalDate.now().minusMonths(i);
-            LocalDate start = month.withDayOfMonth(1);
-            LocalDate end = month.withDayOfMonth(month.lengthOfMonth());
-
-            List<HoatDong> activities = hoatDongRepository.findByDateRange(start, end);
-            long soHoatDong = activities.size();
-            long tongDangKyThang = activities.stream()
-                    .mapToLong(hd -> dangKyHoatDongRepository.countByHoatDongMaHoatDongAndIsActiveTrue(hd.getMaHoatDong()))
-                    .sum();
-            long tongDiemDanhThang = activities.stream()
-                    .mapToLong(hd -> diemDanhHoatDongRepository.countByHoatDongMaHoatDong(hd.getMaHoatDong()))
-                    .sum();
+            String key = month.getYear() + "-" + String.format("%02d", month.getMonthValue());
+            long[] vals = trendMap.getOrDefault(key, new long[]{0, 0, 0});
+            long soHoatDong     = vals[0];
+            long tongDangKyThang  = vals[1];
+            long tongDiemDanhThang = vals[2];
             double tyLe = tongDangKyThang > 0
                     ? Math.round((double) tongDiemDanhThang / tongDangKyThang * 100 * 10.0) / 10.0 : 0.0;
 
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("thang", month.getYear() + "-" + String.format("%02d", month.getMonthValue()));
+            m.put("thang", key);
             m.put("soHoatDong", soHoatDong);
             m.put("tongDangKy", tongDangKyThang);
             m.put("tongDiemDanh", tongDiemDanhThang);
@@ -352,11 +358,12 @@ public class StatisticsService {
         stats.put("tiLeCoMat", totalAttendance > 0
                 ? Math.round((double) successful / totalAttendance * 100 * 100.0) / 100.0 : 0);
 
-        // Thống kê theo khoa
+        // Thống kê theo khoa — dùng GROUP BY 1 query thay thế findAll().forEach()
         Map<String, Long> byFaculty = new LinkedHashMap<>();
-        diemDanhHoatDongRepository.findAll().forEach(dd -> {
-            String tenKhoa = getFacultyName(dd.getSinhVien());
-            byFaculty.merge(tenKhoa, 1L, Long::sum);
+        diemDanhHoatDongRepository.countDiemDanhGroupByKhoa().forEach(row -> {
+            String tenKhoa = row[0] != null ? row[0].toString() : "Không xác định";
+            long count = ((Number) row[1]).longValue();
+            byFaculty.put(tenKhoa, count);
         });
         stats.put("thongKeTheoKhoa", byFaculty);
 

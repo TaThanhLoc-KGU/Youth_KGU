@@ -3,22 +3,23 @@ package com.tathanhloc.youthkgu.Config;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Caffeine Cache — thay thế ConcurrentMapCacheManager.
- * Hỗ trợ TTL (tự hết hạn) và giới hạn kích thước — miễn phí, không cần Redis.
+ * Caffeine Cache với TTL riêng cho từng cache (SimpleCacheManager + CaffeineCache).
  *
- * TTL:
- *  - khoa, nganh, lop, khoahoc   → 1 giờ  (ít thay đổi)
- *  - sinhvien, giangvien          → 30 phút
- *  - hoatdong-list                → 3 phút
- *  - thong-ke                     → 5 phút
- *  - thong-ke-overview            → 10 phút
+ * TTL theo mức độ thay đổi dữ liệu:
+ *  - khoa, nganh, lop, khoahoc   → 1 giờ   (dữ liệu danh mục, ít thay đổi)
+ *  - sinhvien, giangvien          → 30 phút  (thay đổi trung bình)
+ *  - hoatdong-list                → 3 phút   (thay đổi thường xuyên)
+ *  - thong-ke                     → 5 phút   (dashboard realtime)
+ *  - thong-ke-overview            → 10 phút  (báo cáo tổng quan)
  */
 @Configuration
 @EnableCaching
@@ -26,20 +27,28 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager manager = new CaffeineCacheManager();
-
-        // Default cho mọi cache chưa được cấu hình riêng
-        manager.setCaffeine(
-                Caffeine.newBuilder()
-                        .expireAfterWrite(15, TimeUnit.MINUTES)
-                        .maximumSize(200)
-                        .recordStats()
-        );
-
-        manager.setCacheNames(java.util.Arrays.asList(
-                "khoahoc", "lop", "giangvien", "sinhvien", "khoa", "nganh",
-                "hoatdong-list", "thong-ke", "thong-ke-overview"
+        SimpleCacheManager manager = new SimpleCacheManager();
+        manager.setCaches(List.of(
+                build("khoahoc",           60,  200),
+                build("lop",               60,  500),
+                build("khoa",              60,  100),
+                build("nganh",             60,  200),
+                build("giangvien",         30,  300),
+                build("sinhvien",          30, 2000),
+                build("hoatdong-list",      3,  500),
+                build("thong-ke",           5,  100),
+                build("thong-ke-overview", 10,   50)
         ));
         return manager;
+    }
+
+    /** Tạo một CaffeineCache với TTL (phút) và giới hạn kích thước riêng, bật recordStats(). */
+    private CaffeineCache build(String name, long ttlMinutes, long maxSize) {
+        return new CaffeineCache(name,
+                Caffeine.newBuilder()
+                        .expireAfterWrite(ttlMinutes, TimeUnit.MINUTES)
+                        .maximumSize(maxSize)
+                        .recordStats()
+                        .build());
     }
 }

@@ -29,6 +29,7 @@ import {
 import activityService from '../../services/activityService';
 import diemDanhService from '../../services/diemDanhService';
 import { format } from 'date-fns';
+import { addMinutesToTime } from '../../utils/dateFormat';
 
 // ─── Haversine distance (metres) ─────────────────────────────────────────────
 function haversineMeters(lat1, lng1, lat2, lng2) {
@@ -139,11 +140,11 @@ function isAttendanceWindowOpen(activity) {
 
 function getWindowMessage(activity) {
   if (!activity?.thoiGianBatDau) return null;
-  const early = activity.choPhepCheckInSom
-    ? `(từ ${activity.thoiGianBatDau} trừ ${activity.choPhepCheckInSom} phút)`
-    : `(từ ${activity.thoiGianBatDau})`;
-  const end = activity.thoiGianKetThuc ? ` đến ${activity.thoiGianKetThuc}` : '';
-  return `Điểm danh mở ${early}${end}`;
+  
+  const startTime = addMinutesToTime(activity.thoiGianBatDau, -(activity.choPhepCheckInSom || 30));
+  const endTime = activity.thoiGianKetThuc || 'kết thúc';
+  
+  return `Khung giờ QR có hiệu lực: ${startTime} đến ${endTime}`;
 }
 
 // ─── QR Scanner Component ────────────────────────────────────────────────────
