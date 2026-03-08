@@ -167,7 +167,14 @@ services:
 
       JWT_REFRESH_TOKEN_EXPIRATION: 604800000000
 
-    
+      # Web Push VAPID (generate: npx web-push generate-vapid-keys)
+      APP_VAPID_PUBLIC_KEY: REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY
+
+      APP_VAPID_PRIVATE_KEY: REPLACE_WITH_YOUR_VAPID_PRIVATE_KEY
+
+      APP_VAPID_SUBJECT: mailto:admin@youthkgu.edu.vn
+
+
 
     ports:
 
