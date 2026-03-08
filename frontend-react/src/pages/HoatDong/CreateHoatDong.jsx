@@ -38,12 +38,13 @@ const CreateHoatDong = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, touchedFields } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors, touchedFields } } = useForm({
     resolver: yupResolver(schema),
     mode: 'onBlur', // Validate on blur
     defaultValues: {
       loaiHoatDong: 'KHAC',
       capDo: 'TRUONG',
+      cheDoDiemDanh: 'CHECKIN_CHECKOUT',
       yeuCauDiemDanh: true,
       choPhepDangKy: true,
       yeuCauCheckOut: false,
@@ -54,6 +55,8 @@ const CreateHoatDong = () => {
       soLuongToiDa: 100
     }
   });
+
+  const cheDoDiemDanh = watch('cheDoDiemDanh');
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -240,40 +243,87 @@ const CreateHoatDong = () => {
         {/* Cấu hình điểm danh */}
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-blue-700 mb-4 border-b pb-2">Cấu hình điểm danh</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Check-in sớm */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cho phép check-in sớm (phút)</label>
-              <input
-                type="number"
-                {...register('choPhepCheckInSom')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
 
-            {/* Trễ tối đa */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian trễ tối đa (phút)</label>
-              <input
-                type="number"
-                {...register('thoiGianTreToiDa')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+          {/* Chế độ điểm danh */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Chế độ điểm danh</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'CHECKIN_CHECKOUT', label: '↔️ Check-in & Check-out', desc: 'Yêu cầu cả check-in lẫn check-out' },
+                { value: 'CHECKIN_ONLY',     label: '→ Chỉ Check-in',          desc: 'Chỉ cần quét QR khi đến' },
+                { value: 'CHECKOUT_ONLY',    label: '← Chỉ Check-out',         desc: 'Check-in tự động, chỉ quét QR khi ra về' },
+                { value: 'AUTO_FULL',        label: '⚡ Tự động toàn bộ',      desc: 'BCH xác nhận, toàn bộ đăng ký = tham gia' },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    cheDoDiemDanh === opt.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    {...register('cheDoDiemDanh')}
+                    value={opt.value}
+                    className="mt-0.5 w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{opt.label}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
+                  </div>
+                </label>
+              ))}
             </div>
-
-            {/* Thời gian tối thiểu */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian tham gia tối thiểu (phút)</label>
-              <input
-                type="number"
-                {...register('thoiGianToiThieu')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
+            {cheDoDiemDanh === 'AUTO_FULL' && (
+              <p className="mt-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                ⚡ Sau khi hoạt động kết thúc, BCH nhấn &quot;Xác nhận tham gia&quot; để ghi nhận toàn bộ sinh viên đã đăng ký. Không cần quét QR.
+              </p>
+            )}
+            {cheDoDiemDanh === 'CHECKOUT_ONLY' && (
+              <p className="mt-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                ← Check-in tự động ghi nhận theo giờ bắt đầu. Sinh viên chỉ cần quét QR khi ra về.
+              </p>
+            )}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-6">
+          {cheDoDiemDanh !== 'AUTO_FULL' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+              {/* Check-in sớm — ẩn khi CHECKOUT_ONLY */}
+              {cheDoDiemDanh !== 'CHECKOUT_ONLY' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cho phép check-in sớm (phút)</label>
+                  <input
+                    type="number"
+                    {...register('choPhepCheckInSom')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              )}
+
+              {/* Trễ tối đa — ẩn khi CHECKOUT_ONLY */}
+              {cheDoDiemDanh !== 'CHECKOUT_ONLY' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian trễ tối đa (phút)</label>
+                  <input
+                    type="number"
+                    {...register('thoiGianTreToiDa')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              )}
+
+              {/* Thời gian tối thiểu */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian tham gia tối thiểu (phút)</label>
+                <input
+                  type="number"
+                  {...register('thoiGianToiThieu')}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-6">
             <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -281,15 +331,6 @@ const CreateHoatDong = () => {
                 className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
               />
               <span className="text-gray-700">Yêu cầu điểm danh</span>
-            </label>
-
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                {...register('yeuCauCheckOut')}
-                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-gray-700">Yêu cầu Check-out</span>
             </label>
 
             <label className="flex items-center space-x-2 cursor-pointer">
