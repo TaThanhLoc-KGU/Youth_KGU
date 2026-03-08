@@ -21,14 +21,43 @@ const StudentActivities = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  
+  // Tính toán HK/Năm học mặc định theo logic riêng của hệ thống
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+  const year = now.getFullYear();
+  
+  let defaultSemester;
+  if (month >= 8 && month <= 11) {
+    defaultSemester = 1;
+  } else if (month === 12 || month === 1 || month === 2 || (month === 3 && day < 15)) {
+    defaultSemester = 2;
+  } else {
+    defaultSemester = 3;
+  }
+
+  const startYear = month >= 8 ? year : year - 1;
+  const defaultAcademicYear = `NH${startYear}-${startYear + 1}`;
+
+  const [semesterFilter, setSemesterFilter] = useState(String(defaultSemester));
+  const [yearFilter, setYearFilter] = useState(defaultAcademicYear);
+
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
 
+  // Lấy thông tin năm học từ hệ thống
+  const { data: academicInfo } = useQuery({
+    queryKey: ['academic-info-student'],
+    queryFn: () => activityService.getCurrentAcademicInfo(),
+    staleTime: 30 * 60 * 1000,
+  });
+
   // Fetch all activities
   const { data: activities = [], isLoading } = useQuery({
-    queryKey: ['student-activities', search, statusFilter, typeFilter],
+    queryKey: ['student-activities'],
     queryFn: () => activityService.getAllNoPagination(),
-    keepPreviousData: true
+    staleTime: 5 * 60 * 1000,
   });
 
   // Filter activities
@@ -42,8 +71,11 @@ const StudentActivities = () => {
       statusFilter === 'all' || activity.trangThai === statusFilter;
 
     const matchesType = typeFilter === 'all' || activity.loaiHoatDong === typeFilter;
+    
+    const matchesSemester = semesterFilter === 'all' || String(activity.soHocKy) === semesterFilter;
+    const matchesYear = yearFilter === 'all' || activity.maNamHoc === yearFilter;
 
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesStatus && matchesType && matchesSemester && matchesYear;
   });
 
   const handleRegisterClick = (activity) => {
@@ -98,7 +130,7 @@ const StudentActivities = () => {
 
       {/* Filters */}
       <div className="card">
-        <div className="card-body">
+        <div className="card-body space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <SearchInput
               placeholder="Tìm kiếm hoạt động..."
@@ -128,6 +160,38 @@ const StudentActivities = () => {
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+            <div className="md:col-span-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Học kỳ</label>
+              <Select
+                options={[
+                  { value: 'all', label: 'Tất cả học kỳ' },
+                  { value: '1', label: 'Học kỳ 1' },
+                  { value: '2', label: 'Học kỳ 2' },
+                  { value: '3', label: 'Học kỳ 3' },
+                ]}
+                value={semesterFilter}
+                onChange={(e) => setSemesterFilter(e.target.value)}
+              />
+            </div>
+            <div className="md:col-span-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Năm học</label>
+              <Select
+                options={[
+                  { value: 'all', label: 'Tất cả năm học' },
+                  ...(academicInfo?.danhSachNamHoc?.map(nh => ({ value: nh.maNamHoc, label: nh.tenNamHoc })) || [])
+                ]}
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+              />
+            </div>
+            <div className="md:col-span-2 flex items-end">
+              <div className="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 w-full">
+                Đang hiển thị hoạt động của <strong>HK{semesterFilter === 'all' ? 'tất cả' : semesterFilter}</strong> năm học <strong>{yearFilter === 'all' ? 'tất cả' : (academicInfo?.danhSachNamHoc?.find(n => n.maNamHoc === yearFilter)?.tenNamHoc || yearFilter)}</strong>.
+              </div>
+            </div>
           </div>
         </div>
       </div>

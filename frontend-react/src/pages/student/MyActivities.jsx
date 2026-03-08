@@ -17,6 +17,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import dangKyService from '../../services/dangKyService';
+import activityService from '../../services/activityService';
 import useAuthStore from '../../stores/authStore';
 import { formatDate } from '../../utils/dateFormat';
 import Modal from '../../components/common/Modal';
@@ -57,10 +58,39 @@ const MyActivities = () => {
 
   const [search, setSearch] = useState('');
   const [filterAttended, setFilterAttended] = useState('all');
+
+  // Tính toán HK/Năm học mặc định theo logic riêng của hệ thống
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+  const year = now.getFullYear();
+  
+  let defaultSemester;
+  if (month >= 8 && month <= 11) {
+    defaultSemester = 1;
+  } else if (month === 12 || month === 1 || month === 2 || (month === 3 && day < 15)) {
+    defaultSemester = 2;
+  } else {
+    defaultSemester = 3;
+  }
+
+  const startYear = month >= 8 ? year : year - 1;
+  const defaultAcademicYear = `NH${startYear}-${startYear + 1}`;
+
+  const [semesterFilter, setSemesterFilter] = useState(String(defaultSemester));
+  const [yearFilter, setYearFilter] = useState(defaultAcademicYear);
+
   const [selectedReg, setSelectedReg] = useState(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [locationStatus, setLocationStatus] = useState('idle'); // idle | loading | sent | denied | error
   const locationSentRef = useRef(false); // tránh gửi nhiều lần trong 1 lần mở
+
+  // Lấy thông tin năm học từ hệ thống
+  const { data: academicInfo } = useQuery({
+    queryKey: ['academic-info-my-activities'],
+    queryFn: () => activityService.getCurrentAcademicInfo(),
+    staleTime: 30 * 60 * 1000,
+  });
 
   // Fetch student's registrations
   const { data: registrations = [], isLoading, refetch } = useQuery({
@@ -87,11 +117,16 @@ const MyActivities = () => {
       !search ||
       reg.tenHoatDong?.toLowerCase().includes(search.toLowerCase()) ||
       reg.maHoatDong?.toLowerCase().includes(search.toLowerCase());
+    
     const matchAttended =
       filterAttended === 'all' ||
       (filterAttended === 'attended' && reg.daDiemDanh) ||
       (filterAttended === 'not_attended' && !reg.daDiemDanh);
-    return matchSearch && matchAttended;
+
+    const matchSemester = semesterFilter === 'all' || String(reg.soHocKy) === semesterFilter;
+    const matchYear = yearFilter === 'all' || reg.maNamHoc === yearFilter;
+
+    return matchSearch && matchAttended && matchSemester && matchYear;
   });
 
   const handleShowQR = (reg) => {
@@ -175,7 +210,7 @@ const MyActivities = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -192,16 +227,54 @@ const MyActivities = () => {
             onChange={(e) => setFilterAttended(e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
           >
-            <option value="all">Tất cả</option>
+            <option value="all">Tất cả trạng thái</option>
             <option value="attended">Đã tham gia</option>
             <option value="not_attended">Chưa tham gia</option>
           </select>
           <button
-            onClick={() => refetch()}
+            onClick={() => {
+              setSemesterFilter(String(defaultSemester));
+              setYearFilter(defaultAcademicYear);
+              refetch();
+            }}
             className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
           >
             <RefreshCw className="w-4 h-4" /> Làm mới
           </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-4 border-t border-gray-50">
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Học kỳ</label>
+            <select
+              value={semesterFilter}
+              onChange={(e) => setSemesterFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-gray-50"
+            >
+              <option value="all">Tất cả học kỳ</option>
+              <option value="1">Học kỳ 1</option>
+              <option value="2">Học kỳ 2</option>
+              <option value="3">Học kỳ 3</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Năm học</label>
+            <select
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-gray-50"
+            >
+              <option value="all">Tất cả năm học</option>
+              {academicInfo?.danhSachNamHoc?.map(nh => (
+                <option key={nh.maNamHoc} value={nh.maNamHoc}>{nh.tenNamHoc}</option>
+              ))}
+            </select>
+          </div>
+          <div className="md:col-span-2 flex items-end">
+            <div className="text-[11px] text-green-600 bg-green-50 px-3 py-2 rounded-lg border border-green-100 w-full">
+              Đang xem lịch sử tham gia của <strong>HK{semesterFilter === 'all' ? 'tất cả' : semesterFilter}</strong> năm học <strong>{yearFilter === 'all' ? 'tất cả' : (academicInfo?.danhSachNamHoc?.find(n => n.maNamHoc === yearFilter)?.tenNamHoc || yearFilter)}</strong>.
+            </div>
+          </div>
         </div>
       </div>
 
