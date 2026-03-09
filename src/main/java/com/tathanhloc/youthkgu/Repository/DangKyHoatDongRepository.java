@@ -30,7 +30,7 @@ public interface DangKyHoatDongRepository extends JpaRepository<DangKyHoatDong, 
     @Query("SELECT dk FROM DangKyHoatDong dk " +
             "JOIN FETCH dk.sinhVien " +
             "JOIN FETCH dk.hoatDong " +
-            "WHERE dk.maQR = :maQR AND dk.isActive = true")
+            "WHERE dk.maQR = :maQR")
     Optional<DangKyHoatDong> findByMaQRWithDetails(@Param("maQR") String maQR);
 
     List<DangKyHoatDong> findByHoatDongMaHoatDongAndDaXacNhanFalseAndIsActiveTrue(String maHoatDong);

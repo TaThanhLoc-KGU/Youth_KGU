@@ -46,25 +46,33 @@ public class DiemDanhHoatDongService {
      */
     @Transactional
     public DiemDanhQRResponse scanQRCode(DiemDanhQRRequest request) {
-        log.info("Processing QR scan: {} by BCH: {}", request.getMaQR(), request.getMaBchXacNhan());
+        log.info("Processing QR scan: maQR='{}' by BCH: {}", request.getMaQR(), request.getMaBchXacNhan());
 
         try {
             // STEP 1: Validate QR format
             if (!qrCodeService.validateQRFormat(request.getMaQR())) {
+                log.warn("QR format invalid: '{}'", request.getMaQR());
                 return DiemDanhQRResponse.failed("Mã QR không hợp lệ");
             }
 
-            // STEP 2: Tìm đăng ký từ mã QR
+            // STEP 2: Tìm đăng ký từ mã QR (không filter isActive để tránh miss NULL values)
+            log.info("STEP2: Looking up maQR='{}' in DB", request.getMaQR());
             DangKyHoatDong dangKy = dangKyRepository.findByMaQRWithDetails(request.getMaQR())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký với mã QR này"));
+                    .orElseThrow(() -> new RuntimeException(
+                            "Không tìm thấy đăng ký với mã QR: '" + request.getMaQR() + "' (len=" + (request.getMaQR() != null ? request.getMaQR().length() : 0) + ")"));
 
-            if (!dangKy.getIsActive()) {
+            log.info("STEP2 OK: Found dangKy for SV={}, HoatDong={}, isActive={}",
+                    dangKy.getSinhVien() != null ? dangKy.getSinhVien().getMaSv() : "null",
+                    dangKy.getHoatDong() != null ? dangKy.getHoatDong().getMaHoatDong() : "null",
+                    dangKy.getIsActive());
+
+            if (Boolean.FALSE.equals(dangKy.getIsActive())) {
                 return DiemDanhQRResponse.failed("Đăng ký đã bị hủy");
             }
 
             // STEP 3: Validate hoạt động
             HoatDong hoatDong = dangKy.getHoatDong();
-            if (!hoatDong.getYeuCauDiemDanh()) {
+            if (Boolean.FALSE.equals(hoatDong.getYeuCauDiemDanh())) {
                 return DiemDanhQRResponse.failed("Hoạt động này không yêu cầu điểm danh");
             }
 
@@ -251,8 +259,8 @@ public class DiemDanhHoatDongService {
                     .soPhutTre(0)
                     .nguoiCheckIn(nguoiXacNhan)
                     .thietBiQuet(request.getThietBi())
-                    .latitude(dangKy.getStudentLatitude() != null ? dangKy.getStudentLatitude() : request.getLatitude())
-                    .longitude(dangKy.getStudentLongitude() != null ? dangKy.getStudentLongitude() : request.getLongitude())
+                    .latitude(request.getLatitude())
+                    .longitude(request.getLongitude())
                     .ghiChu(request.getGhiChu())
                     .build();
             diemDanh = diemDanhRepository.save(diemDanh);
