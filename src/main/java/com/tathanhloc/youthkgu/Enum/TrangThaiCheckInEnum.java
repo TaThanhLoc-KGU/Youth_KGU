@@ -5,7 +5,8 @@ public enum TrangThaiCheckInEnum {
     TRE_CHAP_NHAN("Trễ chấp nhận được"),
     TRE_QUA_GIO("Trễ quá giờ"),
     VE_SOM_QUA_SUA("Về sớm quá sua"),
-    VE_SOM_CHAP_NHAN("Về sớm chấp nhận");
+    VE_SOM_CHAP_NHAN("Về sớm chấp nhận"),
+    TU_DONG("Tự động (không quét QR)");
 
 
     private final String displayName;

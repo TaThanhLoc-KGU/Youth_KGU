@@ -83,6 +83,11 @@ public class HoatDong {
     /**
      * Yêu cầu check-out không
      */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "che_do_diem_danh", length = 30)
+    @Builder.Default
+    private CheDoDiemDanhEnum cheDoDiemDanh = CheDoDiemDanhEnum.CHECKIN_CHECKOUT;
+
     @Column(name = "yeu_cau_check_out")
     @Builder.Default
     private Boolean yeuCauCheckOut = false;

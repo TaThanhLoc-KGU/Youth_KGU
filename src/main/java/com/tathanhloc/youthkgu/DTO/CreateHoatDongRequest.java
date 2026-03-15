@@ -30,4 +30,12 @@ public class CreateHoatDongRequest {
     private java.time.LocalDateTime hanDangKy;
     private String hinhAnhPoster;
     private String ghiChu;
+    private String cheDoDiemDanh; // Enum string: CHECKIN_CHECKOUT | CHECKOUT_ONLY | CHECKIN_ONLY | AUTO_FULL
+    private java.time.LocalTime thoiGianBatDau;
+    private java.time.LocalTime thoiGianKetThuc;
+    private Integer thoiGianToiThieu;
+    private Integer thoiGianTreToiDa;
+    private Integer choPhepCheckInSom;
+    private Boolean yeuCauCheckOut;
+    private Boolean yeuCauDiemDanh;
 }

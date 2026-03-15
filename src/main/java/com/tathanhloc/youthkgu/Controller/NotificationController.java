@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -53,5 +54,11 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Void>> markAllAsRead(Authentication authentication) {
         notificationService.markAllAsRead(authentication.getName());
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /** Admin: xem trước số người nhận trước khi broadcast */
+    @GetMapping("/broadcast-preview")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getBroadcastPreview() {
+        return ResponseEntity.ok(ApiResponse.success(notificationService.getBroadcastPreview()));
     }
 }

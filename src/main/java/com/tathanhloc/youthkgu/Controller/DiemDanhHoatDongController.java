@@ -85,6 +85,18 @@ public class DiemDanhHoatDongController {
         return ResponseEntity.ok(ApiResponse.success("Check-out thành công", result));
     }
 
+    // ========== AUTO ĐIỂM DANH (chế độ AUTO_FULL) ==========
+
+    @PostMapping("/activity/{maHoatDong}/auto-diem-danh")
+    @Operation(summary = "Tự động điểm danh toàn bộ sinh viên đăng ký (chỉ dùng cho chế độ AUTO_FULL)")
+    @PreAuthorize("hasPermission(null, 'GIAO_DIEM_DANH')")
+    public ResponseEntity<ApiResponse<String>> autoDiemDanh(@PathVariable String maHoatDong) {
+        log.info("POST /api/diem-danh/activity/{}/auto-diem-danh", maHoatDong);
+        int count = diemDanhService.autoDiemDanhAll(maHoatDong);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Đã tự động điểm danh " + count + " sinh viên", String.valueOf(count)));
+    }
+
     // ========== QUERY ENDPOINTS ==========
 
     @GetMapping("/activity/{maHoatDong}")

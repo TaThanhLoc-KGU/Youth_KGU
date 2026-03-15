@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -386,15 +387,26 @@ public class HoatDongService {
     public List<DiemDanhStatusDTO> getAttendanceStatusList(String maHoatDong) {
         log.debug("Getting attendance status list for activity: {}", maHoatDong);
 
-        // 1. Lấy danh sách đăng ký
-        List<DangKyHoatDong> dangKyList = dangKyRepository.findByHoatDongMaHoatDongAndIsActiveTrue(maHoatDong);
-        
+        // 1. Lấy danh sách đăng ký — bao gồm cả isActive=NULL (legacy rows)
+        List<DangKyHoatDong> dangKyList = dangKyRepository.findByHoatDongMaHoatDongAndIsActiveNotFalse(maHoatDong);
+
         // 2. Lấy danh sách đã điểm danh
         List<DiemDanhHoatDong> diemDanhList = diemDanhRepository.findByHoatDongMaHoatDong(maHoatDong);
-        
+
         // Map để tra cứu nhanh thông tin điểm danh theo mã SV
+        // Dùng merge function để tránh crash khi có bản ghi trùng (giữ bản ghi mới nhất theo thoiGianCheckIn)
         Map<String, DiemDanhHoatDong> diemDanhMap = diemDanhList.stream()
-                .collect(Collectors.toMap(dd -> dd.getSinhVien().getMaSv(), dd -> dd));
+                .collect(Collectors.toMap(
+                        dd -> dd.getSinhVien().getMaSv(),
+                        dd -> dd,
+                        (existing, replacement) -> {
+                            // Giữ bản ghi có thoiGianCheckIn mới nhất
+                            if (existing.getThoiGianCheckIn() == null) return replacement;
+                            if (replacement.getThoiGianCheckIn() == null) return existing;
+                            return replacement.getThoiGianCheckIn().isAfter(existing.getThoiGianCheckIn())
+                                    ? replacement : existing;
+                        }
+                ));
 
         // 3. Merge thông tin
         return dangKyList.stream().map(dk -> {
@@ -474,15 +486,29 @@ public class HoatDongService {
             }
             // Same day
             if (today.equals(ngayToChuc)) {
-                // After end time → DA_KET_THUC
-                if (hoatDong.getThoiGianKetThuc() != null && now.isAfter(hoatDong.getThoiGianKetThuc())) {
-                    return TrangThaiHoatDongEnum.DA_KET_THUC;
+                // After end time → DA_KET_THUC (account for checkout window too)
+                if (hoatDong.getThoiGianKetThuc() != null) {
+                    int allowedCheckout = hoatDong.getThoiGianChoPhepCheckOut() != null
+                            ? hoatDong.getThoiGianChoPhepCheckOut() : 30;
+                    LocalTime checkoutDeadline = hoatDong.getThoiGianKetThuc().plusMinutes(allowedCheckout);
+                    if (now.isAfter(checkoutDeadline)) {
+                        return TrangThaiHoatDongEnum.DA_KET_THUC;
+                    }
                 }
-                // After start time → DANG_DIEN_RA
+                // After start time → DANG_DIEN_RA (includes checkout window)
                 if (hoatDong.getThoiGianBatDau() != null && !now.isBefore(hoatDong.getThoiGianBatDau())) {
                     return TrangThaiHoatDongEnum.DANG_DIEN_RA;
                 }
+                // BCH manually started before scheduled time → preserve DANG_DIEN_RA
+                if (stored == TrangThaiHoatDongEnum.DANG_DIEN_RA) {
+                    return TrangThaiHoatDongEnum.DANG_DIEN_RA;
+                }
             }
+        }
+
+        // BCH manually started (e.g., no ngayToChuc or future date override) → preserve
+        if (stored == TrangThaiHoatDongEnum.DANG_DIEN_RA) {
+            return TrangThaiHoatDongEnum.DANG_DIEN_RA;
         }
 
         // Registration open → DANG_MO_DANG_KY
@@ -557,6 +583,7 @@ public class HoatDongService {
                 .thoiGianTreToiDa(entity.getThoiGianTreToiDa())
                 .thoiGianToiThieu(entity.getThoiGianToiThieu())
                 .choPhepCheckInSom(entity.getChoPhepCheckInSom())
+                .cheDoDiemDanh(entity.getCheDoDiemDanh())
                 .yeuCauCheckOut(entity.getYeuCauCheckOut())
                 .viDo(entity.getViDo())
                 .kinhDo(entity.getKinhDo())
@@ -608,6 +635,7 @@ public class HoatDongService {
                 .thoiGianTreToiDa(dto.getThoiGianTreToiDa())
                 .thoiGianToiThieu(dto.getThoiGianToiThieu())
                 .choPhepCheckInSom(dto.getChoPhepCheckInSom())
+                .cheDoDiemDanh(dto.getCheDoDiemDanh() != null ? dto.getCheDoDiemDanh() : CheDoDiemDanhEnum.CHECKIN_CHECKOUT)
                 .yeuCauCheckOut(dto.getYeuCauCheckOut())
                 .viDo(dto.getViDo())
                 .kinhDo(dto.getKinhDo())
@@ -739,5 +767,38 @@ public class HoatDongService {
                 .collect(Collectors.toList());
         info.put("danhSachNamHoc", namHocList);
         return info;
+    }
+
+    // ========== AUTO STATUS SCHEDULER ==========
+
+    /**
+     * Tự động cập nhật trạng thái hoạt động theo thời gian thực.
+     * Chạy mỗi 5 phút — tìm các hoạt động trong khoảng hôm qua → ngày mai
+     * có trạng thái chưa kết thúc, tính lại trạng thái và lưu nếu thay đổi.
+     */
+    @Scheduled(fixedRate = 300000) // 5 phút = 300_000 ms
+    @Transactional
+    public void autoUpdateActivityStatuses() {
+        LocalDate today = LocalDate.now();
+        List<HoatDong> candidates = hoatDongRepository.findActiveNonTerminalByDateRange(
+                today.minusDays(1), today.plusDays(1));
+
+        if (candidates.isEmpty()) return;
+
+        int updated = 0;
+        for (HoatDong hoatDong : candidates) {
+            TrangThaiHoatDongEnum computed = computeTrangThai(hoatDong);
+            if (computed != hoatDong.getTrangThai()) {
+                log.info("[AutoStatus] {} | {} → {}", hoatDong.getMaHoatDong(),
+                        hoatDong.getTrangThai(), computed);
+                hoatDong.setTrangThai(computed);
+                hoatDongRepository.save(hoatDong);
+                updated++;
+            }
+        }
+
+        if (updated > 0) {
+            log.info("[AutoStatus] Đã cập nhật trạng thái {} hoạt động", updated);
+        }
     }
 }

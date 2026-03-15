@@ -278,6 +278,11 @@ public class DangKyHoatDongService {
                 .maHoatDong(maHoatDong)
                 .tenHoatDong(entity.getHoatDong() != null ? entity.getHoatDong().getTenHoatDong() : null)
                 .ngayToChuc(entity.getHoatDong() != null ? entity.getHoatDong().getNgayToChuc() : null)
+                .soHocKy(entity.getHoatDong() != null ? entity.getHoatDong().getSoHocKy() : null)
+                .maNamHoc(entity.getHoatDong() != null && entity.getHoatDong().getNamHoc() != null
+                        ? entity.getHoatDong().getNamHoc().getMaNamHoc() : null)
+                .tenNamHoc(entity.getHoatDong() != null && entity.getHoatDong().getNamHoc() != null
+                        ? entity.getHoatDong().getNamHoc().getTenNamHoc() : null)
                 .maQR(entity.getMaQR())
                 .qrCodeImagePath(entity.getQrCodeImagePath())
                 .ngayDangKy(entity.getNgayDangKy())

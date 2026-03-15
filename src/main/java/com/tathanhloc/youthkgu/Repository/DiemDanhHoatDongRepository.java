@@ -33,11 +33,13 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
 
     long countByHoatDongMaHoatDong(String maHoatDong);
 
+    // Lấy tất cả sv đã check-in (có thoiGianCheckIn), bất kể trangThai — bao gồm cả CHECKOUT_ONLY mode
     @Query("SELECT dd FROM DiemDanhHoatDong dd WHERE dd.hoatDong.maHoatDong = :maHoatDong " +
-            "AND dd.trangThai = 'DA_THAM_GIA' ORDER BY dd.thoiGianCheckIn DESC")
+            "AND dd.thoiGianCheckIn IS NOT NULL ORDER BY dd.thoiGianCheckIn DESC")
     List<DiemDanhHoatDong> findCheckedInStudents(@Param("maHoatDong") String maHoatDong);
 
-    @Query("SELECT sv.maSv, sv.hoTen, dk.maQR, dk.ngayDangKy " +
+    @Query("SELECT sv.maSv, sv.hoTen, dk.maQR, dk.ngayDangKy, " +
+            "COALESCE(sv.lop.tenLop, '') " +
             "FROM DangKyHoatDong dk " +
             "JOIN dk.sinhVien sv " +
             "WHERE dk.hoatDong.maHoatDong = :maHoatDong " +
@@ -47,7 +49,7 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             "  WHERE dd.hoatDong.maHoatDong = :maHoatDong " +
             "  AND dd.sinhVien.maSv = sv.maSv" +
             ") " +
-            "ORDER BY dk.ngayDangKy")
+            "ORDER BY sv.lop.tenLop, sv.hoTen")
     List<Object[]> findNotCheckedInStudents(@Param("maHoatDong") String maHoatDong);
 
     @Query("SELECT COUNT(dk) FROM DangKyHoatDong dk " +

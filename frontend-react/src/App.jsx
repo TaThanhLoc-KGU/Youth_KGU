@@ -22,7 +22,6 @@ import KhoaHoc from './pages/admin/KhoaHoc';
 import GiangVien from './pages/admin/GiangVien';
 import Taikhoan from './pages/admin/Taikhoan';
 import SystemLogPage from './pages/admin/SystemLogPage';
-import SettingsPermissionsPage from './pages/admin/SettingsPermissionsPage';
 import AttendanceReport from './pages/admin/AttendanceReport';
 import ChuyenVien from './pages/admin/ChuyenVien';
 import SettingsPage from './pages/admin/SettingsPage';
@@ -84,11 +83,14 @@ const NotFound = () => {
   );
 };
 
-// Quyền mở khóa trang quản trị (đồng bộ với Login.jsx)
+// Quyền mở khóa trang quản trị (đồng bộ với Sidebar.jsx và route guard /admin)
+// Ai có ít nhất 1 trong các quyền này → được redirect về /admin/dashboard
 const ADMIN_SECTION_PERMS = [
   PERMISSIONS.XEM_SINH_VIEN, PERMISSIONS.XEM_GIANG_VIEN, PERMISSIONS.XEM_CHUYEN_VIEN,
   PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
-  PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
+  PERMISSIONS.XEM_KHOA, PERMISSIONS.XEM_NGANH, PERMISSIONS.XEM_LOP, PERMISSIONS.XEM_KHOA_HOC,
+  PERMISSIONS.QUAN_LY_CHUC_VU, PERMISSIONS.QUAN_LY_BAN,
+  PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
   PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
   PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
 ];
@@ -145,7 +147,8 @@ function App() {
 
         {/* Admin Routes - ADMIN role HOẶC bất kỳ ai có quyền quản trị
             ADMIN luôn pass (hasAnyPermission trả true cho ADMIN)
-            GV001 (Bí thư, nhiều quyền), BCH cấp cao... cũng được vào */}
+            GV001 (Bí thư, nhiều quyền), BCH cấp cao... cũng được vào
+            Mỗi sub-route có PermissionGate riêng + fallback NoPermissionMessage */}
         <Route
           path={ROUTES.ADMIN}
           element={
@@ -154,7 +157,7 @@ function App() {
               PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
               PERMISSIONS.XEM_KHOA, PERMISSIONS.XEM_NGANH, PERMISSIONS.XEM_LOP, PERMISSIONS.XEM_KHOA_HOC,
               PERMISSIONS.QUAN_LY_CHUC_VU, PERMISSIONS.QUAN_LY_BAN,
-              PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
+              PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
               PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
               PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
             ]}>
@@ -165,104 +168,99 @@ function App() {
           <Route index element={<Navigate to={ROUTES.ADMIN_DASHBOARD} replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="students" element={
-            <PermissionGate permission={PERMISSIONS.XEM_SINH_VIEN}>
+            <PermissionGate permission={PERMISSIONS.XEM_SINH_VIEN} fallback={<NoPermissionMessage feature="Sinh viên" />}>
               <Students />
             </PermissionGate>
           } />
           <Route path="teachers" element={
-            <PermissionGate permission={PERMISSIONS.XEM_GIANG_VIEN}>
+            <PermissionGate permission={PERMISSIONS.XEM_GIANG_VIEN} fallback={<NoPermissionMessage feature="Giảng viên" />}>
               <GiangVien />
             </PermissionGate>
           } />
           <Route path="giangvien" element={
-            <PermissionGate permission={PERMISSIONS.XEM_GIANG_VIEN}>
+            <PermissionGate permission={PERMISSIONS.XEM_GIANG_VIEN} fallback={<NoPermissionMessage feature="Giảng viên" />}>
               <GiangVien />
             </PermissionGate>
           } />
           <Route path="activities" element={
-            <PermissionGate permission={PERMISSIONS.XEM_HOAT_DONG}>
+            <PermissionGate permission={PERMISSIONS.XEM_HOAT_DONG} fallback={<NoPermissionMessage feature="Hoạt động" />}>
               <Activities />
             </PermissionGate>
           } />
           <Route path="activities/create" element={
-            <PermissionGate permission={PERMISSIONS.TAO_HOAT_DONG}>
+            <PermissionGate permission={PERMISSIONS.TAO_HOAT_DONG} fallback={<NoPermissionMessage feature="Tạo hoạt động" />}>
               <CreateHoatDong />
             </PermissionGate>
           } />
           <Route path="activities/:id/attendance" element={
-            <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH}>
+            <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH} fallback={<NoPermissionMessage feature="Điểm danh hoạt động" />}>
               <ActivityAttendancePage />
             </PermissionGate>
           } />
           <Route path="bch" element={
-            <PermissionGate permission={PERMISSIONS.XEM_BCH}>
+            <PermissionGate permission={PERMISSIONS.XEM_BCH} fallback={<NoPermissionMessage feature="BCH Đoàn - Hội" />}>
               <BCH />
             </PermissionGate>
           } />
           <Route path="chuc-vu" element={
-            <PermissionGate permission={PERMISSIONS.QUAN_LY_CHUC_VU}>
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_CHUC_VU} fallback={<NoPermissionMessage feature="Chức vụ" />}>
               <ChucVu />
             </PermissionGate>
           } />
           <Route path="ban" element={
-            <PermissionGate permission={PERMISSIONS.QUAN_LY_BAN}>
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_BAN} fallback={<NoPermissionMessage feature="Ban/Đội/CLB" />}>
               <Ban />
             </PermissionGate>
           } />
           <Route path="khoa" element={
-            <PermissionGate permission={PERMISSIONS.XEM_KHOA}>
+            <PermissionGate permission={PERMISSIONS.XEM_KHOA} fallback={<NoPermissionMessage feature="Khoa" />}>
               <Khoa />
             </PermissionGate>
           } />
           <Route path="nganh" element={
-            <PermissionGate permission={PERMISSIONS.XEM_NGANH}>
+            <PermissionGate permission={PERMISSIONS.XEM_NGANH} fallback={<NoPermissionMessage feature="Ngành" />}>
               <Nganh />
             </PermissionGate>
           } />
           <Route path="lop" element={
-            <PermissionGate permission={PERMISSIONS.XEM_LOP}>
+            <PermissionGate permission={PERMISSIONS.XEM_LOP} fallback={<NoPermissionMessage feature="Lớp" />}>
               <Lop />
             </PermissionGate>
           } />
           <Route path="khoahoc" element={
-            <PermissionGate permission={PERMISSIONS.XEM_KHOA_HOC}>
+            <PermissionGate permission={PERMISSIONS.XEM_KHOA_HOC} fallback={<NoPermissionMessage feature="Khóa học" />}>
               <KhoaHoc />
             </PermissionGate>
           } />
           <Route path="chuyenvien" element={
-            <PermissionGate permission={PERMISSIONS.XEM_CHUYEN_VIEN}>
+            <PermissionGate permission={PERMISSIONS.XEM_CHUYEN_VIEN} fallback={<NoPermissionMessage feature="Chuyên viên" />}>
               <ChuyenVien />
             </PermissionGate>
           } />
           <Route path="logs" element={
-            <PermissionGate permission={PERMISSIONS.XEM_SYSTEM_LOG}>
+            <PermissionGate permission={PERMISSIONS.XEM_SYSTEM_LOG} fallback={<NoPermissionMessage feature="System Log" />}>
               <SystemLogPage />
             </PermissionGate>
           } />
           <Route path="system-log" element={
-            <PermissionGate permission={PERMISSIONS.XEM_SYSTEM_LOG}>
+            <PermissionGate permission={PERMISSIONS.XEM_SYSTEM_LOG} fallback={<NoPermissionMessage feature="System Log" />}>
               <SystemLogPage />
             </PermissionGate>
           } />
           <Route path="attendance" element={
-            <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH}>
+            <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH} fallback={<NoPermissionMessage feature="Điểm danh" />}>
               <AttendanceReport />
             </PermissionGate>
           } />
           <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
           <Route path="accounts" element={
-            <PermissionGate permission={PERMISSIONS.XEM_TAI_KHOAN}>
+            <PermissionGate permission={PERMISSIONS.XEM_TAI_KHOAN} fallback={<NoPermissionMessage feature="Quản lý tài khoản" />}>
               <AccountManagementPage />
             </PermissionGate>
           } />
           <Route path="account-statistics" element={
-            <PermissionGate permission={PERMISSIONS.XEM_THONG_KE}>
+            <PermissionGate permission={PERMISSIONS.XEM_THONG_KE} fallback={<NoPermissionMessage feature="Thống kê" />}>
               <DashboardStatisticsPage />
-            </PermissionGate>
-          } />
-          <Route path="settings" element={
-            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM}>
-              <SettingsPermissionsPage />
             </PermissionGate>
           } />
         </Route>
@@ -288,23 +286,64 @@ function App() {
           <Route path="profile" element={<Navigate to={ROUTES.PROFILE} replace />} />
         </Route>
 
-        {/* BCH Routes - ai có quyền TAO_HOAT_DONG (BCH STAFF trở lên, kể cả SV là BCH) */}
+        {/* BCH Routes - chỉ BCH members (laBCH=true) hoặc ADMIN
+            Mỗi sub-route có PermissionGate riêng theo quyền cụ thể
+            "Xem thì vẫn cho" — dùng anyOf cho trang danh sách, strict cho create/scan */}
         <Route
           path={ROUTES.BCH}
           element={
-            <ProtectedRoute requiredPermissions={[PERMISSIONS.TAO_HOAT_DONG, PERMISSIONS.QUET_QR]}>
+            <ProtectedRoute requireBCH>
               <MainLayout title="BCH" />
             </ProtectedRoute>
           }
         >
           <Route index element={<Navigate to={ROUTES.BCH_DASHBOARD} replace />} />
           <Route path="dashboard" element={<BCHDashboard />} />
-          <Route path="activities" element={<BCHActivities />} />
-          <Route path="activities/create" element={<CreateHoatDong />} />
-          <Route path="activities/:id/attendance" element={<ActivityAttendancePage />} />
-          <Route path="attendance" element={<BCHAttendance />} />
-          <Route path="scan-qr" element={<BCHScanQR />} />
-          {/* VẤN ĐỀ 4: /bch/profile redirect về /profile duy nhất */}
+
+          {/* Danh sách hoạt động: xem được nếu có XEM hoặc TAO/SUA */}
+          <Route path="activities" element={
+            <PermissionGate
+              anyOf={[PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.TAO_HOAT_DONG, PERMISSIONS.SUA_HOAT_DONG]}
+              fallback={<NoPermissionMessage feature="Quản lý hoạt động" />}
+            >
+              <BCHActivities />
+            </PermissionGate>
+          } />
+
+          {/* Tạo hoạt động: chỉ ai có TAO_HOAT_DONG */}
+          <Route path="activities/create" element={
+            <PermissionGate permission={PERMISSIONS.TAO_HOAT_DONG} fallback={<NoPermissionMessage feature="Tạo hoạt động" />}>
+              <CreateHoatDong />
+            </PermissionGate>
+          } />
+
+          {/* Chi tiết điểm danh 1 hoạt động: XEM hoặc CHINH_SUA hoặc PHAN_CONG */}
+          <Route path="activities/:id/attendance" element={
+            <PermissionGate
+              anyOf={[PERMISSIONS.XEM_DIEM_DANH, PERMISSIONS.CHINH_SUA_DIEM_DANH, PERMISSIONS.PHAN_CONG_DIEM_DANH]}
+              fallback={<NoPermissionMessage feature="Điểm danh hoạt động" />}
+            >
+              <ActivityAttendancePage />
+            </PermissionGate>
+          } />
+
+          {/* Tổng hợp điểm danh: XEM hoặc QUET_QR hoặc CHINH_SUA */}
+          <Route path="attendance" element={
+            <PermissionGate
+              anyOf={[PERMISSIONS.XEM_DIEM_DANH, PERMISSIONS.QUET_QR, PERMISSIONS.CHINH_SUA_DIEM_DANH]}
+              fallback={<NoPermissionMessage feature="Điểm danh" />}
+            >
+              <BCHAttendance />
+            </PermissionGate>
+          } />
+
+          {/* Quét QR: chỉ ai có QUET_QR */}
+          <Route path="scan-qr" element={
+            <PermissionGate permission={PERMISSIONS.QUET_QR} fallback={<NoPermissionMessage feature="Quét QR" />}>
+              <BCHScanQR />
+            </PermissionGate>
+          } />
+
           <Route path="profile" element={<Navigate to={ROUTES.PROFILE} replace />} />
         </Route>
 

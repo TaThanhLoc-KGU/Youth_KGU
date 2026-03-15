@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import { MapPin, Loader2, X } from 'lucide-react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Textarea from '../common/Textarea';
@@ -15,6 +16,116 @@ import {
   TRANG_THAI_OPTIONS,
   HOC_KY_OPTIONS,
 } from '../../constants/activityConstants';
+
+// Nominatim location search — không cần API key, miễn phí
+const LocationInput = ({ diaDiem, viDo, kinhDo, onChange }) => {
+  const [query, setQuery] = useState(diaDiem || '');
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef(null);
+  const wrapperRef = useRef(null);
+
+  // Sync khi initialData thay đổi (edit mode)
+  useEffect(() => { setQuery(diaDiem || ''); }, [diaDiem]);
+
+  // Đóng dropdown khi click ra ngoài
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const search = (q) => {
+    if (!q || q.length < 3) { setSuggestions([]); setOpen(false); return; }
+    setLoading(true);
+    fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&countrycodes=vn&accept-language=vi`,
+      { headers: { 'Accept-Language': 'vi' } }
+    )
+      .then((r) => r.json())
+      .then((data) => { setSuggestions(data); setOpen(data.length > 0); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  const handleInput = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    onChange({ diaDiem: val, viDo: null, kinhDo: null }); // xóa coords khi đang gõ
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(val), 500);
+  };
+
+  const handleSelect = (item) => {
+    const name = item.display_name;
+    setQuery(name);
+    setSuggestions([]);
+    setOpen(false);
+    onChange({ diaDiem: name, viDo: parseFloat(item.lat), kinhDo: parseFloat(item.lon) });
+  };
+
+  const handleClear = () => {
+    setQuery('');
+    setSuggestions([]);
+    setOpen(false);
+    onChange({ diaDiem: '', viDo: null, kinhDo: null });
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm</label>
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={handleInput}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          placeholder="Tìm địa điểm tổ chức (ít nhất 3 ký tự)..."
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-14"
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {loading && <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />}
+          {query && (
+            <button type="button" onClick={handleClear} className="text-gray-400 hover:text-gray-600">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Dropdown gợi ý */}
+      {open && (
+        <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
+          {suggestions.map((item) => (
+            <li
+              key={item.place_id}
+              onMouseDown={() => handleSelect(item)}
+              className="px-3 py-2.5 text-sm hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
+            >
+              <div className="font-medium text-gray-900 truncate">
+                {item.display_name.split(',')[0]}
+              </div>
+              <div className="text-xs text-gray-400 truncate mt-0.5">{item.display_name}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Hiển thị GPS đã chọn */}
+      {viDo && kinhDo ? (
+        <div className="flex items-center gap-1 mt-1.5 text-xs text-green-600">
+          <MapPin className="w-3 h-3 flex-shrink-0" />
+          <span>GPS: {parseFloat(viDo).toFixed(5)}, {parseFloat(kinhDo).toFixed(5)}</span>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 mt-1">Chọn từ gợi ý để ghi nhận GPS phục vụ điểm danh định vị</p>
+      )}
+    </div>
+  );
+};
 
 const ActivityForm = ({
   initialData = null,
@@ -33,6 +144,7 @@ const ActivityForm = ({
     capDo: 'KHOA',
     ngayToChuc: '',
     gioToChuc: '',
+    cheDoDiemDanh: 'CHECKIN_CHECKOUT',
     thoiGianBatDau: '07:00',
     thoiGianKetThuc: '17:00',
     thoiGianTreToiDa: 15,
@@ -40,6 +152,9 @@ const ActivityForm = ({
     choPhepCheckInSom: 30,
     yeuCauCheckOut: false,
     diaDiem: '',
+    viDo: null,
+    kinhDo: null,
+    khoangCachToiDa: '',
     soLuongToiDa: '',
     diemRenLuyen: '',
     maDanhMucRenLuyen: '',
@@ -184,6 +299,9 @@ const ActivityForm = ({
       thoiGianToiThieu: formData.thoiGianToiThieu ? parseInt(formData.thoiGianToiThieu) : null,
       choPhepCheckInSom: formData.choPhepCheckInSom ? parseInt(formData.choPhepCheckInSom) : 30,
       soLuongToiDa: formData.soLuongToiDa ? parseInt(formData.soLuongToiDa) : null,
+      viDo: formData.viDo ? parseFloat(formData.viDo) : null,
+      kinhDo: formData.kinhDo ? parseFloat(formData.kinhDo) : null,
+      khoangCachToiDa: formData.khoangCachToiDa ? parseInt(formData.khoangCachToiDa) : null,
       diemRenLuyen: formData.diemRenLuyen !== '' && formData.diemRenLuyen !== null
         ? parseInt(formData.diemRenLuyen) : null,
       soHocKy: formData.soHocKy ? parseInt(formData.soHocKy) : null,
@@ -321,12 +439,24 @@ const ActivityForm = ({
             />
           </div>
 
+          <LocationInput
+            diaDiem={formData.diaDiem}
+            viDo={formData.viDo}
+            kinhDo={formData.kinhDo}
+            onChange={({ diaDiem, viDo, kinhDo }) =>
+              setFormData((prev) => ({ ...prev, diaDiem, viDo, kinhDo }))
+            }
+          />
+
           <Input
-            label="Địa điểm"
-            name="diaDiem"
-            value={formData.diaDiem}
+            label="Bán kính điểm danh (mét)"
+            type="number"
+            name="khoangCachToiDa"
+            value={formData.khoangCachToiDa}
             onChange={handleChange}
-            placeholder="VD: Tòa nhà A, Phòng 101"
+            min="0"
+            placeholder="VD: 200 — để trống = không kiểm tra vị trí"
+            className="max-w-xs"
           />
         </div>
       </Card>
@@ -409,66 +539,116 @@ const ActivityForm = ({
       {/* Check-in Settings */}
       <Card>
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Cài đặt Check-in</h3>
+          <h3 className="font-semibold text-lg text-gray-900">Cài đặt điểm danh</h3>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Thời gian bắt đầu"
-              type="time"
-              name="thoiGianBatDau"
-              value={formData.thoiGianBatDau}
-              onChange={handleChange}
-            />
-            <Input
-              label="Thời gian kết thúc"
-              type="time"
-              name="thoiGianKetThuc"
-              value={formData.thoiGianKetThuc}
-              onChange={handleChange}
-            />
+          {/* Chế độ điểm danh */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Chế độ điểm danh</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'CHECKIN_CHECKOUT', label: 'Check-in & Check-out', desc: 'Yêu cầu cả check-in lẫn check-out', icon: '↔️' },
+                { value: 'CHECKIN_ONLY',     label: 'Chỉ Check-in',         desc: 'Chỉ cần quét QR khi đến',           icon: '→' },
+                { value: 'CHECKOUT_ONLY',    label: 'Chỉ Check-out',        desc: 'Chỉ quét QR khi ra về, check-in tự động', icon: '←' },
+                { value: 'AUTO_FULL',        label: 'Tự động toàn bộ',      desc: 'BCH xác nhận, toàn bộ đăng ký = tham gia', icon: '⚡' },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    formData.cheDoDiemDanh === opt.value
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cheDoDiemDanh"
+                    value={opt.value}
+                    checked={formData.cheDoDiemDanh === opt.value}
+                    onChange={handleChange}
+                    className="mt-0.5 w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{opt.icon} {opt.label}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Thời gian — ẩn khi AUTO_FULL */}
+          {formData.cheDoDiemDanh !== 'AUTO_FULL' && (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Giờ check-in (bắt đầu điểm danh)"
+                type="time"
+                name="thoiGianBatDau"
+                value={formData.thoiGianBatDau}
+                onChange={handleChange}
+              />
+              <div>
+                <Input
+                  label="Giờ check-out (kết thúc điểm danh)"
+                  type="time"
+                  name="thoiGianKetThuc"
+                  value={formData.thoiGianKetThuc}
+                  onChange={handleChange}
+                  min={formData.gioToChuc || formData.thoiGianBatDau || ''}
+                />
+                {(formData.gioToChuc || formData.thoiGianBatDau) && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Phải từ {formData.gioToChuc || formData.thoiGianBatDau} trở đi
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Check-in fields — ẩn khi CHECKOUT_ONLY hoặc AUTO_FULL */}
+          {formData.cheDoDiemDanh !== 'CHECKOUT_ONLY' && formData.cheDoDiemDanh !== 'AUTO_FULL' && (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Cho phép check-in sớm (phút)"
+                type="number"
+                name="choPhepCheckInSom"
+                value={formData.choPhepCheckInSom}
+                onChange={handleChange}
+                min="0"
+              />
+              <Input
+                label="Thời gian trễ tối đa (phút)"
+                type="number"
+                name="thoiGianTreToiDa"
+                value={formData.thoiGianTreToiDa}
+                onChange={handleChange}
+                min="0"
+              />
+            </div>
+          )}
+
+          {/* Thời gian tối thiểu — ẩn khi AUTO_FULL */}
+          {formData.cheDoDiemDanh !== 'AUTO_FULL' && (
             <Input
-              label="Cho phép check-in sớm (phút)"
+              label="Thời gian tham gia tối thiểu (phút)"
               type="number"
-              name="choPhepCheckInSom"
-              value={formData.choPhepCheckInSom}
+              name="thoiGianToiThieu"
+              value={formData.thoiGianToiThieu}
               onChange={handleChange}
               min="0"
             />
-            <Input
-              label="Thời gian trễ tối đa (phút)"
-              type="number"
-              name="thoiGianTreToiDa"
-              value={formData.thoiGianTreToiDa}
-              onChange={handleChange}
-              min="0"
-            />
-          </div>
+          )}
 
-          <Input
-            label="Thời gian tham gia tối thiểu (phút)"
-            type="number"
-            name="thoiGianToiThieu"
-            value={formData.thoiGianToiThieu}
-            onChange={handleChange}
-            min="0"
-          />
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="yeuCauCheckOut"
-              name="yeuCauCheckOut"
-              checked={formData.yeuCauCheckOut}
-              onChange={handleChange}
-              className="w-4 h-4 text-primary rounded border-gray-300"
-            />
-            <label htmlFor="yeuCauCheckOut" className="ml-2 text-sm text-gray-700">
-              Yêu cầu check-out
-            </label>
-          </div>
+          {/* Mô tả chế độ đang chọn */}
+          {formData.cheDoDiemDanh === 'AUTO_FULL' && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+              ⚡ Chế độ tự động: Sau khi hoạt động kết thúc, BCH nhấn &quot;Xác nhận tham gia&quot; để tự động ghi nhận toàn bộ sinh viên đã đăng ký là đã tham gia. Không cần quét QR.
+            </div>
+          )}
+          {formData.cheDoDiemDanh === 'CHECKOUT_ONLY' && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+              ← Chế độ chỉ check-out: Check-in tự động ghi nhận theo giờ bắt đầu. Sinh viên chỉ cần quét QR khi ra về.
+            </div>
+          )}
         </div>
       </Card>
 
