@@ -8,6 +8,7 @@ import com.tathanhloc.youthkgu.Repository.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ public class PermissionService {
     private final RolePermissionRepository rolePermissionRepository;
     private final SystemLogService systemLogService;
     private final HttpServletRequest request;
+    private final PasswordEncoder passwordEncoder;
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -207,10 +209,16 @@ public class PermissionService {
 
     // ─── Quản lý permissions cá nhân ─────────────────────────────────────────
 
-    /** Cấp / thu hồi quyền cho tài khoản cụ thể (không cần admin password). */
+    /** Cấp / thu hồi quyền cho tài khoản cụ thể (yêu cầu xác nhận mật khẩu admin). */
     @Transactional
     public void updateAccountPermissions(Long taiKhoanId, List<Long> grantIds, List<Long> revokeIds,
-                                         String ghiChu, Long grantedBy) {
+                                         String ghiChu, String adminUsername, String adminPassword,
+                                         Long grantedBy) {
+        TaiKhoan admin = taiKhoanRepository.findByUsername(adminUsername)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản admin"));
+        if (!passwordEncoder.matches(adminPassword, admin.getPasswordHash())) {
+            throw new RuntimeException("Mật khẩu xác nhận không đúng");
+        }
         TaiKhoan target = taiKhoanRepository.findById(taiKhoanId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
 
@@ -234,8 +242,8 @@ public class PermissionService {
                                     .isGranted(false).grantedBy(grantedBy).ghiChu(ghiChu)
                                     .createdAt(java.time.LocalDateTime.now()).build()));
         }
-        log.info("Phân quyền tài khoản {} (grant={}, revoke={}) bởi grantedBy={}",
-                target.getUsername(), grantIds.size(), revokeIds.size(), grantedBy);
+        log.info("Phân quyền tài khoản {} (grant={}, revoke={}) bởi {}",
+                target.getUsername(), grantIds.size(), revokeIds.size(), adminUsername);
         systemLogService.log("PHAN_QUYEN", "UPDATE_ACCOUNT_PERMISSIONS",
                 String.valueOf(taiKhoanId), target.getUsername(), "AccountPermission", String.valueOf(taiKhoanId),
                 "Cấp " + grantIds.size() + " quyền, thu hồi " + revokeIds.size() + " quyền cho: " + target.getUsername()
@@ -243,15 +251,20 @@ public class PermissionService {
                 SystemLog.LogLevel.INFO, "SUCCESS", null, null, request);
     }
 
-    /** Xóa toàn bộ override cá nhân của tài khoản (không cần admin password). */
+    /** Xóa toàn bộ override cá nhân của tài khoản (yêu cầu xác nhận mật khẩu admin). */
     @Transactional
-    public void resetAccountPermissions(Long taiKhoanId) {
+    public void resetAccountPermissions(Long taiKhoanId, String adminUsername, String adminPassword) {
+        TaiKhoan admin = taiKhoanRepository.findByUsername(adminUsername)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản admin"));
+        if (!passwordEncoder.matches(adminPassword, admin.getPasswordHash())) {
+            throw new RuntimeException("Mật khẩu xác nhận không đúng");
+        }
         List<AccountPermission> existing = accountPermissionRepository.findByTaiKhoanId(taiKhoanId);
         int count = existing.size();
         existing.forEach(accountPermissionRepository::delete);
         TaiKhoan target = taiKhoanRepository.findById(taiKhoanId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
-        log.info("Reset quyền đặc biệt tài khoản {} ({} bản ghi)", target.getUsername(), count);
+        log.info("Reset quyền đặc biệt tài khoản {} ({} bản ghi) bởi {}", target.getUsername(), count, adminUsername);
         systemLogService.log("PHAN_QUYEN", "RESET_ACCOUNT_PERMISSIONS",
                 String.valueOf(taiKhoanId), target.getUsername(), "AccountPermission", String.valueOf(taiKhoanId),
                 "Xóa " + count + " quyền đặc biệt của tài khoản: " + target.getUsername(),

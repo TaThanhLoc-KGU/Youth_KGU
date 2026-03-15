@@ -151,9 +151,11 @@ public class PermissionController {
     /** Xóa toàn bộ override cá nhân của tài khoản. */
     @DeleteMapping("/account/{taiKhoanId}/reset")
     @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_TAI_KHOAN')")
-    public ResponseEntity<?> resetAccountPermissions(@PathVariable Long taiKhoanId) {
+    public ResponseEntity<?> resetAccountPermissions(@PathVariable Long taiKhoanId,
+            @RequestBody Map<String, String> body) {
         try {
-            service.resetAccountPermissions(taiKhoanId);
+            service.resetAccountPermissions(taiKhoanId,
+                body.get("adminUsername"), body.get("adminPassword"));
             return ResponseEntity.ok(ApiResponse.builder().success(true)
                     .message("Reset quyền về mặc định nhóm thành công").build());
         } catch (Exception e) {
