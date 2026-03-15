@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -71,6 +72,12 @@ public class NotificationController {
         int count = notificationService.sendBroadcastNotification(
                 request.getTitle(), request.getMessage(), request.getType(), request.getRelatedId());
         return ResponseEntity.ok(ApiResponse.success(count));
+    }
+
+    /** Admin: xem trước số người nhận trước khi broadcast */
+    @GetMapping("/broadcast-preview")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getBroadcastPreview() {
+        return ResponseEntity.ok(ApiResponse.success(notificationService.getBroadcastPreview()));
     }
 
     /** DTO nội bộ cho broadcast request */

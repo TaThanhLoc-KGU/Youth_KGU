@@ -30,7 +30,7 @@ public class PermissionController {
 
     /** Lấy tất cả permissions nhóm theo category. */
     @GetMapping("/all")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_NHOM')")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_PHAN_QUYEN_NHOM') or hasPermission(null, 'QUAN_LY_PHAN_QUYEN_TAI_KHOAN')")
     public ResponseEntity<?> getAllGrouped() {
         return ResponseEntity.ok(ApiResponse.builder().success(true)
                 .data(service.getAllPermissionsGrouped()).build());
@@ -132,16 +132,14 @@ public class PermissionController {
                     .stream().map(Long::valueOf).collect(Collectors.toList());
             @SuppressWarnings("unchecked")
             List<Long> revokeIds = ((List<Integer>) body.getOrDefault("revokeIds", List.of()))
-                    .stream().map(Long::valueOf).collect(Collectors.toList());
-
-            // Lấy ID của người thực hiện
-            Long grantedBy = null;
-            try {
-                grantedBy = ((Number) body.get("grantedBy")).longValue();
-            } catch (Exception ignored) {}
-
+                .stream().map(Long::valueOf).collect(Collectors.toList());
+            Number grantedByNum = (Number) body.get("grantedBy");
+            Long grantedBy = grantedByNum != null ? grantedByNum.longValue() : null;
             service.updateAccountPermissions(taiKhoanId, grantIds, revokeIds,
-                    (String) body.get("ghiChu"), grantedBy);
+                (String) body.get("ghiChu"),
+                (String) body.get("adminUsername"),
+                (String) body.get("adminPassword"),
+                grantedBy);
             return ResponseEntity.ok(ApiResponse.builder().success(true)
                     .message("Phân quyền tài khoản thành công").build());
         } catch (Exception e) {
