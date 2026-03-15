@@ -18,7 +18,6 @@ import Textarea from '../../components/common/Textarea';
 const ChuyenVien = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
-  const canView   = hasPermission(PERMISSIONS.XEM_CHUYEN_VIEN);
   const canManage = hasPermission(PERMISSIONS.QUAN_LY_CHUYEN_VIEN);
   const [search, setSearch] = useState('');
   const [selectedChuyenVien, setSelectedChuyenVien] = useState(null);
@@ -33,7 +32,7 @@ const ChuyenVien = () => {
   });
   const [errors, setErrors] = useState({});
 
-  // Fetch chuyenvien list — chỉ khi có quyền xem
+  // Fetch chuyenvien list
   const { data: chuyenvienList = [], isLoading, refetch } = useQuery({
     queryKey: ['chuyenvien', search],
     queryFn: async () => {
@@ -45,15 +44,14 @@ const ChuyenVien = () => {
       }
       return Array.isArray(results) ? results : [];
     },
-    keepPreviousData: true,
-    enabled: canView,
-  });
+    keepPreviousData: true
+  }
+  );
 
-  // Fetch statistics — chỉ khi có quyền xem
+  // Fetch statistics
   const { data: stats = {} } = useQuery({
     queryKey: ['chuyenvien-statistics'],
-    queryFn: chuyenVienService.getStatistics,
-    enabled: canView,
+    queryFn: chuyenVienService.getStatistics
   });
 
   // Delete mutation

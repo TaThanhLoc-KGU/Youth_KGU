@@ -30,6 +30,7 @@ const schema = yup.object().shape({
   yeuCauCheckOut: yup.boolean().default(false),
   yeuCauDiemDanh: yup.boolean().default(true),
   choPhepDangKy: yup.boolean().default(true),
+  cheDoDiemDanh: yup.string().oneOf(['CHECKIN_CHECKOUT', 'CHECKIN_ONLY', 'CHECKOUT_ONLY', 'AUTO_FULL']).default('CHECKIN_CHECKOUT'),
   moTa: yup.string(),
   ghiChu: yup.string()
 });
@@ -38,12 +39,13 @@ const CreateHoatDong = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, touchedFields } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors, touchedFields } } = useForm({
     resolver: yupResolver(schema),
     mode: 'onBlur', // Validate on blur
     defaultValues: {
       loaiHoatDong: 'KHAC',
       capDo: 'TRUONG',
+      cheDoDiemDanh: 'CHECKIN_CHECKOUT',
       yeuCauDiemDanh: true,
       choPhepDangKy: true,
       yeuCauCheckOut: false,
@@ -54,6 +56,8 @@ const CreateHoatDong = () => {
       soLuongToiDa: 100
     }
   });
+
+  const cheDoDiemDanh = watch('cheDoDiemDanh');
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -241,8 +245,50 @@ const CreateHoatDong = () => {
         {/* Cấu hình điểm danh */}
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-blue-700 mb-4 border-b pb-2">Cấu hình điểm danh</h2>
+
+          {/* Chế độ điểm danh */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Chế độ điểm danh</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'CHECKIN_CHECKOUT', label: '↔️ Check-in & Check-out', desc: 'Yêu cầu cả check-in lẫn check-out' },
+                { value: 'CHECKIN_ONLY',     label: '→ Chỉ Check-in',          desc: 'Chỉ cần quét QR khi đến' },
+                { value: 'CHECKOUT_ONLY',    label: '← Chỉ Check-out',         desc: 'Check-in tự động, chỉ quét QR khi ra về' },
+                { value: 'AUTO_FULL',        label: '⚡ Tự động toàn bộ',      desc: 'BCH xác nhận, toàn bộ đăng ký = tham gia' },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    cheDoDiemDanh === opt.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    {...register('cheDoDiemDanh')}
+                    value={opt.value}
+                    className="mt-0.5 w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{opt.label}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            {cheDoDiemDanh === 'AUTO_FULL' && (
+              <p className="mt-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                ⚡ Sau khi hoạt động kết thúc, BCH nhấn &quot;Xác nhận tham gia&quot; để ghi nhận toàn bộ sinh viên đã đăng ký. Không cần quét QR.
+              </p>
+            )}
+            {cheDoDiemDanh === 'CHECKOUT_ONLY' && (
+              <p className="mt-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                ← Check-in tự động ghi nhận theo giờ bắt đầu. Sinh viên chỉ cần quét QR khi ra về.
+              </p>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
+
             {/* Check-in sớm */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Cho phép check-in sớm (phút)</label>

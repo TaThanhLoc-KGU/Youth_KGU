@@ -103,4 +103,16 @@ public interface HoatDongRepository extends JpaRepository<HoatDong, String> {
             "ORDER BY nam ASC, thang ASC",
             nativeQuery = true)
     List<Object[]> findTrendDataLast12Months(@Param("startDate") LocalDate startDate);
+
+    /**
+     * Lấy các hoạt động chưa kết thúc/hủy/hoàn thành trong khoảng ngày — dùng cho auto-status scheduler
+     */
+    @Query("SELECT hd FROM HoatDong hd WHERE " +
+            "hd.ngayToChuc BETWEEN :startDate AND :endDate " +
+            "AND hd.isActive = true " +
+            "AND hd.trangThai NOT IN ('DA_HUY', 'DA_HOAN_THANH')")
+    List<HoatDong> findActiveNonTerminalByDateRange(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }

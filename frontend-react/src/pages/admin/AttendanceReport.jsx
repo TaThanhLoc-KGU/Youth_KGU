@@ -2,13 +2,10 @@ import { useState, Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Download, RefreshCw, BarChart3, TrendingUp, Calendar, ChevronDown, ChevronRight,
-  Activity, Users, CheckSquare, AlertTriangle, PieChart, CheckCircle, AlertCircle
+  Activity, Users, CheckSquare, AlertTriangle
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import attendanceService from '../../services/attendanceService';
-import activityService from '../../services/activityService';
-import dangKyService from '../../services/dangKyService';
-import { formatDate } from '../../utils/dateFormat';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
 import Card from '../../components/common/Card';
@@ -88,12 +85,12 @@ const ActivityReportTab = ({ canExport }) => {
         <div className="p-4 flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Từ ngày</label>
-            <input type="date" lang="vi" value={startDate} onChange={e => setStartDate(e.target.value)}
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Đến ngày</label>
-            <input type="date" lang="vi" value={endDate} onChange={e => setEndDate(e.target.value)}
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
           </div>
           <Button variant="outline" icon={RefreshCw} onClick={() => refetch()}>Làm mới</Button>
@@ -149,7 +146,7 @@ const ActivityReportTab = ({ canExport }) => {
                         <td className="px-4 py-3 font-mono text-blue-600">{act.maHoatDong}</td>
                         <td className="px-4 py-3 font-medium text-gray-900">{act.tenHoatDong}</td>
                         <td className="px-4 py-3 text-gray-600">
-                          {formatDate(act.ngayToChuc) || '—'}
+                          {act.ngayToChuc ? new Date(act.ngayToChuc).toLocaleDateString('vi-VN') : '—'}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">{act.tongDangKy}</td>
                         <td className="px-4 py-3 text-right font-semibold text-green-600">{act.daDiemDanh}</td>
@@ -217,7 +214,7 @@ const ActivityReportTab = ({ canExport }) => {
 
 // ======================== TAB: THÁNG ========================
 
-const MonthlyReportTab = () => {
+const MonthlyReportTab = ({ canExport }) => {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year,  setYear]  = useState(now.getFullYear());
@@ -292,9 +289,11 @@ const MonthlyReportTab = () => {
             </select>
           </div>
           <Button variant="outline" icon={RefreshCw} onClick={() => refetch()}>Làm mới</Button>
-          <Button variant="outline" icon={Download} onClick={handleExport} disabled={exporting}>
-            {exporting ? 'Đang xuất...' : 'Xuất Excel'}
-          </Button>
+          {canExport && (
+            <Button variant="outline" icon={Download} onClick={handleExport} disabled={exporting}>
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -342,7 +341,7 @@ const MonthlyReportTab = () => {
                       <td className="px-4 py-3 font-mono text-blue-600">{act.maHoatDong}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{act.tenHoatDong}</td>
                       <td className="px-4 py-3 text-gray-600">
-                        {formatDate(act.ngayToChuc) || '—'}
+                        {act.ngayToChuc ? new Date(act.ngayToChuc).toLocaleDateString('vi-VN') : '—'}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold">{act.tongDangKy}</td>
                       <td className="px-4 py-3 text-right font-semibold text-green-600">{act.daDiemDanh}</td>
@@ -368,7 +367,7 @@ const MonthlyReportTab = () => {
 
 // ======================== TAB: QUÝ ========================
 
-const QuarterlyReportTab = () => {
+const QuarterlyReportTab = ({ canExport }) => {
   const now = new Date();
   const currentQ = Math.ceil((now.getMonth() + 1) / 3);
   const [quarter, setQuarter] = useState(currentQ);
@@ -435,9 +434,11 @@ const QuarterlyReportTab = () => {
             </select>
           </div>
           <Button variant="outline" icon={RefreshCw} onClick={() => refetch()}>Làm mới</Button>
-          <Button variant="outline" icon={Download} onClick={handleExport} disabled={exporting}>
-            {exporting ? 'Đang xuất...' : 'Xuất Excel'}
-          </Button>
+          {canExport && (
+            <Button variant="outline" icon={Download} onClick={handleExport} disabled={exporting}>
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -537,173 +538,6 @@ const QuarterlyReportTab = () => {
   );
 };
 
-// ======================== TAB: TÌNH HÌNH ĐĂNG KÝ ========================
-
-const RegistrationFacultyStats = ({ maHoatDong }) => {
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['registration-faculty-stats', maHoatDong],
-    queryFn: () => dangKyService.getFacultyStats(maHoatDong),
-    staleTime: 60 * 1000,
-  });
-
-  if (isLoading) return <div className="h-4 w-24 bg-gray-100 animate-pulse rounded"></div>;
-  if (!stats) return null;
-
-  return (
-    <div className="mt-4 space-y-4">
-      {/* Khoa đã đăng ký */}
-      <div>
-        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1">
-          <CheckCircle className="w-3.5 h-3.5 text-green-500" /> Khoa đã đăng ký ({stats.faculties?.length || 0})
-        </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          {stats.faculties?.map((f) => (
-            <div key={f.maKhoa} className="bg-green-50 border border-green-100 rounded-lg p-2.5 flex justify-between items-center">
-              <span className="text-xs font-semibold text-green-800 truncate pr-2" title={f.tenKhoa}>
-                {f.tenKhoa}
-              </span>
-              <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[24px] text-center">
-                {f.count}
-              </span>
-            </div>
-          ))}
-          {(!stats.faculties || stats.faculties.length === 0) && (
-            <p className="text-xs text-gray-400 italic col-span-full">Chưa có khoa nào đăng ký</p>
-          )}
-        </div>
-      </div>
-
-      {/* Khoa chưa có đăng ký */}
-      <div className="pt-2 border-t border-gray-100">
-        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1">
-          <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> Khoa chưa có đăng ký ({stats.missingFaculties?.length || 0})
-        </h4>
-        <div className="flex flex-wrap gap-2">
-          {stats.missingFaculties?.map((f) => (
-            <span key={f.maKhoa} className="bg-gray-50 text-gray-500 text-[10px] px-2.5 py-1 rounded-md border border-gray-200">
-              {f.tenKhoa}
-            </span>
-          ))}
-          {(!stats.missingFaculties || stats.missingFaculties.length === 0) && (
-            <p className="text-xs text-green-600 font-medium italic">Tất cả các khoa đều đã có sinh viên đăng ký!</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const RegistrationStatusTab = () => {
-  const [search, setSearch] = useState('');
-  const [expandedRows, setExpandedRows] = useState({});
-
-  const { data: allActivities = [], isLoading } = useQuery({
-    queryKey: ['attendance-all-registration'],
-    queryFn: () => activityService.getAll(),
-    staleTime: 60 * 1000,
-  });
-
-  const toggleRow = (maHoatDong) => {
-    setExpandedRows(prev => ({ ...prev, [maHoatDong]: !prev[maHoatDong] }));
-  };
-
-  // Lọc các hoạt động liên quan đến đăng ký (Sắp diễn ra, Đang mở đăng ký, Đang diễn ra)
-  const registrationRelated = allActivities.filter(a => 
-    ['SAP_DIEN_RA', 'DANG_MO_DANG_KY', 'DANG_DIEN_RA'].includes(a.trangThai)
-  );
-
-  const filtered = registrationRelated.filter((a) =>
-    !search || a.tenHoatDong?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="space-y-4">
-      {/* Search */}
-      <Card>
-        <div className="p-4">
-          <div className="relative max-w-md">
-            <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-500 transition-colors" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm hoạt động (Sắp diễn ra/Đang mở ĐK)..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-        </div>
-      </Card>
-
-      {/* List */}
-      <Card>
-        <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-          <div>
-            <h3 className="font-semibold text-gray-900">Tình hình đăng ký hoạt động</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Theo dõi chi tiết số lượng đăng ký theo từng đoàn khoa (Sắp diễn ra & Đang mở ĐK)</p>
-          </div>
-          <Badge variant="primary">{registrationRelated.length} hoạt động</Badge>
-        </div>
-
-        {isLoading ? (
-          <div className="p-12 text-center text-gray-400">Đang tải...</div>
-        ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-gray-400">
-            {search ? 'Không tìm thấy hoạt động phù hợp' : 'Hiện không có hoạt động nào đang trong giai đoạn đăng ký'}
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {filtered.map((act) => {
-              const isExpanded = expandedRows[act.maHoatDong];
-              return (
-                <div key={act.maHoatDong} className="p-4 sm:p-6 hover:bg-gray-50/50 transition-colors">
-                  <div 
-                    className="flex items-start justify-between gap-4 cursor-pointer"
-                    onClick={() => toggleRow(act.maHoatDong)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-                          {act.maHoatDong}
-                        </span>
-                        {/* Status badge */}
-                        {act.trangThai === 'DANG_MO_DANG_KY' ? (
-                          <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">ĐANG MỞ ĐĂNG KÝ</span>
-                        ) : act.trangThai === 'SAP_DIEN_RA' ? (
-                          <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">SẮP DIỄN RA</span>
-                        ) : (
-                          <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">ĐANG DIỄN RA</span>
-                        )}
-                        <span className="flex items-center gap-1 text-[10px] text-gray-500">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(act.ngayToChuc) || '—'}
-                        </span>
-                      </div>
-                      <h4 className="font-bold text-gray-900 text-base mb-1 truncate">{act.tenHoatDong}</h4>
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
-                        <Users className="w-3 h-3" />
-                        Đã có {act.soNguoiDangKy || 0} sinh viên đăng ký. Nhấn để xem chi tiết theo khoa.
-                      </p>
-                    </div>
-                    <button className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
-                      {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                    </button>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <RegistrationFacultyStats maHoatDong={act.maHoatDong} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-};
-
 // ======================== MAIN COMPONENT ========================
 
 const AttendanceReport = () => {
@@ -713,10 +547,9 @@ const AttendanceReport = () => {
   const [activeTab, setActiveTab] = useState('hoat-dong');
 
   const tabs = [
-    { id: 'hoat-dong',   label: 'Báo cáo hoạt động', icon: Activity },
-    { id: 'registration', label: 'Tình hình đăng ký', icon: PieChart },
-    { id: 'thang',       label: 'Báo cáo tháng',     icon: Calendar },
-    { id: 'quy',         label: 'Báo cáo quý',        icon: BarChart3 },
+    { id: 'hoat-dong', label: 'Báo cáo hoạt động', icon: Activity },
+    { id: 'thang',     label: 'Báo cáo tháng',     icon: Calendar },
+    { id: 'quy',       label: 'Báo cáo quý',        icon: BarChart3 },
   ];
 
   return (
@@ -753,10 +586,9 @@ const AttendanceReport = () => {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'hoat-dong'   && <ActivityReportTab canExport={canExport} />}
-      {activeTab === 'registration' && <RegistrationStatusTab />}
-      {activeTab === 'thang'       && <MonthlyReportTab />}
-      {activeTab === 'quy'         && <QuarterlyReportTab />}
+      {activeTab === 'hoat-dong' && <ActivityReportTab canExport={canExport} />}
+      {activeTab === 'thang'     && <MonthlyReportTab canExport={canExport} />}
+      {activeTab === 'quy'       && <QuarterlyReportTab canExport={canExport} />}
     </div>
   );
 };

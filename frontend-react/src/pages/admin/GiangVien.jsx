@@ -99,12 +99,9 @@ const GiangVienForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoa
 
 const GiangVien = () => {
   const queryClient = useQueryClient();
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, hasAnyPermission } = useAuthStore();
   const canView   = hasPermission(PERMISSIONS.XEM_GIANG_VIEN);
-  const canAdd    = hasPermission(PERMISSIONS.THEM_GIANG_VIEN);
-  const canEdit   = hasPermission(PERMISSIONS.SUA_GIANG_VIEN);
-  const canDelete = hasPermission(PERMISSIONS.XOA_GIANG_VIEN);
-  const canViewKhoa = hasPermission(PERMISSIONS.XEM_KHOA);
+  const canManage = hasAnyPermission([PERMISSIONS.THEM_GIANG_VIEN, PERMISSIONS.SUA_GIANG_VIEN]);
   const [search, setSearch] = useState('');
   const [khoaFilter, setKhoaFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -112,11 +109,9 @@ const GiangVien = () => {
   const [selectedGV, setSelectedGV] = useState(null);
   const [modalMode, setModalMode] = useState('create');
 
-  // Chỉ fetch khoa khi có quyền để tránh spam 403
   const { data: khoas = [] } = useQuery({
     queryKey: ['khoa-for-gv'],
-    queryFn: () => khoaService.getAll(),
-    enabled: canViewKhoa,
+    queryFn: () => khoaService.getAll()
   });
 
   const { data: gvList = [], isLoading, error, refetch } = useQuery({
@@ -206,7 +201,7 @@ const GiangVien = () => {
       accessor: 'actions',
       render: (_, row) => (
         <div className="flex gap-2">
-          {canEdit && (
+          {canManage && (
             <Button
               size="sm"
               variant="ghost"
@@ -218,7 +213,7 @@ const GiangVien = () => {
               }}
             />
           )}
-          {canDelete && row.isActive && (
+          {canManage && row.isActive && (
             <Button
               size="sm"
               variant="ghost"
@@ -231,7 +226,7 @@ const GiangVien = () => {
               }}
             />
           )}
-          {canEdit && !row.isActive && (
+          {canManage && !row.isActive && (
             <Button
               size="sm"
               variant="ghost"
@@ -256,7 +251,7 @@ const GiangVien = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Giảng viên</h1>
           <p className="text-gray-600 mt-1">Quản lý thông tin giảng viên</p>
         </div>
-        {canAdd && (
+        {canManage && (
           <Button icon={Plus} onClick={() => {
             setSelectedGV(null);
             setModalMode('create');

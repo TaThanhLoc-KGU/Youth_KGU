@@ -19,15 +19,8 @@ import StudentExcelImport from '../../components/admin/StudentExcelImport';
 const Students = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
-  const canView   = hasPermission(PERMISSIONS.VIEW_SINH_VIEN);
-  const canAdd    = hasPermission(PERMISSIONS.THEM_SINH_VIEN);
-  const canEdit   = hasPermission(PERMISSIONS.SUA_SINH_VIEN);
-  const canDelete = hasPermission(PERMISSIONS.XOA_SINH_VIEN);
-  const canImport = hasPermission(PERMISSIONS.IMPORT_SINH_VIEN);
-  const canManage = canAdd || canEdit || canDelete;
-  const canViewLop   = hasPermission(PERMISSIONS.XEM_LOP);
-  const canViewKhoa  = hasPermission(PERMISSIONS.XEM_KHOA);
-  const canViewNganh = hasPermission(PERMISSIONS.XEM_NGANH);
+  const canView   = hasPermission(PERMISSIONS.XEM_SINH_VIEN);
+  const canManage = hasPermission(PERMISSIONS.THEM_SINH_VIEN);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
@@ -43,21 +36,18 @@ const Students = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [modalMode, setModalMode] = useState('create'); // 'create' | 'edit'
 
-  // Fetch dropdown data — chỉ gọi khi có quyền để tránh spam 403
+  // Fetch dropdown data
   const { data: classList = [] } = useQuery({
     queryKey: ['classes'],
-    queryFn: () => lopService.getAll(),
-    enabled: canViewLop,
+    queryFn: () => lopService.getAll()
   });
   const { data: facultyList = [] } = useQuery({
     queryKey: ['faculties'],
-    queryFn: () => khoaService.getAll(),
-    enabled: canViewKhoa,
+    queryFn: () => khoaService.getAll()
   });
   const { data: majorList = [] } = useQuery({
     queryKey: ['majors'],
-    queryFn: () => nganhService.getAll(),
-    enabled: canViewNganh,
+    queryFn: () => nganhService.getAll()
   });
 
   // Filter classes by faculty/major for display (client-side filtering)
@@ -201,7 +191,7 @@ const Students = () => {
             onClick={(e) => { e.stopPropagation(); handleView(row); }}
             title="Xem chi tiết"
           />
-          {canEdit && (
+          {canManage && (
             <Button
               size="sm"
               variant="ghost"
@@ -210,7 +200,7 @@ const Students = () => {
               title="Sửa"
             />
           )}
-          {canDelete && (
+          {canManage && (
             <Button
               size="sm"
               variant="ghost"
@@ -281,7 +271,7 @@ const Students = () => {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {canImport && (
+          {canManage && (
             <Button variant="outline" icon={Upload} onClick={() => setIsImportModalOpen(true)}>
               Import
             </Button>
@@ -291,7 +281,7 @@ const Students = () => {
               Export
             </Button>
           )}
-          {canAdd && (
+          {canManage && (
             <Button icon={Plus} onClick={handleCreate}>
               Thêm sinh viên
             </Button>

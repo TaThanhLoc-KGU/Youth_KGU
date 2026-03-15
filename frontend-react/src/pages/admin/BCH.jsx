@@ -21,10 +21,12 @@ const BCH = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
   const canView         = hasPermission(PERMISSIONS.XEM_BCH);
-  const canAdd          = hasPermission(PERMISSIONS.THEM_BCH);
-  const canEdit         = hasPermission(PERMISSIONS.SUA_BCH);
-  const canDelete       = hasPermission(PERMISSIONS.XOA_BCH);
+  const canAddBCH       = hasPermission(PERMISSIONS.THEM_BCH);
+  const canEditBCH      = hasPermission(PERMISSIONS.SUA_BCH);
+  const canDeleteBCH    = hasPermission(PERMISSIONS.XOA_BCH);
   const canManageChucVu = hasPermission(PERMISSIONS.QUAN_LY_CHUC_VU);
+  // Shorthand: có bất kỳ quyền thao tác nào → hiển thị cột action trong table
+  const canManage = canAddBCH || canEditBCH || canDeleteBCH || canManageChucVu;
   const [search, setSearch] = useState('');
   const [nhiemKyFilter, setNhiemKyFilter] = useState('');
   const [loaiThanhVienFilter, setLoaiThanhVienFilter] = useState('');
@@ -35,7 +37,7 @@ const BCH = () => {
   const [isChucVuModalOpen, setIsChucVuModalOpen] = useState(false);
   const [selectedBCH, setSelectedBCH] = useState(null);
 
-  // Fetch BCH list — chỉ khi có quyền xem BCH
+  // Fetch BCH list
   const { data: bchList = [], isLoading, refetch } = useQuery({
     queryKey: ['bch', search, nhiemKyFilter, loaiThanhVienFilter],
     queryFn: async () => {
@@ -55,22 +57,20 @@ const BCH = () => {
 
       return results.filter(bch => bch && bch.hoTen); // Filter null results
     },
-    keepPreviousData: true,
-    enabled: canView,
-  });
+    keepPreviousData: true
+  }
+  );
 
-  // Fetch statistics — chỉ khi có quyền xem BCH
+  // Fetch statistics
   const { data: stats = {} } = useQuery({
     queryKey: ['bch-statistics'],
-    queryFn: bchService.getStatistics,
-    enabled: canView,
+    queryFn: bchService.getStatistics
   });
 
-  // Fetch chuc vu for filter options — chỉ khi có quyền xem BCH
+  // Fetch chuc vu for filter options
   const { data: chucVuList = [] } = useQuery({
     queryKey: ['chuc-vu-for-filter'],
-    queryFn: chucVuService.getAll,
-    enabled: canView,
+    queryFn: chucVuService.getAll
   });
 
   // Delete mutation
@@ -179,7 +179,7 @@ const BCH = () => {
             onClick={() => handleView(row)}
             title="Xem chi tiết"
           />
-          {canEdit && (
+          {canEditBCH && (
             <Button
               size="sm"
               variant="ghost"
@@ -197,7 +197,7 @@ const BCH = () => {
               title="Quản lý chức vụ"
             />
           )}
-          {canDelete && (
+          {canDeleteBCH && (
             <Button
               size="sm"
               variant="ghost"
@@ -278,7 +278,7 @@ const BCH = () => {
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Quản lý Ban Chấp hành</h1>
           <p className="text-gray-600 mt-1">Quản lý thành viên Ban Chấp hành Đoàn - Hội</p>
         </div>
-        {canAdd && (
+        {canAddBCH && (
           <Button icon={Plus} onClick={handleCreate}>
             Thêm BCH mới
           </Button>

@@ -83,6 +83,11 @@ public class HoatDong {
     /**
      * Yêu cầu check-out không
      */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "che_do_diem_danh", length = 30)
+    @Builder.Default
+    private CheDoDiemDanhEnum cheDoDiemDanh = CheDoDiemDanhEnum.CHECKIN_CHECKOUT;
+
     @Column(name = "yeu_cau_check_out")
     @Builder.Default
     private Boolean yeuCauCheckOut = false;
@@ -92,7 +97,7 @@ public class HoatDong {
     @Column(name = "dia_diem", length = 200)
     private String diaDiem;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "ma_phong")
     private PhongHoc phongHoc;
 
@@ -121,15 +126,15 @@ public class HoatDong {
     @Column(name = "diem_toi_da_tieu_chi")
     private Integer diemToiDaTieuChi;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "ma_bch_phu_trach")
     private BCHDoanHoi nguoiPhuTrach;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "ma_khoa")
     private Khoa khoa;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "ma_nganh")
     private Nganh nganh;
 

@@ -338,6 +338,7 @@ const ActivityForm = ({
     thoiGianToiThieu: 120,
     choPhepCheckInSom: 30,
     yeuCauCheckOut: false,
+    cheDoDiemDanh: 'CHECKIN_CHECKOUT',
     diaDiem: '',
     viDo: null,
     kinhDo: null,
@@ -392,6 +393,7 @@ const ActivityForm = ({
         thoiGianTreToiDa:  initialData.thoiGianTreToiDa  ?? prev.thoiGianTreToiDa,
         thoiGianToiThieu:  initialData.thoiGianToiThieu  ?? prev.thoiGianToiThieu,
         choPhepCheckInSom: initialData.choPhepCheckInSom ?? prev.choPhepCheckInSom,
+        cheDoDiemDanh:     initialData.cheDoDiemDanh     ?? prev.cheDoDiemDanh,
       }));
     }
   }, [initialData]);
@@ -699,8 +701,53 @@ const ActivityForm = ({
           <div>
             <h3 className="font-semibold text-lg text-gray-900">Cài đặt Điểm danh</h3>
             <p className="text-sm text-gray-500 mt-1">
-              Xác định khung giờ hợp lệ để sinh viên check-in và check-out.
+              Xác định chế độ và khung giờ hợp lệ để sinh viên check-in và check-out.
             </p>
+          </div>
+
+          {/* Chế độ điểm danh */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Chế độ điểm danh</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'CHECKIN_CHECKOUT', label: '↔️ Check-in & Check-out', desc: 'Yêu cầu cả check-in lẫn check-out' },
+                { value: 'CHECKIN_ONLY',     label: '→ Chỉ Check-in',          desc: 'Chỉ cần quét QR khi đến' },
+                { value: 'CHECKOUT_ONLY',    label: '← Chỉ Check-out',         desc: 'Check-in tự động, chỉ quét QR khi ra về' },
+                { value: 'AUTO_FULL',        label: '⚡ Tự động toàn bộ',      desc: 'BCH xác nhận, toàn bộ đăng ký = tham gia' },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    formData.cheDoDiemDanh === opt.value
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cheDoDiemDanh"
+                    value={opt.value}
+                    checked={formData.cheDoDiemDanh === opt.value}
+                    onChange={handleChange}
+                    className="mt-0.5 w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{opt.label}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            {formData.cheDoDiemDanh === 'AUTO_FULL' && (
+              <p className="mt-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                ⚡ Sau khi kết thúc, BCH nhấn &quot;Xác nhận tham gia&quot; để ghi nhận toàn bộ SV đăng ký. Không cần quét QR.
+              </p>
+            )}
+            {formData.cheDoDiemDanh === 'CHECKOUT_ONLY' && (
+              <p className="mt-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                ← Check-in tự động theo giờ bắt đầu. Sinh viên chỉ cần quét QR khi ra về.
+              </p>
+            )}
           </div>
 
           {/* Timeline hint */}
