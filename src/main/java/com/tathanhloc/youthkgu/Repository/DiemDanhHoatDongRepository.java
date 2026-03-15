@@ -33,8 +33,9 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
 
     long countByHoatDongMaHoatDong(String maHoatDong);
 
+    // Lấy tất cả sv đã check-in (có thoiGianCheckIn), bất kể trangThai — bao gồm cả CHECKOUT_ONLY mode
     @Query("SELECT dd FROM DiemDanhHoatDong dd WHERE dd.hoatDong.maHoatDong = :maHoatDong " +
-            "AND dd.trangThai = 'DA_THAM_GIA' ORDER BY dd.thoiGianCheckIn DESC")
+            "AND dd.thoiGianCheckIn IS NOT NULL ORDER BY dd.thoiGianCheckIn DESC")
     List<DiemDanhHoatDong> findCheckedInStudents(@Param("maHoatDong") String maHoatDong);
 
     @Query("SELECT sv.maSv, sv.hoTen, dk.maQR, dk.ngayDangKy, " +

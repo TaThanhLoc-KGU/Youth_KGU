@@ -580,19 +580,27 @@ const ActivityForm = ({
           {formData.cheDoDiemDanh !== 'AUTO_FULL' && (
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Thời gian bắt đầu"
+                label="Giờ check-in (bắt đầu điểm danh)"
                 type="time"
                 name="thoiGianBatDau"
                 value={formData.thoiGianBatDau}
                 onChange={handleChange}
               />
-              <Input
-                label="Thời gian kết thúc"
-                type="time"
-                name="thoiGianKetThuc"
-                value={formData.thoiGianKetThuc}
-                onChange={handleChange}
-              />
+              <div>
+                <Input
+                  label="Giờ check-out (kết thúc điểm danh)"
+                  type="time"
+                  name="thoiGianKetThuc"
+                  value={formData.thoiGianKetThuc}
+                  onChange={handleChange}
+                  min={formData.gioToChuc || formData.thoiGianBatDau || ''}
+                />
+                {(formData.gioToChuc || formData.thoiGianBatDau) && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Phải từ {formData.gioToChuc || formData.thoiGianBatDau} trở đi
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

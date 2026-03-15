@@ -49,7 +49,7 @@ const getLoaiBanLabel = (loaiBan) => {
 const Ban = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
-  const canManage = hasPermission(PERMISSIONS.MANAGE_BCH);
+  const canManage = hasPermission(PERMISSIONS.QUAN_LY_BAN);
   const [search, setSearch] = useState('');
   const [loaiBanFilter, setLoaiBanFilter] = useState('');
 
@@ -193,9 +193,11 @@ const Ban = () => {
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Quản lý Ban/Đội/CLB</h1>
           <p className="text-gray-600 mt-1">Quản lý các ban, đội, CLB trong Ban Chấp hành</p>
         </div>
-        <Button icon={Plus} onClick={handleCreate}>
-          Thêm ban mới
-        </Button>
+        {canManage && (
+          <Button icon={Plus} onClick={handleCreate}>
+            Thêm ban mới
+          </Button>
+        )}
       </div>
 
       {/* Statistics Cards */}

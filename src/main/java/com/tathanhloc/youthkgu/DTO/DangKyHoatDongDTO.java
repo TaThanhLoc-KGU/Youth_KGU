@@ -25,6 +25,9 @@ public class DangKyHoatDongDTO {
     private String maHoatDong;
     private String tenHoatDong; // Thêm để hiển thị
     private LocalDate ngayToChuc; // Thêm để hiển thị
+    private Integer soHocKy;    // Học kỳ của hoạt động — dùng để filter theo học kỳ
+    private String maNamHoc;    // Mã năm học — dùng để filter theo năm học
+    private String tenNamHoc;   // Tên năm học hiển thị trên UI
 
     /**
      * MÃ QR DUY NHẤT

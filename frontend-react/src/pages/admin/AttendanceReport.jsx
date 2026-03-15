@@ -214,7 +214,7 @@ const ActivityReportTab = ({ canExport }) => {
 
 // ======================== TAB: THÁNG ========================
 
-const MonthlyReportTab = () => {
+const MonthlyReportTab = ({ canExport }) => {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year,  setYear]  = useState(now.getFullYear());
@@ -289,9 +289,11 @@ const MonthlyReportTab = () => {
             </select>
           </div>
           <Button variant="outline" icon={RefreshCw} onClick={() => refetch()}>Làm mới</Button>
-          <Button variant="outline" icon={Download} onClick={handleExport} disabled={exporting}>
-            {exporting ? 'Đang xuất...' : 'Xuất Excel'}
-          </Button>
+          {canExport && (
+            <Button variant="outline" icon={Download} onClick={handleExport} disabled={exporting}>
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -365,7 +367,7 @@ const MonthlyReportTab = () => {
 
 // ======================== TAB: QUÝ ========================
 
-const QuarterlyReportTab = () => {
+const QuarterlyReportTab = ({ canExport }) => {
   const now = new Date();
   const currentQ = Math.ceil((now.getMonth() + 1) / 3);
   const [quarter, setQuarter] = useState(currentQ);
@@ -432,9 +434,11 @@ const QuarterlyReportTab = () => {
             </select>
           </div>
           <Button variant="outline" icon={RefreshCw} onClick={() => refetch()}>Làm mới</Button>
-          <Button variant="outline" icon={Download} onClick={handleExport} disabled={exporting}>
-            {exporting ? 'Đang xuất...' : 'Xuất Excel'}
-          </Button>
+          {canExport && (
+            <Button variant="outline" icon={Download} onClick={handleExport} disabled={exporting}>
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -583,8 +587,8 @@ const AttendanceReport = () => {
 
       {/* Tab content */}
       {activeTab === 'hoat-dong' && <ActivityReportTab canExport={canExport} />}
-      {activeTab === 'thang'     && <MonthlyReportTab />}
-      {activeTab === 'quy'       && <QuarterlyReportTab />}
+      {activeTab === 'thang'     && <MonthlyReportTab canExport={canExport} />}
+      {activeTab === 'quy'       && <QuarterlyReportTab canExport={canExport} />}
     </div>
   );
 };

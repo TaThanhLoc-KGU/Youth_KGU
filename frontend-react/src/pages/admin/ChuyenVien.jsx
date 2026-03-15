@@ -18,7 +18,7 @@ import Textarea from '../../components/common/Textarea';
 const ChuyenVien = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
-  const canManage = hasPermission(PERMISSIONS.MANAGE_GIANG_VIEN);
+  const canManage = hasPermission(PERMISSIONS.QUAN_LY_CHUYEN_VIEN);
   const [search, setSearch] = useState('');
   const [selectedChuyenVien, setSelectedChuyenVien] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);

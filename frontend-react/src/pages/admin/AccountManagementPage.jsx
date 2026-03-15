@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import accountService from '../../services/accountService';
+import permissionService from '../../services/permissionService';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
 import logsService from '../../services/logsService';
@@ -14,6 +15,45 @@ import {
 } from '../../constants/accountConstants';
 import api from '../../services/api';
 import { formatDate } from '../../utils/dateFormat';
+import { Shield, Lock, AlertTriangle, X } from 'lucide-react';
+
+// ---- Xác nhận mật khẩu admin trước khi phân quyền ----
+function PasswordConfirmModal({ onConfirm, onCancel, title, error }) {
+  const [password, setPassword] = useState('');
+  const { user } = useAuthStore();
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+            <Lock className="w-5 h-5 text-orange-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-800">Xác nhận phân quyền</h3>
+            <p className="text-sm text-gray-500">{title}</p>
+          </div>
+        </div>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 flex gap-2">
+          <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-yellow-700">Nhập mật khẩu của bạn để xác nhận việc phân quyền.</p>
+        </div>
+        {error && <div className="mb-3 p-2 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
+        <label className="block text-sm font-semibold text-gray-700 mb-1">Mật khẩu xác nhận</label>
+        <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+          placeholder="Nhập mật khẩu của bạn..." autoFocus
+          className="w-full px-3 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onKeyDown={e => e.key === 'Enter' && password && onConfirm(user?.username, password)} />
+        <div className="flex gap-3 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Hủy</button>
+          <button onClick={() => onConfirm(user?.username, password)} disabled={!password}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-semibold">
+            Xác nhận & Lưu
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ---- minimal log display helpers ----
 const ACTION_LABELS = {
@@ -39,11 +79,12 @@ const DEFAULT_ROLE_FOR_TYPE = {
 
 export default function AccountManagementPage() {
   const queryClient = useQueryClient();
-  const { hasPermission } = useAuthStore();
-  const canApprove = hasPermission(PERMISSIONS.APPROVE_TAI_KHOAN);
-  const canCreate  = hasPermission(PERMISSIONS.CREATE_TAI_KHOAN);
-  const canEdit    = hasPermission(PERMISSIONS.EDIT_TAI_KHOAN);
-  const canDelete  = hasPermission(PERMISSIONS.DELETE_TAI_KHOAN);
+  const { hasPermission, user: currentUser } = useAuthStore();
+  const canApprove = hasPermission(PERMISSIONS.DUYET_TAI_KHOAN);
+  const canCreate  = hasPermission(PERMISSIONS.TAO_TAI_KHOAN);
+  const canEdit    = hasPermission(PERMISSIONS.SUA_TAI_KHOAN);
+  const canDelete  = hasPermission(PERMISSIONS.XOA_TAI_KHOAN);
+  const canManagePerms = hasPermission(PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN);
   const [activeTab, setActiveTab] = useState('all'); // all | pending | create | bulk
   const [searchKeyword, setSearchKeyword] = useState('');
   const [allSearchKeyword, setAllSearchKeyword] = useState('');
@@ -74,6 +115,23 @@ export default function AccountManagementPage() {
   // History modal state
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyAccount, setHistoryAccount] = useState(null);
+
+  // Permission states — tạo tài khoản
+  const [createPermIds, setCreatePermIds] = useState(new Set());
+  const [pendingNewAccountId, setPendingNewAccountId] = useState(null);
+  const [pendingPermIds, setPendingPermIds] = useState([]);
+  const [showCreatePermConfirm, setShowCreatePermConfirm] = useState(false);
+  const [createPermConfirmError, setCreatePermConfirmError] = useState('');
+
+  // Permission states — quản lý quyền tài khoản hiện có
+  const [showPermModal, setShowPermModal] = useState(false);
+  const [permModalAccount, setPermModalAccount] = useState(null);
+  const [permModalPermIds, setPermModalPermIds] = useState(new Set());
+  const [permModalOriginalIds, setPermModalOriginalIds] = useState(new Set());
+  const [permModalBaseIds, setPermModalBaseIds] = useState(new Set());
+  const [permModalShowConfirm, setPermModalShowConfirm] = useState(false);
+  const [permModalError, setPermModalError] = useState('');
+  const [permModalSuccess, setPermModalSuccess] = useState('');
 
   // =================== Queries ===================
 
@@ -114,6 +172,40 @@ export default function AccountManagementPage() {
     queryKey: ['banList'],
     queryFn: () => api.get('/api/ban').then(r => r.data?.data || r.data || [])
   });
+
+  // Danh sách tất cả permissions (cần khi tạo TK quản lý hoặc mở modal phân quyền)
+  const { data: allPermissions = {} } = useQuery({
+    queryKey: ['allPermissions'],
+    queryFn: () => api.get('/api/permissions/all').then(r => r.data?.data || {}),
+    enabled: canManagePerms && (activeTab === 'create' || showPermModal),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Quyền hiện tại của tài khoản đang mở modal
+  const { data: permModalData, isLoading: permModalLoading } = useQuery({
+    queryKey: ['accountPermissions', permModalAccount?.id],
+    queryFn: () => permissionService.getAccountPermissions(Number(permModalAccount.id)),
+    enabled: showPermModal && !!permModalAccount,
+  });
+
+  // Khi permModalData thay đổi → sync state
+  React.useEffect(() => {
+    if (!permModalData || !Object.keys(allPermissions).length) return;
+    const permNameToId = {};
+    Object.values(allPermissions).flat().forEach(p => { permNameToId[p.name] = p.id; });
+    const baseSet = new Set(
+      (permModalData.quyenTuChucVu || []).map(name => permNameToId[name]).filter(Boolean)
+    );
+    const extraSet = new Set();
+    Object.entries(permModalData.overrideMap || {}).forEach(([idStr, isGranted]) => {
+      if (isGranted) extraSet.add(parseInt(idStr));
+    });
+    setPermModalBaseIds(baseSet);
+    setPermModalOriginalIds(new Set(extraSet));
+    setPermModalPermIds(new Set(extraSet));
+    setPermModalError('');
+    setPermModalSuccess('');
+  }, [permModalData, JSON.stringify(allPermissions)]);
 
   // Client-side filtered accounts for the 'all' tab
   const filteredAccounts = useMemo(() => {
@@ -179,8 +271,8 @@ export default function AccountManagementPage() {
   });
 
   const createAccountMutation = useMutation({
-    mutationFn: (data) => accountService.createAccountManually(data),
-    onSuccess: () => {
+    mutationFn: ({ _permIds, ...data }) => accountService.createAccountManually(data),
+    onSuccess: (newAccount, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pendingAccounts'] });
       queryClient.invalidateQueries({ queryKey: ['searchAccounts'] });
       queryClient.invalidateQueries({ queryKey: ['allAccounts'] });
@@ -189,10 +281,57 @@ export default function AccountManagementPage() {
         soDienThoai: '', ngaySinh: '', gioiTinh: '', vaiTro: '', banChuyenMon: ''
       });
       setCreateErrors({});
+      const permIds = variables._permIds || [];
+      if (newAccount?.id && permIds.length > 0) {
+        setPendingNewAccountId(newAccount.id);
+        setPendingPermIds(permIds);
+        setCreatePermConfirmError('');
+        setShowCreatePermConfirm(true);
+      } else {
+        setCreatePermIds(new Set());
+      }
     },
     onError: (error) => {
       setCreateErrors({ submit: error || 'Lỗi tạo tài khoản' });
     }
+  });
+
+  const assignPermsMutation = useMutation({
+    mutationFn: ({ accountId, grantIds, adminUsername, adminPassword }) =>
+      permissionService.updateAccountPermissions(accountId, {
+        grantIds, revokeIds: [], ghiChu: 'Gán quyền khi tạo tài khoản',
+        adminUsername, adminPassword, grantedBy: currentUser?.id,
+      }),
+    onSuccess: () => {
+      setShowCreatePermConfirm(false);
+      setPendingNewAccountId(null);
+      setPendingPermIds([]);
+      setCreatePermIds(new Set());
+      setCreatePermConfirmError('');
+    },
+    onError: (e) => {
+      setCreatePermConfirmError(e?.response?.data?.message || e?.message || 'Lỗi phân quyền');
+    },
+  });
+
+  const updatePermModalMutation = useMutation({
+    mutationFn: ({ accountId, grantIds, adminUsername, adminPassword }) =>
+      permissionService.updateAccountPermissions(accountId, {
+        grantIds, revokeIds: [],
+        ghiChu: 'Cập nhật quyền từ Quản lý Tài khoản',
+        adminUsername, adminPassword, grantedBy: currentUser?.id,
+      }),
+    onSuccess: () => {
+      setPermModalShowConfirm(false);
+      setPermModalSuccess('Phân quyền thành công!');
+      setPermModalError('');
+      queryClient.invalidateQueries({ queryKey: ['accountPermissions', permModalAccount?.id] });
+      setTimeout(() => setPermModalSuccess(''), 3000);
+    },
+    onError: (e) => {
+      setPermModalError(e?.response?.data?.message || e?.message || 'Lỗi phân quyền');
+      setPermModalShowConfirm(false);
+    },
   });
 
   const updateAccountMutation = useMutation({
@@ -313,7 +452,52 @@ export default function AccountManagementPage() {
   const handleCreateAccount = () => {
     const errors = validateCreateForm();
     if (Object.keys(errors).length > 0) { setCreateErrors(errors); return; }
-    createAccountMutation.mutate({ ...createFormData, banChuyenMon: createFormData.banChuyenMon || '' });
+    createAccountMutation.mutate({
+      ...createFormData,
+      banChuyenMon: createFormData.banChuyenMon || '',
+      _permIds: createFormData.vaiTro !== 'SINH_VIEN' ? [...createPermIds] : [],
+    });
+  };
+
+  const handleManagePerms = (account) => {
+    setPermModalAccount(account);
+    setPermModalPermIds(new Set());
+    setPermModalOriginalIds(new Set());
+    setPermModalBaseIds(new Set());
+    setPermModalShowConfirm(false);
+    setPermModalError('');
+    setPermModalSuccess('');
+    setShowPermModal(true);
+  };
+
+  const togglePermModalPerm = (id) => {
+    if (permModalBaseIds.has(id)) return;
+    setPermModalPermIds(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
+
+  const allPermIds = useMemo(
+    () => Object.values(allPermissions).flat().map(p => p.id),
+    [allPermissions]
+  );
+
+  const toggleCreateToanQuyen = () => {
+    if (createPermIds.size === allPermIds.length) {
+      setCreatePermIds(new Set());
+    } else {
+      setCreatePermIds(new Set(allPermIds));
+    }
+  };
+
+  const toggleCreatePerm = (id) => {
+    setCreatePermIds(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
   };
 
   const handleUpdateAccount = () => {
@@ -435,6 +619,13 @@ export default function AccountManagementPage() {
                             className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded">
                             Lịch sử
                           </button>
+                          {canManagePerms && account.vaiTro !== 'SINH_VIEN' && (
+                            <button onClick={() => handleManagePerms(account)}
+                              className="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded flex items-center gap-1">
+                              <Shield className="w-3 h-3" />
+                              Phân quyền
+                            </button>
+                          )}
                         </>
                       )}
                       {canEdit && (
@@ -632,6 +823,67 @@ export default function AccountManagementPage() {
                 </select>
               </div>
             </div>
+            {/* ── Phân quyền (chỉ hiển thị khi vai trò không phải sinh viên) ── */}
+            {canManagePerms && createFormData.vaiTro && createFormData.vaiTro !== 'SINH_VIEN' && (
+              <div className="mb-4 border border-blue-200 rounded-xl p-4 bg-blue-50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-blue-600" />
+                    <h3 className="font-bold text-blue-800">Phân quyền tài khoản</h3>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500">
+                      Đã chọn: <strong className="text-blue-700">{createPermIds.size}</strong>/{allPermIds.length} quyền
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleCreateToanQuyen}
+                      className={`px-3 py-1 rounded-lg text-sm font-semibold border transition-colors ${
+                        createPermIds.size === allPermIds.length && allPermIds.length > 0
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-100'
+                      }`}
+                    >
+                      TOÀN QUYỀN
+                    </button>
+                    {createPermIds.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setCreatePermIds(new Set())}
+                        className="px-3 py-1 rounded-lg text-sm text-gray-500 border border-gray-300 hover:bg-gray-100"
+                      >
+                        Bỏ chọn tất cả
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {Object.keys(allPermissions).length === 0 ? (
+                  <p className="text-sm text-gray-400 italic">Đang tải danh sách quyền...</p>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto space-y-3">
+                    {Object.entries(allPermissions).map(([category, perms]) => (
+                      <div key={category}>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 sticky top-0 bg-blue-50">{category}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                          {perms.map(p => (
+                            <label key={p.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-blue-100 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={createPermIds.has(p.id)}
+                                onChange={() => toggleCreatePerm(p.id)}
+                                className="w-3.5 h-3.5 text-blue-600 rounded"
+                              />
+                              <span className="text-xs text-gray-700">{p.description}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-3 justify-end">
               <button onClick={handleCreateAccount} disabled={createAccountMutation.isPending}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-semibold">
@@ -956,6 +1208,146 @@ export default function AccountManagementPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* =================== Phân quyền sau khi tạo TK =================== */}
+      {showCreatePermConfirm && (
+        <PasswordConfirmModal
+          title={`Gán ${pendingPermIds.length} quyền cho tài khoản vừa tạo`}
+          error={createPermConfirmError}
+          onConfirm={(username, password) =>
+            assignPermsMutation.mutate({
+              accountId: pendingNewAccountId,
+              grantIds: pendingPermIds,
+              adminUsername: username,
+              adminPassword: password,
+            })
+          }
+          onCancel={() => {
+            setShowCreatePermConfirm(false);
+            setCreatePermConfirmError('');
+            setCreatePermIds(new Set());
+          }}
+        />
+      )}
+
+      {/* =================== Modal quản lý quyền tài khoản =================== */}
+      {showPermModal && permModalAccount && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-8">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b">
+              <div className="flex items-center gap-3">
+                <Shield className="w-6 h-6 text-blue-600" />
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">Phân quyền tài khoản</h2>
+                  <p className="text-sm text-gray-500">{permModalAccount.hoTen || permModalAccount.username} ({permModalAccount.username})</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPermModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {permModalLoading ? (
+                <p className="text-gray-400 text-sm">Đang tải...</p>
+              ) : (
+                <>
+                  {permModalSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{permModalSuccess}</div>
+                  )}
+                  {permModalError && (
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{permModalError}</div>
+                  )}
+
+                  {/* TOÀN QUYỀN & stats */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">
+                      Đang chọn: <strong className="text-blue-700">{permModalPermIds.size + permModalBaseIds.size}</strong>/{allPermIds.length} quyền
+                      {permModalBaseIds.size > 0 && <span className="ml-1 text-xs text-gray-400">({permModalBaseIds.size} từ chức vụ 🔒)</span>}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const allExtra = new Set(allPermIds.filter(id => !permModalBaseIds.has(id)));
+                          if (permModalPermIds.size === allExtra.size) {
+                            setPermModalPermIds(new Set());
+                          } else {
+                            setPermModalPermIds(allExtra);
+                          }
+                        }}
+                        className="px-3 py-1 rounded-lg text-sm font-semibold border border-blue-300 text-blue-600 hover:bg-blue-50"
+                      >
+                        TOÀN QUYỀN
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Permission checkboxes */}
+                  <div className="max-h-80 overflow-y-auto border rounded-lg divide-y">
+                    {Object.entries(allPermissions).map(([category, perms]) => (
+                      <div key={category} className="p-3">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">{category}</p>
+                        <div className="grid grid-cols-1 gap-1">
+                          {perms.map(p => {
+                            const isBase = permModalBaseIds.has(p.id);
+                            const isExtra = permModalPermIds.has(p.id);
+                            return (
+                              <label key={p.id} className={`flex items-center gap-2 p-1.5 rounded cursor-pointer ${isBase ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={isBase || isExtra}
+                                  disabled={isBase}
+                                  onChange={() => togglePermModalPerm(p.id)}
+                                  className="w-3.5 h-3.5 text-blue-600 rounded"
+                                />
+                                <span className="text-xs text-gray-700 flex-1">{p.description}</span>
+                                {isBase && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full shrink-0">🔒 Chức vụ</span>}
+                                {isExtra && !isBase && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full shrink-0">+ Thêm</span>}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 justify-end p-5 border-t">
+              <button onClick={() => setShowPermModal(false)}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50">Đóng</button>
+              {!permModalLoading && (
+                <button
+                  onClick={() => { setPermModalError(''); setPermModalShowConfirm(true); }}
+                  disabled={updatePermModalMutation.isPending}
+                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-semibold flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Lưu quyền
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {permModalShowConfirm && permModalAccount && (
+        <PasswordConfirmModal
+          title={`Cập nhật quyền cho: ${permModalAccount.hoTen || permModalAccount.username}`}
+          error={permModalError}
+          onConfirm={(username, password) =>
+            updatePermModalMutation.mutate({
+              accountId: permModalAccount.id,
+              grantIds: [...permModalPermIds],
+              adminUsername: username,
+              adminPassword: password,
+            })
+          }
+          onCancel={() => { setPermModalShowConfirm(false); setPermModalError(''); }}
+        />
       )}
     </div>
   );

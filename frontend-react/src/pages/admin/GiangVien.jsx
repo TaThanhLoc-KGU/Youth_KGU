@@ -99,9 +99,9 @@ const GiangVienForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoa
 
 const GiangVien = () => {
   const queryClient = useQueryClient();
-  const { hasPermission } = useAuthStore();
-  const canView   = hasPermission(PERMISSIONS.VIEW_GIANG_VIEN);
-  const canManage = hasPermission(PERMISSIONS.MANAGE_GIANG_VIEN);
+  const { hasPermission, hasAnyPermission } = useAuthStore();
+  const canView   = hasPermission(PERMISSIONS.XEM_GIANG_VIEN);
+  const canManage = hasAnyPermission([PERMISSIONS.THEM_GIANG_VIEN, PERMISSIONS.SUA_GIANG_VIEN]);
   const [search, setSearch] = useState('');
   const [khoaFilter, setKhoaFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');

@@ -54,4 +54,16 @@ public interface HoatDongRepository extends JpaRepository<HoatDong, String> {
     @Query("SELECT hd.trangThai, COUNT(hd) FROM HoatDong hd " +
             "WHERE hd.isActive = true GROUP BY hd.trangThai")
     List<Object[]> countByTrangThai();
+
+    /**
+     * Lấy các hoạt động chưa kết thúc/hủy/hoàn thành trong khoảng ngày — dùng cho auto-status scheduler
+     */
+    @Query("SELECT hd FROM HoatDong hd WHERE " +
+            "hd.ngayToChuc BETWEEN :startDate AND :endDate " +
+            "AND hd.isActive = true " +
+            "AND hd.trangThai NOT IN ('DA_HUY', 'DA_HOAN_THANH')")
+    List<HoatDong> findActiveNonTerminalByDateRange(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }

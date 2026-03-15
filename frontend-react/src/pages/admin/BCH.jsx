@@ -20,8 +20,13 @@ import BCHDetailView from '../../components/admin/BCHDetailView';
 const BCH = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
-  const canView   = hasPermission(PERMISSIONS.VIEW_BCH);
-  const canManage = hasPermission(PERMISSIONS.MANAGE_BCH);
+  const canView         = hasPermission(PERMISSIONS.XEM_BCH);
+  const canAddBCH       = hasPermission(PERMISSIONS.THEM_BCH);
+  const canEditBCH      = hasPermission(PERMISSIONS.SUA_BCH);
+  const canDeleteBCH    = hasPermission(PERMISSIONS.XOA_BCH);
+  const canManageChucVu = hasPermission(PERMISSIONS.QUAN_LY_CHUC_VU);
+  // Shorthand: có bất kỳ quyền thao tác nào → hiển thị cột action trong table
+  const canManage = canAddBCH || canEditBCH || canDeleteBCH || canManageChucVu;
   const [search, setSearch] = useState('');
   const [nhiemKyFilter, setNhiemKyFilter] = useState('');
   const [loaiThanhVienFilter, setLoaiThanhVienFilter] = useState('');
@@ -174,7 +179,7 @@ const BCH = () => {
             onClick={() => handleView(row)}
             title="Xem chi tiết"
           />
-          {canManage && (
+          {canEditBCH && (
             <Button
               size="sm"
               variant="ghost"
@@ -183,7 +188,7 @@ const BCH = () => {
               title="Chỉnh sửa"
             />
           )}
-          {canManage && (
+          {canManageChucVu && (
             <Button
               size="sm"
               variant="ghost"
@@ -192,7 +197,7 @@ const BCH = () => {
               title="Quản lý chức vụ"
             />
           )}
-          {canManage && (
+          {canDeleteBCH && (
             <Button
               size="sm"
               variant="ghost"
@@ -273,7 +278,7 @@ const BCH = () => {
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Quản lý Ban Chấp hành</h1>
           <p className="text-gray-600 mt-1">Quản lý thành viên Ban Chấp hành Đoàn - Hội</p>
         </div>
-        {canManage && (
+        {canAddBCH && (
           <Button icon={Plus} onClick={handleCreate}>
             Thêm BCH mới
           </Button>

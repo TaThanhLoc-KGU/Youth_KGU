@@ -16,6 +16,12 @@ public interface DangKyHoatDongRepository extends JpaRepository<DangKyHoatDong, 
     List<DangKyHoatDong> findByHoatDongMaHoatDongAndIsActiveTrue(String maHoatDong);
     List<DangKyHoatDong> findBySinhVienMaSvAndIsActiveTrue(String maSv);
 
+    // Include isActive=NULL rows (legacy data added before column existed)
+    @Query("SELECT dk FROM DangKyHoatDong dk JOIN FETCH dk.sinhVien " +
+            "WHERE dk.hoatDong.maHoatDong = :maHoatDong " +
+            "AND (dk.isActive = true OR dk.isActive IS NULL)")
+    List<DangKyHoatDong> findByHoatDongMaHoatDongAndIsActiveNotFalse(@Param("maHoatDong") String maHoatDong);
+
     long countByHoatDongMaHoatDongAndIsActiveTrue(String maHoatDong);
 
     Optional<DangKyHoatDong> findByMaQR(String maQR);

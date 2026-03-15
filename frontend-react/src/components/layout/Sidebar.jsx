@@ -21,7 +21,6 @@ import {
   UserPlus,
   BarChart2,
   ScrollText,
-  Shield,
   QrCode,
   TrendingUp,
 } from 'lucide-react';
@@ -31,39 +30,42 @@ import { useState } from 'react';
 
 // ─── Menu admin - mỗi item gắn permission tương ứng từ DB ───────────────────
 // ADMIN luôn trả true cho hasPermission → tất cả vẫn hiển thị với ADMIN
-// "Hồ sơ cá nhân" đã được chuyển ra item độc lập ở cuối nav (VẤN ĐỀ 3)
+// "Hồ sơ cá nhân" đã được chuyển ra item độc lập ở cuối nav
+// Mỗi item có thể dùng `permission` (1 quyền) hoặc `anyOf` (ít nhất 1 trong nhiều quyền)
 const ADMIN_MENU = [
   { icon: LayoutDashboard, label: 'Dashboard',             path: ROUTES.ADMIN_DASHBOARD,          permission: null },
   // ── Quản lý đối tượng ─────────────────────────────────────────────────────
-  { icon: Users,           label: 'Sinh viên',             path: ROUTES.ADMIN_STUDENTS,           permission: PERMISSIONS.VIEW_SINH_VIEN },
-  { icon: Users,           label: 'Giảng viên',            path: ROUTES.ADMIN_GIANGVIEN,          permission: PERMISSIONS.VIEW_GIANG_VIEN },
-  { icon: UserCog,         label: 'Chuyên viên',           path: ROUTES.ADMIN_CHUYENVIEN,         permission: PERMISSIONS.MANAGE_GIANG_VIEN },
-  { icon: UserCheck,       label: 'BCH Đoàn - Hội',       path: ROUTES.ADMIN_BCH,                permission: PERMISSIONS.VIEW_BCH },
+  { icon: Users,           label: 'Sinh viên',             path: ROUTES.ADMIN_STUDENTS,           permission: PERMISSIONS.XEM_SINH_VIEN },
+  { icon: Users,           label: 'Giảng viên',            path: ROUTES.ADMIN_GIANGVIEN,          permission: PERMISSIONS.XEM_GIANG_VIEN },
+  { icon: UserCog,         label: 'Chuyên viên',           path: ROUTES.ADMIN_CHUYENVIEN,         permission: PERMISSIONS.XEM_CHUYEN_VIEN },
+  { icon: UserCheck,       label: 'BCH Đoàn - Hội',       path: ROUTES.ADMIN_BCH,                permission: PERMISSIONS.XEM_BCH },
   // ── Dữ liệu cấu hình hệ thống ─────────────────────────────────────────────
-  { icon: Building2,       label: 'Khoa',                  path: ROUTES.ADMIN_KHOA,               permission: PERMISSIONS.CAI_DAT_HE_THONG },
-  { icon: Briefcase,       label: 'Ngành',                 path: ROUTES.ADMIN_NGANH,              permission: PERMISSIONS.CAI_DAT_HE_THONG },
-  { icon: BookOpen,        label: 'Lớp',                   path: ROUTES.ADMIN_LOP,                permission: PERMISSIONS.CAI_DAT_HE_THONG },
-  { icon: Calendar,        label: 'Khóa học',              path: ROUTES.ADMIN_KHOAHOC,            permission: PERMISSIONS.CAI_DAT_HE_THONG },
-  { icon: Zap,             label: 'Chức vụ',               path: ROUTES.ADMIN_CHUC_VU,            permission: PERMISSIONS.MANAGE_BCH },
-  { icon: Building,        label: 'Ban/Đội/CLB',           path: ROUTES.ADMIN_BAN,                permission: PERMISSIONS.MANAGE_BCH },
+  { icon: Building2,       label: 'Khoa',                  path: ROUTES.ADMIN_KHOA,               permission: PERMISSIONS.XEM_KHOA },
+  { icon: Briefcase,       label: 'Ngành',                 path: ROUTES.ADMIN_NGANH,              permission: PERMISSIONS.XEM_NGANH },
+  { icon: BookOpen,        label: 'Lớp',                   path: ROUTES.ADMIN_LOP,                permission: PERMISSIONS.XEM_LOP },
+  { icon: Calendar,        label: 'Khóa học',              path: ROUTES.ADMIN_KHOAHOC,            permission: PERMISSIONS.XEM_KHOA_HOC },
+  { icon: Zap,             label: 'Chức vụ',               path: ROUTES.ADMIN_CHUC_VU,            permission: PERMISSIONS.QUAN_LY_CHUC_VU },
+  { icon: Building,        label: 'Ban/Đội/CLB',           path: ROUTES.ADMIN_BAN,                permission: PERMISSIONS.QUAN_LY_BAN },
   // ── Hoạt động & Điểm danh ─────────────────────────────────────────────────
   { icon: Activity,        label: 'Hoạt động',             path: ROUTES.ADMIN_ACTIVITIES,         permission: PERMISSIONS.XEM_HOAT_DONG },
-  { icon: ClipboardCheck,  label: 'Điểm danh',             path: ROUTES.ADMIN_ATTENDANCE,         permission: PERMISSIONS.MANAGE_DIEM_DANH },
+  { icon: ClipboardCheck,  label: 'Điểm danh',             path: ROUTES.ADMIN_ATTENDANCE,         permission: PERMISSIONS.XEM_DIEM_DANH },
   // ── Tài khoản & Thống kê ──────────────────────────────────────────────────
-  { icon: UserPlus,        label: 'Quản lý tài khoản',    path: ROUTES.ADMIN_ACCOUNTS,           permission: PERMISSIONS.VIEW_TAI_KHOAN },
-  { icon: BarChart2,       label: 'Thống kê tài khoản',   path: ROUTES.ADMIN_ACCOUNT_STATISTICS, permission: PERMISSIONS.VIEW_THONG_KE },
+  { icon: UserPlus,        label: 'Quản lý tài khoản',    path: ROUTES.ADMIN_ACCOUNTS,           permission: PERMISSIONS.XEM_TAI_KHOAN },
+  { icon: BarChart2,       label: 'Thống kê tài khoản',   path: ROUTES.ADMIN_ACCOUNT_STATISTICS, permission: PERMISSIONS.XEM_THONG_KE },
   // ── Hệ thống ──────────────────────────────────────────────────────────────
-  { icon: ScrollText,      label: 'System Log',            path: '/admin/system-log',             permission: PERMISSIONS.VIEW_SYSTEM_LOG },
-  { icon: Shield,          label: 'Cài đặt & Phân quyền', path: ROUTES.ADMIN_SETTINGS,           permission: PERMISSIONS.MANAGE_ROLE_PERMISSIONS },
+  { icon: ScrollText,      label: 'System Log',            path: ROUTES.ADMIN_SYSTEM_LOG,         permission: PERMISSIONS.XEM_SYSTEM_LOG },
 ];
 
-// ─── Menu BCH (ai có TAO_HOAT_DONG đều thấy) ─────────────────────────────────
-// "Hồ sơ cá nhân" đã được chuyển ra item độc lập ở cuối nav (VẤN ĐỀ 3)
+// ─── Menu BCH — hiển thị theo đúng quyền thực tế của từng thành viên BCH ────
+// showBCH đã được lọc bởi laBCH=true → chỉ BCH members thấy section này
+// "Quản lý Hoạt động" thấy nếu có XEM hoặc TAO/SUA hoạt động
+// "Điểm danh" thấy nếu có XEM_DIEM_DANH hoặc QUET_QR
+// "Quét QR" chỉ thấy nếu có QUET_QR
 const BCH_MENU = [
-  { icon: LayoutDashboard, label: 'Dashboard BCH',       path: ROUTES.BCH_DASHBOARD,  permission: PERMISSIONS.TAO_HOAT_DONG },
-  { icon: Activity,        label: 'Quản lý Hoạt động',  path: ROUTES.BCH_ACTIVITIES, permission: PERMISSIONS.TAO_HOAT_DONG },
-  { icon: ClipboardCheck,  label: 'Điểm danh',           path: ROUTES.BCH_ATTENDANCE, permission: PERMISSIONS.QUET_QR },
-  { icon: QrCode,          label: 'Quét QR',             path: ROUTES.BCH_SCAN_QR,   permission: PERMISSIONS.QUET_QR },
+  { icon: LayoutDashboard, label: 'Dashboard BCH',      path: ROUTES.BCH_DASHBOARD,  permission: null },
+  { icon: Activity,        label: 'Quản lý Hoạt động',  path: ROUTES.BCH_ACTIVITIES, anyOf: [PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.TAO_HOAT_DONG, PERMISSIONS.SUA_HOAT_DONG] },
+  { icon: ClipboardCheck,  label: 'Điểm danh',           path: ROUTES.BCH_ATTENDANCE, anyOf: [PERMISSIONS.XEM_DIEM_DANH, PERMISSIONS.QUET_QR, PERMISSIONS.CHINH_SUA_DIEM_DANH] },
+  { icon: QrCode,          label: 'Quét QR',             path: ROUTES.BCH_SCAN_QR,    permission: PERMISSIONS.QUET_QR },
 ];
 
 // ─── Menu sinh viên — 4 quyền cứng, mọi sinh viên đều có, không kiểm tra permission ─
@@ -79,12 +81,13 @@ const STUDENT_MENU = [
 
 // ─── Quyền "mở khóa" section quản trị ─────────────────────────────────────────
 // Ai có ít nhất 1 trong các quyền này → thấy menu quản trị + truy cập /admin/*
+// Danh sách này là UNION của tất cả permission trong ADMIN_MENU
 const ADMIN_SECTION_PERMS = [
   PERMISSIONS.XEM_SINH_VIEN, PERMISSIONS.XEM_GIANG_VIEN, PERMISSIONS.XEM_CHUYEN_VIEN,
   PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
   PERMISSIONS.XEM_KHOA, PERMISSIONS.XEM_NGANH, PERMISSIONS.XEM_LOP, PERMISSIONS.XEM_KHOA_HOC,
   PERMISSIONS.QUAN_LY_CHUC_VU, PERMISSIONS.QUAN_LY_BAN,
-  PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
+  PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
   PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
   PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
 ];
@@ -132,8 +135,12 @@ const Sidebar = ({ isOpen = false, onClose }) => {
 
   // Render một menu item
   const renderItem = (item) => {
-    // Ẩn item nếu thiếu quyền (item.permission !== null)
-    if (item.permission && !hasPermission(item.permission)) return null;
+    // Kiểm tra quyền: permission (1 quyền) hoặc anyOf (ít nhất 1 trong nhiều quyền)
+    if (item.permission !== null && item.permission !== undefined) {
+      if (!hasPermission(item.permission)) return null;
+    } else if (item.anyOf && item.anyOf.length > 0) {
+      if (!hasAnyPermission(item.anyOf)) return null;
+    }
 
     const Icon = item.icon;
     const isActive = location.pathname === item.path;

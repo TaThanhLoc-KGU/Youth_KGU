@@ -19,8 +19,8 @@ import StudentExcelImport from '../../components/admin/StudentExcelImport';
 const Students = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
-  const canView   = hasPermission(PERMISSIONS.VIEW_SINH_VIEN);
-  const canManage = hasPermission(PERMISSIONS.MANAGE_SINH_VIEN);
+  const canView   = hasPermission(PERMISSIONS.XEM_SINH_VIEN);
+  const canManage = hasPermission(PERMISSIONS.THEM_SINH_VIEN);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');

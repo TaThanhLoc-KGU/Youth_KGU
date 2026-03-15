@@ -22,6 +22,10 @@ import {
   StopCircle,
   LogOut,
   Video,
+  Play,
+  Ban,
+  CheckCheck,
+  RefreshCw,
 } from 'lucide-react';
 import activityService from '../../services/activityService';
 import diemDanhService from '../../services/diemDanhService';
@@ -66,6 +70,32 @@ function isCheckoutWindowOpen(activity) {
 // ─── Time window helper ─────────────────────────────────────────────────────
 function isAttendanceWindowOpen(activity) {
   if (!activity) return false;
+
+  // Hoạt động đã kết thúc hoàn toàn → không cho điểm danh
+  if (['DA_HUY', 'DA_HOAN_THANH', 'DA_KET_THUC'].includes(activity.trangThai)) return false;
+
+  // BCH đã bấm "Bắt đầu sự kiện" thủ công → cho phép, nhưng vẫn check quá hạn checkout
+  if (activity.trangThai === 'DANG_DIEN_RA') {
+    const allowedMin = activity.thoiGianChoPhepCheckOut ?? 30;
+    // Kết thúc sớm → check window từ thoiGianKetThucThucTe
+    if (activity.ketThucSom && activity.thoiGianKetThucThucTe) {
+      const earlyEnd = new Date(activity.thoiGianKetThucThucTe);
+      if (new Date() > new Date(earlyEnd.getTime() + allowedMin * 60000)) return false;
+      return true;
+    }
+    // Bình thường → check window từ thoiGianKetThuc
+    if (activity.thoiGianKetThuc && activity.ngayToChuc) {
+      const actDate = new Date(activity.ngayToChuc);
+      const now = new Date();
+      if (now.toDateString() === actDate.toDateString()) {
+        const [endH, endM] = activity.thoiGianKetThuc.split(':').map(Number);
+        const nowMs = now.getHours() * 60 + now.getMinutes();
+        if (nowMs > endH * 60 + endM + allowedMin) return false;
+      }
+    }
+    return true;
+  }
+
   if (!activity.thoiGianBatDau) return true; // no restriction
 
   const now = new Date();
@@ -335,6 +365,7 @@ export default function ActivityAttendancePage() {
   const [mode, setMode] = useState('VIEW'); // VIEW | QR | MANUAL | CHECKOUT
   const [selectedSvs, setSelectedSvs] = useState(new Set());
   const [manualNote, setManualNote] = useState('');
+  const [manualSearchTerm, setManualSearchTerm] = useState('');
   const [qrScanCount, setQrScanCount] = useState(0);
   const [checkoutScanCount, setCheckoutScanCount] = useState(0);
 
@@ -342,12 +373,21 @@ export default function ActivityAttendancePage() {
   const { data: activity, isLoading: loadingActivity } = useQuery({
     queryKey: ['activity', id],
     queryFn: () => activityService.getById(id),
+    refetchInterval: 30000, // Cập nhật trạng thái mỗi 30s
   });
 
   const { data: attendanceList = [], isLoading: loadingList, refetch: refetchList } = useQuery({
     queryKey: ['attendance-status', id],
     queryFn: () => activityService.getAttendanceStatusList(id),
-    refetchInterval: mode === 'QR' ? 5000 : false, // Auto-refresh during QR mode
+    // Auto-refresh: 5s khi quét QR, 15s bình thường, dừng khi activity đã kết thúc
+    refetchInterval: (query) => {
+      const status = query.state.data == null
+        ? 10000
+        : ['DA_HOAN_THANH', 'DA_KET_THUC', 'DA_HUY'].includes(activity?.trangThai)
+          ? false
+          : (mode === 'QR' || mode === 'CHECKOUT') ? 5000 : 15000;
+      return status;
+    },
   });
 
   const { data: notCheckedIn = [], refetch: refetchNotCheckedIn } = useQuery({
@@ -363,13 +403,41 @@ export default function ActivityAttendancePage() {
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
+  const startActivityMutation = useMutation({
+    mutationFn: () => activityService.start(id),
+    onSuccess: () => {
+      toast.success('Đã bắt đầu sự kiện! Cửa sổ điểm danh đang mở.');
+      queryClient.invalidateQueries({ queryKey: ['activity', id] });
+    },
+    onError: (err) => toast.error('Lỗi bắt đầu sự kiện: ' + err.message),
+  });
+
   const earlyTerminateMutation = useMutation({
     mutationFn: () => activityService.earlyTerminate(id),
     onSuccess: () => {
-      toast.success('Đã kết thúc sớm hoạt động. Cửa sổ checkout mở!');
+      toast.success('Đã kết thúc sự kiện. Cửa sổ check-out đang mở (nếu có)!');
       queryClient.invalidateQueries({ queryKey: ['activity', id] });
     },
-    onError: (err) => toast.error('Lỗi kết thúc sớm: ' + err.message),
+    onError: (err) => toast.error('Lỗi kết thúc sự kiện: ' + err.message),
+  });
+
+  const completeActivityMutation = useMutation({
+    mutationFn: () => activityService.complete(id),
+    onSuccess: () => {
+      toast.success('Đã đánh dấu hoạt động hoàn thành!');
+      queryClient.invalidateQueries({ queryKey: ['activity', id] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-status', id] });
+    },
+    onError: (err) => toast.error('Lỗi hoàn thành hoạt động: ' + err.message),
+  });
+
+  const cancelActivityMutation = useMutation({
+    mutationFn: (lyDo) => activityService.cancel(id, lyDo),
+    onSuccess: () => {
+      toast.success('Đã hủy hoạt động.');
+      queryClient.invalidateQueries({ queryKey: ['activity', id] });
+    },
+    onError: (err) => toast.error('Lỗi hủy hoạt động: ' + err.message),
   });
 
   const manualCheckOutMutation = useMutation({
@@ -411,7 +479,26 @@ export default function ActivityAttendancePage() {
   const windowOpen = useMemo(() => isAttendanceWindowOpen(activity), [activity]);
   const windowMsg = useMemo(() => getWindowMessage(activity), [activity]);
   const checkoutWindowOpen = useMemo(() => isCheckoutWindowOpen(activity), [activity]);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isActivityEnded = ['DA_HOAN_THANH', 'DA_KET_THUC', 'DA_HUY'].includes(activity?.trangThai);
+  const isStartAvailable = activity?.ngayToChuc === todayStr
+    && !['DANG_DIEN_RA', 'DA_HUY', 'DA_HOAN_THANH', 'DA_KET_THUC'].includes(activity?.trangThai);
   const isEarlyTerminateAvailable = activity?.trangThai === 'DANG_DIEN_RA' && !activity?.ketThucSom;
+  // Hoàn thành: khi hoạt động đã hết giờ (DA_KET_THUC) hoặc kết thúc sớm nhưng chưa đánh dấu DA_HOAN_THANH
+  const isCompleteAvailable = activity?.trangThai === 'DA_KET_THUC';
+  // Hủy: khi chưa kết thúc/hủy/hoàn thành
+  const isCancelAvailable = !['DA_HUY', 'DA_HOAN_THANH'].includes(activity?.trangThai);
+
+  const filteredNotCheckedIn = useMemo(() => {
+    if (!manualSearchTerm) return notCheckedIn;
+    const q = manualSearchTerm.toLowerCase();
+    return notCheckedIn.filter((sv) =>
+      sv.hoTen?.toLowerCase().includes(q) ||
+      sv.maSv?.toLowerCase().includes(q) ||
+      sv.lop?.toLowerCase().includes(q)
+    );
+  }, [notCheckedIn, manualSearchTerm]);
 
   const stats = useMemo(() => ({
     total: attendanceList.length,
@@ -452,10 +539,10 @@ export default function ActivityAttendancePage() {
   };
 
   const handleSelectAll = () => {
-    if (selectedSvs.size === notCheckedIn.length) {
+    if (selectedSvs.size === filteredNotCheckedIn.length && filteredNotCheckedIn.length > 0) {
       setSelectedSvs(new Set());
     } else {
-      setSelectedSvs(new Set(notCheckedIn.map((s) => s.maSv)));
+      setSelectedSvs(new Set(filteredNotCheckedIn.map((s) => s.maSv)));
     }
   };
 
@@ -469,6 +556,7 @@ export default function ActivityAttendancePage() {
     setMode(newMode);
     if (newMode === 'MANUAL') {
       setSelectedSvs(new Set());
+      setManualSearchTerm('');
       refetchNotCheckedIn();
     }
     if (newMode === 'CHECKOUT' || newMode === 'CHECKOUT_MANUAL') {
@@ -477,9 +565,34 @@ export default function ActivityAttendancePage() {
     }
   };
 
+  const handleStartActivity = () => {
+    if (window.confirm('Xác nhận bắt đầu sự kiện?\nCửa sổ điểm danh sẽ mở ngay sau đó.')) {
+      startActivityMutation.mutate();
+    }
+  };
+
   const handleEarlyTerminate = () => {
-    if (window.confirm('Bạn có chắc muốn kết thúc sớm hoạt động này?\nCửa sổ checkout sẽ mở ngay sau đó.')) {
+    const mode = activity?.cheDoDiemDanh;
+    const msg = (mode === 'CHECKIN_CHECKOUT' || mode === 'CHECKOUT_ONLY')
+      ? 'Kết thúc sự kiện và mở cửa sổ check-out?\nSinh viên có thể quét QR để check-out.'
+      : 'Xác nhận kết thúc sự kiện?';
+    if (window.confirm(msg)) {
       earlyTerminateMutation.mutate();
+    }
+  };
+
+  const handleCompleteActivity = () => {
+    if (window.confirm('Xác nhận hoàn thành hoạt động?\nTrạng thái sẽ chuyển sang "Đã hoàn thành".')) {
+      completeActivityMutation.mutate();
+    }
+  };
+
+  const handleCancelActivity = () => {
+    const lyDo = window.prompt('Nhập lý do hủy hoạt động:');
+    if (lyDo === null) return; // User cancelled prompt
+    if (!lyDo.trim()) { toast.warn('Vui lòng nhập lý do hủy'); return; }
+    if (window.confirm(`Xác nhận HỦY hoạt động?\nLý do: ${lyDo}\nHành động này không thể hoàn tác!`)) {
+      cancelActivityMutation.mutate(lyDo);
     }
   };
 
@@ -522,7 +635,26 @@ export default function ActivityAttendancePage() {
         </button>
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">{activity.tenHoatDong}</h1>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-800">{activity.tenHoatDong}</h1>
+              {/* Status Badge */}
+              {activity.trangThai && (() => {
+                const statusMap = {
+                  SAP_DIEN_RA:       { label: 'Sắp diễn ra',        cls: 'bg-gray-100 text-gray-600 border-gray-200' },
+                  DANG_MO_DANG_KY:   { label: 'Đang mở đăng ký',    cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+                  DANG_DIEN_RA:      { label: '🟢 Đang diễn ra',    cls: 'bg-green-50 text-green-700 border-green-200' },
+                  DA_KET_THUC:       { label: 'Đã kết thúc',         cls: 'bg-orange-50 text-orange-700 border-orange-200' },
+                  DA_HOAN_THANH:     { label: '✔ Đã hoàn thành',    cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+                  DA_HUY:            { label: '✕ Đã hủy',            cls: 'bg-red-50 text-red-700 border-red-200' },
+                };
+                const s = statusMap[activity.trangThai] || { label: activity.trangThai, cls: 'bg-gray-100 text-gray-600 border-gray-200' };
+                return (
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${s.cls}`}>
+                    {s.label}
+                  </span>
+                );
+              })()}
+            </div>
             <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
@@ -565,21 +697,74 @@ export default function ActivityAttendancePage() {
         </div>
       </div>
 
-      {/* ── Early Terminate Button ── */}
-      {isEarlyTerminateAvailable && (
-        <div className="flex justify-end">
-          <button
-            onClick={handleEarlyTerminate}
-            disabled={earlyTerminateMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-sm font-semibold shadow transition-colors"
-          >
-            {earlyTerminateMutation.isPending
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <StopCircle className="w-4 h-4" />}
-            Kết thúc sớm hoạt động
-          </button>
+      {/* ── Activity ended warning + Hoàn thành button ── */}
+      {isActivityEnded && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl">
+          <div className="flex items-center gap-2 text-gray-600 text-sm font-medium">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-gray-500" />
+            <span>
+              Hoạt động đã {activity?.trangThai === 'DA_HUY' ? 'bị hủy' : activity?.trangThai === 'DA_HOAN_THANH' ? 'hoàn thành' : 'kết thúc'} — chức năng điểm danh đã đóng.
+            </span>
+          </div>
+          {/* Khi đã kết thúc (DA_KET_THUC) → cho phép đánh dấu hoàn thành */}
+          {isCompleteAvailable && (
+            <button
+              onClick={handleCompleteActivity}
+              disabled={completeActivityMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-lg text-sm font-semibold shadow transition-colors"
+            >
+              {completeActivityMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
+              Đánh dấu hoàn thành
+            </button>
+          )}
         </div>
       )}
+
+      {/* ── Start / End / Cancel Event Buttons ── */}
+      <div className="flex flex-wrap justify-end gap-3">
+        {/* Nút làm mới danh sách */}
+        <button
+          onClick={() => { refetchList(); }}
+          title="Làm mới danh sách điểm danh"
+          className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium shadow-sm transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" /> Làm mới
+        </button>
+        {!isActivityEnded && (
+          <>
+            {isStartAvailable && (
+              <button
+                onClick={handleStartActivity}
+                disabled={startActivityMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white rounded-lg text-sm font-semibold shadow transition-colors"
+              >
+                {startActivityMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                Bắt đầu sự kiện
+              </button>
+            )}
+            {isEarlyTerminateAvailable && (
+              <button
+                onClick={handleEarlyTerminate}
+                disabled={earlyTerminateMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-sm font-semibold shadow transition-colors"
+              >
+                {earlyTerminateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <StopCircle className="w-4 h-4" />}
+                Kết thúc sự kiện
+              </button>
+            )}
+            {isCancelAvailable && (
+              <button
+                onClick={handleCancelActivity}
+                disabled={cancelActivityMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-semibold shadow transition-colors"
+              >
+                {cancelActivityMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                Hủy hoạt động
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Checkout window indicator */}
       {checkoutWindowOpen && (
@@ -590,7 +775,7 @@ export default function ActivityAttendancePage() {
       )}
 
       {/* ── Action Buttons ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {!isActivityEnded && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* QR Scan Button (Check-in) */}
         <div>
           <button
@@ -637,7 +822,7 @@ export default function ActivityAttendancePage() {
             <p className="text-xs text-gray-400 mt-1 text-center">{windowMsg}</p>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* ── Checkout Buttons (visible when checkout window is open) ── */}
       {checkoutWindowOpen && (
@@ -797,29 +982,47 @@ export default function ActivityAttendancePage() {
             </div>
           ) : (
             <>
-              {/* Select all + note */}
-              <div className="px-5 py-3 border-b bg-gray-50 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                <button
-                  onClick={handleSelectAll}
-                  className="flex items-center gap-2 text-sm text-gray-700 hover:text-emerald-700 font-medium transition-colors"
-                >
-                  {selectedSvs.size === notCheckedIn.length
-                    ? <CheckSquare className="w-4 h-4 text-emerald-600" />
-                    : <Square className="w-4 h-4" />}
-                  {selectedSvs.size === notCheckedIn.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-                </button>
-                <input
-                  type="text"
-                  placeholder="Ghi chú (tùy chọn)"
-                  value={manualNote}
-                  onChange={(e) => setManualNote(e.target.value)}
-                  className="flex-1 px-3 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                />
+              {/* Search + Select all + note */}
+              <div className="px-5 py-3 border-b bg-gray-50 flex flex-col gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Tìm tên, MSSV, lớp..."
+                    value={manualSearchTerm}
+                    onChange={(e) => setManualSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+                <div className="flex flex-row gap-3 items-center">
+                  <button
+                    onClick={handleSelectAll}
+                    className="flex items-center gap-2 text-sm text-gray-700 hover:text-emerald-700 font-medium transition-colors"
+                  >
+                    {selectedSvs.size === filteredNotCheckedIn.length && filteredNotCheckedIn.length > 0
+                      ? <CheckSquare className="w-4 h-4 text-emerald-600" />
+                      : <Square className="w-4 h-4" />}
+                    {selectedSvs.size === filteredNotCheckedIn.length && filteredNotCheckedIn.length > 0
+                      ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="Ghi chú (tùy chọn)"
+                    value={manualNote}
+                    onChange={(e) => setManualNote(e.target.value)}
+                    className="flex-1 px-3 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
               </div>
 
               {/* Student list */}
               <div className="divide-y max-h-72 overflow-y-auto">
-                {notCheckedIn.map((sv) => (
+                {filteredNotCheckedIn.length === 0 && (
+                  <div className="py-6 text-center text-gray-400 text-sm">
+                    Không tìm thấy sinh viên phù hợp
+                  </div>
+                )}
+                {filteredNotCheckedIn.map((sv) => (
                   <label
                     key={sv.maSv}
                     className={`flex items-center gap-4 px-5 py-3 cursor-pointer transition-colors ${

@@ -46,33 +46,25 @@ public class DiemDanhHoatDongService {
      */
     @Transactional
     public DiemDanhQRResponse scanQRCode(DiemDanhQRRequest request) {
-        log.info("Processing QR scan: maQR='{}' by BCH: {}", request.getMaQR(), request.getMaBchXacNhan());
+        log.info("Processing QR scan: {} by BCH: {}", request.getMaQR(), request.getMaBchXacNhan());
 
         try {
             // STEP 1: Validate QR format
             if (!qrCodeService.validateQRFormat(request.getMaQR())) {
-                log.warn("QR format invalid: '{}'", request.getMaQR());
                 return DiemDanhQRResponse.failed("Mã QR không hợp lệ");
             }
 
-            // STEP 2: Tìm đăng ký từ mã QR (không filter isActive để tránh miss NULL values)
-            log.info("STEP2: Looking up maQR='{}' in DB", request.getMaQR());
+            // STEP 2: Tìm đăng ký từ mã QR
             DangKyHoatDong dangKy = dangKyRepository.findByMaQRWithDetails(request.getMaQR())
-                    .orElseThrow(() -> new RuntimeException(
-                            "Không tìm thấy đăng ký với mã QR: '" + request.getMaQR() + "' (len=" + (request.getMaQR() != null ? request.getMaQR().length() : 0) + ")"));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký với mã QR này"));
 
-            log.info("STEP2 OK: Found dangKy for SV={}, HoatDong={}, isActive={}",
-                    dangKy.getSinhVien() != null ? dangKy.getSinhVien().getMaSv() : "null",
-                    dangKy.getHoatDong() != null ? dangKy.getHoatDong().getMaHoatDong() : "null",
-                    dangKy.getIsActive());
-
-            if (Boolean.FALSE.equals(dangKy.getIsActive())) {
+            if (!dangKy.getIsActive()) {
                 return DiemDanhQRResponse.failed("Đăng ký đã bị hủy");
             }
 
             // STEP 3: Validate hoạt động
             HoatDong hoatDong = dangKy.getHoatDong();
-            if (Boolean.FALSE.equals(hoatDong.getYeuCauDiemDanh())) {
+            if (!hoatDong.getYeuCauDiemDanh()) {
                 return DiemDanhQRResponse.failed("Hoạt động này không yêu cầu điểm danh");
             }
 
@@ -259,8 +251,8 @@ public class DiemDanhHoatDongService {
                     .soPhutTre(0)
                     .nguoiCheckIn(nguoiXacNhan)
                     .thietBiQuet(request.getThietBi())
-                    .latitude(request.getLatitude())
-                    .longitude(request.getLongitude())
+                    .latitude(dangKy.getStudentLatitude() != null ? dangKy.getStudentLatitude() : request.getLatitude())
+                    .longitude(dangKy.getStudentLongitude() != null ? dangKy.getStudentLongitude() : request.getLongitude())
                     .ghiChu(request.getGhiChu())
                     .build();
             diemDanh = diemDanhRepository.save(diemDanh);
@@ -672,17 +664,17 @@ public class DiemDanhHoatDongService {
                     .filter(a -> a.getSoPhutVeSom() != null && a.getSoPhutVeSom() > 0).count();
             long vangMat = notCheckedIn.size();
 
-            // Gom nhóm theo lớp (tenLop)
+            // Gom nhóm theo lớp (maLop)
             // Dùng LinkedHashMap để giữ thứ tự chèn (sắp xếp ổn định)
             Map<String, long[]> statsByLop = new LinkedHashMap<>(); // [0]=đăng ký, [1]=tham gia
             attendanceList.forEach(a -> {
-                String lop = a.getTenLop() != null && !a.getTenLop().isBlank() ? a.getTenLop() : "Chưa rõ lớp";
+                String lop = a.getMaLop() != null && !a.getMaLop().isBlank() ? a.getMaLop() : "Chưa rõ lớp";
                 statsByLop.computeIfAbsent(lop, k -> new long[]{0, 0});
                 statsByLop.get(lop)[0]++;
                 if (a.getTrangThai() == TrangThaiThamGiaEnum.DA_THAM_GIA) statsByLop.get(lop)[1]++;
             });
             notCheckedIn.forEach(m -> {
-                String lop = m.get("tenLop") != null ? String.valueOf(m.get("tenLop")) : "Chưa rõ lớp";
+                String lop = m.get("lop") != null ? String.valueOf(m.get("lop")) : "Chưa rõ lớp";
                 statsByLop.computeIfAbsent(lop, k -> new long[]{0, 0});
                 statsByLop.get(lop)[0]++;
             });
@@ -851,7 +843,7 @@ public class DiemDanhHoatDongService {
                 setCell(r, 0, ciRow - 1, rowCenterStyle);
                 setCell(r, 1, dto.getMaSv(), rowCenterStyle);
                 setCell(r, 2, dto.getHoTenSinhVien(), rowStyle);
-                setCell(r, 3, dto.getTenLop(), rowCenterStyle);
+                setCell(r, 3, dto.getMaLop(), rowCenterStyle);
                 setCell(r, 4, dto.getThoiGianCheckIn() != null
                         ? dto.getThoiGianCheckIn().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss dd/MM/yyyy"))
                         : "", rowCenterStyle);
@@ -902,7 +894,7 @@ public class DiemDanhHoatDongService {
                 setCell(r, 0, vmRow - 1, absentStyle);
                 setCell(r, 1, String.valueOf(m.getOrDefault("maSv", "")), absentStyle);
                 setCell(r, 2, String.valueOf(m.getOrDefault("hoTen", "")), absentStyle);
-                setCell(r, 3, String.valueOf(m.getOrDefault("tenLop", "")), absentStyle);
+                setCell(r, 3, String.valueOf(m.getOrDefault("lop", "")), absentStyle);
                 Object ngayDK = m.get("ngayDangKy");
                 setCell(r, 4, ngayDK != null ? ngayDK.toString() : "", absentStyle);
             }
@@ -954,7 +946,7 @@ public class DiemDanhHoatDongService {
             map.put("hoTen", row[1]);
             map.put("maQR", row[2]);
             map.put("ngayDangKy", row[3]);
-            map.put("tenLop", row.length > 4 ? row[4] : "");
+            map.put("lop", row.length > 4 ? row[4] : "");
             return map;
         }).collect(Collectors.toList());
     }
@@ -1167,7 +1159,8 @@ public class DiemDanhHoatDongService {
                 .maSv(entity.getSinhVien().getMaSv())
                 .hoTenSinhVien(entity.getSinhVien().getHoTen())
                 .emailSinhVien(entity.getSinhVien().getEmail())
-                .tenLop(entity.getSinhVien().getLop().getTenLop())
+                .maLop(entity.getSinhVien().getLop() != null ? entity.getSinhVien().getLop().getMaLop() : null)
+                .tenLop(entity.getSinhVien().getLop() != null ? entity.getSinhVien().getLop().getTenLop() : null)
                 .maQRDaQuet(entity.getMaQRDaQuet())
                 .trangThai(entity.getTrangThai())
                 .thoiGianCheckIn(entity.getThoiGianCheckIn())
