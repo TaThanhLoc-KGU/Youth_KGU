@@ -1,21 +1,23 @@
 // src/constants/permissionConstants.js
+// Các giá trị nhomVaiTro khớp với VaiTroEnum.getNhomVaiTro() phía backend:
+//   ADMIN       → QUAN_LY
+//   BCH         → QUAN_LY
+//   MANAGER     → QUAN_LY
+//   GIANG_VIEN  → PHU_VU
+//   STAFF       → PHU_VU
+//   CHUYEN_VIEN → PHUC_VU
+//   SINH_VIEN   → THAM_GIA
 
 export const NHOM_VAI_TRO_LABELS = {
-  ADMIN: 'Quản trị viên',
-  BCH_DOAN: 'BCH Đoàn',
-  BCH_HOI: 'BCH Hội',
-  BAN_CHUYEN_MON: 'Ban chuyên môn',
-  THANH_VIEN: 'Thành viên',
-  GIANG_VIEN: 'Giảng viên',
-  CAN_BO: 'Cán bộ',
+  QUAN_LY:  'Quản lý',
+  PHU_VU:   'Phục vụ',
+  PHUC_VU:  'Phục vụ',
+  THAM_GIA: 'Thành viên',
 };
 
 export const NHOM_VAI_TRO_COLORS = {
-  ADMIN: 'bg-red-100 text-red-700',
-  BCH_DOAN: 'bg-blue-100 text-blue-700',
-  BCH_HOI: 'bg-indigo-100 text-indigo-700',
-  BAN_CHUYEN_MON: 'bg-purple-100 text-purple-700',
-  THANH_VIEN: 'bg-gray-100 text-gray-700',
-  GIANG_VIEN: 'bg-green-100 text-green-700',
-  CAN_BO: 'bg-orange-100 text-orange-700',
+  QUAN_LY:  'bg-red-100 text-red-700',
+  PHU_VU:   'bg-blue-100 text-blue-700',
+  PHUC_VU:  'bg-blue-100 text-blue-700',
+  THAM_GIA: 'bg-gray-100 text-gray-700',
 };

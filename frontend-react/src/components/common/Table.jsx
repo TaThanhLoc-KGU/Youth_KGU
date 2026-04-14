@@ -1,6 +1,15 @@
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Inbox } from 'lucide-react';
 import clsx from 'clsx';
-import Loading from './Loading';
+
+const SkeletonRow = ({ cols }) => (
+  <tr>
+    {Array.from({ length: cols }).map((_, i) => (
+      <td key={i} className="px-4 py-3">
+        <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${60 + (i * 13 % 30)}%` }} />
+      </td>
+    ))}
+  </tr>
+);
 
 const Table = ({
   columns = [],
@@ -8,57 +17,80 @@ const Table = ({
   isLoading = false,
   emptyMessage = 'Không có dữ liệu',
   onRowClick,
+  striped = false,
   className,
 }) => {
   if (isLoading) {
     return (
-      <div className="border border-gray-200 rounded-lg">
-        <Loading text="Đang tải dữ liệu..." />
+      <div className={clsx('overflow-x-auto rounded-xl border border-gray-200', className)}>
+        <table className="min-w-full divide-y divide-gray-100">
+          <thead className="bg-gray-50/80">
+            <tr>
+              {columns.map((col, i) => (
+                <th key={i} className="table-header-cell" style={{ width: col.width }}>{col.header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {[...Array(5)].map((_, i) => <SkeletonRow key={i} cols={columns.length} />)}
+          </tbody>
+        </table>
       </div>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="border border-gray-200 rounded-lg p-8 text-center">
-        <p className="text-gray-500">{emptyMessage}</p>
+      <div className={clsx('rounded-xl border border-gray-200 bg-white', className)}>
+        <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+            <Inbox className="w-6 h-6 text-gray-400" />
+          </div>
+          <p className="text-sm font-medium text-gray-500">{emptyMessage}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={clsx('overflow-x-auto border border-gray-200 rounded-lg', className)}>
-      <table className="table">
-        <thead className="table-header">
+    <div className={clsx('overflow-x-auto rounded-xl border border-gray-200', className)}>
+      <table className="min-w-full divide-y divide-gray-100">
+        <thead className="bg-gray-50/80">
           <tr>
-            {columns.map((column, index) => (
+            {columns.map((col, i) => (
               <th
-                key={index}
-                className={clsx('table-header-cell', column.headerClassName)}
-                style={{ width: column.width }}
+                key={i}
+                className={clsx('table-header-cell', col.headerClassName,
+                  col.accessor === 'actions' && 'text-right')}
+                style={{ width: col.width }}
               >
-                {column.header}
+                {col.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="table-body">
+        <tbody className="divide-y divide-gray-100 bg-white">
           {data.map((row, rowIndex) => (
             <tr
-              key={row.id || rowIndex}
-              onClick={() => onRowClick && onRowClick(row)}
+              key={row.id ?? row.maSv ?? row.maKhoa ?? row.maLop ?? rowIndex}
+              onClick={() => onRowClick?.(row)}
               className={clsx(
-                onRowClick && 'cursor-pointer hover:bg-gray-50 transition-colors'
+                'transition-colors',
+                onRowClick && 'cursor-pointer hover:bg-blue-50/30',
+                !onRowClick && 'hover:bg-gray-50/60',
+                striped && rowIndex % 2 === 1 && 'bg-gray-50/40',
               )}
             >
-              {columns.map((column, colIndex) => (
+              {columns.map((col, colIndex) => (
                 <td
                   key={colIndex}
-                  className={clsx('table-cell', column.cellClassName)}
+                  className={clsx(
+                    'table-cell',
+                    col.cellClassName,
+                    col.accessor === 'actions' && 'text-right',
+                  )}
                 >
-                  {column.render
-                    ? column.render(row[column.accessor], row, rowIndex)
-                    : row[column.accessor]}
+                  {col.render ? col.render(row[col.accessor], row, rowIndex) : row[col.accessor]}
                 </td>
               ))}
             </tr>
@@ -69,6 +101,7 @@ const Table = ({
   );
 };
 
+// ── Pagination ────────────────────────────────────────────────────────────────
 const Pagination = ({
   currentPage = 0,
   totalPages = 1,
@@ -78,139 +111,49 @@ const Pagination = ({
   onPageSizeChange,
   pageSizeOptions = [10, 20, 50, 100],
 }) => {
-  const startItem = currentPage * pageSize + 1;
-  const endItem = Math.min((currentPage + 1) * pageSize, totalElements);
-
-  const canPreviousPage = currentPage > 0;
-  const canNextPage = currentPage < totalPages - 1;
-
-  // Generate page numbers
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-
-    if (totalPages <= maxVisible) {
-      for (let i = 0; i < totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 2) {
-        for (let i = 0; i < 4; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages - 1);
-      } else if (currentPage >= totalPages - 3) {
-        pages.push(0);
-        pages.push('...');
-        for (let i = totalPages - 4; i < totalPages; i++) pages.push(i);
-      } else {
-        pages.push(0);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages - 1);
-      }
-    }
-
-    return pages;
-  };
+  const start = currentPage * pageSize + 1;
+  const end   = Math.min((currentPage + 1) * pageSize, totalElements);
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 sm:px-6">
-      {/* Info */}
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-sm text-gray-700">
-          Hiển thị <span className="font-medium">{startItem}</span>–<span className="font-medium">{endItem}</span>{' '}
-          / <span className="font-medium">{totalElements}</span>
-        </p>
-
-        {/* Page Size Selector */}
-        {onPageSizeChange && (
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-700">Hiển thị:</label>
-            <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="form-input py-1 text-sm"
-            >
-              {pageSizeOptions.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-3">
+      <div className="flex items-center gap-2 text-sm text-gray-500">
+        <span>Hiển thị</span>
+        <select
+          value={pageSize}
+          onChange={(e) => onPageSizeChange?.(Number(e.target.value))}
+          className="border border-gray-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+        >
+          {pageSizeOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <span>
+          {totalElements > 0 ? `${start}–${end} / ${totalElements} bản ghi` : 'Không có bản ghi'}
+        </span>
       </div>
 
-      {/* Pagination Buttons */}
       <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(0)}
-          disabled={!canPreviousPage}
-          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Trang đầu"
-        >
-          <ChevronsLeft className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={!canPreviousPage}
-          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Trang trước"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-
-        {/* Page Numbers - hidden on xs screens */}
-        <div className="hidden sm:flex items-center gap-1">
-          {getPageNumbers().map((page, index) =>
-            page === '...' ? (
-              <span key={`ellipsis-${index}`} className="px-2 py-1 text-sm">
-                ...
-              </span>
-            ) : (
-              <button
-                key={page}
-                onClick={() => onPageChange(page)}
-                className={clsx(
-                  'px-2.5 py-1 rounded-lg transition-colors text-sm',
-                  page === currentPage
-                    ? 'bg-primary text-white'
-                    : 'hover:bg-gray-100'
-                )}
-              >
-                {page + 1}
-              </button>
-            )
-          )}
-        </div>
-
-        {/* Current page on xs */}
-        <span className="sm:hidden px-2 py-1 text-sm text-gray-700">
-          {currentPage + 1}/{totalPages}
+        <PagBtn onClick={() => onPageChange(0)} disabled={currentPage === 0} title="Trang đầu"><ChevronsLeft className="w-4 h-4" /></PagBtn>
+        <PagBtn onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 0} title="Trang trước"><ChevronLeft className="w-4 h-4" /></PagBtn>
+        <span className="px-3 py-1.5 text-sm font-medium text-gray-700 min-w-[80px] text-center">
+          {currentPage + 1} / {Math.max(totalPages, 1)}
         </span>
-
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={!canNextPage}
-          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Trang sau"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onPageChange(totalPages - 1)}
-          disabled={!canNextPage}
-          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Trang cuối"
-        >
-          <ChevronsRight className="w-4 h-4" />
-        </button>
+        <PagBtn onClick={() => onPageChange(currentPage + 1)} disabled={currentPage >= totalPages - 1} title="Trang sau"><ChevronRight className="w-4 h-4" /></PagBtn>
+        <PagBtn onClick={() => onPageChange(totalPages - 1)} disabled={currentPage >= totalPages - 1} title="Trang cuối"><ChevronsRight className="w-4 h-4" /></PagBtn>
       </div>
     </div>
   );
 };
 
-Table.Pagination = Pagination;
+const PagBtn = ({ children, disabled, onClick, title }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    title={title}
+    className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+  >
+    {children}
+  </button>
+);
 
+Table.Pagination = Pagination;
+export { Pagination };
 export default Table;

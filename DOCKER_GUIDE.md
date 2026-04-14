@@ -115,7 +115,7 @@ docker build -t youth-kgu-frontend:latest ./frontend-react
 
 ```bash
 docker run --name youth-kgu-backend \
-  -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/face_attendance_activity \
+  -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/youth-kgu \
   -e SPRING_DATASOURCE_USERNAME=root \
   -e SPRING_DATASOURCE_PASSWORD=yourpassword \
   -p 8080:8080 \

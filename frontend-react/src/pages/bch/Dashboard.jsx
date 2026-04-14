@@ -11,6 +11,7 @@ import {
   AlertCircle,
   QrCode,
   Plus,
+  Newspaper,
 } from 'lucide-react';
 import activityService from '../../services/activityService';
 import attendanceService from '../../services/attendanceService';
@@ -98,9 +99,9 @@ const BCHDashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Xin chào, {user?.hoTen || user?.username}!
           </h1>
           <p className="text-gray-500 mt-1">
@@ -111,7 +112,7 @@ const BCHDashboard = () => {
         </div>
 
         {/* Quick actions */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {hasPermission(PERMISSIONS.TAO_HOAT_DONG) && (
             <Link
               to={`${ROUTES.BCH}/activities/create`}
@@ -128,15 +129,21 @@ const BCHDashboard = () => {
               <QrCode className="w-4 h-4" /> Quét QR
             </Link>
           )}
+          <Link
+            to={ROUTES.BCH_NEWS}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition shadow-sm"
+          >
+            <Newspaper className="w-4 h-4" /> Tin tức
+          </Link>
         </div>
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, i) => {
           const Icon = stat.icon;
           return (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-medium text-gray-500">{stat.title}</p>
                 <div className={`w-9 h-9 ${stat.color} rounded-lg flex items-center justify-center`}>
@@ -178,7 +185,7 @@ const BCHDashboard = () => {
                       <p className="text-xs text-gray-500 mt-0.5">{act.diaDiem}</p>
                     </div>
                     <Link
-                      to={`${ROUTES.BCH}/activities/${act.maHoatDong}/attendance`}
+                      to={`${ROUTES.BCH}/activities/attendance?ma=${encodeURIComponent(act.maHoatDong)}`}
                       className="flex-shrink-0 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full font-medium hover:bg-blue-100"
                     >
                       Điểm danh
@@ -247,8 +254,8 @@ const BCHDashboard = () => {
             <thead>
               <tr className="text-xs text-gray-500 border-b border-gray-100">
                 <th className="text-left px-5 py-3 font-medium">Tên hoạt động</th>
-                <th className="text-left px-5 py-3 font-medium">Ngày tổ chức</th>
-                <th className="text-left px-5 py-3 font-medium">Địa điểm</th>
+                <th className="text-left px-5 py-3 font-medium hidden sm:table-cell">Ngày tổ chức</th>
+                <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Địa điểm</th>
                 <th className="text-left px-5 py-3 font-medium">Trạng thái</th>
                 <th className="px-5 py-3"></th>
               </tr>
@@ -259,8 +266,8 @@ const BCHDashboard = () => {
                 return (
                   <tr key={act.maHoatDong} className="hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-3 font-medium text-gray-900">{act.tenHoatDong}</td>
-                    <td className="px-5 py-3 text-gray-500">{formatDate(act.ngayToChuc)}</td>
-                    <td className="px-5 py-3 text-gray-500 truncate max-w-[150px]">{act.diaDiem || '—'}</td>
+                    <td className="px-5 py-3 text-gray-500 hidden sm:table-cell">{formatDate(act.ngayToChuc)}</td>
+                    <td className="px-5 py-3 text-gray-500 truncate max-w-[150px] hidden md:table-cell">{act.diaDiem || '—'}</td>
                     <td className="px-5 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.cls}`}>
                         {badge.label}
@@ -269,7 +276,7 @@ const BCHDashboard = () => {
                     <td className="px-5 py-3 text-right">
                       {act.trangThai === 'DANG_DIEN_RA' && hasPermission(PERMISSIONS.QUET_QR) && (
                         <Link
-                          to={`${ROUTES.BCH}/activities/${act.maHoatDong}/attendance`}
+                          to={`${ROUTES.BCH}/activities/attendance?ma=${encodeURIComponent(act.maHoatDong)}`}
                           className="text-xs text-blue-600 hover:underline"
                         >
                           Điểm danh

@@ -131,7 +131,7 @@ public class DiemDanhHoatDongController {
 
     @GetMapping("/student/{maSv}")
     @Operation(summary = "Lịch sử điểm danh của sinh viên")
-    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
+    @PreAuthorize("hasRole('USER') or hasPermission(null, 'XEM_LICH_SU_THAM_GIA')")
     public ResponseEntity<ApiResponse<List<DiemDanhHoatDongDTO>>> getByStudent(
             @PathVariable String maSv) {
         log.info("GET /api/diem-danh/student/{}", maSv);
@@ -163,6 +163,19 @@ public class DiemDanhHoatDongController {
         return ResponseEntity.ok(ApiResponse.success("Đánh dấu vắng mặt thành công", null));
     }
 
+    @PostMapping("/manual-add-unregistered")
+    @Operation(summary = "Bổ sung thủ công sinh viên chưa đăng ký vào hoạt động đã kết thúc (tính năng ẩn)")
+    @PreAuthorize("hasPermission(null, 'CHINH_SUA_DIEM_DANH')")
+    public ResponseEntity<ApiResponse<DiemDanhHoatDongDTO>> manualAddUnregistered(
+            @RequestBody java.util.Map<String, String> body) {
+        String maSv = body.get("maSv");
+        String maHoatDong = body.get("maHoatDong");
+        String ghiChu = body.get("ghiChu");
+        log.info("POST /api/diem-danh/manual-add-unregistered - student={}, activity={}", maSv, maHoatDong);
+        DiemDanhHoatDongDTO result = diemDanhService.manualAddUnregistered(maSv, maHoatDong, ghiChu);
+        return ResponseEntity.ok(ApiResponse.success("Đã bổ sung thành công", result));
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa bản ghi điểm danh (Admin)")
     @PreAuthorize("hasPermission(null, 'CHINH_SUA_DIEM_DANH')")
@@ -174,9 +187,19 @@ public class DiemDanhHoatDongController {
 
     // ========== STATISTICS ENDPOINTS ==========
 
+    @GetMapping("/activities-overview")
+    @Operation(summary = "Danh sách hoạt động kèm thống kê điểm danh (dành cho trang chọn điểm danh)")
+    @PreAuthorize("hasPermission(null, 'QUET_QR') or hasPermission(null, 'XEM_DIEM_DANH')")
+    public ResponseEntity<ApiResponse<List<ActivityAttendanceOverviewDTO>>> getActivitiesOverview(
+            @RequestParam(required = false, defaultValue = "hom_nay") String filter) {
+        log.info("GET /api/diem-danh/activities-overview?filter={}", filter);
+        List<ActivityAttendanceOverviewDTO> list = diemDanhService.getActivitiesForAttendance(filter);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
     @GetMapping("/statistics/{maHoatDong}")
     @Operation(summary = "Thống kê điểm danh")
-    @PreAuthorize("hasPermission(null, 'XEM_DIEM_DANH')")
+    @PreAuthorize("hasPermission(null, 'QUET_QR') or hasPermission(null, 'XEM_DIEM_DANH')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics(
             @PathVariable String maHoatDong) {
         log.info("GET /api/diem-danh/statistics/{}", maHoatDong);
@@ -201,6 +224,29 @@ public class DiemDanhHoatDongController {
         log.info("GET /api/diem-danh/statistics");
         AttendanceStatisticsDTO stats = diemDanhService.getAttendanceStatisticsOverview();
         return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    /**
+     * POST /api/diem-danh/them-thu-cong
+     * Admin thêm sinh viên vào danh sách bằng MSSV (không cần đã đăng ký trước).
+     * Body: { maHoatDong, maSv, ghiChu? }
+     */
+    @PostMapping("/them-thu-cong")
+    @Operation(summary = "Admin thêm sinh viên vào điểm danh theo MSSV")
+    @PreAuthorize("hasPermission(null, 'CHINH_SUA_DIEM_DANH') or hasPermission(null, 'CAI_DAT_HE_THONG')")
+    public ResponseEntity<ApiResponse<DiemDanhHoatDongDTO>> themThuCong(
+            @RequestBody Map<String, String> body,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal
+            org.springframework.security.core.userdetails.UserDetails userDetails) {
+
+        String maHoatDong = body.get("maHoatDong");
+        String maSv       = body.get("maSv");
+        String ghiChu     = body.getOrDefault("ghiChu", "");
+        String nguoi      = userDetails != null ? userDetails.getUsername() : "admin";
+
+        log.info("POST /api/diem-danh/them-thu-cong: HĐ={} SV={} bởi {}", maHoatDong, maSv, nguoi);
+        DiemDanhHoatDongDTO dto = diemDanhService.themThuCongTheoMSSV(maHoatDong, maSv, ghiChu, nguoi);
+        return ResponseEntity.ok(ApiResponse.success("Đã thêm sinh viên vào danh sách", dto));
     }
 
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)

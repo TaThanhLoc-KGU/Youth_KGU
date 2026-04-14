@@ -46,6 +46,15 @@ public class CreateAccountRequest {
     // Nullable - sử dụng String để tránh lỗi JSON parsing khi gửi empty string
     private String banChuyenMon;
 
+    /** true = QUAN_LY có toàn quyền. Chỉ dùng khi vaiTro = QUAN_LY. */
+    private Boolean laAdmin;
+
+    /** Khoa scope — null = Đoàn trường, non-null = chỉ quản lý khoa này */
+    private String maKhoa;
+
+    /** Danh sách ID quyền gán cho tài khoản QUAN_LY (khi laAdmin = false). */
+    private java.util.List<Long> permissionIds;
+
     // Liên kết với đối tượng người dùng (nullable - chỉ set khi tạo từ danh sách)
     private String maSv;
     private String maGv;

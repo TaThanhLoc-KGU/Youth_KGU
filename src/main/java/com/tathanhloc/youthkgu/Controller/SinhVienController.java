@@ -44,6 +44,8 @@ public class SinhVienController {
                                                     @RequestParam(defaultValue = "asc") String direction,
                                                     @RequestParam(required = false) String search,
                                                     @RequestParam(required = false) String maLop,
+                                                    @RequestParam(required = false) String maKhoa,
+                                                    @RequestParam(required = false) String maNganh,
                                                     @RequestParam(required = false) Boolean isActive) {
         Pageable pageable = PageRequest.of(
                 page,
@@ -69,9 +71,21 @@ public class SinhVienController {
                     .toList();
         }
 
+        if (maKhoa != null && !maKhoa.isEmpty()) {
+            allStudents = allStudents.stream()
+                    .filter(s -> s.getMaKhoa() != null && s.getMaKhoa().equals(maKhoa))
+                    .toList();
+        }
+
+        if (maNganh != null && !maNganh.isEmpty()) {
+            allStudents = allStudents.stream()
+                    .filter(s -> s.getMaNganh() != null && s.getMaNganh().equals(maNganh))
+                    .toList();
+        }
+
         if (isActive != null) {
             allStudents = allStudents.stream()
-                    .filter(s -> s.getIsActive() == isActive)
+                    .filter(s -> s.getIsActive() != null && s.getIsActive().equals(isActive))
                     .toList();
         }
 
@@ -201,12 +215,14 @@ public class SinhVienController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String classFilter,
+            @RequestParam(required = false) String maKhoa,
+            @RequestParam(required = false) String maNganh,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "maSv") String sortBy,
             @RequestParam(defaultValue = "asc") String direction) {
         try {
-            log.info("Searching students with filters - search: {}, class: {}, status: {}",
-                    search, classFilter, status);
+            log.info("Searching students with filters - search: {}, class: {}, faculty: {}, major: {}, status: {}",
+                    search, classFilter, maKhoa, maNganh, status);
 
             // Convert status string to isActive boolean
             Boolean isActive = null;
@@ -215,7 +231,7 @@ public class SinhVienController {
                           status.equalsIgnoreCase("inactive") ? false : null;
             }
 
-            return getAll(page, size, sortBy, direction, search, classFilter, isActive);
+            return getAll(page, size, sortBy, direction, search, classFilter, maKhoa, maNganh, isActive);
 
         } catch (Exception e) {
             log.error("Error searching students: ", e);
@@ -259,7 +275,7 @@ public class SinhVienController {
     }
 
     @GetMapping("/count")
-    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<StudentCountDTO> getStudentCount() {
         try {
             log.info("Lấy thống kê số lượng sinh viên");
@@ -271,7 +287,7 @@ public class SinhVienController {
     }
     // Thêm vào class SinhVienController
     @GetMapping("/count/active")
-    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Long> countActiveSinhVien() {
         log.info("Đếm tổng số sinh viên đang hoạt động");
         long count = sinhVienService.countActive();
@@ -279,7 +295,7 @@ public class SinhVienController {
     }
 
     @GetMapping("/count/all")
-    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Long> countAllSinhVien() {
         log.info("Đếm tổng số sinh viên");
         long count = sinhVienService.countAll();

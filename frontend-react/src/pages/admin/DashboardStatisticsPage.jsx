@@ -41,9 +41,9 @@ export default function DashboardStatisticsPage() {
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Thống kê & Báo cáo</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Thống kê & Báo cáo</h1>
           <p className="text-gray-500">Phân tích chi tiết hoạt động Đoàn - Hội</p>
         </div>
         <div className="flex items-center gap-3">
@@ -62,7 +62,7 @@ export default function DashboardStatisticsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatCard
           title="Tổng hoạt động"
           value={tongQuan.tongHoatDong ?? 0}

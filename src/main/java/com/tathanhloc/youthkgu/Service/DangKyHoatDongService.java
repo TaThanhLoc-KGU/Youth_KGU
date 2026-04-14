@@ -25,6 +25,7 @@ public class DangKyHoatDongService {
     private final DangKyHoatDongRepository dangKyRepository;
     private final HoatDongRepository hoatDongRepository;
     private final SinhVienRepository sinhVienRepository;
+    private final KhoaRepository khoaRepository;
     private final DiemDanhHoatDongRepository diemDanhRepository;
     private final QRCodeService qrCodeService;
 
@@ -50,9 +51,10 @@ public class DangKyHoatDongService {
         SinhVien sinhVien = sinhVienRepository.findById(request.getMaSv())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên: " + request.getMaSv()));
 
-        // 3. Kiểm tra đã đăng ký chưa
+        // 3. Kiểm tra đã đăng ký chưa (kể cả đã hủy)
         DangKyHoatDongId id = new DangKyHoatDongId(request.getMaSv(), request.getMaHoatDong());
-        if (dangKyRepository.existsById(id)) {
+        Optional<DangKyHoatDong> existing = dangKyRepository.findById(id);
+        if (existing.isPresent() && Boolean.TRUE.equals(existing.get().getIsActive())) {
             throw new RuntimeException("Sinh viên đã đăng ký hoạt động này");
         }
 
@@ -64,18 +66,27 @@ public class DangKyHoatDongService {
             }
         }
 
-        // 5. Tạo đăng ký
-        DangKyHoatDong dangKy = DangKyHoatDong.builder()
-                .id(id)
-                .sinhVien(sinhVien)
-                .hoatDong(hoatDong)
-                .ghiChu(request.getGhiChu())
-                .daXacNhan(false)
-                .isActive(true)
-                .build();
-
-        // Mã QR sẽ tự động sinh trong @PrePersist
-        dangKy.generateQRCode();
+        // 5. Tạo hoặc reactivate đăng ký
+        DangKyHoatDong dangKy;
+        if (existing.isPresent()) {
+            // Đã từng đăng ký rồi hủy → reactivate, sinh QR mới
+            dangKy = existing.get();
+            dangKy.setIsActive(true);
+            dangKy.setDaXacNhan(false);
+            dangKy.setGhiChu(request.getGhiChu());
+            dangKy.generateQRCode();
+            log.info("Reactivating cancelled registration: {}", id);
+        } else {
+            dangKy = DangKyHoatDong.builder()
+                    .id(id)
+                    .sinhVien(sinhVien)
+                    .hoatDong(hoatDong)
+                    .ghiChu(request.getGhiChu())
+                    .daXacNhan(false)
+                    .isActive(true)
+                    .build();
+            dangKy.generateQRCode();
+        }
         dangKy = dangKyRepository.save(dangKy);
 
         // 6. Sinh QR Code image
@@ -228,6 +239,53 @@ public class DangKyHoatDongService {
         return stats;
     }
 
+    /**
+     * Thống kê đăng ký theo khoa cho một hoạt động cụ thể.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getFacultyRegistrationStats(String maHoatDong) {
+        // 1. Lấy tất cả khoa đang hoạt động
+        List<Khoa> allKhoa = khoaRepository.findByIsActiveTrue();
+
+        // 2. Lấy số lượng đăng ký theo khoa từ repository
+        List<Object[]> facultyCounts = dangKyRepository.countByFaculty(maHoatDong);
+
+        // 3. Chuyển kết quả count thành Map để dễ tra cứu
+        Map<String, Long> countMap = new HashMap<>();
+        for (Object[] row : facultyCounts) {
+            countMap.put((String) row[0], (Long) row[2]);
+        }
+
+        // 4. Phân loại khoa đã đăng ký và chưa đăng ký
+        List<Map<String, Object>> registeredFaculties = new ArrayList<>();
+        List<Map<String, Object>> missingFaculties = new ArrayList<>();
+
+        for (Khoa k : allKhoa) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("maKhoa", k.getMaKhoa());
+            item.put("tenKhoa", k.getTenKhoa());
+
+            Long count = countMap.get(k.getMaKhoa());
+            if (count != null && count > 0) {
+                item.put("count", count);
+                registeredFaculties.add(item);
+            } else {
+                missingFaculties.add(item);
+            }
+        }
+
+        // Sắp xếp theo số lượng giảm dần
+        registeredFaculties.sort((a, b) -> ((Long) b.get("count")).compareTo((Long) a.get("count")));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("maHoatDong", maHoatDong);
+        result.put("faculties", registeredFaculties);
+        result.put("missingFaculties", missingFaculties);
+        result.put("totalRegistered", countMap.values().stream().mapToLong(Long::longValue).sum());
+
+        return result;
+    }
+
     // ========== MAPPING METHODS ==========
 
     private DangKyHoatDongDTO toDTO(DangKyHoatDong entity) {
@@ -270,6 +328,9 @@ public class DangKyHoatDongService {
             }
         }
 
+        String trangThaiHoatDong = entity.getHoatDong() != null && entity.getHoatDong().getTrangThai() != null
+                ? entity.getHoatDong().getTrangThai().name() : null;
+
         return DangKyHoatDongDTO.builder()
                 .maSv(maSv)
                 .hoTenSinhVien(hoTenSinhVien)
@@ -283,6 +344,7 @@ public class DangKyHoatDongService {
                         ? entity.getHoatDong().getNamHoc().getMaNamHoc() : null)
                 .tenNamHoc(entity.getHoatDong() != null && entity.getHoatDong().getNamHoc() != null
                         ? entity.getHoatDong().getNamHoc().getTenNamHoc() : null)
+                .trangThaiHoatDong(trangThaiHoatDong)
                 .maQR(entity.getMaQR())
                 .qrCodeImagePath(entity.getQrCodeImagePath())
                 .ngayDangKy(entity.getNgayDangKy())
@@ -313,5 +375,26 @@ public class DangKyHoatDongService {
         return dangKyRepository.findById(id)
                 .map(DangKyHoatDong::getMaQR)
                 .orElse(null);
+    }
+
+    /**
+     * Sinh viên gửi vị trí GPS khi mở màn hình hiển thị QR code.
+     * Dữ liệu này được lưu vào DangKyHoatDong và sau đó được ghi vào
+     * DiemDanhHoatDong khi BCH quét QR — dùng để phát hiện điểm danh hộ.
+     *
+     * @param maQR      mã QR của sinh viên (unique key)
+     * @param latitude  vĩ độ GPS
+     * @param longitude kinh độ GPS
+     */
+    @Transactional
+    public void updateStudentLocation(String maQR, Double latitude, Double longitude) {
+        DangKyHoatDong reg = dangKyRepository.findByMaQR(maQR)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký với mã QR: " + maQR));
+
+        reg.setStudentLatitude(latitude);
+        reg.setStudentLongitude(longitude);
+        reg.setStudentLocationTime(LocalDateTime.now());
+        dangKyRepository.save(reg);
+        log.info("Updated student location for QR {} → ({}, {})", maQR, latitude, longitude);
     }
 }

@@ -87,14 +87,36 @@ public class DiemDanhHoatDong {
 
     // ========== GPS & DEVICE ==========
 
+    /** Thiết bị quét check-in (dùng chung nếu không tách) */
     @Column(name = "thiet_bi_quet", length = 100)
     private String thietBiQuet;
 
+    /** Tọa độ check-in (cột chính được dùng bởi service) */
     @Column(name = "latitude")
     private Double latitude;
 
     @Column(name = "longitude")
     private Double longitude;
+
+    /** Thiết bị + tọa độ check-in riêng (sync với latitude/longitude khi check-in) */
+    @Column(name = "thiet_bi_check_in", length = 255)
+    private String thietBiCheckIn;
+
+    @Column(name = "latitude_check_in")
+    private Double latitudeCheckIn;
+
+    @Column(name = "longitude_check_in")
+    private Double longitudeCheckIn;
+
+    /** Thiết bị + tọa độ check-out riêng */
+    @Column(name = "thiet_bi_check_out", length = 255)
+    private String thietBiCheckOut;
+
+    @Column(name = "latitude_check_out")
+    private Double latitudeCheckOut;
+
+    @Column(name = "longitude_check_out")
+    private Double longitudeCheckOut;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -104,3 +126,4 @@ public class DiemDanhHoatDong {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }
+

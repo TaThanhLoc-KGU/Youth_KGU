@@ -132,9 +132,9 @@ export default function SettingsPage() {
           <span className="loading loading-spinner loading-lg text-primary"></span>
         </div>
       ) : (
-        <div className="flex gap-4 h-full">
+        <div className="flex flex-col lg:flex-row gap-4 h-full">
           {/* Panel trái - danh sách tài khoản */}
-          <div className="w-1/3 flex flex-col gap-3">
+          <div className="w-full lg:w-1/3 flex flex-col gap-3">
             <Card padding={false}>
               <div className="p-4 border-b border-gray-200">
                 <h2 className="font-semibold text-gray-700 mb-3">Tài khoản quản lý</h2>
@@ -146,7 +146,7 @@ export default function SettingsPage() {
                   className="input input-bordered input-sm w-full"
                 />
               </div>
-              <div className="overflow-y-auto max-h-[calc(100vh-280px)]">
+              <div className="overflow-y-auto max-h-64 lg:max-h-[calc(100vh-280px)]">
                 {filteredAccounts.length === 0 ? (
                   <p className="text-center text-gray-400 py-8 text-sm">Không có tài khoản</p>
                 ) : (
@@ -184,7 +184,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Panel phải - danh sách quyền */}
-          <div className="w-2/3">
+          <div className="w-full lg:w-2/3">
             {!hasPermissions ? (
               <Card>
                 <div className="text-center py-12">
@@ -220,13 +220,13 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 </div>
-                <div className="p-4 overflow-y-auto max-h-[calc(100vh-260px)]">
+                <div className="p-4 overflow-y-auto max-h-96 lg:max-h-[calc(100vh-260px)]">
                   {Object.entries(permissions).map(([category, perms]) => (
                     <div key={category} className="mb-6">
                       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 pb-1 border-b border-gray-200">
                         {CATEGORY_LABELS[category] || category}
                       </h3>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {perms.map((perm) => (
                           <label
                             key={perm.id}

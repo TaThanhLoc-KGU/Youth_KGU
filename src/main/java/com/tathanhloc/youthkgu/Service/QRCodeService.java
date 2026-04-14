@@ -2,6 +2,7 @@ package com.tathanhloc.youthkgu.Service;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
+import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
@@ -30,8 +31,13 @@ import java.util.*;
 @Slf4j
 public class QRCodeService {
 
-    @Value("${qr.code.storage.path:uploads/qrcodes}")
-    private String qrStoragePath;
+    @Value("${app.upload.path:./uploads}")
+    private String uploadBasePath;
+
+    // qrStoragePath = {uploadBasePath}/qrcodes — luôn nằm cùng thư mục uploads với tin tức/văn bản
+    private String getQrStoragePath() {
+        return uploadBasePath + "/qrcodes";
+    }
 
     @Value("${qr.code.width:300}")
     private int qrWidth;
@@ -65,8 +71,9 @@ public class QRCodeService {
     public String generateAndSaveQRCode(String maQR, String maHoatDong) throws WriterException, IOException {
         log.info("Generating and saving QR code: {} for activity: {}", maQR, maHoatDong);
 
-        // Tạo thư mục nếu chưa tồn tại
-        Path directory = Paths.get(qrStoragePath, maHoatDong);
+        // Tạo thư mục nếu chưa tồn tại — sanitize tên folder (thay / và \ bằng _)
+        String safeDir = maHoatDong.replaceAll("[/\\\\]", "_");
+        Path directory = Paths.get(getQrStoragePath(), safeDir);
         Files.createDirectories(directory);
 
         // Tên file: {maQR}_{timestamp}.png
@@ -183,7 +190,7 @@ public class QRCodeService {
      * Xóa tất cả QR codes của một hoạt động
      */
     public int deleteActivityQRCodes(String maHoatDong) {
-        Path directory = Paths.get(qrStoragePath, maHoatDong);
+        Path directory = Paths.get(getQrStoragePath(), maHoatDong);
         int deletedCount = 0;
 
         try {
@@ -213,11 +220,51 @@ public class QRCodeService {
         return deletedCount;
     }
 
+    // ========== BARCODE (Code128 — dành cho máy quét 1D như Zebex Z3151HS) ==========
+
+    /**
+     * Sinh mã vạch Code128 dạng BufferedImage.
+     */
+    public BufferedImage generateBarcodeImage(String content) throws WriterException {
+        MultiFormatWriter writer = new MultiFormatWriter();
+        BitMatrix matrix = writer.encode(content, BarcodeFormat.CODE_128, 500, 120);
+        return MatrixToImageWriter.toBufferedImage(matrix);
+    }
+
+    /**
+     * Sinh mã vạch và lưu file PNG vào cùng thư mục với QR code.
+     * Tên file: {maQR}_barcode.png
+     */
+    public String generateAndSaveBarcode(String maQR, String maHoatDong) throws WriterException, IOException {
+        String safeDir = maHoatDong.replaceAll("[/\\\\]", "_");
+        Path directory = Paths.get(getQrStoragePath(), safeDir);
+        Files.createDirectories(directory);
+
+        String fileName = maQR + "_barcode.png";
+        Path filePath = directory.resolve(fileName);
+
+        BufferedImage barcodeImage = generateBarcodeImage(maQR);
+        ImageIO.write(barcodeImage, QR_FORMAT, filePath.toFile());
+
+        log.info("Barcode saved: {}", filePath);
+        return filePath.toString();
+    }
+
+    /**
+     * Sinh mã vạch dạng Base64 (để nhúng vào HTML trang in).
+     */
+    public String generateBarcodeBase64(String content) throws WriterException, IOException {
+        BufferedImage img = generateBarcodeImage(content);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(img, QR_FORMAT, baos);
+        return Base64.getEncoder().encodeToString(baos.toByteArray());
+    }
+
     /**
      * Lấy đường dẫn file QR
      */
     public String getQRCodePath(String maQR, String maHoatDong) {
-        Path directory = Paths.get(qrStoragePath, maHoatDong);
+        Path directory = Paths.get(getQrStoragePath(), maHoatDong);
 
         try {
             if (Files.exists(directory)) {

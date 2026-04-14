@@ -45,6 +45,18 @@ public class ActivityGlobalExceptionHandler {
                 .body(ApiResponse.error("Kiểu dữ liệu không đúng", 400));
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidationExceptions(
+            org.springframework.web.bind.MethodArgumentNotValidException e) {
+        log.warn("Validation error: {}", e.getMessage());
+        String errorMessage = e.getBindingResult().getFieldErrors().stream()
+                .map(org.springframework.validation.FieldError::getDefaultMessage)
+                .findFirst()
+                .orElse("Dữ liệu không hợp lệ");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(errorMessage, 400));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception e) {
         log.error("Unexpected exception occurred", e);

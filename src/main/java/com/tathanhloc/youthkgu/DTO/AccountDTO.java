@@ -51,4 +51,10 @@ public class AccountDTO {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    /** true = QUAN_LY có toàn quyền (admin bypass) */
+    private Boolean laAdmin;
+
+    private String maKhoa;
+    private String tenKhoa;
 }

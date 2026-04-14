@@ -21,4 +21,6 @@ public class SinhVienDTO {
     private Boolean isActive;
     private String maLop;
     private String tenLop; // For display purpose
+    private String maKhoa;
+    private String maNganh;
 }

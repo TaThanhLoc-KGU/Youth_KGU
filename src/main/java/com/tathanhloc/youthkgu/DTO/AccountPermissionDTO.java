@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @Data
@@ -17,30 +15,21 @@ public class AccountPermissionDTO {
     private Long accountId;
     private String username;
     private String hoTen;
-    
-    // Vai trò hiệu lực (Effective Role) - dùng để phân quyền
-    private String vaiTro;          // VaiTroEnum name
-    private String tenVaiTro;       // Display name
-    private String nhomVaiTro;      // QUAN_LY / PHU_VU / THAM_GIA
-    private String toChuc;          // DOAN / HOI / HE_THONG
 
-    // Vai trò gốc (Original Role) - dùng để hiển thị
-    private String vaiTroGoc;       // VaiTroEnum name gốc
-    private String tenVaiTroGoc;    // Display name gốc
+    /** Loại tài khoản: SINH_VIEN hoặc QUAN_LY */
+    private String vaiTro;
+    private String tenVaiTro;
 
-    // Thông tin chức vụ BCH (nếu có)
-    private boolean laBCH;
-    private List<ChucVuInfoDTO> danhSachChucVu;
-    
-    // Quyền tổng hợp (Names) - để hiển thị nếu cần
-    private Set<String> quyenCoban;          
-    private Set<String> quyenTuChucVu;       
-    private Set<String> quyenTongHop;        
-    
-    // Override cá nhân (Map<PermissionID, Boolean>) - để logic toggle
-    private Map<Long, Boolean> overrideMap;
+    /** true = QUAN_LY có toàn quyền (admin) */
+    private boolean laAdmin;
 
-    // Thêm các trường ID để FE dễ xử lý
-    private Set<Long> quyenCobanIds;
-    private Set<Long> quyenTuChucVuIds;
+    /** Khoa scope — null = không giới hạn (Đoàn trường), non-null = chỉ khoa này */
+    private String maKhoa;
+    private String tenKhoa;
+
+    /** Tập hợp tên quyền hiệu lực (dùng cho kiểm tra phía FE và BE) */
+    private Set<String> quyenTongHop;
+
+    /** Tập hợp ID quyền (dùng cho UI checkbox) */
+    private Set<Long> quyenIds;
 }

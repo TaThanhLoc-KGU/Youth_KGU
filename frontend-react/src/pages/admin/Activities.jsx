@@ -3,16 +3,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
-import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList, Bell } from 'lucide-react';
 import activityService from '../../services/activityService';
+import newsService from '../../services/newsService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import SearchInput from '../../components/common/SearchInput';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
-import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
-import ActivityForm from '../../components/activity/ActivityForm';
+import Modal from '../../components/common/Modal';
 import ActivityCard from '../../components/activity/ActivityCard';
 import ActivityDetail from '../../components/admin/ActivityDetail';
 import { formatDate } from '../../utils/dateFormat';
@@ -27,6 +27,7 @@ import {
   getHocKyLabel,
 } from '../../constants/activityConstants';
 import { findTieuChi } from '../../constants/renLuyenCriteria';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const Activities = () => {
   const navigate = useNavigate();
@@ -41,18 +42,72 @@ const Activities = () => {
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Tính toán HK/Năm học mặc định theo logic riêng của hệ thống
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+  const year = now.getFullYear();
+  
+  let defaultSemester;
+  if (month >= 8 && month <= 11) {
+    defaultSemester = 1;
+  } else if (month === 12 || month === 1 || month === 2 || (month === 3 && day < 15)) {
+    defaultSemester = 2;
+  } else {
+    defaultSemester = 3;
+  }
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const startYear = month >= 8 ? year : year - 1;
+  const defaultAcademicYear = `NH${startYear}-${startYear + 1}`;
+
+  const [semesterFilter, setSemesterFilter] = useState(String(defaultSemester));
+  const [yearFilter, setYearFilter] = useState(defaultAcademicYear);
+
+  const [confirmState, setConfirmState] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
-  const [modalMode, setModalMode] = useState('create');
+
+  // Lấy thông tin năm học từ hệ thống để đổ vào dropdown
+  const { data: academicInfo } = useQuery({
+    queryKey: ['academic-info-list'],
+    queryFn: () => activityService.getCurrentAcademicInfo(),
+    staleTime: 30 * 60 * 1000,
+  });
 
   // Fetch activities with pagination
   const { data: activitiesData, isLoading, refetch } = useQuery({
     queryKey: ['activities', page, size, search, statusFilter],
     queryFn: () => activityService.getAllWithPagination({ page, size }),
-    keepPreviousData: true
+    keepPreviousData: true,
+    enabled: canView,
   });
+
+  // Client-side filter + sort theo ngày tạo mới nhất
+  const displayActivities = (activitiesData?.content || [])
+    .filter(act => {
+      const matchesSemester = !semesterFilter || semesterFilter === 'all' || String(act.soHocKy) === semesterFilter;
+      const matchesYear = !yearFilter || yearFilter === 'all' || act.maNamHoc === yearFilter;
+      const matchesStatus = statusFilter === 'all' || act.trangThai === statusFilter;
+      const matchesSearch = !search || act.tenHoatDong.toLowerCase().includes(search.toLowerCase()) || act.maHoatDong.toLowerCase().includes(search.toLowerCase());
+      return matchesSemester && matchesYear && matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => {
+      const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
+      const db = b.createdAt ? new Date(b.createdAt) : new Date(0);
+      return db - da;
+    });
+
+  // Phân nhóm: Đoàn trường (maKhoa = null) vs Đoàn Khoa
+  const doanTruongList = displayActivities.filter(a => !a.maKhoa);
+  const doanKhoaList = displayActivities.filter(a => !!a.maKhoa);
+  const doanKhoaGroups = doanKhoaList.reduce((acc, a) => {
+    const key = a.tenKhoa || a.maKhoa || 'Khoa khác';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(a);
+    return acc;
+  }, {});
+  const hasSections = doanTruongList.length > 0 || doanKhoaList.length > 0;
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -64,6 +119,18 @@ const Activities = () => {
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Xóa hoạt động thất bại!');
     },
+  });
+
+  // Broadcast notification mutation
+  const broadcastMutation = useMutation({
+    mutationFn: (row) => newsService.broadcastNotification({
+      title: `🎯 Hoạt động mới: ${row.tenHoatDong}`,
+      message: `Hoạt động "${row.tenHoatDong}" sẽ diễn ra vào ${row.ngayToChuc ? new Date(row.ngayToChuc).toLocaleDateString('vi-VN') : ''}. Đăng ký ngay!`,
+      type: 'HOAT_DONG',
+      relatedId: row.maHoatDong,
+    }),
+    onSuccess: (count) => toast.success(`Đã gửi thông báo đến ${count} người dùng`),
+    onError: (e) => toast.error(e.response?.data?.message || 'Gửi thông báo thất bại'),
   });
 
   // Table columns
@@ -174,7 +241,7 @@ const Activities = () => {
               size="sm"
               variant="ghost"
               icon={ClipboardList}
-              onClick={(e) => { e.stopPropagation(); navigate(`/admin/activities/${row.maHoatDong}/attendance`); }}
+              onClick={(e) => { e.stopPropagation(); navigate(`/admin/activities/attendance?ma=${encodeURIComponent(row.maHoatDong)}`); }}
               title="Danh sách điểm danh"
               className="text-blue-600 hover:text-blue-700"
             />
@@ -186,6 +253,17 @@ const Activities = () => {
               icon={Edit}
               onClick={(e) => { e.stopPropagation(); handleEdit(row); }}
               title="Sửa"
+            />
+          )}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Bell}
+              onClick={(e) => { e.stopPropagation(); broadcastMutation.mutate(row); }}
+              title="Gửi thông báo đến tất cả người dùng"
+              disabled={broadcastMutation.isPending}
+              className="text-indigo-500 hover:text-indigo-700"
             />
           )}
           {canDelete && (
@@ -208,14 +286,7 @@ const Activities = () => {
   };
 
   const handleEdit = (activity) => {
-    // For now, we can use the modal or navigate to an edit page
-    // If using modal:
-    setModalMode('edit');
-    setSelectedActivity(activity);
-    setIsModalOpen(true);
-    
-    // If you want to navigate to an edit page later:
-    // navigate(`/admin/activities/edit/${activity.maHoatDong}`);
+    navigate(`/admin/activities/edit?ma=${encodeURIComponent(activity.maHoatDong)}`);
   };
 
   const handleView = (activity) => {
@@ -224,14 +295,7 @@ const Activities = () => {
   };
 
   const handleDelete = (activity) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa hoạt động "${activity.tenHoatDong}"?`)) {
-      deleteMutation.mutate(activity.maHoatDong);
-    }
-  };
-
-  const handleFormSuccess = () => {
-    setIsModalOpen(false);
-    queryClient.invalidateQueries(['activities']);
+    setConfirmState({ id: activity.maHoatDong, name: activity.tenHoatDong });
   };
 
   return (
@@ -246,14 +310,14 @@ const Activities = () => {
         </div>
         {canCreate && (
           <Button icon={Plus} onClick={handleCreate}>
-            Tạo hoạt động mới
+            <span className="hidden sm:inline">Tạo hoạt động mới</span>
           </Button>
         )}
       </div>
 
       {/* Filters */}
       <Card>
-        <div className="p-6">
+        <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <SearchInput
               placeholder="Tìm kiếm hoạt động..."
@@ -265,7 +329,7 @@ const Activities = () => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="">Tất cả trạng thái</option>
+              <option value="all">Tất cả trạng thái</option>
               {TRANG_THAI_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
@@ -275,37 +339,102 @@ const Activities = () => {
             <Button
               variant="outline"
               icon={RefreshCw}
-              onClick={() => refetch()}
+              onClick={() => {
+                setSemesterFilter(String(defaultSemester));
+                setYearFilter(defaultAcademicYear);
+                refetch();
+              }}
             >
               Làm mới
             </Button>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t border-gray-100">
+            <div className="md:col-span-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Học kỳ</label>
+              <Select
+                value={semesterFilter}
+                onChange={(e) => setSemesterFilter(e.target.value)}
+              >
+                <option value="all">Tất cả học kỳ</option>
+                <option value="1">Học kỳ 1</option>
+                <option value="2">Học kỳ 2</option>
+                <option value="3">Học kỳ 3</option>
+              </Select>
+            </div>
+            <div className="md:col-span-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Năm học</label>
+              <Select
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+              >
+                <option value="all">Tất cả năm học</option>
+                {academicInfo?.danhSachNamHoc?.map(nh => (
+                  <option key={nh.maNamHoc} value={nh.maNamHoc}>{nh.tenNamHoc}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="md:col-span-2 flex items-end">
+              <div className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100 w-full">
+                <strong>Ghi chú:</strong> Đang hiển thị các hoạt động thuộc <strong>HK{semesterFilter === 'all' ? 'tất cả' : semesterFilter}</strong> năm học <strong>{yearFilter === 'all' ? 'tất cả' : (academicInfo?.danhSachNamHoc?.find(n => n.maNamHoc === yearFilter)?.tenNamHoc || yearFilter)}</strong>.
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 
-      {/* Table */}
-      <Card>
-        <Table
-          columns={columns}
-          data={activitiesData?.content || []}
-          loading={isLoading}
-        />
-      </Card>
+      {/* Table — chia theo Đoàn trường / Đoàn Khoa */}
+      {isLoading ? (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table columns={columns} data={[]} loading={true} />
+          </div>
+        </Card>
+      ) : hasSections ? (
+        <>
+          {/* Đoàn trường */}
+          {doanTruongList.length > 0 && (
+            <Card>
+              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <div className="w-1 h-5 bg-blue-500 rounded-full flex-shrink-0" />
+                <h3 className="font-semibold text-blue-700 text-sm uppercase tracking-wide">
+                  Đoàn trường
+                </h3>
+                <span className="text-[11px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-semibold">
+                  {doanTruongList.length}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <Table columns={columns} data={doanTruongList} loading={false} />
+              </div>
+            </Card>
+          )}
 
-      {/* Create/Edit Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={modalMode === 'create' ? 'Tạo hoạt động mới' : 'Chỉnh sửa hoạt động'}
-        size="xl"
-      >
-        <ActivityForm
-          initialData={selectedActivity}
-          mode={modalMode}
-          onSuccess={handleFormSuccess}
-          onCancel={() => setIsModalOpen(false)}
-        />
-      </Modal>
+          {/* Đoàn Khoa groups */}
+          {Object.entries(doanKhoaGroups).map(([tenKhoa, list]) => (
+            <Card key={tenKhoa}>
+              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <div className="w-1 h-5 bg-emerald-500 rounded-full flex-shrink-0" />
+                <h3 className="font-semibold text-emerald-700 text-sm uppercase tracking-wide">
+                  Đoàn {tenKhoa}
+                </h3>
+                <span className="text-[11px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-semibold">
+                  {list.length}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <Table columns={columns} data={list} loading={false} />
+              </div>
+            </Card>
+          ))}
+        </>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table columns={columns} data={[]} loading={false} />
+          </div>
+        </Card>
+      )}
 
       {/* Detail Modal */}
       <Modal
@@ -323,6 +452,15 @@ const Activities = () => {
           onClose={() => setIsDetailModalOpen(false)}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa hoạt động"
+        description={`Bạn có chắc muốn xóa hoạt động "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 };

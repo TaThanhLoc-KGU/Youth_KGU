@@ -2,7 +2,6 @@ package com.tathanhloc.youthkgu.Security;
 
 import com.tathanhloc.youthkgu.Enum.VaiTroEnum;
 import com.tathanhloc.youthkgu.Model.TaiKhoan;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.*;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -18,8 +17,16 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        @NotNull(message = "Vai trò không được để trống") VaiTroEnum role = taiKhoan.getVaiTro(); // Giả sử vai trò được lưu trong taiKhoan
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        // QUAN_LY + laAdmin=true → ROLE_ADMIN (vào được mọi endpoint bảo vệ bằng hasRole('ADMIN'))
+        // QUAN_LY + laAdmin=false → ROLE_MANAGER
+        // SINH_VIEN → ROLE_USER
+        if (taiKhoan.getVaiTro() == VaiTroEnum.QUAN_LY && Boolean.TRUE.equals(taiKhoan.getLaAdmin())) {
+            return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        }
+        if (taiKhoan.getVaiTro() == VaiTroEnum.QUAN_LY) {
+            return List.of(new SimpleGrantedAuthority("ROLE_MANAGER"));
+        }
+        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
 

@@ -43,19 +43,17 @@ export const ROLE_GIANGVIEN = 'GIANG_VIEN';
 export const ROLE_SINHVIEN = 'SINH_VIEN';
 
 export const ROLE_LABELS = {
-  // System Roles
-  ADMIN: 'Quản trị viên',
-  GIANG_VIEN: 'Giảng viên',
   SINH_VIEN: 'Sinh viên',
-  CHUYEN_VIEN: 'Chuyên viên',
-
-  // Effective Roles
+  QUAN_LY: 'Quản lý',
+  // Legacy — giữ tương thích ngược
+  ADMIN: 'Quản trị viên',
+  BCH: 'Quản lý',
+  GIANG_VIEN: 'Quản lý',
+  CHUYEN_VIEN: 'Quản lý',
   MANAGER: 'Quản lý',
-  STAFF: 'Nhân viên hỗ trợ',
-
-  // Legacy aliases (mapped to new labels)
-  GIANGVIEN: 'Giảng viên',
-  SINHVIEN: 'Sinh viên'
+  STAFF: 'Quản lý',
+  GIANGVIEN: 'Quản lý',
+  SINHVIEN: 'Sinh viên',
 };
 
 // ========== BAN CHUYÊN MÔN (Departments) ==========
@@ -69,7 +67,8 @@ export const DEPARTMENT_DOAN = {
   BAN_GIAO_LUU_HOP_TAC_DOAN: 'BAN_GIAO_LUU_HOP_TAC_DOAN'
 };
 
-export const DEPARTMENT_HOI = {
+export const
+    DEPARTMENT_HOI = {
   BAN_TU_VAN_HOI: 'BAN_TU_VAN_HOI',
   BAN_DAO_TAO_HO_TRO_HOI: 'BAN_DAO_TAO_HO_TRO_HOI',
   BAN_CHUONG_TRINH_HOI: 'BAN_CHUONG_TRINH_HOI',
@@ -173,10 +172,8 @@ export const ACCOUNT_API = {
 // ========== ROLE OPTIONS FOR DROPDOWNS ==========
 
 export const ROLE_OPTIONS = [
-  { value: 'ADMIN', label: 'Quản trị viên', group: 'Hệ thống' },
-  { value: 'GIANG_VIEN', label: 'Giảng viên', group: 'Hệ thống' },
-  { value: 'SINH_VIEN', label: 'Sinh viên', group: 'Hệ thống' },
-  { value: 'CHUYEN_VIEN', label: 'Chuyên viên', group: 'Hệ thống' }
+  { value: 'SINH_VIEN', label: 'Sinh viên' },
+  { value: 'QUAN_LY',   label: 'Quản lý' },
 ];
 
 // ========== DEPARTMENT OPTIONS FOR DROPDOWNS ==========

@@ -157,7 +157,7 @@ const StudentActivities = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Các hoạt động</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Các hoạt động</h1>
         <p className="text-gray-600 mt-1">
           Xem và đăng ký tham gia hoạt động Đoàn - Hội sinh viên
         </p>
@@ -248,7 +248,7 @@ const StudentActivities = () => {
 
       {/* Activities Grid */}
       {isLoading ? (
-        <Loading fullScreen />
+        <Loading />
       ) : filteredActivities.length === 0 ? (
         <div className="text-center py-16">
           <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />

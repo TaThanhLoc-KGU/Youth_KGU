@@ -18,8 +18,15 @@ public class GiangVienService {
 
     private final GiangVienRepository giangVienRepository;
     private final KhoaRepository khoaRepository;
+    private final KhoaScopeService khoaScopeService;
 
     public List<GiangVienDTO> getAll() {
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            return giangVienRepository.findByKhoaMaKhoa(maKhoa).stream()
+                    .map(this::toDTO)
+                    .collect(Collectors.toList());
+        }
         return giangVienRepository.findAll().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -62,7 +69,7 @@ public class GiangVienService {
         existing.setEmail(dto.getEmail());
         existing.setIsActive(dto.getIsActive());
 
-        if (!existing.getKhoa().getMaKhoa().equals(dto.getMaKhoa())) {
+        if (existing.getKhoa() == null || !existing.getKhoa().getMaKhoa().equals(dto.getMaKhoa())) {
             Khoa khoa = khoaRepository.findById(dto.getMaKhoa())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy khoa"));
             existing.setKhoa(khoa);
@@ -73,12 +80,14 @@ public class GiangVienService {
 
     // Mapping
     private GiangVienDTO toDTO(GiangVien gv) {
+        Khoa khoa = gv.getKhoa();
         return GiangVienDTO.builder()
                 .maGv(gv.getMaGv())
                 .hoTen(gv.getHoTen())
                 .email(gv.getEmail())
                 .isActive(gv.getIsActive())
-                .maKhoa(gv.getKhoa().getMaKhoa())
+                .maKhoa(khoa != null ? khoa.getMaKhoa() : null)
+                .tenKhoa(khoa != null ? khoa.getTenKhoa() : null)
                 .build();
     }
 
@@ -107,6 +116,13 @@ public class GiangVienService {
      * Lấy danh sách giảng viên đang hoạt động
      */
     public List<GiangVienDTO> getAllActive() {
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            return giangVienRepository.findByKhoaMaKhoa(maKhoa).stream()
+                    .filter(gv -> Boolean.TRUE.equals(gv.getIsActive()))
+                    .map(this::toDTO)
+                    .collect(Collectors.toList());
+        }
         return giangVienRepository.findByIsActiveTrue().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -170,8 +186,10 @@ public class GiangVienService {
      * Tìm kiếm giảng viên
      */
     public List<GiangVienDTO> search(String keyword) {
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
         return giangVienRepository.findByHoTenContainingIgnoreCaseOrEmailContainingIgnoreCase(keyword, keyword)
                 .stream()
+                .filter(gv -> maKhoa == null || (gv.getKhoa() != null && maKhoa.equals(gv.getKhoa().getMaKhoa())))
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }

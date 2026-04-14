@@ -14,11 +14,14 @@ import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Textarea from '../../components/common/Textarea';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const ChuyenVien = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
+  const canView   = hasPermission(PERMISSIONS.XEM_CHUYEN_VIEN);
   const canManage = hasPermission(PERMISSIONS.QUAN_LY_CHUYEN_VIEN);
+  const [confirmState, setConfirmState] = useState(null);
   const [search, setSearch] = useState('');
   const [selectedChuyenVien, setSelectedChuyenVien] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -32,7 +35,7 @@ const ChuyenVien = () => {
   });
   const [errors, setErrors] = useState({});
 
-  // Fetch chuyenvien list
+  // Fetch chuyenvien list — chỉ khi có quyền xem
   const { data: chuyenvienList = [], isLoading, refetch } = useQuery({
     queryKey: ['chuyenvien', search],
     queryFn: async () => {
@@ -44,14 +47,15 @@ const ChuyenVien = () => {
       }
       return Array.isArray(results) ? results : [];
     },
-    keepPreviousData: true
-  }
-  );
+    keepPreviousData: true,
+    enabled: canView,
+  });
 
-  // Fetch statistics
+  // Fetch statistics — chỉ khi có quyền xem
   const { data: stats = {} } = useQuery({
     queryKey: ['chuyenvien-statistics'],
-    queryFn: chuyenVienService.getStatistics
+    queryFn: chuyenVienService.getStatistics,
+    enabled: canView,
   });
 
   // Delete mutation
@@ -119,11 +123,15 @@ const ChuyenVien = () => {
     {
       header: 'Email',
       accessor: 'email',
+      headerClassName: 'hidden sm:table-cell',
+      cellClassName: 'hidden sm:table-cell',
       render: (value) => value || '-',
     },
     {
       header: 'SĐT',
       accessor: 'sdt',
+      headerClassName: 'hidden md:table-cell',
+      cellClassName: 'hidden md:table-cell',
       render: (value) => value || '-',
     },
     {
@@ -194,9 +202,7 @@ const ChuyenVien = () => {
   };
 
   const handleDelete = (chuyenvien) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa ${chuyenvien.hoTen}?`)) {
-      deleteMutation.mutate(chuyenvien.maChuyenVien);
-    }
+    setConfirmState({ id: chuyenvien.maChuyenVien, name: chuyenvien.hoTen });
   };
 
   const handleModalClose = () => {
@@ -245,7 +251,7 @@ const ChuyenVien = () => {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Quản lý Chuyên viên</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Chuyên viên</h1>
           <p className="text-gray-600 mt-1">Quản lý thông tin chuyên viên Ban Đoàn - Hội</p>
         </div>
         {canManage && (
@@ -256,7 +262,7 @@ const ChuyenVien = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <div className="text-center p-4">
             <div className="text-3xl font-bold text-purple-600">{stats.total || 0}</div>
@@ -274,8 +280,8 @@ const ChuyenVien = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-end">
-        <div className="flex-1">
+      <div className="flex flex-wrap gap-2 sm:gap-3 items-end">
+        <div className="w-full sm:w-64 lg:w-80">
           <SearchInput
             placeholder="Tìm theo tên, email, SĐT..."
             value={search}
@@ -300,6 +306,15 @@ const ChuyenVien = () => {
         />
       </Card>
 
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa chuyên viên"
+        description={`Bạn có chắc muốn xóa "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
+        isLoading={deleteMutation.isPending}
+      />
+
       {/* Modal */}
       <Modal isOpen={isModalOpen} onClose={handleModalClose} size="lg">
         {modalMode === 'view' ? (
@@ -308,7 +323,7 @@ const ChuyenVien = () => {
             {selectedChuyenVien && (
               <>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium text-gray-700">Họ tên</label>
                       <p className="mt-1 font-medium">{selectedChuyenVien.hoTen}</p>
@@ -351,7 +366,7 @@ const ChuyenVien = () => {
             </h2>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Họ tên"
                   placeholder="Nhập họ tên"
@@ -371,7 +386,7 @@ const ChuyenVien = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="SĐT"
                   placeholder="Nhập số điện thoại"

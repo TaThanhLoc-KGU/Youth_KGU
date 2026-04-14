@@ -30,6 +30,7 @@ const schema = yup.object().shape({
   yeuCauCheckOut: yup.boolean().default(false),
   yeuCauDiemDanh: yup.boolean().default(true),
   choPhepDangKy: yup.boolean().default(true),
+  cheDoDiemDanh: yup.string().oneOf(['CHECKIN_CHECKOUT', 'CHECKIN_ONLY', 'CHECKOUT_ONLY', 'AUTO_FULL']).default('CHECKIN_CHECKOUT'),
   moTa: yup.string(),
   ghiChu: yup.string()
 });
@@ -85,14 +86,16 @@ const CreateHoatDong = () => {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center mb-6">
-        <button 
-          onClick={() => navigate('/admin/activities')}
-          className="mr-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
-        >
-          <ArrowLeft className="w-6 h-6 text-gray-600" />
-        </button>
-        <h1 className="text-2xl font-bold text-gray-800">Tạo Hoạt Động Mới</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/admin/activities')}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <ArrowLeft className="w-6 h-6 text-gray-600" />
+          </button>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Tạo Hoạt Động Mới</h1>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg shadow-md p-6">
@@ -210,6 +213,7 @@ const CreateHoatDong = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Ngày tổ chức <span className="text-red-500">*</span></label>
               <input
                 type="date"
+                lang="vi"
                 {...register('ngayToChuc')}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${hasError('ngayToChuc') ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
               />
@@ -285,45 +289,40 @@ const CreateHoatDong = () => {
             )}
           </div>
 
-          {cheDoDiemDanh !== 'AUTO_FULL' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-              {/* Check-in sớm — ẩn khi CHECKOUT_ONLY */}
-              {cheDoDiemDanh !== 'CHECKOUT_ONLY' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cho phép check-in sớm (phút)</label>
-                  <input
-                    type="number"
-                    {...register('choPhepCheckInSom')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-              )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-              {/* Trễ tối đa — ẩn khi CHECKOUT_ONLY */}
-              {cheDoDiemDanh !== 'CHECKOUT_ONLY' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian trễ tối đa (phút)</label>
-                  <input
-                    type="number"
-                    {...register('thoiGianTreToiDa')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-              )}
-
-              {/* Thời gian tối thiểu */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian tham gia tối thiểu (phút)</label>
-                <input
-                  type="number"
-                  {...register('thoiGianToiThieu')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
+            {/* Check-in sớm */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cho phép check-in sớm (phút)</label>
+              <input
+                type="number"
+                {...register('choPhepCheckInSom')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
             </div>
-          )}
 
-          <div className="flex flex-wrap gap-6">
+            {/* Trễ tối đa */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian trễ tối đa (phút)</label>
+              <input
+                type="number"
+                {...register('thoiGianTreToiDa')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+
+            {/* Thời gian tối thiểu */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian tham gia tối thiểu (phút)</label>
+              <input
+                type="number"
+                {...register('thoiGianToiThieu')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-6">
             <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -331,6 +330,15 @@ const CreateHoatDong = () => {
                 className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
               />
               <span className="text-gray-700">Yêu cầu điểm danh</span>
+            </label>
+
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                {...register('yeuCauCheckOut')}
+                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className="text-gray-700">Yêu cầu Check-out</span>
             </label>
 
             <label className="flex items-center space-x-2 cursor-pointer">
@@ -371,7 +379,7 @@ const CreateHoatDong = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-4 pt-4 border-t">
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-4 justify-end pt-4 border-t">
           <button
             type="button"
             onClick={() => navigate('/admin/activities')}
@@ -382,7 +390,7 @@ const CreateHoatDong = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center disabled:bg-blue-400"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center disabled:bg-blue-400"
           >
             <Save className="w-5 h-5 mr-2" />
             {isSubmitting ? 'Đang lưu...' : 'Tạo hoạt động'}

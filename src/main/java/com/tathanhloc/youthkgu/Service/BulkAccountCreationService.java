@@ -118,7 +118,7 @@ public class BulkAccountCreationService {
                 taiKhoan.setPasswordHash(passwordEncoder.encode(gv.getMaGv()));
                 taiKhoan.setHoTen(gv.getHoTen());
                 taiKhoan.setEmail(gv.getEmail());
-                taiKhoan.setVaiTro(VaiTroEnum.GIANG_VIEN);
+                taiKhoan.setVaiTro(VaiTroEnum.QUAN_LY);
                 taiKhoan.setGiangVien(gv);
                 taiKhoan.setIsActive(true);
                 taiKhoan.setTrangThaiPheDuyet("DA_PHE_DUYET");

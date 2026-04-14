@@ -270,7 +270,7 @@ const Logs = () => {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card padding={false}>
           <div className="p-4">
             <p className="text-xs text-gray-500">Tổng thao tác</p>
@@ -305,10 +305,10 @@ const Logs = () => {
             placeholder="Tìm theo nội dung, tên người dùng..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="input input-bordered input-sm flex-1 min-w-48"
+            className="input input-bordered input-sm w-full sm:flex-1 sm:min-w-48"
           />
           <select
-            className="select select-bordered select-sm"
+            className="select select-bordered select-sm w-full sm:w-auto"
             value={moduleFilter}
             onChange={e => setModuleFilter(e.target.value)}
           >
@@ -317,7 +317,7 @@ const Logs = () => {
             ))}
           </select>
           <select
-            className="select select-bordered select-sm"
+            className="select select-bordered select-sm w-full sm:w-auto"
             value={actionFilter}
             onChange={e => setActionFilter(e.target.value)}
           >

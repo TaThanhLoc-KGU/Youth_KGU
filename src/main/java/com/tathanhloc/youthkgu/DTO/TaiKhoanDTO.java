@@ -20,4 +20,9 @@ public class TaiKhoanDTO {
     private LocalDateTime createdAt;
     private String maSv;
     private String maGv;
+    /** true = QUAN_LY có toàn quyền */
+    private Boolean laAdmin;
+
+    private String maKhoa;
+    private String tenKhoa;
 }

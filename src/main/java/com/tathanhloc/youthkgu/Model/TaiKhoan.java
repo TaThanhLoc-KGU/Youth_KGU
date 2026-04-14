@@ -82,6 +82,18 @@ public class TaiKhoan {
     @Column(name = "ghi_chu", columnDefinition = "TEXT")
     private String ghiChu;
 
+    /**
+     * Cờ admin: true = tài khoản Quản lý có toàn quyền.
+     * Chỉ áp dụng cho tài khoản QUAN_LY.
+     */
+    @Column(name = "la_admin")
+    @Builder.Default
+    private Boolean laAdmin = false;
+
+    @ManyToOne
+    @JoinColumn(name = "ma_khoa")
+    private Khoa khoa; // null = Đoàn trường (không giới hạn), non-null = cán bộ cấp Khoa
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

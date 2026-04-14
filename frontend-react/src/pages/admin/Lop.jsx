@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, RotateCcw, RefreshCw, Download, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, RotateCcw, RefreshCw, Download, Upload, Search } from 'lucide-react';
 import lopService from '../../services/lopService';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
@@ -10,14 +10,14 @@ import nganhService from '../../services/nganhService';
 import khoahocService from '../../services/khoahocService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
-import SearchInput from '../../components/common/SearchInput';
-import Select from '../../components/common/Select';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import LopExcelImport from '../../components/admin/LopExcelImport';
 import { useForm } from 'react-hook-form';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nganhs, khoahocs }) => {
   const { register, handleSubmit, formState: { errors }, watch } = useForm({
@@ -79,32 +79,51 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
         error={errors.tenLop?.message}
         required
       />
-      <Select
-        label="Khoa"
-        {...register('maKhoa', { required: 'Khoa là bắt buộc' })}
-        options={[{ value: '', label: '-- Chọn khoa --' }, ...khoas.map(k => ({
-          value: k.maKhoa, label: k.tenKhoa
-        }))]}
-        error={errors.maKhoa?.message}
-        required
-      />
-      <Select
-        label="Ngành"
-        {...register('maNganh', { required: 'Ngành là bắt buộc' })}
-        options={[{ value: '', label: '-- Chọn ngành --' }, ...filteredNganhs.map(n => ({
-          value: n.maNganh, label: n.tenNganh
-        }))]}
-        error={errors.maNganh?.message}
-        disabled={!selectedKhoa}
-        required
-      />
-      <Select
-        label="Khóa học"
-        {...register('maKhoahoc')}
-        options={[{ value: '', label: '-- Chọn khóa học --' }, ...khoahocs.map(k => ({
-          value: k.maKhoahoc, label: k.tenKhoahoc
-        }))]}
-      />
+      <div className="space-y-1">
+        <label className="block text-sm font-medium text-gray-700">Khoa <span className="text-red-500">*</span></label>
+        <SearchableSelect
+          placeholder="-- Chọn khoa --"
+          options={khoas.map(k => ({ value: k.maKhoa, label: k.tenKhoa }))}
+          value={watch('maKhoa')}
+          onChange={(val) => {
+            const e = { target: { name: 'maKhoa', value: val } };
+            register('maKhoa').onChange(e);
+            // Reset ngành khi đổi khoa
+            const eNganh = { target: { name: 'maNganh', value: '' } };
+            register('maNganh').onChange(eNganh);
+          }}
+        />
+        {errors.maKhoa && <p className="text-xs text-red-500">{errors.maKhoa.message}</p>}
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-sm font-medium text-gray-700">Ngành <span className="text-red-500">*</span></label>
+        <SearchableSelect
+          placeholder="-- Chọn ngành --"
+          options={filteredNganhs.map(n => ({ value: n.maNganh, label: n.tenNganh }))}
+          value={watch('maNganh')}
+          onChange={(val) => {
+            const e = { target: { name: 'maNganh', value: val } };
+            register('maNganh').onChange(e);
+          }}
+          isDisabled={!selectedKhoa}
+        />
+        {errors.maNganh && <p className="text-xs text-red-500">{errors.maNganh.message}</p>}
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-sm font-medium text-gray-700">Khóa học</label>
+        <SearchableSelect
+          placeholder="-- Chọn khóa học --"
+          options={khoahocs.map(k => ({ value: k.maKhoahoc, label: k.tenKhoahoc }))}
+          value={watch('maKhoahoc')}
+          onChange={(val) => {
+            const e = { target: { name: 'maKhoahoc', value: val } };
+            register('maKhoahoc').onChange(e);
+          }}
+        />
+      </div>
+
       <Select
         label="Trạng thái"
         {...register('isActive')}
@@ -127,6 +146,7 @@ const Lop = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
   const canManage = hasPermission(PERMISSIONS.CAI_DAT_HE_THONG);
+  const [confirmState, setConfirmState] = useState(null);
   const [search, setSearch] = useState('');
   const [khoaFilter, setKhoaFilter] = useState('');
   const [nganhFilter, setNganhFilter] = useState('');
@@ -273,11 +293,7 @@ const Lop = () => {
               variant="ghost"
               icon={Trash2}
               className="text-red-600"
-              onClick={() => {
-                if (window.confirm(`Xóa lớp ${row.tenLop}?`)) {
-                  deleteMutation.mutate(row.maLop);
-                }
-              }}
+              onClick={() => setConfirmState({ type: 'delete', id: row.maLop, name: row.tenLop })}
             />
           )}
           {canManage && !row.isActive && (
@@ -286,11 +302,7 @@ const Lop = () => {
               variant="ghost"
               icon={RotateCcw}
               className="text-blue-600"
-              onClick={() => {
-                if (window.confirm(`Khôi phục lớp ${row.tenLop}?`)) {
-                  restoreMutation.mutate(row.maLop);
-                }
-              }}
+              onClick={() => setConfirmState({ type: 'restore', id: row.maLop, name: row.tenLop })}
             />
           )}
         </div>
@@ -309,14 +321,14 @@ const Lop = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Lớp</h1>
           <p className="text-gray-600 mt-1">Quản lý các lớp học</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canManage && (
           <Button
             variant="outline"
             icon={Upload}
             onClick={() => setIsImportModalOpen(true)}
           >
-            Import Excel
+            <span className="hidden sm:inline">Import Excel</span>
           </Button>
           )}
           {canManage && (
@@ -340,7 +352,7 @@ const Lop = () => {
               }
             }}
           >
-            Export Excel
+            <span className="hidden sm:inline">Export Excel</span>
           </Button>
           )}
           {canManage && (
@@ -349,51 +361,97 @@ const Lop = () => {
             setModalMode('create');
             setIsModalOpen(true);
           }}>
-            Thêm lớp
+            <span className="hidden sm:inline">Thêm lớp</span>
           </Button>
           )}
         </div>
       </div>
 
-      <Card>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <SearchInput
-              placeholder="Tìm kiếm..."
-              value={search}
-              onSearch={setSearch}
-              className="md:col-span-2"
-            />
-            <Select
-              options={[{ value: '', label: 'Tất cả khoa' }, ...khoas.map(k => ({
-                value: k.maKhoa, label: k.tenKhoa
-              }))]}
+      {/* Filters Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Tìm kiếm */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Tìm kiếm lớp
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="Mã lớp hoặc tên lớp..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Khoa */}
+          <div>
+            <SearchableSelect
+              label="Khoa"
+              labelClassName="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
+              placeholder="Tất cả khoa"
+              options={khoas.map(k => ({ value: k.maKhoa, label: k.tenKhoa }))}
               value={khoaFilter}
-              onChange={(e) => {
-                setKhoaFilter(e.target.value);
+              onChange={(val) => {
+                setKhoaFilter(val || '');
                 setNganhFilter('');
               }}
             />
-            <Select
-              options={[{ value: '', label: 'Tất cả ngành' }, ...filteredNganhs.map(n => ({
-                value: n.maNganh, label: n.tenNganh
-              }))]}
+          </div>
+
+          {/* Ngành */}
+          <div>
+            <SearchableSelect
+              label="Ngành"
+              labelClassName="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
+              placeholder="Tất cả ngành"
+              options={filteredNganhs.map(n => ({ value: n.maNganh, label: n.tenNganh }))}
               value={nganhFilter}
-              onChange={(e) => setNganhFilter(e.target.value)}
-              disabled={!khoaFilter}
-            />
-            <Select
-              options={[
-                { value: '', label: 'Tất cả trạng thái' },
-                { value: 'active', label: 'Hoạt động' },
-                { value: 'inactive', label: 'Ngừng' },
-              ]}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(val) => setNganhFilter(val || '')}
+              isDisabled={!khoaFilter}
             />
           </div>
+
+          {/* Trạng thái */}
+          <div className="flex flex-col">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Trạng thái
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="block w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none cursor-pointer"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Ngừng hoạt động</option>
+            </select>
+          </div>
         </div>
-      </Card>
+
+        <div className="flex justify-end mt-4 pt-4 border-t border-gray-50">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={RefreshCw}
+            onClick={() => {
+              setSearch('');
+              setKhoaFilter('');
+              setNganhFilter('');
+              setStatusFilter('');
+              refetch();
+            }}
+            className="text-gray-500 hover:text-primary-600 font-medium text-xs"
+          >
+            Làm mới bộ lọc
+          </Button>
+        </div>
+      </div>
 
       <Card>
         {isError && (
@@ -419,7 +477,9 @@ const Lop = () => {
             <p className="text-gray-500">Chưa có lớp nào. Vui lòng thêm lớp mới.</p>
           </div>
         )}
-        <Table columns={columns} data={lopList} isLoading={isLoading} />
+        <div className="overflow-x-auto">
+          <Table columns={columns} data={lopList} isLoading={isLoading} />
+        </div>
       </Card>
 
       <Modal
@@ -456,6 +516,24 @@ const Lop = () => {
           onCancel={() => setIsImportModalOpen(false)}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!confirmState && confirmState.type === 'delete'}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa lớp"
+        description={`Bạn có chắc muốn xóa lớp "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
+        isLoading={deleteMutation.isPending}
+      />
+      <ConfirmDialog
+        isOpen={!!confirmState && confirmState.type === 'restore'}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { restoreMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Khôi phục lớp"
+        description={`Bạn có chắc muốn khôi phục lớp "${confirmState?.name}"?`}
+        isLoading={restoreMutation.isPending}
+        variant="warning"
+      />
     </div>
   );
 };

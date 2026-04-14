@@ -1,5 +1,7 @@
 import api from './api';
 
+const enc = (s) => encodeURIComponent(s);
+
 const diemDanhService = {
   // Lịch sử điểm danh của sinh viên
   getByStudent: async (maSv) => {
@@ -15,19 +17,19 @@ const diemDanhService = {
 
   // Danh sách điểm danh theo hoạt động
   getByActivity: async (maHoatDong) => {
-    const response = await api.get(`/api/diem-danh/activity/${maHoatDong}`);
+    const response = await api.get(`/api/diem-danh/activity/${enc(maHoatDong)}`);
     return response.data.data;
   },
 
   // Danh sách đã check-in
   getCheckedIn: async (maHoatDong) => {
-    const response = await api.get(`/api/diem-danh/activity/${maHoatDong}/checked-in`);
+    const response = await api.get(`/api/diem-danh/activity/${enc(maHoatDong)}/checked-in`);
     return response.data.data;
   },
 
   // Danh sách chưa check-in
   getNotCheckedIn: async (maHoatDong) => {
-    const response = await api.get(`/api/diem-danh/activity/${maHoatDong}/not-checked-in`);
+    const response = await api.get(`/api/diem-danh/activity/${enc(maHoatDong)}/not-checked-in`);
     return response.data.data;
   },
 
@@ -70,13 +72,22 @@ const diemDanhService = {
 
   // Thống kê điểm danh theo hoạt động
   getStatistics: async (maHoatDong) => {
-    const response = await api.get(`/api/diem-danh/statistics/${maHoatDong}`);
+    const response = await api.get(`/api/diem-danh/statistics/${enc(maHoatDong)}`);
+    return response.data.data;
+  },
+
+  // Danh sách hoạt động kèm thống kê điểm danh (dành cho trang chọn hoạt động điểm danh)
+  // filter: 'hom_nay' | 'dang_dien_ra' | 'sap_bat_dau' | 'tat_ca'
+  getActivitiesOverview: async (filter = 'hom_nay') => {
+    const response = await api.get('/api/diem-danh/activities-overview', {
+      params: { filter },
+    });
     return response.data.data;
   },
 
   // Xuất file Excel điểm danh
   exportExcel: async (maHoatDong) => {
-    const response = await api.get(`/api/diem-danh/activity/${maHoatDong}/export`, {
+    const response = await api.get(`/api/diem-danh/activity/${enc(maHoatDong)}/export`, {
       responseType: 'blob',
     });
     
@@ -89,6 +100,11 @@ const diemDanhService = {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+  },
+  // Admin thêm sinh viên vào điểm danh theo MSSV
+  themThuCongTheoMSSV: async (maHoatDong, maSv, ghiChu = '') => {
+    const response = await api.post('/api/diem-danh/them-thu-cong', { maHoatDong, maSv, ghiChu });
+    return response.data.data;
   },
 };
 

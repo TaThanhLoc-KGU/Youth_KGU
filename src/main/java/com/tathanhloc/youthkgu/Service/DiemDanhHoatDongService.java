@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,6 +37,7 @@ public class DiemDanhHoatDongService {
     private final HoatDongRepository hoatDongRepository;
     private final SinhVienRepository sinhVienRepository;
     private final BCHDoanHoiRepository bchRepository;
+    private final LopRepository lopRepository;
     private final QRCodeService qrCodeService;
     private final NotificationService notificationService;
 
@@ -49,13 +52,31 @@ public class DiemDanhHoatDongService {
         log.info("Processing QR scan: {} by BCH: {}", request.getMaQR(), request.getMaBchXacNhan());
 
         try {
-            // STEP 1: Validate QR format
-            if (!qrCodeService.validateQRFormat(request.getMaQR())) {
-                return DiemDanhQRResponse.failed("Mã QR không hợp lệ");
+            // STEP 1: Kiểm tra QR không rỗng
+            if (request.getMaQR() == null || request.getMaQR().isBlank()) {
+                return DiemDanhQRResponse.failed("Mã QR không được để trống");
             }
 
             // STEP 2: Tìm đăng ký từ mã QR
-            DangKyHoatDong dangKy = dangKyRepository.findByMaQRWithDetails(request.getMaQR())
+            // Thử exact-match trước
+            Optional<DangKyHoatDong> dangKyOpt = dangKyRepository.findByMaQRWithDetails(request.getMaQR());
+
+            // Fallback: nếu exact-match thất bại và có maHoatDong (từ frontend),
+            // thử tìm bằng suffix của maSv — đề phòng jsQR decode Latin-1 thay vì UTF-8
+            // làm hỏng phần tiếng Việt trong maQR nhưng phần maSv (toàn số) vẫn nguyên vẹn.
+            if (dangKyOpt.isEmpty() && request.getMaHoatDong() != null && !request.getMaHoatDong().isBlank()) {
+                String qrScanned = request.getMaQR();
+                dangKyOpt = dangKyRepository.findByHoatDongMaHoatDongAndIsActiveTrue(request.getMaHoatDong())
+                        .stream()
+                        .filter(dk -> dk.getMaQR() != null && qrScanned.endsWith(dk.getId().getMaSv()))
+                        .findFirst()
+                        .flatMap(dk -> dangKyRepository.findByMaQRWithDetails(dk.getMaQR()));
+                if (dangKyOpt.isPresent()) {
+                    log.warn("QR encoding fallback used for activity={} — scanner may have decoded UTF-8 as Latin-1", request.getMaHoatDong());
+                }
+            }
+
+            DangKyHoatDong dangKy = dangKyOpt
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký với mã QR này"));
 
             if (!dangKy.getIsActive()) {
@@ -68,9 +89,10 @@ public class DiemDanhHoatDongService {
                 return DiemDanhQRResponse.failed("Hoạt động này không yêu cầu điểm danh");
             }
 
-            // STEP 4a: Kiểm tra ngày — QR chỉ hợp lệ đúng ngày sự kiện
+            // STEP 4a: Kiểm tra ngày — bỏ qua nếu hoạt động đang thực sự diễn ra (BCH đã bấm Bắt đầu)
             LocalDate today = LocalDate.now();
-            if (hoatDong.getNgayToChuc() != null && !today.equals(hoatDong.getNgayToChuc())) {
+            boolean isActuallyRunning = hoatDong.getTrangThai() == TrangThaiHoatDongEnum.DANG_DIEN_RA;
+            if (!isActuallyRunning && hoatDong.getNgayToChuc() != null && !today.equals(hoatDong.getNgayToChuc())) {
                 return DiemDanhQRResponse.failed("QR chỉ hợp lệ vào ngày " + hoatDong.getNgayToChuc());
             }
 
@@ -103,6 +125,27 @@ public class DiemDanhHoatDongService {
                 return DiemDanhQRResponse.failed("Hoạt động này dùng điểm danh tự động — không cần quét QR");
             }
 
+            // STEP 6b: BCH chọn rõ mode CHECK-IN / CHECK-OUT → bỏ qua cửa sổ thời gian
+            String forcedMode = request.getAttendanceMode();
+            if ("CHECKOUT".equalsIgnoreCase(forcedMode)
+                    && cheDoMode == CheDoDiemDanhEnum.CHECKIN_CHECKOUT) {
+                if (!alreadyCheckedIn) {
+                    return DiemDanhQRResponse.failed("Sinh viên chưa check-in — không thể check-out");
+                }
+                DiemDanhHoatDong dd = existingOpt.get();
+                if (dd.getThoiGianCheckOut() != null) {
+                    return DiemDanhQRResponse.failed("Sinh viên đã check-out rồi");
+                }
+                return processCheckoutByQR(request, dd, hoatDong);
+            }
+            if ("CHECKIN".equalsIgnoreCase(forcedMode)
+                    && cheDoMode == CheDoDiemDanhEnum.CHECKIN_CHECKOUT) {
+                if (alreadyCheckedIn) {
+                    return DiemDanhQRResponse.failed("Sinh viên đã check-in rồi");
+                }
+                return processCheckInByQR(request, dangKy, hoatDong, now);
+            }
+
             if (cheDoMode == CheDoDiemDanhEnum.CHECKOUT_ONLY) {
                 return processCheckoutOnlyMode(request, dangKy, hoatDong, today, now, existingOpt);
             }
@@ -114,10 +157,10 @@ public class DiemDanhHoatDongService {
                 if (alreadyCheckedIn) {
                     return DiemDanhQRResponse.failed("Mã QR này đã được quét rồi (đã check-in)");
                 }
-                return processCheckInByQR(request, dangKy, hoatDong, now);
+                return processCheckInOnlyMode(request, dangKy, hoatDong, now);
             }
 
-            // CHECKIN_CHECKOUT — hành vi gốc
+            // CHECKIN_CHECKOUT — hành vi gốc theo cửa sổ thời gian
             if (isInCheckoutWindow(hoatDong, today, now)) {
                 if (!alreadyCheckedIn) {
                     return DiemDanhQRResponse.failed("Bạn chưa check-in hoạt động này");
@@ -138,6 +181,10 @@ public class DiemDanhHoatDongService {
 
             return DiemDanhQRResponse.failed("Ngoài thời gian điểm danh");
 
+        } catch (DataIntegrityViolationException e) {
+            // Hai tài khoản BCH quét cùng lúc → unique_attendance constraint → bắt gracefully
+            log.warn("Duplicate attendance detected for QR: {} (concurrent scan)", request.getMaQR());
+            return DiemDanhQRResponse.failed("Sinh viên đã được điểm danh rồi (quét đồng thời)");
         } catch (Exception e) {
             log.error("Error processing QR scan: {}", request.getMaQR(), e);
             return DiemDanhQRResponse.failed("Lỗi: " + e.getMessage());
@@ -157,8 +204,9 @@ public class DiemDanhHoatDongService {
         TrangThaiCheckInEnum trangThaiCheckIn = TrangThaiCheckInEnum.DUNG_GIO;
         int soPhutTre = 0;
 
+        boolean isRunning = hoatDong.getTrangThai() == TrangThaiHoatDongEnum.DANG_DIEN_RA;
         if (hoatDong.getThoiGianBatDau() != null) {
-            if (hoatDong.getChoPhepCheckInSom() != null) {
+            if (!isRunning && hoatDong.getChoPhepCheckInSom() != null) {
                 LocalTime earliestCheckIn = hoatDong.getThoiGianBatDau().minusMinutes(hoatDong.getChoPhepCheckInSom());
                 if (checkInTime.isBefore(earliestCheckIn)) {
                     return DiemDanhQRResponse.failed("Chưa đến giờ check-in (Sớm nhất: " + earliestCheckIn + ")");
@@ -190,13 +238,22 @@ public class DiemDanhHoatDongService {
                 .trangThaiCheckIn(trangThaiCheckIn)
                 .soPhutTre(soPhutTre)
                 .nguoiCheckIn(nguoiXacNhan)
+                // Ghi vào cả cột chung và cột check-in riêng
                 .thietBiQuet(request.getThietBi())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
+                .thietBiCheckIn(request.getThietBi())
+                .latitudeCheckIn(request.getLatitude())
+                .longitudeCheckIn(request.getLongitude())
                 .ghiChu(request.getGhiChu())
                 .build();
 
         diemDanh = diemDanhRepository.save(diemDanh);
+
+        // ✅ FIX: Cập nhật DangKyHoatDong.trangThai → DA_CHECK_IN
+        dangKy.setTrangThai("DA_CHECK_IN");
+        dangKyRepository.save(dangKy);
+
         log.info("Check-in successful: student={}, activity={}", dangKy.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
 
         notificationService.sendNotification(
@@ -208,6 +265,68 @@ public class DiemDanhHoatDongService {
         );
 
         return DiemDanhQRResponse.success("Check-in thành công", toDTO(diemDanh));
+    }
+
+    /**
+     * CHECKIN_ONLY mode: chỉ cần check-in, không cần checkout.
+     * Tự động set DA_THAM_GIA + datThoiGianToiThieu ngay khi quét.
+     */
+    private DiemDanhQRResponse processCheckInOnlyMode(DiemDanhQRRequest request,
+                                                       DangKyHoatDong dangKy, HoatDong hoatDong,
+                                                       LocalTime checkInTime) {
+        BCHDoanHoi nguoiXacNhan = null;
+        if (request.getMaBchXacNhan() != null) {
+            nguoiXacNhan = bchRepository.findById(request.getMaBchXacNhan()).orElse(null);
+        }
+
+        TrangThaiCheckInEnum trangThaiCheckIn = TrangThaiCheckInEnum.DUNG_GIO;
+        int soPhutTre = 0;
+
+        if (hoatDong.getThoiGianBatDau() != null && checkInTime.isAfter(hoatDong.getThoiGianBatDau())) {
+            long minutesLate = ChronoUnit.MINUTES.between(hoatDong.getThoiGianBatDau(), checkInTime);
+            soPhutTre = (int) minutesLate;
+            if (hoatDong.getThoiGianTreToiDa() != null && minutesLate > hoatDong.getThoiGianTreToiDa()) {
+                trangThaiCheckIn = TrangThaiCheckInEnum.TRE_QUA_GIO;
+            } else {
+                trangThaiCheckIn = TrangThaiCheckInEnum.TRE_CHAP_NHAN;
+            }
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        DiemDanhHoatDong diemDanh = DiemDanhHoatDong.builder()
+                .hoatDong(hoatDong)
+                .sinhVien(dangKy.getSinhVien())
+                .maQRDaQuet(request.getMaQR())
+                .trangThai(TrangThaiThamGiaEnum.DA_THAM_GIA)  // không cần checkout → đạt ngay
+                .thoiGianCheckIn(now)
+                .trangThaiCheckIn(trangThaiCheckIn)
+                .soPhutTre(soPhutTre)
+                .nguoiCheckIn(nguoiXacNhan)
+                .thietBiQuet(request.getThietBi())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .thietBiCheckIn(request.getThietBi())
+                .latitudeCheckIn(request.getLatitude())
+                .longitudeCheckIn(request.getLongitude())
+                .ghiChu(request.getGhiChu())
+                .datThoiGianToiThieu(true)  // CHECKIN_ONLY không kiểm tra thời gian tối thiểu
+                .build();
+
+        diemDanh = diemDanhRepository.save(diemDanh);
+
+        dangKy.setTrangThai("DA_THAM_GIA");
+        dangKyRepository.save(dangKy);
+
+        log.info("CHECKIN_ONLY check-in: student={}, activity={}", dangKy.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
+        notificationService.sendNotification(
+                dangKy.getSinhVien().getMaSv(),
+                "Điểm danh thành công",
+                "Bạn đã điểm danh thành công hoạt động \"" + hoatDong.getTenHoatDong() + "\".",
+                "ATTENDANCE_CHECKIN",
+                hoatDong.getMaHoatDong()
+        );
+
+        return DiemDanhQRResponse.success("Điểm danh thành công", toDTO(diemDanh));
     }
 
     /**
@@ -333,6 +452,10 @@ public class DiemDanhHoatDongService {
         diemDanh.setThoiGianCheckOut(now);
         diemDanh.setNguoiCheckOut(nguoiCheckOut);
         diemDanh.setTrangThai(TrangThaiThamGiaEnum.DA_THAM_GIA);
+        // Ghi vào cột check-out riêng
+        diemDanh.setThietBiCheckOut(request.getThietBi());
+        diemDanh.setLatitudeCheckOut(request.getLatitude());
+        diemDanh.setLongitudeCheckOut(request.getLongitude());
 
         long minutesParticipated = ChronoUnit.MINUTES.between(diemDanh.getThoiGianCheckIn(), now);
         diemDanh.setTongThoiGianThamGia((int) minutesParticipated);
@@ -364,6 +487,15 @@ public class DiemDanhHoatDongService {
         diemDanh.setSoPhutVeSom(soPhutVeSom);
 
         diemDanh = diemDanhRepository.save(diemDanh);
+
+        // ✅ FIX: Cập nhật DangKyHoatDong.trangThai → DA_CHECK_OUT
+        dangKyRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(
+                diemDanh.getSinhVien().getMaSv(), hoatDong.getMaHoatDong()
+        ).ifPresent(dk -> {
+            dk.setTrangThai("DA_CHECK_OUT");
+            dangKyRepository.save(dk);
+        });
+
         log.info("QR checkout successful: student={}, activity={}", diemDanh.getSinhVien().getMaSv(), hoatDong.getMaHoatDong());
 
         notificationService.sendNotification(
@@ -382,11 +514,17 @@ public class DiemDanhHoatDongService {
      */
     private boolean isInCheckInWindow(HoatDong hoatDong, LocalDate today, LocalTime now) {
         if (Boolean.TRUE.equals(hoatDong.getKetThucSom())) return false;
+
+        boolean isActuallyRunning = hoatDong.getTrangThai() == TrangThaiHoatDongEnum.DANG_DIEN_RA;
+
+        // Nếu BCH đã bấm Bắt đầu → bỏ qua kiểm tra ngày và cửa sổ giờ
+        if (isActuallyRunning) return true;
+
         if (hoatDong.getNgayToChuc() != null && !today.equals(hoatDong.getNgayToChuc())) return false;
         if (hoatDong.getThoiGianBatDau() == null) return true;
 
         LocalTime earliest = hoatDong.getThoiGianBatDau()
-                .minusMinutes(hoatDong.getChoPhepCheckInSom() != null ? hoatDong.getChoPhepCheckInSom() : 0);
+                .minusMinutes(hoatDong.getChoPhepCheckInSom() != null ? hoatDong.getChoPhepCheckInSom() : 15);
         if (now.isBefore(earliest)) return false;
         if (hoatDong.getThoiGianKetThuc() != null && now.isAfter(hoatDong.getThoiGianKetThuc())) return false;
         return true;
@@ -407,12 +545,22 @@ public class DiemDanhHoatDongService {
             return !nowDt.isBefore(earlyEnd) && nowDt.isBefore(deadline);
         }
 
-        // Normal end: same day, after thoiGianKetThuc, within window
-        if (today.equals(hoatDong.getNgayToChuc()) && hoatDong.getThoiGianKetThuc() != null) {
+        // Normal end: same day (hoặc đang diễn ra sớm), after thoiGianKetThuc, within window
+        boolean onEventDay = today.equals(hoatDong.getNgayToChuc())
+                || hoatDong.getTrangThai() == TrangThaiHoatDongEnum.DANG_DIEN_RA;
+        if (onEventDay && hoatDong.getThoiGianKetThuc() != null) {
             if (now.isAfter(hoatDong.getThoiGianKetThuc())) {
                 LocalTime deadline = hoatDong.getThoiGianKetThuc().plusMinutes(allowedMinutes);
                 return now.isBefore(deadline);
             }
+        }
+
+        // Fallback: hoạt động không có giờ kết thúc (thoiGianKetThuc = null) nhưng đang DANG_DIEN_RA
+        // → cho phép checkout bất cứ lúc nào trong ngày tổ chức
+        if (hoatDong.getThoiGianKetThuc() == null
+                && hoatDong.getTrangThai() == TrangThaiHoatDongEnum.DANG_DIEN_RA
+                && (hoatDong.getNgayToChuc() == null || today.equals(hoatDong.getNgayToChuc()))) {
+            return true;
         }
 
         return false;
@@ -438,9 +586,9 @@ public class DiemDanhHoatDongService {
     public QRValidationResult validateQRCode(String maQR, String maHoatDong) {
         log.debug("Validating QR code: {} for activity: {}", maQR, maHoatDong);
 
-        // Check 1: Format
-        if (!qrCodeService.validateQRFormat(maQR)) {
-            return QRValidationResult.invalid("Mã QR không hợp lệ");
+        // Check 1: Không rỗng
+        if (maQR == null || maQR.isBlank()) {
+            return QRValidationResult.invalid("Mã QR không được để trống");
         }
 
         // Check 2: Tồn tại
@@ -503,8 +651,11 @@ public class DiemDanhHoatDongService {
             throw new RuntimeException("Đã check-out rồi");
         }
 
-        BCHDoanHoi nguoiCheckOut = bchRepository.findById(request.getMaBchXacNhan())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy BCH"));
+        // ✅ FIX: maBchXacNhan có thể null (admin checkout thủ công không cần BCH xác nhận)
+        BCHDoanHoi nguoiCheckOut = null;
+        if (request.getMaBchXacNhan() != null && !request.getMaBchXacNhan().isBlank()) {
+            nguoiCheckOut = bchRepository.findById(request.getMaBchXacNhan()).orElse(null);
+        }
 
         LocalDateTime now = LocalDateTime.now();
         diemDanh.setThoiGianCheckOut(now);
@@ -556,10 +707,22 @@ public class DiemDanhHoatDongService {
             }
         }
 
+        // ✅ FIX: Cập nhật trangThai = DA_THAM_GIA khi checkout thành công
+        diemDanh.setTrangThai(TrangThaiThamGiaEnum.DA_THAM_GIA);
         diemDanh.setTrangThaiCheckOut(trangThaiCheckOut);
         diemDanh.setSoPhutVeSom(soPhutVeSom);
+        // Tính giờ phục vụ dựa trên đạt thời gian tối thiểu
+        diemDanh.setTinhGioPhucVu(Boolean.TRUE.equals(diemDanh.getDatThoiGianToiThieu()));
 
         diemDanh = diemDanhRepository.save(diemDanh);
+
+        // ✅ FIX: Cập nhật DangKyHoatDong.trangThai → DA_CHECK_OUT
+        dangKyRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(
+                diemDanh.getSinhVien().getMaSv(), diemDanh.getHoatDong().getMaHoatDong()
+        ).ifPresent(dk -> {
+            dk.setTrangThai("DA_CHECK_OUT");
+            dangKyRepository.save(dk);
+        });
 
         log.info("Check-out successful: {}", diemDanh.getId());
         return toDTO(diemDanh);
@@ -574,6 +737,46 @@ public class DiemDanhHoatDongService {
 
         List<DiemDanhHoatDongDTO> attendanceList = getByActivity(maHoatDong);
         List<Map<String, Object>> notCheckedIn = getNotCheckedInStudents(maHoatDong);
+
+        // Tách riêng: sv đã thực sự check-in vs sv bị đánh vắng thủ công (VANG_MAT)
+        List<DiemDanhHoatDongDTO> manualAbsentList = attendanceList.stream()
+                .filter(a -> a.getTrangThai() == TrangThaiThamGiaEnum.VANG_MAT)
+                .collect(Collectors.toList());
+
+        // Sv có check-in VÀ có check-out → mới tính là đã tham gia
+        List<DiemDanhHoatDongDTO> checkedInList = attendanceList.stream()
+                .filter(a -> a.getTrangThai() != TrangThaiThamGiaEnum.VANG_MAT
+                          && a.getThoiGianCheckOut() != null)
+                .collect(Collectors.toList());
+
+        // Sv có check-in nhưng KHÔNG checkout → tính vắng mặt
+        List<DiemDanhHoatDongDTO> noCheckoutList = attendanceList.stream()
+                .filter(a -> a.getTrangThai() != TrangThaiThamGiaEnum.VANG_MAT
+                          && a.getThoiGianCheckOut() == null)
+                .collect(Collectors.toList());
+
+        // Sheet vắng = sv không có record + sv bị đánh vắng thủ công + sv không checkout
+        List<Map<String, Object>> allAbsentList = new java.util.ArrayList<>(notCheckedIn);
+        for (DiemDanhHoatDongDTO dto : manualAbsentList) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("maSv", dto.getMaSv());
+            m.put("hoTen", dto.getHoTenSinhVien());
+            m.put("lop", dto.getMaLop() != null ? dto.getMaLop() : "");
+            m.put("ngayDangKy", "");
+            m.put("ghiChu", dto.getGhiChu() != null ? dto.getGhiChu() : "Đánh vắng thủ công");
+            allAbsentList.add(m);
+        }
+        for (DiemDanhHoatDongDTO dto : noCheckoutList) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("maSv", dto.getMaSv());
+            m.put("hoTen", dto.getHoTenSinhVien());
+            m.put("lop", dto.getMaLop() != null ? dto.getMaLop() : "");
+            m.put("ngayDangKy", dto.getThoiGianCheckIn() != null
+                    ? dto.getThoiGianCheckIn().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss dd/MM/yyyy"))
+                    : "");
+            m.put("ghiChu", "Có check-in nhưng không checkout");
+            allAbsentList.add(m);
+        }
 
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
@@ -656,24 +859,24 @@ public class DiemDanhHoatDongService {
 
             // ── Tính toán dữ liệu thống kê ───────────────────────────────────────────
             long tongDangKy = attendanceList.size() + notCheckedIn.size();
-            long daThamGia = attendanceList.stream()
+            long daThamGia = checkedInList.stream()
                     .filter(a -> a.getTrangThai() == TrangThaiThamGiaEnum.DA_THAM_GIA).count();
-            long diTre = attendanceList.stream()
+            long diTre = checkedInList.stream()
                     .filter(a -> a.getSoPhutTre() != null && a.getSoPhutTre() > 0).count();
-            long veSom = attendanceList.stream()
+            long veSom = checkedInList.stream()
                     .filter(a -> a.getSoPhutVeSom() != null && a.getSoPhutVeSom() > 0).count();
-            long vangMat = notCheckedIn.size();
+            long vangMat = allAbsentList.size(); // = notCheckedIn + manualAbsent
 
             // Gom nhóm theo lớp (maLop)
             // Dùng LinkedHashMap để giữ thứ tự chèn (sắp xếp ổn định)
             Map<String, long[]> statsByLop = new LinkedHashMap<>(); // [0]=đăng ký, [1]=tham gia
-            attendanceList.forEach(a -> {
+            checkedInList.forEach(a -> {
                 String lop = a.getMaLop() != null && !a.getMaLop().isBlank() ? a.getMaLop() : "Chưa rõ lớp";
                 statsByLop.computeIfAbsent(lop, k -> new long[]{0, 0});
                 statsByLop.get(lop)[0]++;
                 if (a.getTrangThai() == TrangThaiThamGiaEnum.DA_THAM_GIA) statsByLop.get(lop)[1]++;
             });
-            notCheckedIn.forEach(m -> {
+            allAbsentList.forEach(m -> {
                 String lop = m.get("lop") != null ? String.valueOf(m.get("lop")) : "Chưa rõ lớp";
                 statsByLop.computeIfAbsent(lop, k -> new long[]{0, 0});
                 statsByLop.get(lop)[0]++;
@@ -732,14 +935,16 @@ public class DiemDanhHoatDongService {
 
             String[][] summary = {
                 {"Tổng sinh viên đăng ký",  String.valueOf(tongDangKy)},
-                {"Đã tham gia (đúng giờ + trễ)", String.valueOf(attendanceList.size())},
-                {"  Trong đó: đúng giờ",    String.valueOf(attendanceList.size() - diTre)},
+                {"Đã tham gia (đúng giờ + trễ)", String.valueOf(checkedInList.size())},
+                {"  Trong đó: đúng giờ",    String.valueOf(checkedInList.size() - diTre)},
                 {"  Trong đó: đến trễ",     String.valueOf(diTre)},
                 {"  Trong đó: về sớm",      String.valueOf(veSom)},
                 {"  Đạt thời gian tối thiểu", String.valueOf(daThamGia)},
-                {"Vắng mặt (không quét QR)", String.valueOf(vangMat)},
+                {"Vắng mặt (tổng)", String.valueOf(vangMat)},
+                {"  Trong đó: không quét QR", String.valueOf(notCheckedIn.size())},
+                {"  Trong đó: đánh vắng thủ công", String.valueOf(manualAbsentList.size())},
                 {"Tỷ lệ tham gia",           tongDangKy > 0
-                        ? String.format("%.1f%%", (double) attendanceList.size() / tongDangKy * 100)
+                        ? String.format("%.1f%%", (double) checkedInList.size() / tongDangKy * 100)
                         : "0%"},
                 {"Tỷ lệ đạt điểm",           tongDangKy > 0
                         ? String.format("%.1f%%", (double) daThamGia / tongDangKy * 100)
@@ -807,22 +1012,30 @@ public class DiemDanhHoatDongService {
                 Cell cTotalLabel = rTotal.createCell(0); cTotalLabel.setCellValue("TỔNG"); cTotalLabel.setCellStyle(totalStyle);
                 Cell cTotalEmpty = rTotal.createCell(1); cTotalEmpty.setCellValue(""); cTotalEmpty.setCellStyle(totalStyle);
                 Cell cTotalReg = rTotal.createCell(2); cTotalReg.setCellValue(tongDangKy); cTotalReg.setCellStyle(totalStyle);
-                Cell cTotalAtt = rTotal.createCell(3); cTotalAtt.setCellValue(attendanceList.size()); cTotalAtt.setCellStyle(totalStyle);
+                Cell cTotalAtt = rTotal.createCell(3); cTotalAtt.setCellValue(checkedInList.size()); cTotalAtt.setCellStyle(totalStyle);
                 Cell cTotalAbs = rTotal.createCell(4); cTotalAbs.setCellValue(vangMat); cTotalAbs.setCellStyle(totalStyle);
-                double totalRate = tongDangKy > 0 ? (double) attendanceList.size() / tongDangKy * 100 : 0;
+                double totalRate = tongDangKy > 0 ? (double) checkedInList.size() / tongDangKy * 100 : 0;
                 Cell cTotalRate = rTotal.createCell(5); cTotalRate.setCellValue(String.format("%.1f%%", totalRate)); cTotalRate.setCellStyle(totalStyle);
             }
+
+            // Build cache maLop → tenKhoa từ DB (1 query, tránh N+1)
+            Map<String, String> lopKhoaCache = new HashMap<>();
+            lopRepository.findAll().forEach(lop -> {
+                if (lop.getMaKhoa() != null && lop.getMaKhoa().getTenKhoa() != null) {
+                    lopKhoaCache.put(lop.getMaLop(), lop.getMaKhoa().getTenKhoa());
+                }
+            });
 
             // ════════════════════════════════════════════════════════════════════════
             // SHEET 2: Danh sách đã check-in
             // ════════════════════════════════════════════════════════════════════════
-            Sheet sheetCI = wb.createSheet("Đã điểm danh (" + attendanceList.size() + ")");
+            Sheet sheetCI = wb.createSheet("Đã điểm danh (" + checkedInList.size() + ")");
 
-            int[] ciWidths = {2000, 5000, 10000, 6000, 8000, 6000, 8000, 6000, 7000, 4000, 5000, 7000};
+            int[] ciWidths = {2000, 5000, 10000, 5000, 8000, 8000, 6000, 8000, 6000, 7000, 4000, 5000, 7000};
             for (int i = 0; i < ciWidths.length; i++) sheetCI.setColumnWidth(i, ciWidths[i]);
 
             String[] ciCols = {
-                "STT", "Mã SV", "Họ và tên", "Lớp",
+                "STT", "Mã SV", "Họ và tên", "Lớp", "Khoa",
                 "Giờ check-in", "TT check-in", "Giờ check-out", "TT check-out",
                 "Trễ (phút)", "Về sớm (phút)", "Đạt TG tối thiểu", "Ghi chú"
             };
@@ -834,7 +1047,7 @@ public class DiemDanhHoatDongService {
             }
 
             int ciRow = 1;
-            for (DiemDanhHoatDongDTO dto : attendanceList) {
+            for (DiemDanhHoatDongDTO dto : checkedInList) {
                 Row r = sheetCI.createRow(ciRow++);
                 boolean isLate = dto.getSoPhutTre() != null && dto.getSoPhutTre() > 0;
                 CellStyle rowStyle = isLate ? lateStyle : dataStyle;
@@ -844,29 +1057,30 @@ public class DiemDanhHoatDongService {
                 setCell(r, 1, dto.getMaSv(), rowCenterStyle);
                 setCell(r, 2, dto.getHoTenSinhVien(), rowStyle);
                 setCell(r, 3, dto.getMaLop(), rowCenterStyle);
-                setCell(r, 4, dto.getThoiGianCheckIn() != null
+                setCell(r, 4, dto.getTenKhoa() != null ? dto.getTenKhoa() : getKhoaFromLop(dto.getMaLop(), lopKhoaCache), rowStyle);
+                setCell(r, 5, dto.getThoiGianCheckIn() != null
                         ? dto.getThoiGianCheckIn().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss dd/MM/yyyy"))
                         : "", rowCenterStyle);
-                setCell(r, 5, dto.getTrangThaiCheckIn() != null ? dto.getTrangThaiCheckIn() : "", rowCenterStyle);
-                setCell(r, 6, dto.getThoiGianCheckOut() != null
+                setCell(r, 6, dto.getTrangThaiCheckIn() != null ? dto.getTrangThaiCheckIn() : "", rowCenterStyle);
+                setCell(r, 7, dto.getThoiGianCheckOut() != null
                         ? dto.getThoiGianCheckOut().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss dd/MM/yyyy"))
                         : "", rowCenterStyle);
-                setCell(r, 7, dto.getTrangThaiCheckOut() != null ? dto.getTrangThaiCheckOut() : "", rowCenterStyle);
-                setCell(r, 8, dto.getSoPhutTre() != null ? dto.getSoPhutTre() : 0, rowCenterStyle);
-                setCell(r, 9, dto.getSoPhutVeSom() != null ? dto.getSoPhutVeSom() : 0, rowCenterStyle);
-                setCell(r, 10, Boolean.TRUE.equals(dto.getDatThoiGianToiThieu()) ? "Đạt" : "Chưa đạt", rowCenterStyle);
-                setCell(r, 11, dto.getGhiChu() != null ? dto.getGhiChu() : "", rowStyle);
+                setCell(r, 8, dto.getTrangThaiCheckOut() != null ? dto.getTrangThaiCheckOut() : "", rowCenterStyle);
+                setCell(r, 9, dto.getSoPhutTre() != null ? dto.getSoPhutTre() : 0, rowCenterStyle);
+                setCell(r, 10, dto.getSoPhutVeSom() != null ? dto.getSoPhutVeSom() : 0, rowCenterStyle);
+                setCell(r, 11, Boolean.TRUE.equals(dto.getDatThoiGianToiThieu()) ? "Đạt" : "Chưa đạt", rowCenterStyle);
+                setCell(r, 12, dto.getGhiChu() != null ? dto.getGhiChu() : "", rowStyle);
             }
 
             // ════════════════════════════════════════════════════════════════════════
             // SHEET 3: Danh sách vắng mặt
             // ════════════════════════════════════════════════════════════════════════
-            Sheet sheetVM = wb.createSheet("Vắng mặt (" + notCheckedIn.size() + ")");
+            Sheet sheetVM = wb.createSheet("Vắng mặt (" + allAbsentList.size() + ")");
 
-            int[] vmWidths = {2000, 5000, 10000, 6000, 9000};
+            int[] vmWidths = {2000, 5000, 10000, 5000, 8000, 9000, 9000};
             for (int i = 0; i < vmWidths.length; i++) sheetVM.setColumnWidth(i, vmWidths[i]);
 
-            String[] vmCols = {"STT", "Mã SV", "Họ và tên", "Lớp", "Ngày đăng ký"};
+            String[] vmCols = {"STT", "Mã SV", "Họ và tên", "Lớp", "Khoa", "Ngày đăng ký", "Ghi chú"};
             Row vmHeader = sheetVM.createRow(0);
             for (int i = 0; i < vmCols.length; i++) {
                 Cell c = vmHeader.createCell(i);
@@ -889,15 +1103,88 @@ public class DiemDanhHoatDongService {
             }
 
             int vmRow = 1;
-            for (Map<String, Object> m : notCheckedIn) {
+            for (Map<String, Object> m : allAbsentList) {
                 Row r = sheetVM.createRow(vmRow++);
                 setCell(r, 0, vmRow - 1, absentStyle);
                 setCell(r, 1, String.valueOf(m.getOrDefault("maSv", "")), absentStyle);
                 setCell(r, 2, String.valueOf(m.getOrDefault("hoTen", "")), absentStyle);
                 setCell(r, 3, String.valueOf(m.getOrDefault("lop", "")), absentStyle);
+                setCell(r, 4, getKhoaFromLop(String.valueOf(m.getOrDefault("lop", "")), lopKhoaCache), absentStyle);
                 Object ngayDK = m.get("ngayDangKy");
-                setCell(r, 4, ngayDK != null ? ngayDK.toString() : "", absentStyle);
+                setCell(r, 5, ngayDK != null ? ngayDK.toString() : "", absentStyle);
+                setCell(r, 6, String.valueOf(m.getOrDefault("ghiChu", "")), absentStyle);
             }
+
+            // ════════════════════════════════════════════════════════════════════════
+            // SHEET 4: Tỷ lệ theo Khoa
+            // ════════════════════════════════════════════════════════════════════════
+            Sheet sheetKhoa = wb.createSheet("Tỷ lệ theo Khoa");
+            sheetKhoa.setColumnWidth(0, 2000);
+            sheetKhoa.setColumnWidth(1, 14000);
+            sheetKhoa.setColumnWidth(2, 5000);
+            sheetKhoa.setColumnWidth(3, 4000);
+            sheetKhoa.setColumnWidth(4, 4000);
+            sheetKhoa.setColumnWidth(5, 6000);
+
+            // Header
+            Row khoaHeader = sheetKhoa.createRow(0);
+            String[] khoaCols = {"STT", "Khoa / Ngành", "Tổng đăng ký", "Có mặt", "Vắng mặt", "Tỷ lệ có mặt (%)"};
+            for (int i = 0; i < khoaCols.length; i++) {
+                Cell c = khoaHeader.createCell(i);
+                c.setCellValue(khoaCols[i]);
+                c.setCellStyle(headerStyle);
+            }
+
+            // Tính thống kê theo khoa
+            Map<String, long[]> statsByKhoa = new LinkedHashMap<>(); // [0]=đăng ký, [1]=có mặt
+            for (DiemDanhHoatDongDTO dto : checkedInList) {
+                String khoa = getKhoaFromLop(dto.getMaLop(), lopKhoaCache);
+                statsByKhoa.computeIfAbsent(khoa, k -> new long[]{0, 0});
+                statsByKhoa.get(khoa)[0]++;
+                statsByKhoa.get(khoa)[1]++;
+            }
+            for (Map<String, Object> m : allAbsentList) {
+                String lop = m.get("lop") != null ? String.valueOf(m.get("lop")) : "";
+                String khoa = getKhoaFromLop(lop, lopKhoaCache);
+                statsByKhoa.computeIfAbsent(khoa, k -> new long[]{0, 0});
+                statsByKhoa.get(khoa)[0]++;
+            }
+
+            List<Map.Entry<String, long[]>> sortedKhoa = statsByKhoa.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .collect(Collectors.toList());
+
+            int khoaRow = 1;
+            for (Map.Entry<String, long[]> entry : sortedKhoa) {
+                Row r = sheetKhoa.createRow(khoaRow++);
+                long[] v = entry.getValue();
+                long vangKhoa = v[0] - v[1];
+                double rateKhoa = v[0] > 0 ? (double) v[1] / v[0] * 100 : 0;
+                Cell c0 = r.createCell(0); c0.setCellValue(khoaRow - 1); c0.setCellStyle(dataCenterStyle);
+                Cell c1 = r.createCell(1); c1.setCellValue(entry.getKey()); c1.setCellStyle(dataStyle);
+                Cell c2 = r.createCell(2); c2.setCellValue(v[0]); c2.setCellStyle(dataCenterStyle);
+                Cell c3 = r.createCell(3); c3.setCellValue(v[1]); c3.setCellStyle(dataCenterStyle);
+                Cell c4 = r.createCell(4); c4.setCellValue(vangKhoa); c4.setCellStyle(dataCenterStyle);
+                Cell c5 = r.createCell(5); c5.setCellValue(String.format("%.1f%%", rateKhoa)); c5.setCellStyle(dataCenterStyle);
+            }
+
+            // Dòng tổng
+            Row khoaTotal = sheetKhoa.createRow(khoaRow);
+            CellStyle khoaTotalStyle = wb.createCellStyle();
+            Font khoaTotalFont = wb.createFont(); khoaTotalFont.setBold(true);
+            khoaTotalStyle.setFont(khoaTotalFont);
+            khoaTotalStyle.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+            khoaTotalStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            khoaTotalStyle.setBorderBottom(BorderStyle.THIN); khoaTotalStyle.setBorderTop(BorderStyle.THIN);
+            khoaTotalStyle.setBorderLeft(BorderStyle.THIN);  khoaTotalStyle.setBorderRight(BorderStyle.THIN);
+            khoaTotalStyle.setAlignment(HorizontalAlignment.CENTER);
+            Cell kt0 = khoaTotal.createCell(0); kt0.setCellValue(""); kt0.setCellStyle(khoaTotalStyle);
+            Cell kt1 = khoaTotal.createCell(1); kt1.setCellValue("TỔNG CỘNG"); kt1.setCellStyle(khoaTotalStyle);
+            Cell kt2 = khoaTotal.createCell(2); kt2.setCellValue(tongDangKy); kt2.setCellStyle(khoaTotalStyle);
+            Cell kt3 = khoaTotal.createCell(3); kt3.setCellValue(checkedInList.size()); kt3.setCellStyle(khoaTotalStyle);
+            Cell kt4 = khoaTotal.createCell(4); kt4.setCellValue(allAbsentList.size()); kt4.setCellStyle(khoaTotalStyle);
+            double totalRateKhoa = tongDangKy > 0 ? (double) checkedInList.size() / tongDangKy * 100 : 0;
+            Cell kt5 = khoaTotal.createCell(5); kt5.setCellValue(String.format("%.1f%%", totalRateKhoa)); kt5.setCellStyle(khoaTotalStyle);
 
             wb.write(out);
             return new ByteArrayInputStream(out.toByteArray());
@@ -909,6 +1196,12 @@ public class DiemDanhHoatDongService {
         Cell c = row.createCell(col);
         c.setCellValue(value != null ? value : "");
         c.setCellStyle(style);
+    }
+
+    /** Tra tên khoa từ mã lớp qua DB. lopKhoaCache: maLop → tenKhoa (truyền vào để tránh query N+1) */
+    private String getKhoaFromLop(String maLop, Map<String, String> lopKhoaCache) {
+        if (maLop == null || maLop.isBlank()) return "Chưa rõ khoa";
+        return lopKhoaCache.getOrDefault(maLop, "Chưa rõ khoa");
     }
 
     /** Helper: ghi giá trị số nguyên vào cell với style */
@@ -932,6 +1225,76 @@ public class DiemDanhHoatDongService {
         return diemDanhRepository.findCheckedInStudents(maHoatDong).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Thêm sinh viên vào danh sách điểm danh theo MSSV — chỉ dành cho admin.
+     * Nếu SV đã có record trong activity → cập nhật trangThai thành DA_THAM_GIA.
+     * Nếu chưa có → tạo record mới với check-in/out = now.
+     */
+    @Transactional
+    public DiemDanhHoatDongDTO themThuCongTheoMSSV(String maHoatDong, String maSv,
+                                                    String ghiChu, String nguoiThucHien) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new com.tathanhloc.youthkgu.Exception.BusinessException(
+                        "NOT_FOUND", "Không tìm thấy hoạt động: " + maHoatDong));
+        SinhVien sinhVien = sinhVienRepository.findByMaSv(maSv)
+                .orElseThrow(() -> new com.tathanhloc.youthkgu.Exception.BusinessException(
+                        "NOT_FOUND", "Không tìm thấy sinh viên MSSV: " + maSv));
+
+        String note = (ghiChu != null && !ghiChu.isBlank())
+                ? ghiChu : "Thêm thủ công bởi " + nguoiThucHien;
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // 1. Tạo hoặc cập nhật DangKyHoatDong để SV xuất hiện trong danh sách đăng ký
+        Optional<DangKyHoatDong> dangKyOpt =
+                dangKyRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, maHoatDong);
+        if (dangKyOpt.isEmpty()) {
+            DangKyHoatDongId dkId = new DangKyHoatDongId(maSv, maHoatDong);
+            DangKyHoatDong dk = DangKyHoatDong.builder()
+                    .id(dkId)
+                    .sinhVien(sinhVien)
+                    .hoatDong(hoatDong)
+                    .maQR("MANUAL_" + maHoatDong + "_" + maSv)
+                    .trangThai("DA_THAM_GIA")
+                    .ghiChu("[Bổ sung thủ công] " + note)
+                    .isActive(true)
+                    .build();
+            dangKyRepository.save(dk);
+        } else {
+            DangKyHoatDong dk = dangKyOpt.get();
+            dk.setTrangThai("DA_THAM_GIA");
+            dangKyRepository.save(dk);
+        }
+
+        // 2. Tạo hoặc cập nhật DiemDanhHoatDong
+        Optional<DiemDanhHoatDong> existing =
+                diemDanhRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, maHoatDong);
+
+        DiemDanhHoatDong dd;
+        if (existing.isPresent()) {
+            dd = existing.get();
+            dd.setTrangThai(TrangThaiThamGiaEnum.DA_THAM_GIA);
+            if (dd.getThoiGianCheckIn() == null) dd.setThoiGianCheckIn(now);
+            if (dd.getThoiGianCheckOut() == null) dd.setThoiGianCheckOut(now);
+            dd.setGhiChu(note);
+        } else {
+            dd = DiemDanhHoatDong.builder()
+                    .hoatDong(hoatDong)
+                    .sinhVien(sinhVien)
+                    .maQRDaQuet("MANUAL_" + maHoatDong + "_" + maSv)
+                    .trangThai(TrangThaiThamGiaEnum.DA_THAM_GIA)
+                    .thoiGianCheckIn(now)
+                    .thoiGianCheckOut(now)
+                    .trangThaiCheckIn(TrangThaiCheckInEnum.TU_DONG)
+                    .datThoiGianToiThieu(true)
+                    .ghiChu(note)
+                    .build();
+        }
+        dd = diemDanhRepository.save(dd);
+        log.info("Thêm thủ công SV {} vào HĐ {} bởi {}", maSv, maHoatDong, nguoiThucHien);
+        return toDTO(dd);
     }
 
     @Transactional(readOnly = true)
@@ -1016,9 +1379,10 @@ public class DiemDanhHoatDongService {
     public AttendanceStatisticsDTO getAttendanceStatisticsOverview() {
         log.debug("Getting overall attendance statistics");
 
-        long totalAttendance = diemDanhRepository.count();
-        long successful = diemDanhRepository.countByHoatDongMaHoatDongAndTrangThai(null, TrangThaiThamGiaEnum.DA_THAM_GIA);
-        long absent = diemDanhRepository.countByHoatDongMaHoatDongAndTrangThai(null, TrangThaiThamGiaEnum.VANG_MAT);
+        long totalAttendance = diemDanhRepository.countAll();
+        // ✅ FIX: dùng countByTrangThai thay vì countByHoatDongMaHoatDongAndTrangThai(null, ...)
+        long successful = diemDanhRepository.countByTrangThai(TrangThaiThamGiaEnum.DA_THAM_GIA);
+        long absent = diemDanhRepository.countByTrangThai(TrangThaiThamGiaEnum.VANG_MAT);
 
         double presentRate = totalAttendance > 0 ? (double) successful / totalAttendance * 100 : 0;
         double absentRate = totalAttendance > 0 ? (double) absent / totalAttendance * 100 : 0;
@@ -1102,6 +1466,61 @@ public class DiemDanhHoatDongService {
         return results;
     }
 
+    /**
+     * Thêm thủ công 1 sinh viên CHƯA đăng ký vào hoạt động đã kết thúc (tính năng ẩn).
+     * Tạo luôn DangKyHoatDong + DiemDanhHoatDong với trạng thái DA_THAM_GIA.
+     */
+    @Transactional
+    public DiemDanhHoatDongDTO manualAddUnregistered(String maSv, String maHoatDong, String ghiChu) {
+        log.info("Manual add unregistered: student={}, activity={}", maSv, maHoatDong);
+
+        SinhVien sinhVien = sinhVienRepository.findById(maSv)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên: " + maSv));
+
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        // Kiểm tra đã có điểm danh chưa
+        if (diemDanhRepository.existsBySinhVienMaSvAndHoatDongMaHoatDong(maSv, maHoatDong)) {
+            throw new RuntimeException("Sinh viên này đã có bản ghi điểm danh trong hoạt động");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // Tạo DangKyHoatDong nếu chưa có
+        boolean hasDangKy = dangKyRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, maHoatDong).isPresent();
+        if (!hasDangKy) {
+            DangKyHoatDongId dkId = new DangKyHoatDongId(maSv, maHoatDong);
+            DangKyHoatDong dk = DangKyHoatDong.builder()
+                    .id(dkId)
+                    .sinhVien(sinhVien)
+                    .hoatDong(hoatDong)
+                    .maQR(maHoatDong + maSv)
+                    .trangThai("DA_THAM_GIA")
+                    .ghiChu("[Bổ sung thủ công]")
+                    .isActive(true)
+                    .build();
+            dangKyRepository.save(dk);
+        }
+
+        // Tạo DiemDanhHoatDong
+        DiemDanhHoatDong dd = DiemDanhHoatDong.builder()
+                .hoatDong(hoatDong)
+                .sinhVien(sinhVien)
+                .maQRDaQuet("MANUAL_ADD")
+                .trangThai(TrangThaiThamGiaEnum.DA_THAM_GIA)
+                .thoiGianCheckIn(now)
+                .trangThaiCheckIn(TrangThaiCheckInEnum.DUNG_GIO)
+                .soPhutTre(0)
+                .datThoiGianToiThieu(true)
+                .ghiChu(ghiChu != null && !ghiChu.isBlank() ? ghiChu : "Bổ sung thủ công sau khi kết thúc")
+                .build();
+
+        dd = diemDanhRepository.save(dd);
+        log.info("Manual add unregistered OK: student={}, activity={}", maSv, maHoatDong);
+        return toDTO(dd);
+    }
+
     @Transactional
     public void markAbsent(String maSv, String maHoatDong, String ghiChu) {
         log.info("Marking student as absent: student={}, activity={}", maSv, maHoatDong);
@@ -1147,6 +1566,72 @@ public class DiemDanhHoatDongService {
         log.info("Attendance record deleted: {}", diemDanhId);
     }
 
+    // ========== ATTENDANCE SELECTION PAGE ==========
+
+    /**
+     * Lấy danh sách hoạt động kèm thống kê điểm danh để hiển thị trang chọn hoạt động điểm danh.
+     *
+     * @param filter "dang_dien_ra" | "sap_bat_dau" | "hom_nay" (default) | "tat_ca"
+     */
+    public List<ActivityAttendanceOverviewDTO> getActivitiesForAttendance(String filter) {
+        LocalDate today = LocalDate.now();
+        List<HoatDong> activities;
+
+        switch (filter != null ? filter.toLowerCase() : "hom_nay") {
+            case "dang_dien_ra":
+                activities = hoatDongRepository.findByTrangThaiAndIsActive(
+                        TrangThaiHoatDongEnum.DANG_DIEN_RA, true);
+                break;
+            case "sap_bat_dau":
+                // Bao gồm cả SAP_DIEN_RA và DANG_MO_DANG_KY (chưa diễn ra)
+                List<HoatDong> sap = hoatDongRepository.findByTrangThaiAndIsActive(
+                        TrangThaiHoatDongEnum.SAP_DIEN_RA, true);
+                List<HoatDong> dangMo = hoatDongRepository.findByTrangThaiAndIsActive(
+                        TrangThaiHoatDongEnum.DANG_MO_DANG_KY, true);
+                activities = new ArrayList<>(sap);
+                activities.addAll(dangMo);
+                activities.sort(Comparator.comparing(HoatDong::getNgayToChuc)
+                        .thenComparing(hd -> hd.getGioToChuc() != null ? hd.getGioToChuc() : LocalTime.MIN));
+                break;
+            case "tat_ca":
+                activities = hoatDongRepository.findByIsActiveTrue().stream()
+                        .filter(hd -> hd.getTrangThai() != TrangThaiHoatDongEnum.DA_HUY
+                                && hd.getTrangThai() != TrangThaiHoatDongEnum.DA_HOAN_THANH)
+                        .sorted(Comparator.comparing(HoatDong::getNgayToChuc).reversed())
+                        .collect(Collectors.toList());
+                break;
+            case "hom_nay":
+            default:
+                activities = hoatDongRepository.findOngoingActivities(today);
+                break;
+        }
+
+        return activities.stream()
+                .map(hd -> {
+                    long soLuongDangKy = dangKyRepository
+                            .countByHoatDongMaHoatDongAndIsActiveTrue(hd.getMaHoatDong());
+                    long soLuongDaDiemDanh = diemDanhRepository
+                            .countByHoatDongMaHoatDong(hd.getMaHoatDong());
+                    return ActivityAttendanceOverviewDTO.builder()
+                            .maHoatDong(hd.getMaHoatDong())
+                            .tenHoatDong(hd.getTenHoatDong())
+                            .ngayToChuc(hd.getNgayToChuc())
+                            .gioToChuc(hd.getGioToChuc())
+                            .thoiGianBatDau(hd.getThoiGianBatDau())
+                            .thoiGianKetThuc(hd.getThoiGianKetThuc())
+                            .diaDiem(hd.getDiaDiem())
+                            .trangThai(hd.getTrangThai())
+                            .loaiHoatDong(hd.getLoaiHoatDong())
+                            .cheDoDiemDanh(hd.getCheDoDiemDanh())
+                            .soLuongDangKy(soLuongDangKy)
+                            .soLuongDaDiemDanh(soLuongDaDiemDanh)
+                            .diemRenLuyen(hd.getDiemRenLuyen())
+                            .maDanhMucRenLuyen(hd.getMaDanhMucRenLuyen())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
     // ========== MAPPING METHODS ==========
 
     private DiemDanhHoatDongDTO toDTO(DiemDanhHoatDong entity) {
@@ -1161,6 +1646,8 @@ public class DiemDanhHoatDongService {
                 .emailSinhVien(entity.getSinhVien().getEmail())
                 .maLop(entity.getSinhVien().getLop() != null ? entity.getSinhVien().getLop().getMaLop() : null)
                 .tenLop(entity.getSinhVien().getLop() != null ? entity.getSinhVien().getLop().getTenLop() : null)
+                .tenKhoa(entity.getSinhVien().getLop() != null && entity.getSinhVien().getLop().getMaKhoa() != null
+                        ? entity.getSinhVien().getLop().getMaKhoa().getTenKhoa() : null)
                 .maQRDaQuet(entity.getMaQRDaQuet())
                 .trangThai(entity.getTrangThai())
                 .thoiGianCheckIn(entity.getThoiGianCheckIn())

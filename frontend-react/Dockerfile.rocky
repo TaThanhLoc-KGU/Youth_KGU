@@ -1,0 +1,50 @@
+# ============================================================
+# Dockerfile for React Frontend (Rocky Linux 9)
+# ============================================================
+
+# Stage 1: Build stage
+FROM rockylinux:9 AS builder
+
+# Install Node.js 20 and npm
+RUN dnf module enable -y nodejs:20 && dnf install -y nodejs npm && dnf clean all
+
+WORKDIR /build
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# ============================================================
+# Stage 2: Runtime stage
+FROM rockylinux:9
+
+# Install Node.js 20 for 'serve' and curl for healthcheck
+RUN dnf module enable -y nodejs:20 && dnf install -y nodejs npm curl && dnf clean all
+
+# Install serve to run static files
+RUN npm install -g serve
+
+WORKDIR /app
+
+# Copy built files from builder stage
+COPY --from=builder /build/dist ./dist
+
+# Cấp quyền đọc cho tất cả file (Sửa lỗi 403)
+RUN chmod -R 755 ./dist
+
+# Expose port 3000
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD curl -f http://localhost:3000 || exit 1
+
+# Run the application
+CMD ["serve", "-s", "dist", "-l", "3000"]

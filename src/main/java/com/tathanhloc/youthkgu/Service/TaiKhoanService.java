@@ -128,6 +128,7 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
                 .createdAt(tk.getCreatedAt())
                 .maSv(tk.getSinhVien() != null ? tk.getSinhVien().getMaSv() : null)
                 .maGv(tk.getGiangVien() != null ? tk.getGiangVien().getMaGv() : null)
+                .laAdmin(tk.getLaAdmin())
                 .build();
     }
 
@@ -146,6 +147,7 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
                 .createdAt(dto.getCreatedAt())
                 .sinhVien(sv)
                 .giangVien(gv)
+                .laAdmin(Boolean.TRUE.equals(dto.getLaAdmin()))
                 .build();
     }
 

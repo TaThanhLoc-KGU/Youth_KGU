@@ -29,7 +29,7 @@ public class BaoCaoController {
 
     @GetMapping("/dashboard")
     @Operation(summary = "Dashboard thống kê tổng hợp")
-    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboard() {
         log.info("GET /api/baocao/dashboard");
         return ResponseEntity.ok(ApiResponse.success(statisticsService.getDashboardData()));
@@ -37,7 +37,7 @@ public class BaoCaoController {
 
     @GetMapping("/xuat/{type}")
     @Operation(summary = "Xuất báo cáo ra file Excel")
-    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<InputStreamResource> exportReport(
             @PathVariable String type,
             @RequestParam(required = false) String from,
@@ -80,7 +80,7 @@ public class BaoCaoController {
 
     @GetMapping("/thongke")
     @Operation(summary = "Xem thống kê tổng quan")
-    @PreAuthorize("hasPermission(null, 'XEM_THONG_KE')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getGeneralStatistics() {
         log.info("GET /api/baocao/thongke");
         Map<String, Object> stats = statisticsService.getGeneralStatistics();
@@ -89,7 +89,7 @@ public class BaoCaoController {
 
     @GetMapping("/{type}")
     @Operation(summary = "Xem báo cáo chi tiết theo loại")
-    @PreAuthorize("hasPermission(null, 'XEM_BAO_CAO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getReportByType(
             @PathVariable String type,
             @RequestParam(required = false) String from,

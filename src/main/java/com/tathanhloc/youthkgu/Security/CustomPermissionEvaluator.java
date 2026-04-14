@@ -1,6 +1,5 @@
 package com.tathanhloc.youthkgu.Security;
 
-import com.tathanhloc.youthkgu.DTO.AccountPermissionDTO;
 import com.tathanhloc.youthkgu.Service.PermissionService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -26,36 +25,34 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
             return false;
         }
 
-        // ADMIN role always has permission
-        boolean isAdmin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        if (isAdmin) {
+        // ROLE_ADMIN (QUAN_LY + laAdmin=true) luôn có tàn quyền
+        if (authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
             return true;
         }
 
         String username = authentication.getName();
-        if (username == null) {
-            return false;
-        }
+        if (username == null) return false;
 
         String permissionName = (String) permission;
 
-        // Cache permissions in request attribute to avoid multiple DB calls per request
+        // Cache permissions trong request scope để tránh nhiều lần query DB
         @SuppressWarnings("unchecked")
-        Set<String> permissions = (Set<String>) request.getAttribute("USER_PERMISSIONS");
+        Set<String> cachedPerms = (Set<String>) request.getAttribute("USER_PERMISSIONS");
 
-        if (permissions == null) {
+        if (cachedPerms == null) {
             try {
-                AccountPermissionDTO dto = permissionService.getMyPermissions(username);
-                permissions = dto.getQuyenTongHop();
-                request.setAttribute("USER_PERMISSIONS", permissions);
+                Set<String> loaded = permissionService.getEffectivePermissions(username);
+                // null = admin (không nên xảy ra ở đây vì đã check ROLE_ADMIN ở trên)
+                cachedPerms = (loaded != null) ? loaded : new java.util.HashSet<>();
+                request.setAttribute("USER_PERMISSIONS", cachedPerms);
             } catch (Exception e) {
                 log.error("Error loading permissions for user {}: {}", username, e.getMessage());
                 return false;
             }
         }
 
-        return permissions.contains(permissionName);
+        return cachedPerms.contains(permissionName);
     }
 
     @Override

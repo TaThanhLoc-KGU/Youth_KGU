@@ -97,6 +97,17 @@ const attendanceService = {
     }
   },
 
+  // Manual add unregistered student (hidden feature)
+  manualAddUnregistered: async (maSv, maHoatDong, ghiChu = '') => {
+    try {
+      const response = await api.post('/api/diem-danh/manual-add-unregistered', { maSv, maHoatDong, ghiChu });
+      return response.data;
+    } catch (error) {
+      console.error('Error manual-adding student:', error);
+      throw error;
+    }
+  },
+
   // Delete attendance record
   delete: async (id) => {
     try {

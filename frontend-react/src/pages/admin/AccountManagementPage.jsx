@@ -1,9 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+
+const PAGE_SIZE = 20;
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
 import accountService from '../../services/accountService';
-import permissionService from '../../services/permissionService';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
+import PermissionAssignModal from '../../components/admin/PermissionAssignModal';
 import logsService from '../../services/logsService';
 import {
   APPROVAL_STATUS_LABELS,
@@ -15,45 +18,6 @@ import {
 } from '../../constants/accountConstants';
 import api from '../../services/api';
 import { formatDate } from '../../utils/dateFormat';
-import { Shield, Lock, AlertTriangle, X } from 'lucide-react';
-
-// ---- Xác nhận mật khẩu admin trước khi phân quyền ----
-function PasswordConfirmModal({ onConfirm, onCancel, title, error }) {
-  const [password, setPassword] = useState('');
-  const { user } = useAuthStore();
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-            <Lock className="w-5 h-5 text-orange-600" />
-          </div>
-          <div>
-            <h3 className="font-bold text-gray-800">Xác nhận phân quyền</h3>
-            <p className="text-sm text-gray-500">{title}</p>
-          </div>
-        </div>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 flex gap-2">
-          <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-yellow-700">Nhập mật khẩu của bạn để xác nhận việc phân quyền.</p>
-        </div>
-        {error && <div className="mb-3 p-2 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
-        <label className="block text-sm font-semibold text-gray-700 mb-1">Mật khẩu xác nhận</label>
-        <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-          placeholder="Nhập mật khẩu của bạn..." autoFocus
-          className="w-full px-3 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          onKeyDown={e => e.key === 'Enter' && password && onConfirm(user?.username, password)} />
-        <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Hủy</button>
-          <button onClick={() => onConfirm(user?.username, password)} disabled={!password}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-semibold">
-            Xác nhận & Lưu
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ---- minimal log display helpers ----
 const ACTION_LABELS = {
@@ -73,22 +37,23 @@ const MODULE_LABELS = {
 
 const DEFAULT_ROLE_FOR_TYPE = {
   SINH_VIEN: 'SINH_VIEN',
-  GIANG_VIEN: 'GIANG_VIEN',
-  CHUYEN_VIEN: 'CHUYEN_VIEN',
+  GIANG_VIEN: 'QUAN_LY',
+  CHUYEN_VIEN: 'QUAN_LY',
 };
 
 export default function AccountManagementPage() {
   const queryClient = useQueryClient();
-  const { hasPermission, user: currentUser } = useAuthStore();
-  const canApprove = hasPermission(PERMISSIONS.DUYET_TAI_KHOAN);
-  const canCreate  = hasPermission(PERMISSIONS.TAO_TAI_KHOAN);
-  const canEdit    = hasPermission(PERMISSIONS.SUA_TAI_KHOAN);
-  const canDelete  = hasPermission(PERMISSIONS.XOA_TAI_KHOAN);
-  const canManagePerms = hasPermission(PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN);
+  const { hasPermission } = useAuthStore();
+  const canApprove = hasPermission(PERMISSIONS.APPROVE_TAI_KHOAN);
+  const canCreate  = hasPermission(PERMISSIONS.CREATE_TAI_KHOAN);
+  const canEdit    = hasPermission(PERMISSIONS.EDIT_TAI_KHOAN);
+  const canDelete  = hasPermission(PERMISSIONS.DELETE_TAI_KHOAN);
   const [activeTab, setActiveTab] = useState('all'); // all | pending | create | bulk
   const [searchKeyword, setSearchKeyword] = useState('');
   const [allSearchKeyword, setAllSearchKeyword] = useState('');
-  const [roleFilter, setRoleFilter] = useState('ALL'); // ALL | SINH_VIEN | GV_CV | QUAN_TRI
+  const [appliedAllSearch, setAppliedAllSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [roleFilter, setRoleFilter] = useState('ALL'); // ALL | SINH_VIEN | QUAN_LY
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -98,10 +63,10 @@ export default function AccountManagementPage() {
   const [approveNote, setApproveNote] = useState('');
   const [createFormData, setCreateFormData] = useState({
     username: '', email: '', password: '', hoTen: '',
-    soDienThoai: '', ngaySinh: '', gioiTinh: '', vaiTro: '', banChuyenMon: ''
+    soDienThoai: '', ngaySinh: '', gioiTinh: '', vaiTro: '', banChuyenMon: '', maKhoa: ''
   });
   const [editFormData, setEditFormData] = useState({
-    hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: ''
+    hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '', maKhoa: ''
   });
   const [createErrors, setCreateErrors] = useState({});
   const [editErrors, setEditErrors] = useState({});
@@ -112,26 +77,14 @@ export default function AccountManagementPage() {
   const [defaultPassword, setDefaultPassword] = useState('KGU@123456');
   const [bulkCreateResult, setBulkCreateResult] = useState(null);
 
+  // Permission assign modal state
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [permissionAccount, setPermissionAccount] = useState(null);
+  const canManagePermissions = hasPermission(PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN);
+
   // History modal state
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyAccount, setHistoryAccount] = useState(null);
-
-  // Permission states — tạo tài khoản
-  const [createPermIds, setCreatePermIds] = useState(new Set());
-  const [pendingNewAccountId, setPendingNewAccountId] = useState(null);
-  const [pendingPermIds, setPendingPermIds] = useState([]);
-  const [showCreatePermConfirm, setShowCreatePermConfirm] = useState(false);
-  const [createPermConfirmError, setCreatePermConfirmError] = useState('');
-
-  // Permission states — quản lý quyền tài khoản hiện có
-  const [showPermModal, setShowPermModal] = useState(false);
-  const [permModalAccount, setPermModalAccount] = useState(null);
-  const [permModalPermIds, setPermModalPermIds] = useState(new Set());
-  const [permModalOriginalIds, setPermModalOriginalIds] = useState(new Set());
-  const [permModalBaseIds, setPermModalBaseIds] = useState(new Set());
-  const [permModalShowConfirm, setPermModalShowConfirm] = useState(false);
-  const [permModalError, setPermModalError] = useState('');
-  const [permModalSuccess, setPermModalSuccess] = useState('');
 
   // =================== Queries ===================
 
@@ -173,52 +126,22 @@ export default function AccountManagementPage() {
     queryFn: () => api.get('/api/ban').then(r => r.data?.data || r.data || [])
   });
 
-  // Danh sách tất cả permissions (cần khi tạo TK quản lý hoặc mở modal phân quyền)
-  const { data: allPermissions = {} } = useQuery({
-    queryKey: ['allPermissions'],
-    queryFn: () => api.get('/api/permissions/all').then(r => r.data?.data || {}),
-    enabled: canManagePerms && (activeTab === 'create' || showPermModal),
-    staleTime: 5 * 60 * 1000,
+  const { data: khoaList = [] } = useQuery({
+    queryKey: ['khoaActive'],
+    queryFn: () => api.get('/api/khoa/active').then(r => r.data?.data || r.data || [])
   });
-
-  // Quyền hiện tại của tài khoản đang mở modal
-  const { data: permModalData, isLoading: permModalLoading } = useQuery({
-    queryKey: ['accountPermissions', permModalAccount?.id],
-    queryFn: () => permissionService.getAccountPermissions(Number(permModalAccount.id)),
-    enabled: showPermModal && !!permModalAccount,
-  });
-
-  // Khi permModalData thay đổi → sync state
-  React.useEffect(() => {
-    if (!permModalData || !Object.keys(allPermissions).length) return;
-    const permNameToId = {};
-    Object.values(allPermissions).flat().forEach(p => { permNameToId[p.name] = p.id; });
-    const baseSet = new Set(
-      (permModalData.quyenTuChucVu || []).map(name => permNameToId[name]).filter(Boolean)
-    );
-    const extraSet = new Set();
-    Object.entries(permModalData.overrideMap || {}).forEach(([idStr, isGranted]) => {
-      if (isGranted) extraSet.add(parseInt(idStr));
-    });
-    setPermModalBaseIds(baseSet);
-    setPermModalOriginalIds(new Set(extraSet));
-    setPermModalPermIds(new Set(extraSet));
-    setPermModalError('');
-    setPermModalSuccess('');
-  }, [permModalData, JSON.stringify(allPermissions)]);
 
   // Client-side filtered accounts for the 'all' tab
+  // appliedAllSearch chỉ cập nhật khi nhấn Enter hoặc nút Tìm (không real-time)
   const filteredAccounts = useMemo(() => {
     let result = allAccounts;
     if (roleFilter === 'SINH_VIEN') {
       result = result.filter(a => a.vaiTro === 'SINH_VIEN');
-    } else if (roleFilter === 'GV_CV') {
-      result = result.filter(a => a.vaiTro === 'GIANG_VIEN' || a.vaiTro === 'CHUYEN_VIEN');
-    } else if (roleFilter === 'QUAN_TRI') {
-      result = result.filter(a => a.vaiTro !== 'SINH_VIEN' && a.vaiTro !== 'GIANG_VIEN' && a.vaiTro !== 'CHUYEN_VIEN');
+    } else if (roleFilter === 'QUAN_LY') {
+      result = result.filter(a => a.vaiTro === 'QUAN_LY');
     }
-    if (allSearchKeyword.trim()) {
-      const kw = allSearchKeyword.toLowerCase();
+    if (appliedAllSearch.trim()) {
+      const kw = appliedAllSearch.toLowerCase();
       result = result.filter(a =>
         a.username?.toLowerCase().includes(kw) ||
         a.email?.toLowerCase().includes(kw) ||
@@ -226,7 +149,22 @@ export default function AccountManagementPage() {
       );
     }
     return result;
-  }, [allAccounts, roleFilter, allSearchKeyword]);
+  }, [allAccounts, roleFilter, appliedAllSearch]);
+
+  // Reset về trang 1 khi filter/search thay đổi
+  useEffect(() => { setCurrentPage(1); }, [roleFilter, appliedAllSearch]);
+
+  const totalPages = Math.ceil(filteredAccounts.length / PAGE_SIZE);
+
+  const paginatedAccounts = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredAccounts.slice(start, start + PAGE_SIZE);
+  }, [filteredAccounts, currentPage]);
+
+  const handleApplySearch = useCallback(() => {
+    setAppliedAllSearch(allSearchKeyword);
+    setCurrentPage(1);
+  }, [allSearchKeyword]);
 
   // =================== Mutations ===================
 
@@ -271,8 +209,8 @@ export default function AccountManagementPage() {
   });
 
   const createAccountMutation = useMutation({
-    mutationFn: ({ _permIds, ...data }) => accountService.createAccountManually(data),
-    onSuccess: (newAccount, variables) => {
+    mutationFn: (data) => accountService.createAccountManually(data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pendingAccounts'] });
       queryClient.invalidateQueries({ queryKey: ['searchAccounts'] });
       queryClient.invalidateQueries({ queryKey: ['allAccounts'] });
@@ -281,57 +219,10 @@ export default function AccountManagementPage() {
         soDienThoai: '', ngaySinh: '', gioiTinh: '', vaiTro: '', banChuyenMon: ''
       });
       setCreateErrors({});
-      const permIds = variables._permIds || [];
-      if (newAccount?.id && permIds.length > 0) {
-        setPendingNewAccountId(newAccount.id);
-        setPendingPermIds(permIds);
-        setCreatePermConfirmError('');
-        setShowCreatePermConfirm(true);
-      } else {
-        setCreatePermIds(new Set());
-      }
     },
     onError: (error) => {
       setCreateErrors({ submit: error || 'Lỗi tạo tài khoản' });
     }
-  });
-
-  const assignPermsMutation = useMutation({
-    mutationFn: ({ accountId, grantIds, adminUsername, adminPassword }) =>
-      permissionService.updateAccountPermissions(accountId, {
-        grantIds, revokeIds: [], ghiChu: 'Gán quyền khi tạo tài khoản',
-        adminUsername, adminPassword, grantedBy: currentUser?.id,
-      }),
-    onSuccess: () => {
-      setShowCreatePermConfirm(false);
-      setPendingNewAccountId(null);
-      setPendingPermIds([]);
-      setCreatePermIds(new Set());
-      setCreatePermConfirmError('');
-    },
-    onError: (e) => {
-      setCreatePermConfirmError(e?.response?.data?.message || e?.message || 'Lỗi phân quyền');
-    },
-  });
-
-  const updatePermModalMutation = useMutation({
-    mutationFn: ({ accountId, grantIds, adminUsername, adminPassword }) =>
-      permissionService.updateAccountPermissions(accountId, {
-        grantIds, revokeIds: [],
-        ghiChu: 'Cập nhật quyền từ Quản lý Tài khoản',
-        adminUsername, adminPassword, grantedBy: currentUser?.id,
-      }),
-    onSuccess: () => {
-      setPermModalShowConfirm(false);
-      setPermModalSuccess('Phân quyền thành công!');
-      setPermModalError('');
-      queryClient.invalidateQueries({ queryKey: ['accountPermissions', permModalAccount?.id] });
-      setTimeout(() => setPermModalSuccess(''), 3000);
-    },
-    onError: (e) => {
-      setPermModalError(e?.response?.data?.message || e?.message || 'Lỗi phân quyền');
-      setPermModalShowConfirm(false);
-    },
   });
 
   const updateAccountMutation = useMutation({
@@ -342,8 +233,8 @@ export default function AccountManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['pendingAccounts'] });
       setShowEditModal(false);
       setSelectedAccount(null);
-      setEditFormData({ hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '' });
-      setEditErrors({});
+      setEditFormData({ hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '', maKhoa: '' });
+      setEditErrors({})
     },
     onError: (error) => {
       setEditErrors({ submit: error || 'Lỗi cập nhật tài khoản' });
@@ -358,6 +249,16 @@ export default function AccountManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['pendingAccounts'] });
       setShowDeleteModal(false);
       setSelectedAccount(null);
+    }
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: (accountId) => accountService.resetPassword(accountId),
+    onSuccess: (message) => {
+      toast.success(message || 'Đã reset mật khẩu về KGU@123456');
+    },
+    onError: (error) => {
+      toast.error(typeof error === 'string' ? error : 'Lỗi reset mật khẩu');
     }
   });
 
@@ -386,7 +287,7 @@ export default function AccountManagementPage() {
       hoTen: account.hoTen || '', soDienThoai: account.soDienThoai || '',
       ngaySinh: account.ngaySinh || '', gioiTinh: account.gioiTinh || '',
       avatar: account.avatar || '', vaiTro: account.vaiTro || '',
-      banChuyenMon: account.banChuyenMon || ''
+      banChuyenMon: account.banChuyenMon || '', maKhoa: account.maKhoa || '',
     });
     setShowEditModal(true);
   };
@@ -452,52 +353,7 @@ export default function AccountManagementPage() {
   const handleCreateAccount = () => {
     const errors = validateCreateForm();
     if (Object.keys(errors).length > 0) { setCreateErrors(errors); return; }
-    createAccountMutation.mutate({
-      ...createFormData,
-      banChuyenMon: createFormData.banChuyenMon || '',
-      _permIds: createFormData.vaiTro !== 'SINH_VIEN' ? [...createPermIds] : [],
-    });
-  };
-
-  const handleManagePerms = (account) => {
-    setPermModalAccount(account);
-    setPermModalPermIds(new Set());
-    setPermModalOriginalIds(new Set());
-    setPermModalBaseIds(new Set());
-    setPermModalShowConfirm(false);
-    setPermModalError('');
-    setPermModalSuccess('');
-    setShowPermModal(true);
-  };
-
-  const togglePermModalPerm = (id) => {
-    if (permModalBaseIds.has(id)) return;
-    setPermModalPermIds(prev => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  };
-
-  const allPermIds = useMemo(
-    () => Object.values(allPermissions).flat().map(p => p.id),
-    [allPermissions]
-  );
-
-  const toggleCreateToanQuyen = () => {
-    if (createPermIds.size === allPermIds.length) {
-      setCreatePermIds(new Set());
-    } else {
-      setCreatePermIds(new Set(allPermIds));
-    }
-  };
-
-  const toggleCreatePerm = (id) => {
-    setCreatePermIds(prev => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
+    createAccountMutation.mutate({ ...createFormData, banChuyenMon: createFormData.banChuyenMon || '' });
   };
 
   const handleUpdateAccount = () => {
@@ -549,54 +405,59 @@ export default function AccountManagementPage() {
 
   const AccountTable = ({ accounts, loading, showActions = true }) => (
     <div className="overflow-x-auto">
-      <table className="w-full">
+      <table className="w-full text-sm">
         <thead>
-          <tr className="bg-gray-100 border-b">
-            <th className="px-4 py-3 text-left font-semibold text-gray-700">Tên đăng nhập</th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700">Email</th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700">Họ tên</th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700">Vai trò</th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700">Trạng thái</th>
+          <tr className="bg-gray-50 border-b">
+            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Tên đăng nhập</th>
+            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide hidden sm:table-cell">Email</th>
+            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide hidden md:table-cell">Họ tên</th>
+            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Vai trò</th>
+            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Trạng thái</th>
             {showActions && (
-              <th className="px-4 py-3 text-left font-semibold text-gray-700">Hành động</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Hành động</th>
             )}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-gray-100">
           {loading ? (
             <tr>
-              <td colSpan={showActions ? '6' : '5'} className="px-4 py-4 text-center text-gray-500">Đang tải...</td>
+              <td colSpan={showActions ? '6' : '5'} className="px-3 py-4 text-center text-gray-500 text-sm">Đang tải...</td>
             </tr>
           ) : accounts.length === 0 ? (
             <tr>
-              <td colSpan={showActions ? '6' : '5'} className="px-4 py-4 text-center text-gray-500">Không có dữ liệu</td>
+              <td colSpan={showActions ? '6' : '5'} className="px-3 py-4 text-center text-gray-500 text-sm">Không có dữ liệu</td>
             </tr>
           ) : (
             accounts.map((account) => (
-              <tr key={account.id} className="border-b hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">{account.username}</td>
-                <td className="px-4 py-3 text-sm">{account.email}</td>
-                <td className="px-4 py-3">{account.hoTen || 'N/A'}</td>
-                <td className="px-4 py-3 text-sm">{ROLE_LABELS[account.vaiTro] || account.vaiTro}</td>
-                <td className="px-4 py-3">
+              <tr key={account.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-3 py-2 font-medium text-sm">{account.username}</td>
+                <td className="px-3 py-2 text-xs text-gray-600 hidden sm:table-cell">{account.email}</td>
+                <td className="px-3 py-2 text-xs hidden md:table-cell">{account.hoTen || 'N/A'}</td>
+                <td className="px-3 py-2 text-xs whitespace-nowrap">
+                  {ROLE_LABELS[account.vaiTro] || account.vaiTro}
+                  {account.vaiTro === 'QUAN_LY' && account.laAdmin && (
+                    <span className="ml-1 px-1 py-0.5 bg-red-100 text-red-700 text-xs rounded">Admin</span>
+                  )}
+                </td>
+                <td className="px-3 py-2">
                   <span
-                    className="px-3 py-1 rounded-full text-xs font-semibold text-white"
+                    className="px-2 py-0.5 rounded-full text-xs font-medium text-white whitespace-nowrap"
                     style={{ backgroundColor: APPROVAL_STATUS_COLORS[account.trangThaiPheDuyet] }}
                   >
                     {APPROVAL_STATUS_LABELS[account.trangThaiPheDuyet]}
                   </span>
                 </td>
                 {showActions && (
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2 flex-wrap">
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1 flex-nowrap">
                       {account.trangThaiPheDuyet === 'CHO_PHE_DUYET' && canApprove && (
                         <>
                           <button onClick={() => handleApprove(account)}
-                            className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded">
+                            className="px-2 py-0.5 bg-green-500 hover:bg-green-600 text-white text-xs rounded whitespace-nowrap">
                             Phê duyệt
                           </button>
                           <button onClick={() => handleReject(account)}
-                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-sm rounded">
+                            className="px-2 py-0.5 bg-red-500 hover:bg-red-600 text-white text-xs rounded whitespace-nowrap">
                             Từ chối
                           </button>
                         </>
@@ -605,49 +466,55 @@ export default function AccountManagementPage() {
                         <>
                           {canEdit && (
                             <button onClick={() => handleEditAccount(account)}
-                              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded">
+                              className="px-2 py-0.5 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded">
                               Sửa
                             </button>
                           )}
                           {canDelete && (
                             <button onClick={() => handleDeleteConfirm(account)}
-                              className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-sm rounded">
+                              className="px-2 py-0.5 bg-red-500 hover:bg-red-600 text-white text-xs rounded">
                               Xóa
                             </button>
                           )}
+                          {canEdit && (
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Reset mật khẩu của "${account.hoTen || account.username}" về KGU@123456?`))
+                                  resetPasswordMutation.mutate(account.id);
+                              }}
+                              disabled={resetPasswordMutation.isPending}
+                              className="px-2 py-0.5 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white text-xs rounded whitespace-nowrap">
+                              Reset MK
+                            </button>
+                          )}
                           <button onClick={() => handleHistoryView(account)}
-                            className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded">
+                            className="px-2 py-0.5 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded">
                             Lịch sử
                           </button>
-                          {canManagePerms && account.vaiTro !== 'SINH_VIEN' && (
-                            <button onClick={() => handleManagePerms(account)}
-                              className="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded flex items-center gap-1">
-                              <Shield className="w-3 h-3" />
+                          {account.vaiTro === 'QUAN_LY' && canManagePermissions && (
+                            <button
+                              onClick={() => { setPermissionAccount(account); setShowPermissionModal(true); }}
+                              className="px-2 py-0.5 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded whitespace-nowrap">
                               Phân quyền
                             </button>
                           )}
                         </>
                       )}
                       {canEdit && (
-                        <div className="flex items-center gap-2 ml-2">
-                          <button
-                            onClick={() => setActiveMutation.mutate({ accountId: account.id, isActive: !account.isActive })}
-                            disabled={setActiveMutation.isPending}
-                            title={account.isActive ? "Vô hiệu hóa tài khoản" : "Kích hoạt tài khoản"}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                              account.isActive ? 'bg-green-500' : 'bg-gray-300'
-                            } ${setActiveMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
-                                account.isActive ? 'translate-x-6' : 'translate-x-1'
-                              }`}
-                            />
-                          </button>
-                          <span className={`text-xs font-medium ${account.isActive ? 'text-green-600' : 'text-gray-400'}`}>
-                            {account.isActive ? 'Hoạt động' : 'Vô hiệu'}
-                          </span>
-                        </div>
+                        <button
+                          onClick={() => setActiveMutation.mutate({ accountId: account.id, isActive: !account.isActive })}
+                          disabled={setActiveMutation.isPending}
+                          title={account.isActive ? 'Vô hiệu hóa tài khoản' : 'Kích hoạt tài khoản'}
+                          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none ml-1 ${
+                            account.isActive ? 'bg-green-500' : 'bg-gray-300'
+                          } ${setActiveMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                              account.isActive ? 'translate-x-4' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </button>
                       )}
                     </div>
                   </td>
@@ -681,7 +548,7 @@ export default function AccountManagementPage() {
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setSearchKeyword(''); setAllSearchKeyword(''); setRoleFilter('ALL'); }}
+            onClick={() => { setActiveTab(tab.key); setSearchKeyword(''); setAllSearchKeyword(''); setAppliedAllSearch(''); setRoleFilter('ALL'); setCurrentPage(1); }}
             className={`px-4 py-2 font-semibold border-b-2 ${
               activeTab === tab.key
                 ? 'border-blue-600 text-blue-600'
@@ -697,41 +564,105 @@ export default function AccountManagementPage() {
       <div className="bg-white rounded-lg shadow">
         {/* All accounts */}
         {activeTab === 'all' && (
-          <div className="p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <h2 className="text-xl font-bold">Tất cả tài khoản</h2>
-              <input
-                type="text"
-                placeholder="Tìm kiếm username, email, họ tên..."
-                value={allSearchKeyword}
-                onChange={(e) => setAllSearchKeyword(e.target.value)}
-                className="sm:w-72 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Role filter sub-tabs */}
-            <div className="flex gap-2 mb-4 flex-wrap">
-              {[
-                { key: 'ALL', label: `Tất cả (${allAccounts.length})` },
-                { key: 'SINH_VIEN', label: `Sinh viên (${allAccounts.filter(a => a.vaiTro === 'SINH_VIEN').length})` },
-                { key: 'GV_CV', label: `GV / Chuyên viên (${allAccounts.filter(a => a.vaiTro === 'GIANG_VIEN' || a.vaiTro === 'CHUYEN_VIEN').length})` },
-                { key: 'QUAN_TRI', label: `Quản trị (${allAccounts.filter(a => a.vaiTro !== 'SINH_VIEN' && a.vaiTro !== 'GIANG_VIEN' && a.vaiTro !== 'CHUYEN_VIEN').length})` },
-              ].map(rf => (
+          <div className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-base font-bold text-gray-800">
+                  Tất cả tài khoản
+                  <span className="ml-1.5 text-xs font-normal text-gray-400">
+                    ({filteredAccounts.length} / {allAccounts.length})
+                  </span>
+                </h2>
+                {/* Role filter sub-tabs */}
+                <div className="flex gap-1.5 flex-wrap">
+                  {[
+                    { key: 'ALL', label: `Tất cả (${allAccounts.length})` },
+                    { key: 'SINH_VIEN', label: `Sinh viên (${allAccounts.filter(a => a.vaiTro === 'SINH_VIEN').length})` },
+                    { key: 'QUAN_LY', label: `Quản lý (${allAccounts.filter(a => a.vaiTro === 'QUAN_LY').length})` },
+                  ].map(rf => (
+                    <button
+                      key={rf.key}
+                      onClick={() => setRoleFilter(rf.key)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                        roleFilter === rf.key
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {rf.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Nhập mã / họ tên → Enter"
+                  value={allSearchKeyword}
+                  onChange={(e) => setAllSearchKeyword(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleApplySearch(); }}
+                  className="w-full sm:w-56 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
                 <button
-                  key={rf.key}
-                  onClick={() => setRoleFilter(rf.key)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                    roleFilter === rf.key
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  onClick={handleApplySearch}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 whitespace-nowrap"
                 >
-                  {rf.label}
+                  Tìm
                 </button>
-              ))}
+                {appliedAllSearch && (
+                  <button
+                    onClick={() => { setAllSearchKeyword(''); setAppliedAllSearch(''); }}
+                    className="px-2 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
 
-            <AccountTable accounts={filteredAccounts} loading={allAccountsLoading} showActions={true} />
+            <AccountTable accounts={paginatedAccounts} loading={allAccountsLoading} showActions={true} />
+
+            {/* Phân trang */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 px-2">
+                <span className="text-sm text-gray-500">
+                  Trang {currentPage}/{totalPages} · Hiển thị {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredAccounts.length)} / {filteredAccounts.length} tài khoản
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                  >«</button>
+                  <button
+                    onClick={() => setCurrentPage(p => p - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                  >‹</button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+                    const page = start + i;
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-1 text-sm border rounded ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}`}
+                      >{page}</button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                  >›</button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                  >»</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -753,7 +684,7 @@ export default function AccountManagementPage() {
             {createAccountMutation.isSuccess && (
               <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg">Tạo tài khoản thành công!</div>
             )}
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Tên đăng nhập *</label>
                 <input type="text" name="username" value={createFormData.username} onChange={handleCreateFormChange}
@@ -790,7 +721,7 @@ export default function AccountManagementPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ngày sinh</label>
-                <input type="date" name="ngaySinh" value={createFormData.ngaySinh} onChange={handleCreateFormChange}
+                <input type="date" lang="vi" name="ngaySinh" value={createFormData.ngaySinh} onChange={handleCreateFormChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
@@ -823,64 +754,23 @@ export default function AccountManagementPage() {
                 </select>
               </div>
             </div>
-            {/* ── Phân quyền (chỉ hiển thị khi vai trò không phải sinh viên) ── */}
-            {canManagePerms && createFormData.vaiTro && createFormData.vaiTro !== 'SINH_VIEN' && (
-              <div className="mb-4 border border-blue-200 rounded-xl p-4 bg-blue-50">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-bold text-blue-800">Phân quyền tài khoản</h3>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-500">
-                      Đã chọn: <strong className="text-blue-700">{createPermIds.size}</strong>/{allPermIds.length} quyền
-                    </span>
-                    <button
-                      type="button"
-                      onClick={toggleCreateToanQuyen}
-                      className={`px-3 py-1 rounded-lg text-sm font-semibold border transition-colors ${
-                        createPermIds.size === allPermIds.length && allPermIds.length > 0
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-100'
-                      }`}
-                    >
-                      TOÀN QUYỀN
-                    </button>
-                    {createPermIds.size > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setCreatePermIds(new Set())}
-                        className="px-3 py-1 rounded-lg text-sm text-gray-500 border border-gray-300 hover:bg-gray-100"
-                      >
-                        Bỏ chọn tất cả
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {Object.keys(allPermissions).length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">Đang tải danh sách quyền...</p>
-                ) : (
-                  <div className="max-h-64 overflow-y-auto space-y-3">
-                    {Object.entries(allPermissions).map(([category, perms]) => (
-                      <div key={category}>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 sticky top-0 bg-blue-50">{category}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                          {perms.map(p => (
-                            <label key={p.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-blue-100 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={createPermIds.has(p.id)}
-                                onChange={() => toggleCreatePerm(p.id)}
-                                className="w-3.5 h-3.5 text-blue-600 rounded"
-                              />
-                              <span className="text-xs text-gray-700">{p.description}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+
+            {/* Khoa Scope — chỉ hiện khi vai trò là QUAN_LY */}
+            {createFormData.vaiTro === 'QUAN_LY' && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <label className="block text-sm font-semibold text-amber-900 mb-1">
+                  Phạm vi Khoa <span className="font-normal text-amber-700">(tuỳ chọn)</span>
+                </label>
+                <select name="maKhoa" value={createFormData.maKhoa} onChange={handleCreateFormChange}
+                  className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="">Đoàn trường — không giới hạn khoa</option>
+                  {khoaList.map(k => (
+                    <option key={k.maKhoa} value={k.maKhoa}>{k.tenKhoa}</option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-amber-700 italic">
+                  Nếu chọn Khoa, tài khoản này chỉ thấy và quản lý hoạt động của Khoa đó.
+                </p>
               </div>
             )}
 
@@ -902,7 +792,7 @@ export default function AccountManagementPage() {
             </p>
 
             {/* Source type selector */}
-            <div className="flex gap-3 mb-5">
+            <div className="flex flex-wrap gap-3 mb-5">
               {[
                 { value: 'SINH_VIEN', label: 'Sinh viên' },
                 { value: 'GIANG_VIEN', label: 'Giảng viên' },
@@ -923,7 +813,7 @@ export default function AccountManagementPage() {
             </div>
 
             {/* Default password */}
-            <div className="flex items-center gap-4 mb-5 p-4 bg-gray-50 rounded-lg">
+            <div className="flex flex-wrap items-center gap-4 mb-5 p-4 bg-gray-50 rounded-lg">
               <label className="text-sm font-semibold text-gray-700 shrink-0">Mật khẩu mặc định:</label>
               <input
                 type="text"
@@ -1001,7 +891,7 @@ export default function AccountManagementPage() {
                   </table>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="text-sm text-gray-500">
                     Đã chọn <strong>{selectedMas.size}</strong> / {withoutList.length} bản ghi
                   </span>
@@ -1073,7 +963,7 @@ export default function AccountManagementPage() {
             {editErrors.submit && (
               <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{editErrors.submit}</div>
             )}
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Họ tên *</label>
                 <input type="text" name="hoTen" value={editFormData.hoTen} onChange={handleEditFormChange}
@@ -1089,7 +979,7 @@ export default function AccountManagementPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ngày sinh</label>
-                <input type="date" name="ngaySinh" value={editFormData.ngaySinh} onChange={handleEditFormChange}
+                <input type="date" lang="vi" name="ngaySinh" value={editFormData.ngaySinh} onChange={handleEditFormChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
@@ -1128,7 +1018,24 @@ export default function AccountManagementPage() {
                 </select>
               </div>
             </div>
-            <div className="flex gap-3 justify-end">
+            {editFormData.vaiTro === 'QUAN_LY' && (
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <label className="block text-sm font-semibold text-amber-800 mb-2">
+                  Phạm vi Khoa <span className="font-normal text-amber-700">(tuỳ chọn)</span>
+                </label>
+                <select name="maKhoa" value={editFormData.maKhoa} onChange={handleEditFormChange}
+                  className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="">Đoàn trường — không giới hạn khoa</option>
+                  {khoaList.map(k => (
+                    <option key={k.maKhoa} value={k.maKhoa}>{k.tenKhoa}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-amber-600 mt-1">
+                  Chọn khoa để giới hạn tài khoản này chỉ quản lý dữ liệu của khoa đó.
+                </p>
+              </div>
+            )}
+            <div className="flex gap-3 justify-end mt-4">
               <button onClick={() => { setShowEditModal(false); setEditErrors({}); }}
                 className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold">Hủy</button>
               <button onClick={handleUpdateAccount} disabled={updateAccountMutation.isPending}
@@ -1159,6 +1066,15 @@ export default function AccountManagementPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* =================== Permission Modal =================== */}
+      {showPermissionModal && permissionAccount && (
+        <PermissionAssignModal
+          account={permissionAccount}
+          isOpen={showPermissionModal}
+          onClose={() => { setShowPermissionModal(false); setPermissionAccount(null); }}
+        />
       )}
 
       {/* =================== History Modal =================== */}
@@ -1208,146 +1124,6 @@ export default function AccountManagementPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* =================== Phân quyền sau khi tạo TK =================== */}
-      {showCreatePermConfirm && (
-        <PasswordConfirmModal
-          title={`Gán ${pendingPermIds.length} quyền cho tài khoản vừa tạo`}
-          error={createPermConfirmError}
-          onConfirm={(username, password) =>
-            assignPermsMutation.mutate({
-              accountId: pendingNewAccountId,
-              grantIds: pendingPermIds,
-              adminUsername: username,
-              adminPassword: password,
-            })
-          }
-          onCancel={() => {
-            setShowCreatePermConfirm(false);
-            setCreatePermConfirmError('');
-            setCreatePermIds(new Set());
-          }}
-        />
-      )}
-
-      {/* =================== Modal quản lý quyền tài khoản =================== */}
-      {showPermModal && permModalAccount && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-8">
-            {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b">
-              <div className="flex items-center gap-3">
-                <Shield className="w-6 h-6 text-blue-600" />
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800">Phân quyền tài khoản</h2>
-                  <p className="text-sm text-gray-500">{permModalAccount.hoTen || permModalAccount.username} ({permModalAccount.username})</p>
-                </div>
-              </div>
-              <button onClick={() => setShowPermModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              {permModalLoading ? (
-                <p className="text-gray-400 text-sm">Đang tải...</p>
-              ) : (
-                <>
-                  {permModalSuccess && (
-                    <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{permModalSuccess}</div>
-                  )}
-                  {permModalError && (
-                    <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{permModalError}</div>
-                  )}
-
-                  {/* TOÀN QUYỀN & stats */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">
-                      Đang chọn: <strong className="text-blue-700">{permModalPermIds.size + permModalBaseIds.size}</strong>/{allPermIds.length} quyền
-                      {permModalBaseIds.size > 0 && <span className="ml-1 text-xs text-gray-400">({permModalBaseIds.size} từ chức vụ 🔒)</span>}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          const allExtra = new Set(allPermIds.filter(id => !permModalBaseIds.has(id)));
-                          if (permModalPermIds.size === allExtra.size) {
-                            setPermModalPermIds(new Set());
-                          } else {
-                            setPermModalPermIds(allExtra);
-                          }
-                        }}
-                        className="px-3 py-1 rounded-lg text-sm font-semibold border border-blue-300 text-blue-600 hover:bg-blue-50"
-                      >
-                        TOÀN QUYỀN
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Permission checkboxes */}
-                  <div className="max-h-80 overflow-y-auto border rounded-lg divide-y">
-                    {Object.entries(allPermissions).map(([category, perms]) => (
-                      <div key={category} className="p-3">
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">{category}</p>
-                        <div className="grid grid-cols-1 gap-1">
-                          {perms.map(p => {
-                            const isBase = permModalBaseIds.has(p.id);
-                            const isExtra = permModalPermIds.has(p.id);
-                            return (
-                              <label key={p.id} className={`flex items-center gap-2 p-1.5 rounded cursor-pointer ${isBase ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={isBase || isExtra}
-                                  disabled={isBase}
-                                  onChange={() => togglePermModalPerm(p.id)}
-                                  className="w-3.5 h-3.5 text-blue-600 rounded"
-                                />
-                                <span className="text-xs text-gray-700 flex-1">{p.description}</span>
-                                {isBase && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full shrink-0">🔒 Chức vụ</span>}
-                                {isExtra && !isBase && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full shrink-0">+ Thêm</span>}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="flex gap-3 justify-end p-5 border-t">
-              <button onClick={() => setShowPermModal(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50">Đóng</button>
-              {!permModalLoading && (
-                <button
-                  onClick={() => { setPermModalError(''); setPermModalShowConfirm(true); }}
-                  disabled={updatePermModalMutation.isPending}
-                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-semibold flex items-center gap-2">
-                  <Shield className="w-4 h-4" />
-                  Lưu quyền
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {permModalShowConfirm && permModalAccount && (
-        <PasswordConfirmModal
-          title={`Cập nhật quyền cho: ${permModalAccount.hoTen || permModalAccount.username}`}
-          error={permModalError}
-          onConfirm={(username, password) =>
-            updatePermModalMutation.mutate({
-              accountId: permModalAccount.id,
-              grantIds: [...permModalPermIds],
-              adminUsername: username,
-              adminPassword: password,
-            })
-          }
-          onCancel={() => { setPermModalShowConfirm(false); setPermModalError(''); }}
-        />
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import com.tathanhloc.youthkgu.DTO.AccountDTO;
 import com.tathanhloc.youthkgu.DTO.RegisterRequest;
 import com.tathanhloc.youthkgu.DTO.CreateAccountRequest;
 import com.tathanhloc.youthkgu.Exception.ResourceNotFoundException; // Đã đổi thành Exception
+import com.tathanhloc.youthkgu.Security.CustomUserDetails;
 import com.tathanhloc.youthkgu.Service.AccountService;
 import com.tathanhloc.youthkgu.Service.StatisticsService;
 import lombok.RequiredArgsConstructor;
@@ -288,14 +289,34 @@ public class AccountController {
     }
 
     /**
-     * Cập nhật hồ sơ cá nhân (User)
+     * Cập nhật hồ sơ cá nhân (User tự cập nhật hoặc Admin)
+     * - User thường: chỉ được cập nhật hồ sơ của chính mình
+     * - Admin / người có quyền SUA_THONG_TIN_CA_NHAN: cập nhật được bất kỳ ai
      */
     @PutMapping("/{accountId}/profile")
-    @PreAuthorize("hasPermission(null, 'SUA_THONG_TIN_CA_NHAN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<AccountDTO>> updateProfile(
             @PathVariable Long accountId,
-            @RequestBody AccountDTO request) {
+            @RequestBody AccountDTO request,
+            Authentication authentication) {
         log.info("PUT /api/accounts/{}/profile - Cập nhật hồ sơ cá nhân", accountId);
+
+        // Kiểm tra ownership: user thường chỉ được sửa hồ sơ của chính mình
+        try {
+            CustomUserDetails ud = (CustomUserDetails) authentication.getPrincipal();
+            Long currentId = ud.getTaiKhoan().getId();
+            boolean isAdminOrManager = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_MANAGER"));
+            if (!isAdminOrManager && !accountId.equals(currentId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.<AccountDTO>builder()
+                                .success(false)
+                                .message("Bạn chỉ có thể cập nhật hồ sơ của chính mình")
+                                .build());
+            }
+        } catch (Exception e) {
+            log.warn("Không thể xác minh quyền sở hữu hồ sơ: {}", e.getMessage());
+        }
 
         try {
             AccountDTO updated = accountService.updateProfile(accountId, request);
@@ -421,6 +442,30 @@ public class AccountController {
                             .message(e.getMessage())
                             .build()
                     );
+        }
+    }
+
+    /**
+     * Reset mật khẩu về mặc định KGU@123456
+     * Yêu cầu quyền SUA_TAI_KHOAN (Admin hoặc BCH Level 1)
+     */
+    @PostMapping("/{accountId}/reset-password")
+    @PreAuthorize("hasPermission(null, 'SUA_TAI_KHOAN')")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@PathVariable Long accountId) {
+        log.info("POST /api/accounts/{}/reset-password - Reset mật khẩu", accountId);
+        try {
+            String username = accountService.resetPassword(accountId);
+            return ResponseEntity.ok(
+                    ApiResponse.<Void>builder()
+                            .success(true)
+                            .message("Đã reset mật khẩu của \"" + username + "\" về KGU@123456")
+                            .build());
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.<Void>builder().success(false).message(e.getMessage()).build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<Void>builder().success(false).message(e.getMessage()).build());
         }
     }
 

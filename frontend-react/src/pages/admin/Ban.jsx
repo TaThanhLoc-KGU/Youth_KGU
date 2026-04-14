@@ -49,7 +49,7 @@ const getLoaiBanLabel = (loaiBan) => {
 const Ban = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
-  const canManage = hasPermission(PERMISSIONS.QUAN_LY_BAN);
+  const canManage = hasPermission(PERMISSIONS.MANAGE_BCH);
   const [search, setSearch] = useState('');
   const [loaiBanFilter, setLoaiBanFilter] = useState('');
 
@@ -190,14 +190,12 @@ const Ban = () => {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Quản lý Ban/Đội/CLB</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Ban/Đội/CLB</h1>
           <p className="text-gray-600 mt-1">Quản lý các ban, đội, CLB trong Ban Chấp hành</p>
         </div>
-        {canManage && (
-          <Button icon={Plus} onClick={handleCreate}>
-            Thêm ban mới
-          </Button>
-        )}
+        <Button icon={Plus} onClick={handleCreate}>
+          <span className="hidden sm:inline">Thêm ban mới</span>
+        </Button>
       </div>
 
       {/* Statistics Cards */}
@@ -241,8 +239,8 @@ const Ban = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-end">
-        <div className="flex-1">
+      <div className="flex flex-wrap gap-2 sm:gap-3 items-end">
+        <div className="flex-1 min-w-0">
           <SearchInput
             placeholder="Tìm theo mã hoặc tên ban..."
             value={search}
@@ -252,7 +250,7 @@ const Ban = () => {
         <Select
           value={loaiBanFilter}
           onChange={(e) => setLoaiBanFilter(e.target.value)}
-          className="w-48"
+          className="w-full sm:w-auto"
         >
           {LOAI_BAN_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -270,12 +268,14 @@ const Ban = () => {
 
       {/* Table */}
       <Card>
-        <Table
-          columns={columns}
-          data={banList}
-          loading={isLoading}
-          emptyMessage="Không có ban nào"
-        />
+        <div className="overflow-x-auto">
+          <Table
+            columns={columns}
+            data={banList}
+            loading={isLoading}
+            emptyMessage="Không có ban nào"
+          />
+        </div>
       </Card>
 
       {/* Modal Form */}

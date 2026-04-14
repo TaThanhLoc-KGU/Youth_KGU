@@ -40,6 +40,21 @@ const dangKyService = {
     const response = await api.get(`/api/dang-ky/statistics/${maHoatDong}`);
     return response.data.data;
   },
+
+  // Thống kê đăng ký theo khoa
+  getFacultyStats: async (maHoatDong) => {
+    const response = await api.get(`/api/dang-ky/faculty-stats/${maHoatDong}`);
+    return response.data.data;
+  },
+
+  /**
+   * Sinh viên gửi vị trí GPS khi mở màn hình hiển thị QR.
+   * Dùng để phát hiện điểm danh hộ (vị trí sinh viên khác với địa điểm hoạt động).
+   */
+  submitCheckInLocation: async (maQR, latitude, longitude) => {
+    const response = await api.post('/api/dang-ky/check-in-location', { maQR, latitude, longitude });
+    return response.data;
+  },
 };
 
 export default dangKyService;

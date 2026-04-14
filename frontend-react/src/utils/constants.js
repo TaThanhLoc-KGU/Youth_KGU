@@ -1,10 +1,13 @@
 // User Roles - must match backend VaiTroEnum names exactly
 export const ROLES = {
-  ADMIN: 'ADMIN',
-  BCH: 'BCH',            // VaiTroEnum.BCH
-  SINHVIEN: 'SINH_VIEN', // VaiTroEnum.SINH_VIEN (with underscore!)
-  GIANG_VIEN: 'GIANG_VIEN',
-  CHUYEN_VIEN: 'CHUYEN_VIEN',
+  SINH_VIEN: 'SINH_VIEN',
+  QUAN_LY: 'QUAN_LY',
+  // Aliases giữ tương thích ngược
+  SINHVIEN: 'SINH_VIEN',
+  ADMIN: 'QUAN_LY',
+  BCH: 'QUAN_LY',
+  GIANG_VIEN: 'QUAN_LY',
+  CHUYEN_VIEN: 'QUAN_LY',
 };
 
 // Permissions — values MUST match Permission.name in DB (V_permissions_cleanup.sql)
@@ -91,6 +94,24 @@ export const PERMISSIONS = {
   // ─── SYSTEM (id 57-58) ────────────────────────────────────────────────────
   XEM_SYSTEM_LOG:                  'XEM_SYSTEM_LOG',                 // 57
   XUAT_SYSTEM_LOG:                 'XUAT_SYSTEM_LOG',                // 58
+
+  // ─── KY_SO (id 59) ────────────────────────────────────────────────────────
+  KY_SO_PDF:                        'KY_SO_PDF',                      // 59
+
+  // ─── CUOC_THI (Competition & Voting) ─────────────────────────────────────
+  QUAN_LY_CUOC_THI:                'QUAN_LY_CUOC_THI',
+  TAO_CUOC_THI:                    'TAO_CUOC_THI',
+  SUA_CUOC_THI:                    'SUA_CUOC_THI',
+  XOA_CUOC_THI:                    'XOA_CUOC_THI',
+
+  // ─── NEWS / eNews ─────────────────────────────────────────────────────────
+  DANG_TIN_TUC:                    'DANG_TIN_TUC',
+  SUA_TIN_TUC:                     'SUA_TIN_TUC',
+  XOA_TIN_TUC:                     'XOA_TIN_TUC',
+  DUYET_TIN_TUC:                   'DUYET_TIN_TUC',
+  QUAN_LY_CHUYEN_MUC:              'QUAN_LY_CHUYEN_MUC',
+  QUAN_LY_VAN_BAN:                 'QUAN_LY_VAN_BAN',
+  XOA_VAN_BAN:                     'XOA_VAN_BAN',
 
   // ─── Aliases giữ tương thích ngược với code cũ ────────────────────────────
   // (value đã được sửa để khớp DB — cập nhật dần references sang tên mới)
@@ -242,6 +263,7 @@ export const ROUTES = {
   ADMIN_CERTIFICATES: '/admin/certificates',
   ADMIN_STATISTICS: '/admin/statistics',
   ADMIN_SETTINGS: '/admin/settings',
+  ADMIN_PHAN_QUYEN: '/admin/phan-quyen',
   ADMIN_ACCOUNTS: '/admin/accounts',
   ADMIN_ACCOUNT_STATISTICS: '/admin/account-statistics',
   ADMIN_SYSTEM_LOG: '/admin/system-log',
@@ -264,6 +286,46 @@ export const ROUTES = {
   BCH: '/bch',
   BCH_DASHBOARD: '/bch/dashboard',
   BCH_ACTIVITIES: '/bch/activities',
+  BCH_DIEM_DANH: '/bch/diem-danh',
   BCH_ATTENDANCE: '/bch/attendance',
   BCH_SCAN_QR: '/bch/scan-qr',
+  BCH_PHAN_QUYEN: '/bch/phan-quyen',
+
+  // eNews — Public
+  NEWS_HOME: '/news',
+
+  // Cuộc thi & Bình chọn — Admin manage
+  ADMIN_CUOC_THI: '/admin/cuoc-thi',
+  // Public
+  BINH_CHON: '/binh-chon',
+
+  // eNews — Admin manage
+  ADMIN_NEWS: '/admin/news',
+  ADMIN_VAN_BAN: '/admin/van-ban',
+  ADMIN_CHUYEN_MUC: '/admin/chuyen-muc',
+
+  // eNews — BCH manage
+  BCH_NEWS: '/bch/news',
+  BCH_NEWS_CREATE: '/bch/news/create',
+  BCH_VAN_BAN: '/bch/van-ban',
+  BCH_VAN_BAN_CREATE: '/bch/van-ban/create',
+
+  // Layout editors (admin only)
+  ADMIN_LAYOUT_EDITOR:      '/admin/layout-editor',
+  ADMIN_NEWS_LAYOUT_EDITOR: '/admin/news-layout-editor',
+
+  // Content managers (admin only)
+  ADMIN_SLIDER_MANAGER:     '/admin/slider-manager',
+  ADMIN_TICKER_MANAGER:     '/admin/ticker-manager',
+  ADMIN_AD_BANNER_MANAGER:  '/admin/ad-banner-manager',
+  ADMIN_BIEU_MAU_MANAGER:   '/admin/bieu-mau',
+
+  // Ký số
+  ADMIN_CHU_KY:        '/admin/chu-ky',
+  ADMIN_CON_DAU:       '/admin/con-dau',
+  ADMIN_KY_SO_LICH_SU: '/admin/ky-so-lich-su',
+  ADMIN_BAN_HANH:      '/admin/ban-hanh',
+
+  // Email config
+  ADMIN_EMAIL_CONFIG: '/admin/cau-hinh-email',
 };

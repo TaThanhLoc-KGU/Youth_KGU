@@ -3,39 +3,44 @@ import { persist } from 'zustand/middleware';
 import authService from '../services/authService';
 import permissionService from '../services/permissionService';
 
+// Quyền cơ bản — mọi user đã đăng nhập luôn có, không cần config DB
+const ALWAYS_GRANTED_PERMISSIONS = new Set([
+  'DOI_MAT_KHAU',
+  'XEM_THONG_TIN_CA_NHAN',
+  'SUA_THONG_TIN_CA_NHAN',
+]);
+
 const useAuthStore = create(
   persist(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
       isLoading: false,
-      permissions: [],        // Array of permission names (from quyenTongHop)
-      laBCH: false,           // Là thành viên BCH Đoàn - Hội
-      effectiveRole: null,    // Vai trò hiệu lực (MANAGER/STAFF/SINH_VIEN...)
-      danhSachChucVu: [],     // Danh sách chức vụ BCH
+      permissions: [],   // Array of permission names (from quyenTongHop)
+      laAdmin: false,    // true = QUAN_LY có toàn quyền
+      maKhoa: null,      // null = Đoàn trường (không giới hạn), non-null = chỉ khoa này
+      tenKhoa: null,     // Tên khoa hiển thị (VD: "Khoa Công nghệ Thông tin")
+      loginTime: null,   // Timestamp lúc đăng nhập (ms) — dùng cho session timeout
 
-      // Login action
+      // Login
       login: async (credentials) => {
         set({ isLoading: true });
         try {
           const data = await authService.login(credentials);
 
-          // Fetch permissions ngay sau khi login thành công
-          // Dùng /me (JWT-based) thay vì /account/{id} để tránh lỗi 403 với non-ADMIN
           let permissions = [];
-          let laBCH = false;
-          let effectiveRole = data.user.vaiTro;
-          let danhSachChucVu = [];
+          let laAdmin = false;
+          let maKhoa = null;
+          let tenKhoa = null;
 
           try {
             const permData = await permissionService.getMyPermissions();
             permissions = Array.from(permData?.quyenTongHop || []);
-            laBCH = permData?.laBCH || false;
-            effectiveRole = permData?.vaiTro || data.user.vaiTro;
-            danhSachChucVu = permData?.danhSachChucVu || [];
+            laAdmin = permData?.laAdmin || false;
+            maKhoa = permData?.maKhoa || null;
+            tenKhoa = permData?.tenKhoa || null;
 
-            // Merge hoTen từ permData nếu login response không có
-            // (xảy ra khi TaiKhoan không linked trực tiếp với GiangVien/SinhVien entity)
+            // Merge hoTen nếu login response không có
             if (permData?.hoTen && !data.user.hoTen) {
               data.user = { ...data.user, hoTen: permData.hoTen };
             }
@@ -48,19 +53,20 @@ const useAuthStore = create(
             isAuthenticated: true,
             isLoading: false,
             permissions,
-            laBCH,
-            effectiveRole,
-            danhSachChucVu,
+            laAdmin,
+            maKhoa,
+            tenKhoa,
+            loginTime: Date.now(),
           });
 
-          return { ...data, laBCH, effectiveRole };
+          return { ...data, laAdmin };
         } catch (error) {
           set({ isLoading: false });
           throw error;
         }
       },
 
-      // Logout action
+      // Logout
       logout: async () => {
         try {
           await authService.logout();
@@ -69,28 +75,26 @@ const useAuthStore = create(
         }
       },
 
-      // Reset action to clear all state
       reset: () => {
         set({
           user: null,
           isAuthenticated: false,
           permissions: [],
-          laBCH: false,
-          effectiveRole: null,
-          danhSachChucVu: [],
+          laAdmin: false,
+          maKhoa: null,
+          tenKhoa: null,
+          loginTime: null,
         });
-        // Clear local storage explicitly to be safe
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
+        localStorage.removeItem('notification-history');
       },
 
-      // Update user
       setUser: (user) => {
         set({ user, isAuthenticated: !!user });
       },
 
-      // Refresh user data
       refreshUser: async () => {
         try {
           const user = await authService.getCurrentUser();
@@ -102,7 +106,7 @@ const useAuthStore = create(
         }
       },
 
-      // Refresh permissions (gọi khi cần cập nhật quyền mà không logout)
+      // Làm mới permissions (gọi sau khi admin thay đổi quyền)
       refreshPermissions: async () => {
         const { user } = get();
         if (!user) return;
@@ -110,56 +114,67 @@ const useAuthStore = create(
           const permData = await permissionService.getMyPermissions();
           set({
             permissions: Array.from(permData?.quyenTongHop || []),
-            laBCH: permData?.laBCH || false,
-            effectiveRole: permData?.vaiTro || user.vaiTro,
-            danhSachChucVu: permData?.danhSachChucVu || [],
+            laAdmin: permData?.laAdmin || false,
+            maKhoa: permData?.maKhoa || null,
+            tenKhoa: permData?.tenKhoa || null,
           });
         } catch (e) {
           console.warn('Không thể làm mới quyền:', e);
         }
       },
 
-      // Check auth status
       checkAuth: () => {
         const isAuth = authService.isAuthenticated();
         const storedUser = authService.getStoredUser();
-        set({
-          isAuthenticated: isAuth,
-          user: storedUser,
-        });
+        set({ isAuthenticated: isAuth, user: storedUser });
         return isAuth;
       },
 
-      // Get user role
       getUserRole: () => {
         const { user } = get();
         return user?.vaiTro || null;
       },
 
-      // Check if user has role (dùng cho ADMIN-only)
       hasRole: (role) => {
         const { user } = get();
         return user?.vaiTro === role;
       },
 
-      // Check if user has any of the roles
       hasAnyRole: (roles) => {
         const { user } = get();
         return roles.includes(user?.vaiTro);
       },
 
-      // Kiểm tra quyền cụ thể (ADMIN luôn có mọi quyền)
+      // Kiểm tra quyền
+      // Ưu tiên: laAdmin=true → always-granted → DB permissions
       hasPermission: (permission) => {
-        const { permissions, user } = get();
-        if (user?.vaiTro === 'ADMIN') return true;
+        const { permissions, user, laAdmin } = get();
+        if (!user) return false;
+        if (laAdmin) return true;
+        if (ALWAYS_GRANTED_PERMISSIONS.has(permission)) return true;
         return Array.isArray(permissions) && permissions.includes(permission);
       },
 
-      // Kiểm tra có ít nhất 1 trong các quyền
       hasAnyPermission: (perms) => {
-        const { permissions, user } = get();
-        if (user?.vaiTro === 'ADMIN') return true;
-        return Array.isArray(permissions) && perms.some((p) => permissions.includes(p));
+        const { permissions, user, laAdmin } = get();
+        if (!user) return false;
+        if (laAdmin) return true;
+        return Array.isArray(permissions) && perms.some(
+          (p) => ALWAYS_GRANTED_PERMISSIONS.has(p) || permissions.includes(p)
+        );
+      },
+
+      // true nếu tài khoản bị giới hạn phạm vi theo khoa (không phải Đoàn trường)
+      isKhoaScoped: () => {
+        const { maKhoa } = get();
+        return !!maKhoa;
+      },
+
+      // Trả về { maKhoa, tenKhoa } của tài khoản, hoặc null nếu không có scope
+      getKhoaScope: () => {
+        const { maKhoa, tenKhoa } = get();
+        if (!maKhoa) return null;
+        return { maKhoa, tenKhoa };
       },
     }),
     {
@@ -168,9 +183,10 @@ const useAuthStore = create(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         permissions: state.permissions,
-        laBCH: state.laBCH,
-        effectiveRole: state.effectiveRole,
-        danhSachChucVu: state.danhSachChucVu,
+        laAdmin: state.laAdmin,
+        maKhoa: state.maKhoa,
+        tenKhoa: state.tenKhoa,
+        loginTime: state.loginTime,
       }),
     }
   )

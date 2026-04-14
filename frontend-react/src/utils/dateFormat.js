@@ -1,21 +1,33 @@
 // Date utility functions for Vietnamese format
 
 /**
- * Format date to Vietnamese format DD-MM-YYYY
+ * Format date to Vietnamese format DD/MM/YYYY
  * @param {Date | string} date - Date object or ISO string
- * @returns {string} Formatted date string (DD-MM-YYYY)
+ * @returns {string} Formatted date string (DD/MM/YYYY)
  */
 export const formatDate = (date) => {
   if (!date) return '';
 
   try {
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return ''; // Check for invalid date
+    let d;
+    if (typeof date === 'string') {
+      // Nếu là chuỗi YYYY-MM-DD, tạo Date mà không bị ảnh hưởng bởi múi giờ (UTC)
+      if (date.includes('-') && !date.includes('T') && !date.includes(':')) {
+        const [y, m, d_part] = date.split('-');
+        d = new Date(y, m - 1, d_part);
+      } else {
+        d = new Date(date);
+      }
+    } else {
+      d = new Date(date);
+    }
+
+    if (isNaN(d.getTime())) return '';
 
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
-    return `${day}-${month}-${year}`;
+    return `${day}/${month}/${year}`;
   } catch (error) {
     console.error('Date formatting error:', error);
     return '';
@@ -23,7 +35,7 @@ export const formatDate = (date) => {
 };
 
 /**
- * Format date with time to Vietnamese format DD-MM-YYYY HH:mm
+ * Format date with time to Vietnamese format DD/MM/YYYY HH:mm
  * @param {Date | string} date - Date object or ISO string
  * @returns {string} Formatted date string with time
  */
@@ -39,7 +51,7 @@ export const formatDateTime = (date) => {
     const year = d.getFullYear();
     const hours = String(d.getHours()).padStart(2, '0');
     const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${day}-${month}-${year} ${hours}:${minutes}`;
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
   } catch (error) {
     console.error('DateTime formatting error:', error);
     return '';
@@ -106,15 +118,15 @@ export const getDateInputValue = (date) => {
 };
 
 /**
- * Parse DD-MM-YYYY string to Date object
- * @param {string} dateString - Date string in DD-MM-YYYY format
+ * Parse DD/MM/YYYY string to Date object
+ * @param {string} dateString - Date string in DD/MM/YYYY format
  * @returns {Date | null} Date object or null if invalid
  */
 export const parseDate = (dateString) => {
   if (!dateString) return null;
-  
+
   try {
-    const parts = dateString.split('-');
+    const parts = dateString.split(/[\/\-]/);
     if (parts.length !== 3) return null;
     
     const day = parseInt(parts[0], 10);
@@ -128,5 +140,28 @@ export const parseDate = (dateString) => {
   } catch (error) {
     console.error('Date parsing error:', error);
     return null;
+  }
+};
+
+/**
+ * Cộng/Trừ phút vào một chuỗi thời gian HH:mm hoặc HH:mm:ss
+ * @param {string} timeStr - Chuỗi thời gian gốc
+ * @param {number} minutes - Số phút cần cộng (dùng số âm để trừ)
+ * @returns {string} Chuỗi thời gian mới HH:mm:ss
+ */
+export const addMinutesToTime = (timeStr, minutes) => {
+  if (!timeStr) return '';
+  try {
+    const [h, m, s = 0] = timeStr.split(':').map(Number);
+    const date = new Date();
+    date.setHours(h, m, s, 0);
+    date.setMinutes(date.getMinutes() + minutes);
+    
+    const nh = String(date.getHours()).padStart(2, '0');
+    const nm = String(date.getMinutes()).padStart(2, '0');
+    const ns = String(date.getSeconds()).padStart(2, '0');
+    return `${nh}:${nm}:${ns}`;
+  } catch (e) {
+    return timeStr;
   }
 };

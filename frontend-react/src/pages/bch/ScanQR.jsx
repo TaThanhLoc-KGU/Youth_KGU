@@ -14,15 +14,19 @@ import {
   Zap,
   ScanLine,
   Info,
+  LogIn,
+  LogOut,
+  UserPlus,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import attendanceService from '../../services/attendanceService';
 import activityService from '../../services/activityService';
 
-// Canvas resolution cho WASM / jsQR path (320 = nhanh hơn 480 ~30%)
-const PROCESS_WIDTH = 320;
-const COOLDOWN_MS   = 1200;
-const DEDUPE_MS     = 3000;
+// Canvas resolution cho WASM / jsQR path
+// 240px = ít pixel hơn 320px ~44%, QR vẫn nhận được vì có error correction
+const PROCESS_WIDTH = 240;
+const COOLDOWN_MS   = 1000;
+const DEDUPE_MS     = 1500;
 
 // Engine labels + styles
 const ENGINE_UI = {
@@ -48,8 +52,12 @@ const BCHScanQR = () => {
   // ── Hardware scanner ref ─────────────────────────────────────────────
   const scannerInputRef = useRef(null);
 
+  // ── GPS ref (cập nhật liên tục, không gây re-render) ─────────────────
+  const locationRef = useRef({ latitude: null, longitude: null });
+
   // ── State ─────────────────────────────────────────────────────────────
   const [scanMode, setScanMode]               = useState('camera'); // 'camera' | 'scanner'
+  const [attendanceMode, setAttendanceMode]   = useState('CHECKIN'); // 'CHECKIN' | 'CHECKOUT'
   const [isStreaming, setIsStreaming]           = useState(false);
   const [cameraError, setCameraError]           = useState(null);
   const [selectedActivity, setSelectedActivity] = useState('');
@@ -60,6 +68,13 @@ const BCHScanQR = () => {
   const [brightness, setBrightness]             = useState(100);
   const [scanEngine, setScanEngine]             = useState(null); // 'native' | 'wasm' | 'js' | null
   const [scannerInput, setScannerInput]         = useState('');
+  // ── Tính năng ẩn: bổ sung SV chưa đăng ký ────────────────────────────
+  const [showManualAdd, setShowManualAdd]       = useState(false);
+  const [manualMaSv, setManualMaSv]             = useState('');
+  const [manualGhiChu, setManualGhiChu]         = useState('');
+  const [manualAdding, setManualAdding]         = useState(false);
+  const hiddenTapCount                          = useRef(0);
+  const hiddenTapTimer                          = useRef(null);
 
   // ── Khởi tạo engine theo thứ tự ưu tiên: native → wasm → js ──────────
   useEffect(() => {
@@ -87,6 +102,31 @@ const BCHScanQR = () => {
     } else {
       initWasm();
     }
+  }, []);
+
+  // ── Lấy và theo dõi vị trí GPS liên tục ─────────────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    // Lấy vị trí ngay lập tức khi mount
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        locationRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      },
+      () => { /* Người dùng từ chối hoặc không hỗ trợ — bỏ qua */ },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+
+    // Theo dõi liên tục để GPS luôn mới nhất
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        locationRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      },
+      () => { /* Lỗi GPS — giữ nguyên giá trị cũ */ },
+      { enableHighAccuracy: true, maximumAge: 30000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
   // ── Auto-focus input khi chuyển sang chế độ máy quét ─────────────────
@@ -132,17 +172,23 @@ const BCHScanQR = () => {
       setNetworkError(false);
 
       try {
+        const { latitude, longitude } = locationRef.current;
         const response = await attendanceService.scanQRCode({
-          maQR: qrData,
-          maHoatDong: selectedActivity,
+          maQR:           qrData,
+          maHoatDong:     selectedActivity,
+          attendanceMode: attendanceMode, // 'CHECKIN' | 'CHECKOUT'
+          latitude:       latitude  ?? undefined,
+          longitude:      longitude ?? undefined,
+          thietBi:        navigator.userAgent?.slice(0, 100) ?? undefined,
         });
         const success = response?.success !== false;
-        const msg     = response?.message || (success ? 'Điểm danh thành công' : 'Điểm danh thất bại');
-        const hoTen   = response?.data?.hoTen || response?.data?.tenSinhVien || '';
+        const msg     = response?.message || (success ? (attendanceMode === 'CHECKIN' ? 'Check-in thành công' : 'Check-out thành công') : 'Thất bại');
+        const hoTen   = response?.data?.hoTenSinhVien || response?.data?.hoTen || response?.data?.tenSinhVien || '';
+        const maSv    = response?.data?.maSv || '';
 
-        setScanResult({ success, message: msg, hoTen });
+        setScanResult({ success, message: msg, hoTen, maSv, mode: attendanceMode });
         setScanHistory((prev) =>
-          [{ id: now, time: new Date().toLocaleTimeString('vi-VN'), success, message: msg, hoTen }, ...prev].slice(0, 30),
+          [{ id: now, time: new Date().toLocaleTimeString('vi-VN'), success, message: msg, hoTen, mode: attendanceMode }, ...prev].slice(0, 30),
         );
         if (success) toast.success(msg);
         else toast.warning(msg);
@@ -164,8 +210,35 @@ const BCHScanQR = () => {
         }, COOLDOWN_MS);
       }
     },
-    [selectedActivity, scanMode],
+    [selectedActivity, scanMode, attendanceMode],
   );
+
+  // ── Xử lý tính năng ẩn: tap 5 lần vào label "Lịch sử quét" ──────────
+  const handleHiddenTap = () => {
+    hiddenTapCount.current += 1;
+    clearTimeout(hiddenTapTimer.current);
+    hiddenTapTimer.current = setTimeout(() => { hiddenTapCount.current = 0; }, 1500);
+    if (hiddenTapCount.current >= 5) {
+      hiddenTapCount.current = 0;
+      setShowManualAdd(true);
+    }
+  };
+
+  const handleManualAdd = async () => {
+    if (!manualMaSv.trim() || !selectedActivity) return;
+    setManualAdding(true);
+    try {
+      await attendanceService.manualAddUnregistered(manualMaSv.trim(), selectedActivity, manualGhiChu);
+      toast.success(`Đã bổ sung ${manualMaSv.trim()} vào hoạt động`);
+      setManualMaSv('');
+      setManualGhiChu('');
+      setShowManualAdd(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Lỗi khi bổ sung');
+    } finally {
+      setManualAdding(false);
+    }
+  };
 
   // ── Vòng lặp quét (RAF) ───────────────────────────────────────────────
   const scanLoop = useCallback(() => {
@@ -283,9 +356,9 @@ const BCHScanQR = () => {
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
             <QrCode className="w-6 h-6 text-blue-600" /> Quét QR Điểm danh
           </h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -335,6 +408,42 @@ const BCHScanQR = () => {
         >
           <ScanLine className="w-4 h-4" /> Máy quét QR
         </button>
+      </div>
+
+      {/* ── TOGGLE CHECK-IN / CHECK-OUT ────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Chế độ quét</p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setAttendanceMode('CHECKIN')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+              attendanceMode === 'CHECKIN'
+                ? 'border-blue-500 bg-blue-500 text-white shadow-md'
+                : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-blue-300 hover:text-blue-600'
+            }`}
+          >
+            <LogIn className="w-4 h-4" />
+            CHECK-IN
+          </button>
+          <button
+            type="button"
+            onClick={() => setAttendanceMode('CHECKOUT')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+              attendanceMode === 'CHECKOUT'
+                ? 'border-orange-500 bg-orange-500 text-white shadow-md'
+                : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-orange-300 hover:text-orange-600'
+            }`}
+          >
+            <LogOut className="w-4 h-4" />
+            CHECK-OUT
+          </button>
+        </div>
+        <p className={`text-xs mt-2 text-center font-medium ${attendanceMode === 'CHECKIN' ? 'text-blue-600' : 'text-orange-600'}`}>
+          {attendanceMode === 'CHECKIN'
+            ? 'Đang ở chế độ CHECK-IN — sinh viên vào'
+            : 'Đang ở chế độ CHECK-OUT — sinh viên ra về'}
+        </p>
       </div>
 
       {/* Chọn hoạt động */}
@@ -396,6 +505,13 @@ const BCHScanQR = () => {
 
             {isStreaming && !isProcessing && !scanResult && (
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {/* Mode badge trên camera */}
+                <div className={`absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-lg pointer-events-none ${
+                  attendanceMode === 'CHECKIN' ? 'bg-blue-600/90' : 'bg-orange-500/90'
+                }`}>
+                  {attendanceMode === 'CHECKIN' ? <LogIn className="w-3.5 h-3.5" /> : <LogOut className="w-3.5 h-3.5" />}
+                  {attendanceMode === 'CHECKIN' ? 'CHECK-IN' : 'CHECK-OUT'}
+                </div>
                 <style>{`
                   @keyframes qr-sweep {
                     0%   { top: 5%;  opacity: 0; }
@@ -407,8 +523,12 @@ const BCHScanQR = () => {
                 <div
                   className="absolute left-4 right-4 h-px"
                   style={{
-                    background: 'linear-gradient(90deg, transparent, #60a5fa, #93c5fd, #60a5fa, transparent)',
-                    boxShadow: '0 0 8px 2px rgba(96,165,250,0.6)',
+                    background: attendanceMode === 'CHECKIN'
+                      ? 'linear-gradient(90deg, transparent, #60a5fa, #93c5fd, #60a5fa, transparent)'
+                      : 'linear-gradient(90deg, transparent, #f97316, #fdba74, #f97316, transparent)',
+                    boxShadow: attendanceMode === 'CHECKIN'
+                      ? '0 0 8px 2px rgba(96,165,250,0.6)'
+                      : '0 0 8px 2px rgba(249,115,22,0.6)',
                     animation: 'qr-sweep 2.2s ease-in-out infinite',
                   }}
                 />
@@ -431,7 +551,16 @@ const BCHScanQR = () => {
                     ? <CheckCircle2 className="w-16 h-16 mx-auto mb-3 text-green-300" />
                     : <XCircle className="w-16 h-16 mx-auto mb-3 text-red-300" />}
                   {scanResult.hoTen && <p className="text-2xl font-bold mb-1">{scanResult.hoTen}</p>}
+                  {scanResult.maSv && <p className="text-sm opacity-70 mb-1">{scanResult.maSv}</p>}
                   <p className="text-sm opacity-90">{scanResult.message}</p>
+                  {scanResult.success && (
+                    <span className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      scanResult.mode === 'CHECKIN' ? 'bg-blue-500/70' : 'bg-orange-500/70'
+                    }`}>
+                      {scanResult.mode === 'CHECKIN' ? <LogIn className="w-3 h-3" /> : <LogOut className="w-3 h-3" />}
+                      {scanResult.mode === 'CHECKIN' ? 'CHECK-IN' : 'CHECK-OUT'}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -554,7 +683,10 @@ const BCHScanQR = () => {
       {scanHistory.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900 text-sm">
+            <h3
+              className="font-semibold text-gray-900 text-sm cursor-default select-none"
+              onClick={handleHiddenTap}
+            >
               Lịch sử quét ({scanHistory.length})
             </h3>
             <button
@@ -576,9 +708,62 @@ const BCHScanQR = () => {
                   )}
                   <p className="text-xs text-gray-500 truncate">{entry.message}</p>
                 </div>
+                {entry.mode && entry.success && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                    entry.mode === 'CHECKIN' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                  }`}>
+                    {entry.mode === 'CHECKIN' ? 'CI' : 'CO'}
+                  </span>
+                )}
                 <span className="text-xs text-gray-400 flex-shrink-0 tabular-nums">{entry.time}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── TÍNH NĂNG ẨN: Bổ sung SV chưa đăng ký ──────────────────────── */}
+      {showManualAdd && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-amber-700" />
+              <h3 className="text-sm font-bold text-amber-800">Bổ sung thủ công</h3>
+              <span className="text-[10px] bg-amber-200 text-amber-700 px-1.5 py-0.5 rounded font-medium">Ẩn</span>
+            </div>
+            <button onClick={() => setShowManualAdd(false)} className="text-amber-500 hover:text-amber-700 text-xs">✕ Đóng</button>
+          </div>
+          <p className="text-xs text-amber-700">Thêm sinh viên chưa đăng ký vào hoạt động đang chọn. Sẽ tạo cả đăng ký + điểm danh.</p>
+          {!selectedActivity && (
+            <p className="text-xs text-red-600 font-medium">⚠ Chọn hoạt động ở trên trước</p>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={manualMaSv}
+              onChange={(e) => setManualMaSv(e.target.value)}
+              placeholder="Mã số sinh viên"
+              disabled={!selectedActivity || manualAdding}
+              className="flex-1 px-3 py-2 text-sm border border-amber-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100"
+            />
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={manualGhiChu}
+              onChange={(e) => setManualGhiChu(e.target.value)}
+              placeholder="Ghi chú (tuỳ chọn)"
+              disabled={!selectedActivity || manualAdding}
+              className="flex-1 px-3 py-2 text-sm border border-amber-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100"
+            />
+            <button
+              onClick={handleManualAdd}
+              disabled={!manualMaSv.trim() || !selectedActivity || manualAdding}
+              className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition flex items-center gap-1.5"
+            >
+              {manualAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+              Thêm
+            </button>
           </div>
         </div>
       )}

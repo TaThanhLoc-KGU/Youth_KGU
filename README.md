@@ -189,7 +189,7 @@ cd Youth-KGU
 Mở MySQL client (MySQL Workbench, DBeaver, hoặc terminal) và chạy:
 
 ```sql
-CREATE DATABASE face_attendance_activity
+CREATE DATABASE youth-kgu
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 ```
@@ -202,7 +202,7 @@ Mở file `src/main/resources/application.properties` và chỉnh sửa:
 
 ```properties
 # Database
-spring.datasource.url=jdbc:mysql://localhost:3306/face_attendance_activity?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh
+spring.datasource.url=jdbc:mysql://localhost:3306/youth-kgu?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh
 spring.datasource.username=root
 spring.datasource.password=YOUR_MYSQL_PASSWORD
 
@@ -239,7 +239,7 @@ VITE_API_BASE_URL=http://localhost:8080
 server.port=8080
 
 # Database
-spring.datasource.url=jdbc:mysql://localhost:3306/face_attendance_activity
+spring.datasource.url=jdbc:mysql://localhost:3306/youth-kgu
 spring.datasource.username=root
 spring.datasource.password=
 

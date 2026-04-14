@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import jsQR from 'jsqr';
+import XuatDanhSachModal from '../../components/activity/XuatDanhSachModal';
 import {
   ArrowLeft,
   Search,
@@ -26,7 +27,11 @@ import {
   Ban,
   CheckCheck,
   RefreshCw,
+  MapPin,
+  Home,
+  FileCheck,
 } from 'lucide-react';
+import api from '../../services/api';
 import activityService from '../../services/activityService';
 import diemDanhService from '../../services/diemDanhService';
 import { format } from 'date-fns';
@@ -354,9 +359,281 @@ function QRScannerPanel({ maHoatDong, onClose, onResult, scanMode = 'CHECK_IN' }
 }
 
 
+// ─── Reverse geocoding cache + component ─────────────────────────────────────
+const geocodeCache = {};
+
+const LocationCell = memo(({ lat, lng }) => {
+  const [state, setState] = useState('idle'); // idle | loading | done | error
+  const [address, setAddress] = useState('');
+
+  const load = async () => {
+    if (state === 'loading' || state === 'done') return;
+    const key = `${lat},${lng}`;
+    if (geocodeCache[key]) { setAddress(geocodeCache[key]); setState('done'); return; }
+    setState('loading');
+    try {
+      const r = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=vi`,
+        { headers: { 'Accept-Language': 'vi' } }
+      );
+      const d = await r.json();
+      const addr = d.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      geocodeCache[key] = addr;
+      setAddress(addr);
+      setState('done');
+    } catch {
+      setState('error');
+    }
+  };
+
+  if (!lat || !lng) return <span className="text-gray-300 text-xs">—</span>;
+
+  return (
+    <div className="text-xs">
+      {state === 'idle' && (
+        <button
+          onClick={load}
+          className="flex items-center gap-1 text-blue-500 hover:text-blue-700 hover:underline transition-colors"
+        >
+          <MapPin className="w-3 h-3" /> Xem vị trí
+        </button>
+      )}
+      {state === 'loading' && (
+        <span className="flex items-center gap-1 text-gray-400">
+          <Loader2 className="w-3 h-3 animate-spin" /> Đang tải...
+        </span>
+      )}
+      {state === 'done' && (
+        <div className="max-w-[200px]">
+          <p className="text-gray-700 leading-snug line-clamp-2" title={address}>{address}</p>
+          <p className="text-gray-400 mt-0.5">{lat.toFixed(5)}, {lng.toFixed(5)}</p>
+        </div>
+      )}
+      {state === 'error' && (
+        <span className="text-red-400">Lỗi tải địa chỉ</span>
+      )}
+    </div>
+  );
+});
+
+// ─── Thêm SV theo MSSV (admin) ───────────────────────────────────────────────
+function ThemSVTheoMSSVPanel({ maHoatDong, onSuccess }) {
+  const [open, setOpen]         = useState(false);
+  const [keyword, setKeyword]   = useState('');
+  const [debouncedKw, setDebouncedKw] = useState('');
+  const [selected, setSelected] = useState(null); // SinhVienDTO đã chọn
+  const [ghiChu, setGhiChu]     = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const wrapperRef = useRef(null);
+
+  // Debounce keyword 300ms
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedKw(keyword.trim()), 300);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
+  // Đóng dropdown khi click ra ngoài
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Search sinh viên
+  const { data: results = [], isFetching: searching } = useQuery({
+    queryKey: ['sv-search-them', debouncedKw],
+    queryFn: () =>
+      api.get('/api/sinhvien', { params: { search: debouncedKw, size: 10, isActive: true } })
+        .then(r => r.data.content || []),
+    enabled: debouncedKw.length >= 2 && !selected,
+    staleTime: 30_000,
+  });
+
+  // Show dropdown khi có kết quả
+  useEffect(() => {
+    if (results.length > 0 && debouncedKw.length >= 2 && !selected) {
+      setShowDropdown(true);
+    }
+  }, [results, debouncedKw, selected]);
+
+  const mutation = useMutation({
+    mutationFn: () => diemDanhService.themThuCongTheoMSSV(maHoatDong, selected.maSv, ghiChu.trim()),
+    onSuccess: (data) => {
+      toast.success(`Đã thêm ${data?.hoTenSinhVien || selected.hoTen} vào danh sách tham gia`);
+      setSelected(null); setKeyword(''); setGhiChu(''); setShowDropdown(false);
+      onSuccess?.();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || 'Có lỗi xảy ra');
+    },
+  });
+
+  const handleSelect = (sv) => {
+    setSelected(sv);
+    setKeyword(sv.hoTen);
+    setShowDropdown(false);
+  };
+
+  const handleClear = () => {
+    setSelected(null);
+    setKeyword('');
+    setShowDropdown(false);
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 px-4 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-xl text-sm font-medium transition-colors self-start"
+      >
+        <UserCheck className="w-4 h-4" /> Thêm sinh viên thủ công
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-violet-200 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-violet-50 border-b border-violet-100">
+        <div className="flex items-center gap-2">
+          <UserCheck className="w-4 h-4 text-violet-600" />
+          <span className="font-semibold text-violet-800 text-sm">Thêm sinh viên thủ công</span>
+        </div>
+        <button onClick={() => { setOpen(false); handleClear(); setGhiChu(''); }}
+          className="p-1 rounded-lg text-violet-400 hover:text-violet-700 hover:bg-violet-100">
+          <XCircle className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="p-4 space-y-3">
+        {/* Search box */}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Tìm sinh viên <span className="text-red-500">*</span>
+            <span className="text-gray-400 font-normal ml-1">(tìm theo họ tên hoặc MSSV)</span>
+          </label>
+          <div className="relative" ref={wrapperRef}>
+            <div className={`flex items-center gap-2 border rounded-lg px-3 py-2 ${
+              selected ? 'border-violet-400 bg-violet-50' : 'border-gray-300'
+            } focus-within:ring-2 focus-within:ring-violet-400`}>
+              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <input
+                type="text"
+                value={keyword}
+                onChange={e => { setKeyword(e.target.value); if (selected) setSelected(null); }}
+                onFocus={() => { if (results.length > 0 && !selected) setShowDropdown(true); }}
+                placeholder="Nhập họ tên hoặc MSSV..."
+                className="flex-1 text-sm bg-transparent outline-none"
+              />
+              {searching && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400 flex-shrink-0" />}
+              {(keyword || selected) && (
+                <button type="button" onClick={handleClear}
+                  className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                  <XCircle className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Dropdown kết quả */}
+            {showDropdown && results.length > 0 && (
+              <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                <div className="px-3 py-1.5 bg-gray-50 border-b text-xs text-gray-500">
+                  {results.length} kết quả
+                </div>
+                <ul className="max-h-56 overflow-y-auto divide-y divide-gray-50">
+                  {results.map(sv => (
+                    <li key={sv.maSv}>
+                      <button
+                        type="button"
+                        onMouseDown={e => { e.preventDefault(); handleSelect(sv); }}
+                        className="w-full text-left px-3 py-2.5 hover:bg-violet-50 transition-colors flex items-center gap-3"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-bold text-violet-600">
+                            {sv.hoTen?.charAt(0)?.toUpperCase() || '?'}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{sv.hoTen}</p>
+                          <p className="text-xs text-gray-500">
+                            <span className="font-mono">{sv.maSv}</span>
+                            {sv.maLop && <span className="ml-2 text-blue-500">{sv.maLop}</span>}
+                            {sv.tenKhoa && <span className="ml-2 text-gray-400 truncate">{sv.tenKhoa}</span>}
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Không tìm thấy */}
+            {showDropdown && results.length === 0 && debouncedKw.length >= 2 && !searching && (
+              <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 text-sm text-gray-500 text-center">
+                Không tìm thấy sinh viên nào
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sinh viên đã chọn — hiển thị card */}
+        {selected && (
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-violet-50 border border-violet-200 rounded-lg">
+            <div className="w-8 h-8 rounded-full bg-violet-200 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-violet-700">
+                {selected.hoTen?.charAt(0)?.toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-violet-900 truncate">{selected.hoTen}</p>
+              <p className="text-xs text-violet-600">
+                <span className="font-mono">{selected.maSv}</span>
+                {selected.maLop && <span className="ml-2">{selected.maLop}</span>}
+              </p>
+            </div>
+            <CheckCircle className="w-4 h-4 text-violet-500 flex-shrink-0" />
+          </div>
+        )}
+
+        {/* Ghi chú + nút thêm */}
+        <div className="flex gap-3 items-end">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Ghi chú</label>
+            <input
+              type="text"
+              value={ghiChu}
+              onChange={e => setGhiChu(e.target.value)}
+              placeholder="Lý do thêm thủ công..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+            />
+          </div>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={!selected || mutation.isPending}
+            className="px-5 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 flex-shrink-0"
+          >
+            {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+            {mutation.isPending ? 'Đang thêm...' : 'Thêm & Điểm danh'}
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-400">
+          ⓘ Sinh viên được chọn sẽ được đăng ký và điểm danh <strong>Có mặt</strong> ngay lập tức.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function ActivityAttendancePage() {
-  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const id = searchParams.get('ma'); // dùng query param để tránh lỗi slash trong maHoatDong
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -501,22 +778,33 @@ export default function ActivityAttendancePage() {
   }, [notCheckedIn, manualSearchTerm]);
 
   const stats = useMemo(() => ({
-    total: attendanceList.length,
-    checkedIn: attendanceList.filter((i) => i.daDiemDanh).length,
+    total:        attendanceList.length,
+    checkedIn:    attendanceList.filter((i) => i.daDiemDanh && i.thoiGianCheckOut).length,
+    noCheckout:   attendanceList.filter((i) => i.daDiemDanh && !i.thoiGianCheckOut).length,
     notCheckedIn: attendanceList.filter((i) => !i.daDiemDanh).length,
   }), [attendanceList]);
 
-  const filteredList = useMemo(() => attendanceList.filter((item) => {
+  const filteredList = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    const matchSearch =
-      item.hoTen?.toLowerCase().includes(q) ||
-      item.maSv?.toLowerCase().includes(q) ||
-      item.lop?.toLowerCase().includes(q);
-    if (!matchSearch) return false;
-    if (filterStatus === 'CHECKED_IN') return item.daDiemDanh;
-    if (filterStatus === 'NOT_CHECKED_IN') return !item.daDiemDanh;
-    return true;
-  }), [attendanceList, searchTerm, filterStatus]);
+    return attendanceList
+      .filter((item) => {
+        const matchSearch =
+          item.hoTen?.toLowerCase().includes(q) ||
+          item.maSv?.toLowerCase().includes(q) ||
+          item.lop?.toLowerCase().includes(q);
+        if (!matchSearch) return false;
+        if (filterStatus === 'CHECKED_IN')     return item.daDiemDanh && item.thoiGianCheckOut;
+        if (filterStatus === 'NO_CHECKOUT')    return item.daDiemDanh && !item.thoiGianCheckOut;
+        if (filterStatus === 'NOT_CHECKED_IN') return !item.daDiemDanh;
+        return true;
+      })
+      .sort((a, b) => {
+        // Mới đăng ký nhất lên đầu
+        const ta = a.ngayDangKy ? new Date(a.ngayDangKy).getTime() : 0;
+        const tb = b.ngayDangKy ? new Date(b.ngayDangKy).getTime() : 0;
+        return tb - ta;
+      });
+  }, [attendanceList, searchTerm, filterStatus]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleQRResult = useCallback((scanInfo) => {
@@ -601,6 +889,9 @@ export default function ActivityAttendancePage() {
     manualCheckOutMutation.mutate({ maSvList: [...selectedSvs] });
   };
 
+  const [showXuatModal,    setShowXuatModal]    = useState(false);
+  const [showBanHanhModal, setShowBanHanhModal] = useState(false);
+
   const handleExportExcel = async () => {
     try {
       toast.info('Đang chuẩn bị file Excel...');
@@ -672,17 +963,23 @@ export default function ActivityAttendancePage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="flex gap-3 flex-shrink-0">
+          <div className="flex flex-wrap gap-3 flex-shrink-0">
             <div className="bg-white border rounded-lg p-3 px-4 shadow-sm text-center">
               <p className="text-xs text-gray-500 font-semibold uppercase">Tổng</p>
               <p className="text-xl font-bold text-gray-800">{stats.total}</p>
             </div>
             <div className="bg-green-50 border border-green-100 rounded-lg p-3 px-4 shadow-sm text-center">
-              <p className="text-xs text-green-600 font-semibold uppercase">Đã điểm danh</p>
+              <p className="text-xs text-green-600 font-semibold uppercase">Có mặt</p>
               <p className="text-xl font-bold text-green-700">{stats.checkedIn}</p>
             </div>
+            {stats.noCheckout > 0 && (
+              <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 px-4 shadow-sm text-center">
+                <p className="text-xs text-orange-600 font-semibold uppercase">Chưa checkout</p>
+                <p className="text-xl font-bold text-orange-700">{stats.noCheckout}</p>
+              </div>
+            )}
             <div className="bg-red-50 border border-red-100 rounded-lg p-3 px-4 shadow-sm text-center">
-              <p className="text-xs text-red-600 font-semibold uppercase">Chưa điểm danh</p>
+              <p className="text-xs text-red-600 font-semibold uppercase">Vắng mặt</p>
               <p className="text-xl font-bold text-red-700">{stats.notCheckedIn}</p>
             </div>
             <button
@@ -693,6 +990,24 @@ export default function ActivityAttendancePage() {
               <Download className="w-5 h-5 mb-1" />
               <span className="text-[10px] font-bold uppercase">Xuất Excel</span>
             </button>
+            <button
+              onClick={() => setShowXuatModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors"
+              title="Xuất danh sách PDF có ký số"
+            >
+              <Download className="w-5 h-5 mb-1" />
+              <span className="text-[10px] font-bold uppercase">Xuất PDF</span>
+            </button>
+            {(['DA_HOAN_THANH', 'DA_KET_THUC'].includes(activity?.trangThai)) && (
+              <button
+                onClick={() => setShowBanHanhModal(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors"
+                title="Ban hành danh sách chính thức có ký số"
+              >
+                <FileCheck className="w-5 h-5 mb-1" />
+                <span className="text-[10px] font-bold uppercase">Ban Hành</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1065,11 +1380,14 @@ export default function ActivityAttendancePage() {
         </div>
       )}
 
+      {/* ── Thêm SV thủ công theo MSSV (chỉ admin, luôn hiển thị khi HĐ đã kết thúc) ── */}
+      <ThemSVTheoMSSVPanel maHoatDong={id} onSuccess={() => queryClient.invalidateQueries({ queryKey: ['attendance', id] })} />
+
       {/* ── Table Section ── */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         {/* Filter bar */}
-        <div className="p-4 border-b flex flex-col md:flex-row gap-3 justify-between">
-          <div className="relative flex-1 max-w-md">
+        <div className="p-4 border-b flex flex-col sm:flex-row gap-3 justify-between">
+          <div className="relative flex-1 max-w-md w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
@@ -1086,8 +1404,9 @@ export default function ActivityAttendancePage() {
               onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="ALL">Tất cả</option>
-              <option value="CHECKED_IN">Đã điểm danh</option>
-              <option value="NOT_CHECKED_IN">Chưa điểm danh</option>
+              <option value="CHECKED_IN">Có mặt (đã checkout)</option>
+              <option value="NO_CHECKOUT">Có check-in, chưa checkout</option>
+              <option value="NOT_CHECKED_IN">Vắng mặt</option>
             </select>
             <button
               onClick={() => refetchList()}
@@ -1102,88 +1421,122 @@ export default function ActivityAttendancePage() {
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 border-b text-gray-500 text-xs uppercase tracking-wider">
+            <thead className="bg-gradient-to-r from-slate-50 to-gray-100 border-b-2 border-gray-200 text-gray-500 text-xs uppercase tracking-wider">
               <tr>
-                <th className="p-4 font-semibold">Sinh viên</th>
-                <th className="p-4 font-semibold">Lớp</th>
-                <th className="p-4 font-semibold">Check-in</th>
-                <th className="p-4 font-semibold">Check-out</th>
-                <th className="p-4 font-semibold text-center">Trạng thái</th>
-                <th className="p-4 font-semibold">Ghi chú</th>
+                <th className="px-3 py-3 font-semibold text-center w-10">#</th>
+                <th className="px-4 py-3 font-semibold">Sinh viên</th>
+                <th className="px-4 py-3 font-semibold hidden sm:table-cell">Đăng ký lúc</th>
+                <th className="px-4 py-3 font-semibold">Check-in</th>
+                <th className="px-4 py-3 font-semibold hidden md:table-cell">Check-out</th>
+                <th className="px-4 py-3 font-semibold hidden xl:table-cell">Vị trí</th>
+                <th className="px-4 py-3 font-semibold text-center">Trạng thái</th>
+                <th className="px-4 py-3 font-semibold hidden lg:table-cell">Ghi chú</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-100">
               {filteredList.length > 0 ? (
-                filteredList.map((item) => (
-                  <tr key={item.maSv} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4">
-                      <p className="font-medium text-gray-900">{item.hoTen}</p>
-                      <p className="text-xs text-gray-400">{item.maSv}</p>
-                    </td>
-                    <td className="p-4 text-gray-600">{item.lop || '—'}</td>
+                filteredList.map((item, idx) => {
+                  const rowCls = item.daDiemDanh && item.thoiGianCheckOut
+                    ? 'hover:bg-green-50/40'
+                    : item.daDiemDanh
+                    ? 'hover:bg-orange-50/40'
+                    : 'hover:bg-red-50/20';
+                  return (
+                  <tr key={item.maSv} className={`transition-colors ${rowCls}`}>
+                    {/* # */}
+                    <td className="px-3 py-3 text-center text-xs text-gray-400 font-mono">{idx + 1}</td>
 
-                    <td className="p-4">
+                    {/* Sinh viên */}
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-gray-900 text-sm">{item.hoTen}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {item.maSv}
+                        {item.lop && <span className="ml-2 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-medium">{item.lop}</span>}
+                      </p>
+                    </td>
+
+                    {/* Ngày đăng ký */}
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {item.ngayDangKy ? (
+                        <span className="text-xs text-gray-500 tabular-nums">
+                          {format(new Date(item.ngayDangKy), 'dd/MM HH:mm')}
+                        </span>
+                      ) : <span className="text-gray-300 text-xs">—</span>}
+                    </td>
+
+                    {/* Check-in */}
+                    <td className="px-4 py-3">
                       {item.thoiGianCheckIn ? (
-                        <div>
-                          <p className="font-medium text-gray-900">
+                        <div className="space-y-1">
+                          <p className="font-semibold text-gray-900 tabular-nums">
                             {format(new Date(item.thoiGianCheckIn), 'HH:mm')}
                           </p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                             item.trangThaiCheckIn === 'DUNG_GIO'
                               ? 'bg-green-100 text-green-700'
                               : 'bg-yellow-100 text-yellow-700'
                           }`}>
-                            {item.trangThaiCheckIn === 'DUNG_GIO'
-                              ? 'Đúng giờ'
-                              : `Trễ ${item.soPhutTre || 0}p`}
+                            {item.trangThaiCheckIn === 'DUNG_GIO' ? '✓ Đúng giờ' : `⚠ Trễ ${item.soPhutTre || 0}p`}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-gray-300">—</span>
+                        <span className="text-gray-300 text-xs">—</span>
                       )}
                     </td>
 
-                    <td className="p-4">
+                    {/* Check-out */}
+                    <td className="px-4 py-3 hidden md:table-cell">
                       {item.thoiGianCheckOut ? (
-                        <div>
-                          <p className="font-medium text-gray-900">
+                        <div className="space-y-1">
+                          <p className="font-semibold text-gray-900 tabular-nums">
                             {format(new Date(item.thoiGianCheckOut), 'HH:mm')}
                           </p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            item.trangThaiCheckOut === 'DUNG_GIO'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-orange-100 text-orange-700'
-                          }`}>
-                            {item.trangThaiCheckOut === 'DUNG_GIO'
-                              ? 'Đúng giờ'
-                              : `Sớm ${item.soPhutVeSom || 0}p`}
-                          </span>
+                          {item.trangThaiCheckOut === 'VE_SOM' && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700">
+                              ⚠ Sớm {item.soPhutVeSom || 0}p
+                            </span>
+                          )}
                         </div>
+                      ) : item.daDiemDanh ? (
+                        <span className="text-xs text-orange-400">Chưa checkout</span>
                       ) : (
-                        <span className="text-gray-300">—</span>
+                        <span className="text-gray-300 text-xs">—</span>
                       )}
                     </td>
 
-                    <td className="p-4 text-center">
-                      {item.daDiemDanh ? (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-100">
-                          <CheckCircle className="w-3.5 h-3.5" /> Đã tham gia
+                    {/* Vị trí check-in */}
+                    <td className="px-4 py-3 hidden xl:table-cell">
+                      <LocationCell lat={item.latitude} lng={item.longitude} />
+                    </td>
+
+                    {/* Trạng thái */}
+                    <td className="px-4 py-3 text-center">
+                      {item.daDiemDanh && item.thoiGianCheckOut ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-semibold border border-green-200 shadow-sm">
+                          <CheckCircle className="w-3.5 h-3.5" /> Có mặt
+                        </span>
+                      ) : item.daDiemDanh ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 shadow-sm">
+                          <Clock className="w-3.5 h-3.5" /> Check-in
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-medium border border-gray-200">
-                          <XCircle className="w-3.5 h-3.5" /> Chưa tham gia
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-600 rounded-full text-xs font-semibold border border-red-200 shadow-sm">
+                          <XCircle className="w-3.5 h-3.5" /> Vắng
                         </span>
                       )}
                     </td>
 
-                    <td className="p-4 text-xs text-gray-400 max-w-[160px] truncate">
-                      {item.ghiChu || '—'}
+                    {/* Ghi chú */}
+                    <td className="px-4 py-3 text-xs text-gray-400 max-w-[150px] truncate hidden lg:table-cell" title={item.ghiChu}>
+                      {item.ghiChu || <span className="text-gray-200">—</span>}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center text-gray-400">
+                  <td colSpan={8} className="py-14 text-center text-gray-400">
+                    <UserCheck className="w-10 h-10 mx-auto mb-2 text-gray-200" />
                     Không tìm thấy sinh viên phù hợp
                   </td>
                 </tr>
@@ -1195,11 +1548,31 @@ export default function ActivityAttendancePage() {
         <div className="p-4 border-t bg-gray-50 text-xs text-gray-500 flex justify-between items-center">
           <span>Hiển thị {filteredList.length} / {attendanceList.length} sinh viên</span>
           <span className="text-green-600 font-medium">
-            {stats.checkedIn}/{stats.total} đã điểm danh
+            {stats.checkedIn}/{stats.total} có mặt
             {stats.total > 0 ? ` (${Math.round(stats.checkedIn / stats.total * 100)}%)` : ''}
+            {stats.noCheckout > 0 && (
+              <span className="text-orange-500 ml-2">· {stats.noCheckout} chưa checkout</span>
+            )}
           </span>
         </div>
       </div>
+
+      {/* Modal xuất danh sách PDF ký số */}
+      {showXuatModal && activity?.maHoatDong && (
+        <XuatDanhSachModal
+          maHoatDong={activity.maHoatDong}
+          onClose={() => setShowXuatModal(false)}
+        />
+      )}
+
+      {/* Modal ban hành danh sách chính thức */}
+      {showBanHanhModal && activity?.maHoatDong && (
+        <XuatDanhSachModal
+          maHoatDong={activity.maHoatDong}
+          mode="BAN_HANH"
+          onClose={() => setShowBanHanhModal(false)}
+        />
+      )}
     </div>
   );
 }

@@ -39,3 +39,19 @@ src.zip
 ### log ###
 logs
 /node_modules/
+
+# Production config with credentials - do not commit
+src/main/resources/application-prod.properties
+
+# Custom ignores
+.env
+dist.tar.gz
+dist.zip
+repomix-output.xml
+youth-kgu.sql
+uploads/
+.claire/
+.claude/
+google_cloud_key
+google_cloud_key.pub
+outputs/

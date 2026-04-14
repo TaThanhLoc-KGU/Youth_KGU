@@ -9,6 +9,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+// Authentication và JoinPoint vẫn dùng cho getCurrentUserInfo() và logDataOperation()
 import org.springframework.stereotype.Component;
 
 import java.lang.annotation.ElementType;
@@ -58,6 +59,15 @@ public class LoggingAspect {
         MODULE_CODES.put("ChuyenVien",           "CHUYEN_VIEN");
         MODULE_CODES.put("Settings",             "SETTINGS");
         MODULE_CODES.put("RefreshToken",         "AUTHENTICATION");
+        MODULE_CODES.put("TinTuc",               "TIN_TUC");
+        MODULE_CODES.put("VanBan",               "VAN_BAN");
+        MODULE_CODES.put("BieuMau",              "BIEU_MAU");
+        MODULE_CODES.put("ChuyenMuc",            "CHUYEN_MUC");
+        MODULE_CODES.put("CuocThi",              "CUOC_THI");
+        MODULE_CODES.put("ThiSinh",              "CUOC_THI");
+        MODULE_CODES.put("BinhChon",             "CUOC_THI");
+        MODULE_CODES.put("Notification",         "THONG_BAO");
+        MODULE_CODES.put("Account",              "TAI_KHOAN");
 
         MODULE_LABELS.put("HoatDong",            "hoạt động");
         MODULE_LABELS.put("SinhVien",            "sinh viên");
@@ -83,6 +93,15 @@ public class LoggingAspect {
         MODULE_LABELS.put("PhongHoc",            "phòng học");
         MODULE_LABELS.put("ChuyenVien",          "chuyên viên");
         MODULE_LABELS.put("Settings",            "phân quyền");
+        MODULE_LABELS.put("TinTuc",              "tin tức");
+        MODULE_LABELS.put("VanBan",              "văn bản");
+        MODULE_LABELS.put("BieuMau",             "biểu mẫu");
+        MODULE_LABELS.put("ChuyenMuc",           "chuyên mục");
+        MODULE_LABELS.put("CuocThi",             "cuộc thi");
+        MODULE_LABELS.put("ThiSinh",             "thí sinh");
+        MODULE_LABELS.put("BinhChon",            "bình chọn");
+        MODULE_LABELS.put("Notification",        "thông báo");
+        MODULE_LABELS.put("Account",             "tài khoản");
     }
 
     // =================== Annotation @LogActivity ===================
@@ -134,37 +153,20 @@ public class LoggingAspect {
         }
     }
 
-    // =================== AOP: Authentication events ===================
-
-    @AfterReturning(
-        pointcut  = "execution(* org.springframework.security.authentication.AuthenticationManager.authenticate(..))",
-        returning = "authentication"
-    )
-    public void logSuccessfulAuthentication(Authentication authentication) {
-        if (authentication != null && authentication.isAuthenticated()) {
-            String name = authentication.getName();
-            logService.logAuthentication("LOGIN_SUCCESS", name, name, true,
-                    name + " đã đăng nhập thành công");
-        }
-    }
-
-    @AfterThrowing(
-        pointcut = "execution(* org.springframework.security.authentication.AuthenticationManager.authenticate(..))",
-        throwing = "ex"
-    )
-    public void logFailedAuthentication(JoinPoint joinPoint, Exception ex) {
-        Object[] args    = joinPoint.getArgs();
-        String username  = args.length > 0 && args[0] instanceof Authentication
-                ? ((Authentication) args[0]).getName() : "unknown";
-        logService.logAuthentication("LOGIN_FAILED", username, username, false,
-                username + " đăng nhập thất bại");
-    }
+    // NOTE: Authentication logging (LOGIN_SUCCESS / LOGIN_FAILED) được xử lý trực tiếp
+    // trong AuthService.login() qua systemLogService.log(...) — không dùng AOP ở đây
+    // để tránh ghi trùng log 2–3 lần mỗi lần đăng nhập.
 
     // =================== AOP: CRUD trên Service layer ===================
 
     @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.create(..))")
     public void logCreateOperations(JoinPoint joinPoint) {
         logDataOperation(joinPoint, "CREATE", "tạo mới");
+    }
+
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.add(..))")
+    public void logAddOperations(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "CREATE", "thêm mới");
     }
 
     @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.update(..))")
@@ -175,6 +177,16 @@ public class LoggingAspect {
     @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.delete(..))")
     public void logDeleteOperations(JoinPoint joinPoint) {
         logDataOperation(joinPoint, "DELETE", "xóa");
+    }
+
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.registerActivity(..))")
+    public void logRegisterActivity(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "REGISTER", "đăng ký");
+    }
+
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.cancelRegistration(..))")
+    public void logCancelRegistration(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "CANCEL", "hủy đăng ký");
     }
 
     /**

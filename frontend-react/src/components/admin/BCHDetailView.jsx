@@ -32,9 +32,9 @@ const BCHDetailView = ({ isOpen, bch, onClose, onEdit }) => {
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
       <div className="space-y-6 max-w-2xl">
         {/* Header */}
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
           <div>
-            <h2 className="text-2xl font-bold">{getDisplayName()}</h2>
+            <h2 className="text-xl sm:text-2xl font-bold break-words">{getDisplayName()}</h2>
             <div className="flex gap-2 mt-2">
               <Badge variant={loaiColor[bch.loaiThanhVien] || 'default'}>
                 {getLoaiDisplay()}
@@ -61,14 +61,14 @@ const BCHDetailView = ({ isOpen, bch, onClose, onEdit }) => {
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">Thông tin cá nhân</h3>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <label className="text-gray-600 font-medium">Mã BCH</label>
                 <p className="mt-1 font-mono">{bch.maBch}</p>
               </div>
               <div>
                 <label className="text-gray-600 font-medium">Email</label>
-                <p className="mt-1">{bch.email || bch.sinhVien?.email || '-'}</p>
+                <p className="mt-1 break-words">{bch.email || bch.sinhVien?.email || '-'}</p>
               </div>
               <div>
                 <label className="text-gray-600 font-medium">SĐT</label>
@@ -103,7 +103,7 @@ const BCHDetailView = ({ isOpen, bch, onClose, onEdit }) => {
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">Thông tin nhiệm kỳ</h3>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <label className="text-gray-600 font-medium">Nhiệm kỳ</label>
                 <p className="mt-1 font-medium">{bch.nhiemKy || '-'}</p>
@@ -164,7 +164,7 @@ const BCHDetailView = ({ isOpen, bch, onClose, onEdit }) => {
         )}
 
         {/* Close Button */}
-        <div className="flex justify-end gap-2 pt-4">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4">
           <Button variant="outline" onClick={onClose} icon={X}>
             Đóng
           </Button>

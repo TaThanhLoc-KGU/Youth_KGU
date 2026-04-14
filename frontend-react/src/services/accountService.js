@@ -262,8 +262,10 @@ const accountService = {
         ngaySinh: data.ngaySinh,
         gioiTinh: data.gioiTinh,
         vaiTro: data.vaiTro,
+        bchLevel: data.bchLevel ? parseInt(data.bchLevel) : null,
         banChuyenMon: data.banChuyenMon || null,
-        avatar: data.avatar
+        avatar: data.avatar,
+        maKhoa: data.maKhoa || null
       });
       return response.data.data;
     } catch (error) {
@@ -299,7 +301,9 @@ const accountService = {
         gioiTinh: data.gioiTinh,
         avatar: data.avatar,
         vaiTro: data.vaiTro,
-        banChuyenMon: data.banChuyenMon || null
+        bchLevel: data.bchLevel ? parseInt(data.bchLevel) : null,
+        banChuyenMon: data.banChuyenMon || null,
+        maKhoa: data.maKhoa || null
       });
       return response.data.data;
     } catch (error) {
@@ -318,6 +322,20 @@ const accountService = {
       return true;
     } catch (error) {
       throw error.response?.data?.message || 'Lỗi xóa tài khoản';
+    }
+  },
+
+  /**
+   * Reset mật khẩu về mặc định KGU@123456
+   * @param {number} accountId - ID tài khoản
+   * @returns {Promise<string>} - Message thành công
+   */
+  resetPassword: async (accountId) => {
+    try {
+      const response = await api.post(`/api/accounts/${accountId}/reset-password`);
+      return response.data?.message || 'Reset mật khẩu thành công';
+    } catch (error) {
+      throw error.response?.data?.message || 'Lỗi reset mật khẩu';
     }
   },
 

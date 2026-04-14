@@ -69,10 +69,19 @@ api.interceptors.response.use(
     }
 
     // Handle other errors
+    const status = error.response?.status;
     const errorMessage = error.response?.data?.message || error.message || 'Đã xảy ra lỗi';
 
-    // Don't show toast for 401 (auth errors) as they are handled by redirect logic
-    if (error.response?.status !== 401 && error.config.url !== '/api/auth/login') {
+    // Không toast cho:
+    //   401 - đã xử lý redirect ở trên
+    //   403 - không có quyền, UI đã ẩn/disable nút bằng hasPermission(); toast ở đây chỉ spam
+    // Chỉ toast cho lỗi thực sự: 400 Bad Request, 404, 5xx, network error
+    const shouldToast =
+      status !== 401 &&
+      status !== 403 &&
+      error.config?.url !== '/api/auth/login';
+
+    if (shouldToast) {
       toast.error(errorMessage);
     }
 

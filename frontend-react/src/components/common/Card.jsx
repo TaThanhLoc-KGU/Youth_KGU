@@ -18,7 +18,7 @@ const Card = ({ children, className, padding = true, hover = false }) => {
 const CardHeader = ({ children, className, action }) => {
   return (
     <div className={clsx('card-header', className)}>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>{children}</div>
         {action && <div>{action}</div>}
       </div>
