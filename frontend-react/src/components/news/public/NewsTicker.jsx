@@ -1,15 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Volume2 } from 'lucide-react';
 
 /**
  * Scrolling news ticker / chạy chữ.
  * Props:
  *   posts – Array<{ id, tieuDe, fullUrlPath }> – items để hiển thị
- *   label – string (default 'Tin mới')
  *   speed – px/s (default 60)
  */
-const NewsTicker = ({ posts = [], label = 'Tin mới', speed = 60 }) => {
+const NewsTicker = ({ posts = [], speed = 60 }) => {
   const trackRef   = useRef(null);
   const [paused, setPaused] = useState(false);
 
@@ -41,12 +39,6 @@ const NewsTicker = ({ posts = [], label = 'Tin mới', speed = 60 }) => {
 
   return (
     <div className="bg-enews-700 text-white flex items-center rounded-lg overflow-hidden shadow-sm my-4">
-      {/* Label */}
-      <div className="flex-shrink-0 flex items-center gap-1.5 bg-enews-600 px-3 py-2 text-sm font-semibold whitespace-nowrap">
-        <Volume2 className="w-4 h-4 animate-pulse" />
-        {label}
-      </div>
-
       {/* Scrolling track */}
       <div
         className="flex-1 overflow-hidden relative"

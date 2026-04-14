@@ -15,4 +15,5 @@ public class GiangVienDTO {
     private String email;
     private Boolean isActive;
     private String maKhoa;
+    private String tenKhoa;
 }

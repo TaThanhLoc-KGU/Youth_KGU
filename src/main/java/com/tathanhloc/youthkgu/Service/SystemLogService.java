@@ -14,6 +14,9 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service @Slf4j @RequiredArgsConstructor
 public class SystemLogService {
@@ -126,9 +129,58 @@ public class SystemLogService {
             PageRequest.of(page, size, Sort.by("createdAt").descending()));
     }
 
+    public List<SystemLog> getRecent() {
+        return repo.findTop100ByOrderByCreatedAtDesc();
+    }
+
+    public Map<String, Object> getQuickStats() {
+        LocalDateTime since24h = LocalDateTime.now().minusHours(24);
+        LocalDateTime since1h  = LocalDateTime.now().minusHours(1);
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("total24h",   repo.search(null, null, null, null, null, since24h, null,
+                PageRequest.of(0, 1, Sort.unsorted())).getTotalElements());
+        stats.put("errors24h",  repo.search(null, null, null, SystemLog.LogLevel.ERROR, null, since24h, null,
+                PageRequest.of(0, 1, Sort.unsorted())).getTotalElements());
+        stats.put("logins24h",  repo.search("AUTHENTICATION", "LOGIN_SUCCESS", null, null, null, since24h, null,
+                PageRequest.of(0, 1, Sort.unsorted())).getTotalElements());
+        stats.put("failed24h",  repo.search(null, null, null, null, "FAILED", since24h, null,
+                PageRequest.of(0, 1, Sort.unsorted())).getTotalElements());
+        stats.put("total1h",    repo.search(null, null, null, null, null, since1h, null,
+                PageRequest.of(0, 1, Sort.unsorted())).getTotalElements());
+        return stats;
+    }
+
     private String getClientIp(HttpServletRequest request) {
         if (request == null) return null;
-        String ip = request.getHeader("X-Forwarded-For");
-        return (ip != null && !ip.isEmpty()) ? ip.split(",")[0] : request.getRemoteAddr();
+
+        // Kiểm tra theo thứ tự ưu tiên: các header do reverse proxy gửi trước
+        String[] HEADERS = {
+            "X-Forwarded-For",
+            "X-Real-IP",
+            "Proxy-Client-IP",
+            "WL-Proxy-Client-IP",
+            "HTTP_X_FORWARDED_FOR",
+            "HTTP_CLIENT_IP",
+        };
+        for (String header : HEADERS) {
+            String ip = request.getHeader(header);
+            if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
+                // X-Forwarded-For có thể chứa nhiều IP: "client, proxy1, proxy2" → lấy IP đầu tiên
+                String candidate = ip.split(",")[0].trim();
+                if (!candidate.isEmpty()) return normalizeIp(candidate);
+            }
+        }
+
+        return normalizeIp(request.getRemoteAddr());
+    }
+
+    /** Chuẩn hóa IPv6 loopback (::1 / 0:0:0:0:0:0:0:1) thành 127.0.0.1 cho dễ đọc */
+    private String normalizeIp(String ip) {
+        if (ip == null) return null;
+        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) return "127.0.0.1";
+        // Bỏ bracket IPv6 nếu có: [::1] → ::1
+        if (ip.startsWith("[") && ip.endsWith("]")) ip = ip.substring(1, ip.length() - 1);
+        return ip;
     }
 }

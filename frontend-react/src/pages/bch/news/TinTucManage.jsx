@@ -95,9 +95,9 @@ const BCHTinTucManage = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Đăng bài viết</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Đăng bài viết</h1>
           <p className="text-sm text-gray-500 mt-0.5">Quản lý tin tức do đơn vị đăng tải</p>
         </div>
         {canCreate && (
@@ -123,7 +123,7 @@ const BCHTinTucManage = () => {
           value={trangThai}
           onChange={(e) => { setTrangThai(e.target.value); setPage(0); }}
           options={TRANG_THAI_OPTIONS}
-          className="sm:w-44"
+          className="w-full sm:w-44"
         />
       </div>
 

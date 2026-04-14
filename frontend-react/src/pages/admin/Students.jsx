@@ -15,12 +15,21 @@ import Modal from '../../components/common/Modal';
 import StudentForm from '../../components/admin/StudentForm';
 import StudentDetail from '../../components/admin/StudentDetail';
 import StudentExcelImport from '../../components/admin/StudentExcelImport';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import SearchableSelect from '../../components/common/SearchableSelect';
 
 const Students = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
-  const canView   = hasPermission(PERMISSIONS.XEM_SINH_VIEN);
-  const canManage = hasPermission(PERMISSIONS.THEM_SINH_VIEN);
+  const canView   = hasPermission(PERMISSIONS.VIEW_SINH_VIEN);
+  const canAdd    = hasPermission(PERMISSIONS.THEM_SINH_VIEN);
+  const canEdit   = hasPermission(PERMISSIONS.SUA_SINH_VIEN);
+  const canDelete = hasPermission(PERMISSIONS.XOA_SINH_VIEN);
+  const canImport = hasPermission(PERMISSIONS.IMPORT_SINH_VIEN);
+  const canManage = canAdd || canEdit || canDelete;
+  const canViewLop   = hasPermission(PERMISSIONS.XEM_LOP);
+  const canViewKhoa  = hasPermission(PERMISSIONS.XEM_KHOA);
+  const canViewNganh = hasPermission(PERMISSIONS.XEM_NGANH);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
@@ -30,24 +39,28 @@ const Students = () => {
   const [majorFilter, setMajorFilter] = useState('');
   const [selectedRows, setSelectedRows] = useState(new Set());
 
+  const [confirmState, setConfirmState] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [modalMode, setModalMode] = useState('create'); // 'create' | 'edit'
 
-  // Fetch dropdown data
+  // Fetch dropdown data — chỉ gọi khi có quyền để tránh spam 403
   const { data: classList = [] } = useQuery({
     queryKey: ['classes'],
-    queryFn: () => lopService.getAll()
+    queryFn: () => lopService.getAll(),
+    enabled: canViewLop,
   });
   const { data: facultyList = [] } = useQuery({
     queryKey: ['faculties'],
-    queryFn: () => khoaService.getAll()
+    queryFn: () => khoaService.getAll(),
+    enabled: canViewKhoa,
   });
   const { data: majorList = [] } = useQuery({
     queryKey: ['majors'],
-    queryFn: () => nganhService.getAll()
+    queryFn: () => nganhService.getAll(),
+    enabled: canViewNganh,
   });
 
   // Filter classes by faculty/major for display (client-side filtering)
@@ -59,7 +72,7 @@ const Students = () => {
 
   // Fetch students with pagination and filters
   const { data: studentsData, isLoading } = useQuery({
-    queryKey: ['students', page, size, search, statusFilter, classFilter],
+    queryKey: ['students', page, size, search, statusFilter, classFilter, facultyFilter, majorFilter],
     queryFn: () => studentService.getAll({
       page,
       size,
@@ -67,6 +80,8 @@ const Students = () => {
       direction: 'asc',
       search,
       maLop: classFilter,
+      maKhoa: facultyFilter,
+      maNganh: majorFilter,
       isActive: statusFilter === 'all' ? null : statusFilter === 'active' ? true : false
     }),
     keepPreviousData: true
@@ -160,7 +175,7 @@ const Students = () => {
     },
     {
       header: 'Lớp',
-      accessor: 'tenLop',
+      accessor: 'maLop',
       render: (value) => value || '-',
     },
     {
@@ -191,7 +206,7 @@ const Students = () => {
             onClick={(e) => { e.stopPropagation(); handleView(row); }}
             title="Xem chi tiết"
           />
-          {canManage && (
+          {canEdit && (
             <Button
               size="sm"
               variant="ghost"
@@ -200,7 +215,7 @@ const Students = () => {
               title="Sửa"
             />
           )}
-          {canManage && (
+          {canDelete && (
             <Button
               size="sm"
               variant="ghost"
@@ -233,9 +248,7 @@ const Students = () => {
   };
 
   const handleDelete = (student) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa sinh viên ${student.hoTen}?`)) {
-      deleteMutation.mutate(student.maSv);
-    }
+    setConfirmState({ id: student.maSv, name: student.hoTen });
   };
 
   const handleFormSuccess = () => {
@@ -271,175 +284,161 @@ const Students = () => {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {canManage && (
-            <Button variant="outline" icon={Upload} onClick={() => setIsImportModalOpen(true)}>
-              Import
-            </Button>
-          )}
-          {canView && (
-            <Button variant="outline" icon={Download} onClick={handleExport}>
-              Export
-            </Button>
-          )}
-          {canManage && (
-            <Button icon={Plus} onClick={handleCreate}>
-              Thêm sinh viên
-            </Button>
-          )}
+        {canImport && (
+        <Button variant="outline" icon={Upload} onClick={() => setIsImportModalOpen(true)}>
+        <span className="hidden sm:inline">Import</span>
+        </Button>
+        )}
+        {canView && (
+        <Button variant="outline" icon={Download} onClick={handleExport}>
+        <span className="hidden sm:inline">Export</span>
+        </Button>
+        )}
+        {canAdd && (
+        <Button icon={Plus} onClick={handleCreate}>
+        <span className="hidden sm:inline">Thêm sinh viên</span>
+        </Button>
+        )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="card">
-        <div className="card-body">
-          <div className="space-y-4">
-            {/* Search Row */}
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
-                <label htmlFor="search-input" className="block text-sm font-medium text-gray-700 mb-2">
-                  Tìm kiếm
-                </label>
-                <input
-                  id="search-input"
-                  type="text"
-                  placeholder="Mã SV, tên, email..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setPage(0);
-                    }
-                  }}
-                />
+      {/* Filters Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Tìm kiếm */}
+          <div className="lg:col-span-2">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Tìm kiếm sinh viên
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
               </div>
-              <Button
-                icon={Search}
-                onClick={() => setPage(0)}
-                title="Tìm kiếm"
-              >
-                Tìm
-              </Button>
+              <input
+                type="text"
+                placeholder="Nhập mã SV, tên hoặc email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                onKeyDown={(e) => e.key === 'Enter' && setPage(0)}
+              />
             </div>
+          </div>
 
-            {/* Filters Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div>
-                <label htmlFor="faculty-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                  Khoa
-                </label>
-                <select
-                  id="faculty-filter"
-                  value={facultyFilter}
-                  onChange={(e) => {
-                    setFacultyFilter(e.target.value);
-                    setPage(0);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-                >
-                  <option value="">Tất cả khoa</option>
-                  {Array.isArray(facultyList) && facultyList.map(faculty => (
-                    <option key={faculty.maKhoa} value={faculty.maKhoa}>
-                      {faculty.tenKhoa || faculty.maKhoa}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          {/* Khoa */}
+          <div>
+            <SearchableSelect
+              label="Khoa"
+              labelClassName="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
+              placeholder="Tất cả khoa"
+              options={Array.isArray(facultyList) ? facultyList.map(f => ({
+                value: f.maKhoa,
+                label: f.tenKhoa || f.maKhoa
+              })) : []}
+              value={facultyFilter}
+              onChange={(val) => {
+                setFacultyFilter(val || '');
+                setMajorFilter('');
+                setClassFilter('');
+                setPage(0);
+              }}
+            />
+          </div>
 
-              <div>
-                <label htmlFor="major-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                  Ngành
-                </label>
-                <select
-                  id="major-filter"
-                  value={majorFilter}
-                  onChange={(e) => {
-                    setMajorFilter(e.target.value);
-                    setPage(0);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-                >
-                  <option value="">Tất cả ngành</option>
-                  {Array.isArray(majorList) && majorList.map(major => (
-                    <option key={major.maNganh} value={major.maNganh}>
-                      {major.tenNganh || major.maNganh}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          {/* Ngành */}
+          <div>
+            <SearchableSelect
+              label="Ngành"
+              labelClassName="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
+              placeholder="Tất cả ngành"
+              options={Array.isArray(majorList) ? majorList.map(m => ({
+                value: m.maNganh,
+                label: m.tenNganh || m.maNganh
+              })) : []}
+              value={majorFilter}
+              onChange={(val) => {
+                setMajorFilter(val || '');
+                setClassFilter('');
+                setPage(0);
+              }}
+            />
+          </div>
 
-              <div>
-                <label htmlFor="class-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                  Lớp
-                </label>
-                <select
-                  id="class-filter"
-                  value={classFilter}
-                  onChange={(e) => {
-                    setClassFilter(e.target.value);
-                    setPage(0);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-                >
-                  <option value="">Tất cả lớp</option>
-                  {filteredClasses.map(cls => (
-                    <option key={cls.maLop} value={cls.maLop}>
-                      {cls.maLop} - {cls.tenLop || ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          {/* Lớp */}
+          <div>
+            <SearchableSelect
+              label="Lớp học"
+              labelClassName="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
+              placeholder="Tất cả lớp"
+              options={filteredClasses.map(cls => ({
+                value: cls.maLop,
+                label: cls.maLop
+              }))}
+              value={classFilter}
+              onChange={(val) => {
+                setClassFilter(val || '');
+                setPage(0);
+              }}
+            />
+          </div>
+        </div>
 
-              <div>
-                <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                  Trạng thái
-                </label>
-                <select
-                  id="status-filter"
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setPage(0);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-                >
-                  <option value="all">Tất cả</option>
-                  <option value="active">Hoạt động</option>
-                  <option value="inactive">Ngừng hoạt động</option>
-                </select>
-              </div>
+        <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-50">
+          <div className="flex gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(0);
+              }}
+              className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500/20 outline-none cursor-pointer"
+            >
+              <option value="all">Mọi trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Ngừng hoạt động</option>
+            </select>
+          </div>
 
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  icon={RefreshCw}
-                  onClick={() => {
-                    setSearch('');
-                    setStatusFilter('all');
-                    setClassFilter('');
-                    setFacultyFilter('');
-                    setMajorFilter('');
-                    setPage(0);
-                    setSelectedRows(new Set());
-                  }}
-                  fullWidth
-                >
-                  Xóa lọc
-                </Button>
-              </div>
-            </div>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={RefreshCw}
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('all');
+                setClassFilter('');
+                setFacultyFilter('');
+                setMajorFilter('');
+                setPage(0);
+                setSelectedRows(new Set());
+              }}
+              className="text-gray-500 hover:text-primary-600 font-medium text-xs"
+            >
+              Làm mới bộ lọc
+            </Button>
+            <Button
+              size="sm"
+              icon={Search}
+              onClick={() => setPage(0)}
+              className="px-6 shadow-sm shadow-primary-500/20"
+            >
+              Tìm kiếm
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Table */}
       <div className="card">
-        <Table
-          columns={columns}
-          data={studentsData?.content || []}
-          isLoading={isLoading}
-          onRowClick={handleView}
-        />
+        <div className="overflow-x-auto">
+          <Table
+            columns={columns}
+            data={studentsData?.content || []}
+            isLoading={isLoading}
+            onRowClick={handleView}
+          />
+        </div>
         {studentsData && (
           <Table.Pagination
             currentPage={studentsData.number}
@@ -499,6 +498,15 @@ const Students = () => {
           onCancel={() => setIsImportModalOpen(false)}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa sinh viên"
+        description={`Bạn có chắc muốn xóa sinh viên "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 };

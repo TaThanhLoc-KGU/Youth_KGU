@@ -6,6 +6,7 @@ import com.tathanhloc.youthkgu.Exception.BusinessException;
 import com.tathanhloc.youthkgu.Exception.ResourceNotFoundException;
 import com.tathanhloc.youthkgu.Model.*;
 import com.tathanhloc.youthkgu.Repository.*;
+import com.tathanhloc.youthkgu.Repository.KhoaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -40,6 +41,8 @@ public class TinTucService {
     private final SlugService slugService;
     private final FileStorageService fileStorageService;
     private final ChuyenMucService chuyenMucService;
+    private final KhoaScopeService khoaScopeService;
+    private final KhoaRepository khoaRepository;
 
     // ── Public queries ──────────────────────────────────────────────────────────
 
@@ -82,12 +85,21 @@ public class TinTucService {
      */
     @Transactional(readOnly = true)
     public Page<TinTucDTO> getDanhSach(String keyword, String trangThai, Pageable pageable) {
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            String kw = (keyword != null && !keyword.isBlank()) ? keyword : null;
+            return repo.findByKhoaAndKeyword(maKhoa, kw, pageable).map(this::toDTO);
+        }
         TrangThaiTinTuc ttEnum = null;
         if (trangThai != null && !trangThai.isBlank()) {
             try { ttEnum = TrangThaiTinTuc.valueOf(trangThai); } catch (IllegalArgumentException ignored) {}
         }
         String kw = (keyword != null && !keyword.isBlank()) ? keyword : null;
         return repo.searchManage(kw, ttEnum, pageable).map(this::toDTO);
+    }
+
+    public Page<TinTucDTO> getTinTucByKhoa(String maKhoa, Pageable pageable) {
+        return repo.findPublishedByKhoa(maKhoa, TrangThaiTinTuc.PUBLISHED, pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
@@ -140,7 +152,15 @@ public class TinTucService {
             builder.vanBan(vb);
         }
 
-        TinTuc saved = repo.save(builder.build());
+        TinTuc tinTuc = builder.build();
+
+        // Auto-tag khoa nếu người tạo là cán bộ khoa
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            khoaRepository.findById(maKhoa).ifPresent(tinTuc::setKhoa);
+        }
+
+        TinTuc saved = repo.save(tinTuc);
         log.info("Created TinTuc id={} by {}", saved.getId(), username);
         return toDTO(saved);
     }
@@ -316,6 +336,8 @@ public class TinTucService {
                 .ngayXuatBan(t.getNgayXuatBan())
                 .createdAt(t.getCreatedAt())
                 .updatedAt(t.getUpdatedAt())
+                .maKhoa(t.getKhoa() != null ? t.getKhoa().getMaKhoa() : null)
+                .tenKhoa(t.getKhoa() != null ? t.getKhoa().getTenKhoa() : null)
                 .build();
     }
 

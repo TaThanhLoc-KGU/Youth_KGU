@@ -125,14 +125,14 @@ const BCHAttendance = () => {
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Quản lý Điểm danh</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Điểm danh</h1>
         <p className="text-gray-500 text-sm mt-1">
           Chọn hoạt động để xem và quản lý điểm danh
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-fit">
         <button
           onClick={() => setTab('ongoing')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -175,7 +175,7 @@ const BCHAttendance = () => {
       </div>
 
       {/* Search */}
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full sm:w-80">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           type="text"
@@ -204,7 +204,7 @@ const BCHAttendance = () => {
               className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition"
             >
               <div className="flex flex-col gap-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
                   <div className="flex-1 min-w-0">
                     {/* Status badge */}
                     <div className="mb-1">
@@ -225,7 +225,7 @@ const BCHAttendance = () => {
 
                     <h3 className="font-semibold text-gray-900">{act.tenHoatDong}</h3>
 
-                    <div className="flex flex-wrap gap-4 mt-2 text-xs text-gray-500">
+                    <div className="flex flex-wrap gap-3 sm:gap-4 mt-2 text-xs text-gray-500">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" /> {formatDate(act.ngayToChuc)}
                       </span>
@@ -242,8 +242,8 @@ const BCHAttendance = () => {
                   </div>
 
                   <Link
-                    to={`${ROUTES.BCH}/activities/${act.maHoatDong}/attendance`}
-                    className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                    to={`${ROUTES.BCH}/activities/attendance?ma=${encodeURIComponent(act.maHoatDong)}`}
+                    className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition w-full sm:w-auto"
                   >
                     <ClipboardCheck className="w-4 h-4" />
                     Điểm danh

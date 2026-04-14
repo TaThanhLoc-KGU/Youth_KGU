@@ -19,6 +19,12 @@ public class DiemDanhQRRequest {
     private String maQR;
 
     /**
+     * Mã hoạt động — BCH đang quét cho hoạt động nào.
+     * Dùng làm fallback khi maQR bị lỗi encoding (jsQR decode Latin-1 thay vì UTF-8).
+     */
+    private String maHoatDong;
+
+    /**
      * Mã BCH người xác nhận (người quét QR)
      */
     private String maBchXacNhan;
@@ -38,4 +44,11 @@ public class DiemDanhQRRequest {
      * Ghi chú thêm (nếu có)
      */
     private String ghiChu;
+
+    /**
+     * Override chế độ quét: "CHECKIN" hoặc "CHECKOUT".
+     * Khi BCH chọn rõ ràng trên giao diện, bỏ qua kiểm tra cửa sổ thời gian.
+     * null = tự động theo logic cũ.
+     */
+    private String attendanceMode;
 }

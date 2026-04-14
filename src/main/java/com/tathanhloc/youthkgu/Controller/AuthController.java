@@ -1,11 +1,14 @@
 package com.tathanhloc.youthkgu.Controller;
 
 import com.tathanhloc.youthkgu.DTO.*;
+import com.tathanhloc.youthkgu.Model.SystemLog;
 import com.tathanhloc.youthkgu.Model.TaiKhoan;
 import com.tathanhloc.youthkgu.Security.CustomUserDetails;
 import com.tathanhloc.youthkgu.Service.AuthService;
+import com.tathanhloc.youthkgu.Service.SystemLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final SystemLogService systemLogService;
 
     /**
      * Đăng nhập
@@ -170,9 +174,21 @@ public class AuthController {
      */
     @PostMapping("/logout")
     @Operation(summary = "Đăng xuất")
-    public ResponseEntity<ApiResponse<Void>> logout(Authentication authentication) {
+    public ResponseEntity<ApiResponse<Void>> logout(Authentication authentication,
+                                                     HttpServletRequest request) {
         if (authentication != null) {
-            log.info("User logged out: {}", authentication.getName());
+            String username = authentication.getName();
+            log.info("User logged out: {}", username);
+            String hoTen = null;
+            try {
+                CustomUserDetails ud = (CustomUserDetails) authentication.getPrincipal();
+                TaiKhoan tk = ud.getTaiKhoan();
+                if (tk.getSinhVien() != null) hoTen = tk.getSinhVien().getHoTen();
+                else if (tk.getGiangVien() != null) hoTen = tk.getGiangVien().getHoTen();
+                else hoTen = tk.getHoTen();
+            } catch (Exception ignored) {}
+            systemLogService.log("AUTHENTICATION", "LOGOUT", username, hoTen,
+                    "Đăng xuất thành công", SystemLog.LogLevel.INFO, "SUCCESS", request);
         }
         return ResponseEntity.ok(ApiResponse.success("Đăng xuất thành công", null));
     }

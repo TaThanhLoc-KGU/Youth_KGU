@@ -205,6 +205,18 @@ public class HoatDong {
     private LocalDateTime thoiGianKetThucThucTe;
 
     /**
+     * Thời điểm BCH/Admin bấm "Bắt đầu" thực tế (khác ngayToChuc/thoiGianBatDau)
+     */
+    @Column(name = "thoi_gian_bat_dau_thuc_te")
+    private LocalDateTime thoiGianBatDauThucTe;
+
+    /**
+     * Trạng thái trước khi startActivity() được gọi — dùng để revert nếu lỡ tay
+     */
+    @Column(name = "trang_thai_truoc_khi_bat_dau")
+    private String trangThaiTruocKhiBatDau;
+
+    /**
      * Số phút cho phép checkout sau khi kết thúc (default 30)
      */
     @Column(name = "thoi_gian_cho_phep_check_out")

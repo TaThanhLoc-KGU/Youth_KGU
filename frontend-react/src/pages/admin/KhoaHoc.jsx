@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw, Search } from 'lucide-react';
 import khoahocService from '../../services/khoahocService';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
@@ -14,6 +14,7 @@ import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import { useForm } from 'react-hook-form';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const KhoaHocForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
   const { register, handleSubmit, formState: { errors } } = useForm({
@@ -108,6 +109,7 @@ const KhoaHoc = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
   const canManage = hasPermission(PERMISSIONS.CAI_DAT_HE_THONG);
+  const [confirmState, setConfirmState] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -198,11 +200,7 @@ const KhoaHoc = () => {
               variant="ghost"
               icon={Trash2}
               className="text-red-600"
-              onClick={() => {
-                if (window.confirm(`Xóa khóa học ${row.tenKhoahoc}?`)) {
-                  deleteMutation.mutate(row.maKhoahoc);
-                }
-              }}
+              onClick={() => setConfirmState({ id: row.maKhoahoc, name: row.tenKhoahoc })}
             />
           )}
         </div>
@@ -228,30 +226,60 @@ const KhoaHoc = () => {
         )}
       </div>
 
-      <Card>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <SearchInput
-              placeholder="Tìm kiếm..."
-              value={search}
-              onSearch={setSearch}
-              className="md:col-span-2"
-            />
-            <Select
-              options={[
-                { value: '', label: 'Tất cả trạng thái' },
-                { value: 'active', label: 'Hoạt động' },
-                { value: 'inactive', label: 'Ngừng' },
-              ]}
+      {/* Filters Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Tìm kiếm */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Tìm kiếm khóa học
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="Mã khóa hoặc tên khóa..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Trạng thái */}
+          <div className="flex flex-col">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Trạng thái
+            </label>
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-            />
-            <Button variant="outline" icon={RefreshCw} onClick={() => refetch()}>
+              className="block w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none cursor-pointer"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Ngừng hoạt động</option>
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <Button
+              variant="outline"
+              icon={RefreshCw}
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('');
+                refetch();
+              }}
+              className="w-full"
+            >
               Làm mới
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
 
       <Card>
         {isError && (
@@ -296,6 +324,15 @@ const KhoaHoc = () => {
           onCancel={() => setIsModalOpen(false)}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa khóa học"
+        description={`Bạn có chắc muốn xóa khóa học "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 };

@@ -3,6 +3,7 @@ package com.tathanhloc.youthkgu.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -13,17 +14,17 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Service để gửi email thông báo
+ * Service để gửi email thông báo.
+ * Kiểm tra CauHinhEmailService.isEmailEnabled() trước khi gửi:
+ *   false → chỉ log console (mock), true → gửi thật qua SMTP.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
-
-    @Value("${spring.mail.from:noreply@vnkgu.edu.vn}")
-    private String fromEmail;
+    private final JavaMailSender         mailSender;
+    private final CauHinhEmailService    cauHinhEmailService;
 
     @Value("${app.name:Hệ thống Quản lý Hoạt động Đoàn - Hội}")
     private String appName;
@@ -35,6 +36,10 @@ public class EmailService {
      * @param hoTen Họ tên
      */
     public void sendRegistrationSuccessEmail(String email, String username, String hoTen) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Email đăng ký thành công → {} ({})", hoTen, email);
+            return;
+        }
         log.info("Gửi email đăng ký thành công đến: {}", email);
 
         String subject = "Đăng ký tài khoản thành công - " + appName;
@@ -55,6 +60,10 @@ public class EmailService {
      * @param hoTen Họ tên
      */
     public void sendAccountApprovedEmail(String email, String username, String hoTen) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Email phê duyệt tài khoản → {} ({})", hoTen, email);
+            return;
+        }
         log.info("Gửi email phê duyệt tài khoản đến: {}", email);
 
         String subject = "Tài khoản đã được phê duyệt - " + appName;
@@ -76,6 +85,10 @@ public class EmailService {
      * @param lyDo Lý do từ chối
      */
     public void sendAccountRejectedEmail(String email, String username, String hoTen, String lyDo) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Email từ chối tài khoản → {} ({})", hoTen, email);
+            return;
+        }
         log.info("Gửi email từ chối tài khoản đến: {}", email);
 
         String subject = "Tài khoản bị từ chối - " + appName;
@@ -97,6 +110,10 @@ public class EmailService {
      * @param resetToken Token để reset mật khẩu
      */
     public void sendPasswordResetEmail(String email, String username, String hoTen, String resetToken) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Email reset mật khẩu → {} ({})", hoTen, email);
+            return;
+        }
         log.info("Gửi email reset mật khẩu đến: {}", email);
 
         String subject = "Reset mật khẩu - " + appName;
@@ -117,6 +134,10 @@ public class EmailService {
      * @param hoTen Họ tên
      */
     public void sendPasswordChangedEmail(String email, String username, String hoTen) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Email thay đổi mật khẩu → {} ({})", hoTen, email);
+            return;
+        }
         log.info("Gửi email thay đổi mật khẩu đến: {}", email);
 
         String subject = "Mật khẩu đã được thay đổi - " + appName;
@@ -138,6 +159,10 @@ public class EmailService {
      * @param vaiTro Vai trò mới
      */
     public void sendRoleChangeEmail(String email, String username, String hoTen, String vaiTro) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Email thay đổi vai trò → {} ({})", hoTen, email);
+            return;
+        }
         log.info("Gửi email thay đổi vai trò đến: {}", email);
 
         String subject = "Vai trò tài khoản đã thay đổi - " + appName;
@@ -158,6 +183,10 @@ public class EmailService {
      * @param hoTen Họ tên
      */
     public void sendAccountDeactivatedEmail(String email, String username, String hoTen) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Email vô hiệu tài khoản → {} ({})", hoTen, email);
+            return;
+        }
         log.info("Gửi email tài khoản bị vô hiệu đến: {}", email);
 
         String subject = "Tài khoản đã bị vô hiệu hóa - " + appName;
@@ -172,19 +201,66 @@ public class EmailService {
     }
 
     /**
-     * Gửi email HTML
+     * Gửi thông báo hoạt động đến sinh viên (khi hoạt động được tạo/mở đăng ký).
+     */
+    public void sendHoatDongNotification(String email, String hoTen,
+                                          String tenHoatDong, String ngayToChuc,
+                                          String diaDiem, String moTa, String linkXemChiTiet) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Thông báo hoạt động '{}' → {} ({})", tenHoatDong, hoTen, email);
+            return;
+        }
+        String subject = "Thông báo hoạt động: " + tenHoatDong;
+        String html = buildHoatDongNotificationTemplate(hoTen, tenHoatDong, ngayToChuc, diaDiem, moTa, linkXemChiTiet);
+        try {
+            sendHtmlEmail(email, subject, html);
+        } catch (Exception e) {
+            log.error("Lỗi gửi thông báo hoạt động cho {}: {}", email, e.getMessage());
+        }
+    }
+
+    /**
+     * Gửi danh sách tham gia (PDF đính kèm) sau khi ban hành.
+     */
+    public void sendDanhSachBanHanh(String email, String hoTen,
+                                     String tenHoatDong, byte[] pdfBytes, String tenFile) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Gửi danh sách ban hành '{}' → {} ({})", tenHoatDong, hoTen, email);
+            return;
+        }
+        String subject = "Danh sách tham gia hoạt động: " + tenHoatDong;
+        String html = buildDanhSachBanHanhTemplate(hoTen, tenHoatDong);
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(cauHinhEmailService.getFromAddress(), cauHinhEmailService.getFromName());
+            helper.setTo(email);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            helper.addAttachment(tenFile, new ByteArrayResource(pdfBytes));
+            mailSender.send(message);
+            log.info("Gửi danh sách ban hành cho: {}", email);
+        } catch (Exception e) {
+            log.error("Lỗi gửi danh sách ban hành cho {}: {}", email, e.getMessage());
+        }
+    }
+
+    /**
+     * Gửi email HTML — dùng from address/name từ DB config.
      */
     private void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException, java.io.UnsupportedEncodingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-        helper.setFrom(fromEmail, appName);
+        helper.setFrom(cauHinhEmailService.getFromAddress(), cauHinhEmailService.getFromName());
         helper.setTo(to);
         helper.setSubject(subject);
         helper.setText(htmlContent, true);
 
         mailSender.send(message);
     }
+
+    // ─── HTML Templates ───────────────────────────────────────────────────────
 
     /**
      * Template: Đăng ký thành công
@@ -332,5 +408,49 @@ public class EmailService {
                 "</div>" +
                 "</body>" +
                 "</html>";
+    }
+
+    private String buildHoatDongNotificationTemplate(String hoTen, String tenHoatDong,
+                                                      String ngayToChuc, String diaDiem,
+                                                      String moTa, String link) {
+        return """
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+              <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:24px;border-radius:8px 8px 0 0;">
+                <h1 style="color:#fff;margin:0;font-size:20px;">Thông báo hoạt động Đoàn - Hội</h1>
+              </div>
+              <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                <p>Kính gửi <strong>%s</strong>,</p>
+                <p>Có hoạt động mới dành cho bạn:</p>
+                <table style="width:100%%;border-collapse:collapse;margin:16px 0;">
+                  <tr><td style="padding:8px;background:#f8fafc;font-weight:bold;width:35%%;">Tên hoạt động</td>
+                      <td style="padding:8px;background:#f8fafc;color:#1e40af;font-weight:bold;">%s</td></tr>
+                  <tr><td style="padding:8px;">Ngày tổ chức</td><td style="padding:8px;">%s</td></tr>
+                  <tr><td style="padding:8px;background:#f8fafc;">Địa điểm</td>
+                      <td style="padding:8px;background:#f8fafc;">%s</td></tr>
+                  <tr><td style="padding:8px;">Mô tả</td><td style="padding:8px;">%s</td></tr>
+                </table>
+                %s
+                <p style="color:#6b7280;font-size:12px;margin-top:24px;">Email này được gửi tự động từ hệ thống Đoàn Trường ĐH Kiên Giang.</p>
+              </div>
+            </div>
+            """.formatted(hoTen, tenHoatDong, ngayToChuc, diaDiem, moTa,
+                    link != null && !link.isBlank() ?
+                    "<a href='" + link + "' style='display:inline-block;background:#3b82f6;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;'>Xem chi tiết</a>" : "");
+    }
+
+    private String buildDanhSachBanHanhTemplate(String hoTen, String tenHoatDong) {
+        return """
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+              <div style="background:linear-gradient(135deg,#065f46,#10b981);padding:24px;border-radius:8px 8px 0 0;">
+                <h1 style="color:#fff;margin:0;font-size:20px;">Danh sách tham gia đã ban hành</h1>
+              </div>
+              <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                <p>Kính gửi <strong>%s</strong>,</p>
+                <p>Danh sách sinh viên tham gia hoạt động <strong>"%s"</strong> đã được ký số và ban hành chính thức.</p>
+                <p>Vui lòng xem file PDF đính kèm.</p>
+                <p style="color:#6b7280;font-size:12px;margin-top:24px;">Email này được gửi tự động từ hệ thống Đoàn Trường ĐH Kiên Giang.</p>
+              </div>
+            </div>
+            """.formatted(hoTen, tenHoatDong);
     }
 }

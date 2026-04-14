@@ -18,6 +18,8 @@ public interface HoatDongRepository extends JpaRepository<HoatDong, String> {
     List<HoatDong> findByTrangThai(TrangThaiHoatDongEnum trangThai);
     List<HoatDong> findByTrangThaiAndIsActive(TrangThaiHoatDongEnum trangThai, Boolean isActive);
     List<HoatDong> findByIsActiveTrue();
+    // Lấy tất cả chưa bị xoá (isActive = true HOẶC NULL — tương thích data cũ trước khi có default)
+    List<HoatDong> findByIsActiveTrueOrIsActiveIsNull();
     Page<HoatDong> findByIsActive(Boolean isActive, Pageable pageable);
 
     List<HoatDong> findByLoaiHoatDong(LoaiHoatDongEnum loaiHoatDong);
@@ -27,7 +29,22 @@ public interface HoatDongRepository extends JpaRepository<HoatDong, String> {
 
     List<HoatDong> findByNguoiPhuTrachMaBch(String maBch);
     List<HoatDong> findByKhoaMaKhoa(String maKhoa);
+    Page<HoatDong> findByKhoaMaKhoaAndIsActive(String maKhoa, Boolean isActive, Pageable pageable);
     List<HoatDong> findByNganhMaNganh(String maNganh);
+
+    /**
+     * Khoa-scope: trả về hoạt động của khoa đó + hoạt động cấp trường (khoa = null).
+     * Cán bộ khoa vẫn thấy được hoạt động do Đoàn trường tổ chức.
+     */
+    @Query("SELECT hd FROM HoatDong hd WHERE " +
+           "(hd.khoa.maKhoa = :maKhoa OR hd.khoa IS NULL) " +
+           "AND (hd.isActive = true OR hd.isActive IS NULL)")
+    List<HoatDong> findByKhoaScopeOrGlobal(@Param("maKhoa") String maKhoa);
+
+    @Query("SELECT hd FROM HoatDong hd WHERE " +
+           "(hd.khoa.maKhoa = :maKhoa OR hd.khoa IS NULL) " +
+           "AND hd.isActive = true")
+    Page<HoatDong> findByKhoaScopeOrGlobalPaged(@Param("maKhoa") String maKhoa, Pageable pageable);
 
     @Query("SELECT hd FROM HoatDong hd WHERE " +
             "(LOWER(hd.tenHoatDong) LIKE LOWER(CONCAT('%', :keyword, '%')) " +

@@ -25,12 +25,22 @@ public class ChungNhanHoatDongService {
     private final DiemDanhHoatDongRepository diemDanhRepository;
     private final SinhVienRepository sinhVienRepository;
     private final HoatDongRepository hoatDongRepository;
+    private final KhoaScopeService khoaScopeService;
 
     // ========== CRUD OPERATIONS ==========
 
     @Transactional(readOnly = true)
     public List<ChungNhanHoatDongDTO> getAll() {
         log.debug("Getting all active certificates");
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            return chungNhanRepository.findByIsActiveTrue().stream()
+                    .filter(cn -> cn.getHoatDong() != null
+                            && cn.getHoatDong().getKhoa() != null
+                            && maKhoa.equals(cn.getHoatDong().getKhoa().getMaKhoa()))
+                    .map(this::toDTO)
+                    .collect(Collectors.toList());
+        }
         return chungNhanRepository.findByIsActiveTrue().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());

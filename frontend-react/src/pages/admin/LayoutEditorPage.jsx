@@ -265,7 +265,7 @@ const LayoutEditorPage = () => {
           </button>
 
           <LayoutGrid className="w-5 h-5 text-blue-500" />
-          <span className="font-semibold text-gray-800 flex-1">Tùy chỉnh bố cục Dashboard</span>
+          <span className="font-semibold text-gray-800 flex-1 text-sm sm:text-base">Tùy chỉnh bố cục Dashboard</span>
 
           <div className="flex items-center gap-2">
             <button
@@ -287,18 +287,18 @@ const LayoutEditorPage = () => {
       </div>
 
       {/* Body */}
-      <div className="flex flex-1 max-w-7xl mx-auto w-full px-4 py-6 gap-6">
+      <div className="flex flex-col lg:flex-row flex-1 max-w-7xl mx-auto w-full px-4 py-6 gap-6">
 
         {/* ── Left palette ── */}
-        <div className="w-64 flex-shrink-0">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sticky top-20">
+        <div className="w-full lg:w-64 flex-shrink-0">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 lg:sticky lg:top-20">
             <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
               Widget có sẵn
             </h2>
             <p className="text-[11px] text-gray-400 mb-3">
               Kéo vào canvas hoặc nhấn để thêm
             </p>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2">
               {allTypes.map((type) => (
                 <div key={type} className="relative">
                   <PaletteItem type={type} onAdd={handleAddFromPalette} />
@@ -313,12 +313,13 @@ const LayoutEditorPage = () => {
 
         {/* ── Right canvas ── */}
         <div className="flex-1 min-w-0">
-          <div className="mb-3 flex items-center gap-2">
+          <div className="mb-3 flex items-center gap-2 overflow-x-auto">
             <h2 className="text-sm font-bold text-gray-700">Canvas</h2>
             <span className="text-xs text-gray-400">— kéo để sắp xếp lại, nhấn × để xóa</span>
           </div>
 
           {/* Drop zone */}
+          <div className="overflow-x-auto w-full">
           <div
             onDragOver={handleCanvasDragOver}
             onDrop={handleCanvasDrop}
@@ -348,6 +349,8 @@ const LayoutEditorPage = () => {
                 />
               ))
             )}
+          </div>
+
           </div>
 
           {/* Preview hint */}

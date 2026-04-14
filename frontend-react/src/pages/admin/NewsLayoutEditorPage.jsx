@@ -786,7 +786,7 @@ const NewsLayoutEditorPage = () => {
 
         {/* ── CENTER: Two-column canvas ── */}
         <div className="flex-1 overflow-y-auto min-w-0">
-          <div className="p-5">
+          <div className="p-5 overflow-x-auto">
 
             {/* Canvas header */}
             <div className="flex items-center gap-2 mb-4">
@@ -798,7 +798,7 @@ const NewsLayoutEditorPage = () => {
             </div>
 
             {/* Two-column canvas */}
-            <div className="flex gap-4 items-start">
+            <div className="flex gap-4 items-start min-w-[560px]">
 
               {/* Main content column */}
               <div className="flex-1 min-w-0">

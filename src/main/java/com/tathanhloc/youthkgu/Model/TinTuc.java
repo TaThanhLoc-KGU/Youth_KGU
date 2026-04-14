@@ -1,6 +1,7 @@
 package com.tathanhloc.youthkgu.Model;
 
 import com.tathanhloc.youthkgu.Enum.TrangThaiTinTuc;
+import com.tathanhloc.youthkgu.Model.Khoa;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -69,6 +70,12 @@ public class TinTuc {
 
     @Column(name = "nguoi_tao", nullable = false, length = 50)
     private String nguoiTao;    // FK mềm → tai_khoan.username
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ma_khoa")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Khoa khoa;
 
     @Column(name = "tac_gia", length = 150)
     private String tacGia;      // Tên hiển thị tác giả (ví dụ: "Ban Học thuật KGU")

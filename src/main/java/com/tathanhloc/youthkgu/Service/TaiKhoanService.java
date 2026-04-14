@@ -92,9 +92,6 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
         existing.setVaiTro(dto.getVaiTro());
         existing.setIsActive(dto.getIsActive());
         existing.setCreatedAt(dto.getCreatedAt());
-        // bchLevel chỉ set khi là BCH; vai trò khác thì null
-        existing.setBchLevel(dto.getVaiTro() != null && dto.getVaiTro().name().equals("BCH")
-                ? dto.getBchLevel() : null);
 
         if (dto.getMaSv() != null) {
             existing.setSinhVien(sinhVienRepository.findById(dto.getMaSv())
@@ -131,7 +128,7 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
                 .createdAt(tk.getCreatedAt())
                 .maSv(tk.getSinhVien() != null ? tk.getSinhVien().getMaSv() : null)
                 .maGv(tk.getGiangVien() != null ? tk.getGiangVien().getMaGv() : null)
-                .bchLevel(tk.getBchLevel())
+                .laAdmin(tk.getLaAdmin())
                 .build();
     }
 
@@ -150,8 +147,7 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
                 .createdAt(dto.getCreatedAt())
                 .sinhVien(sv)
                 .giangVien(gv)
-                .bchLevel(dto.getVaiTro() != null && dto.getVaiTro().name().equals("BCH")
-                        ? dto.getBchLevel() : null)
+                .laAdmin(Boolean.TRUE.equals(dto.getLaAdmin()))
                 .build();
     }
 

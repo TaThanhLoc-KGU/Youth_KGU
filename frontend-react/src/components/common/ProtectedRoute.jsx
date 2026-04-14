@@ -3,36 +3,28 @@ import useAuthStore from '../../stores/authStore';
 import { ROUTES } from '../../utils/constants';
 
 /**
- * ProtectedRoute - Bảo vệ routes theo role, permission, hoặc BCH membership.
+ * ProtectedRoute - Bảo vệ routes theo role hoặc permission.
  *
- * @param allowedRoles        - Chỉ những role này mới vào được (dùng cho /student)
- * @param requiredPermissions - Cần có ít nhất 1 trong các quyền này (dùng cho /admin)
- * @param requireBCH          - Chỉ BCH members (laBCH=true) hoặc ADMIN mới vào được (/bch)
+ * @param allowedRoles         - Chỉ những role này mới vào được (e.g. ['QUAN_LY'])
+ * @param requiredPermissions  - Cần có ít nhất 1 trong các quyền này (hasAnyPermission)
  *
- * Sinh viên là BCH: vaiTro=SINH_VIEN nhưng laBCH=true → vào được /bch
- * ADMIN luôn pass mọi check.
+ * QUAN_LY + laAdmin=true → hasAnyPermission luôn trả true → qua mọi permission check.
  */
-const ProtectedRoute = ({ children, allowedRoles = [], requiredPermissions = [], requireBCH = false }) => {
-  const { isAuthenticated, user, hasAnyPermission, laBCH } = useAuthStore();
+const ProtectedRoute = ({ children, allowedRoles = [], requiredPermissions = [] }) => {
+  const { isAuthenticated, user, hasAnyPermission } = useAuthStore();
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
   }
 
-  // Role check nghiêm ngặt - dùng cho /student
+  // Role check — dùng cho /admin (chỉ QUAN_LY)
   if (allowedRoles.length > 0 && !allowedRoles.includes(user?.vaiTro)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // BCH membership check - dùng cho /bch
-  // ADMIN luôn pass, còn lại phải có laBCH=true từ backend
-  if (requireBCH && user?.vaiTro !== 'ADMIN' && !laBCH) {
-    return <Navigate to="/unauthorized" replace />;
-  }
-
-  // Permission check linh hoạt - dùng cho /admin
-  // Người dùng cần có ít nhất 1 trong các quyền yêu cầu
+  // Permission check — user cần có ít nhất 1 quyền yêu cầu
+  // (laAdmin = true → hasAnyPermission = true → qua hết)
   if (requiredPermissions.length > 0 && !hasAnyPermission(requiredPermissions)) {
     return <Navigate to="/unauthorized" replace />;
   }

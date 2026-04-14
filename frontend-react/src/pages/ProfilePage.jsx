@@ -142,13 +142,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-          <div className="flex flex-wrap justify-between items-start gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-xl sm:text-3xl font-bold text-gray-800">Hồ sơ cá nhân</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Hồ sơ cá nhân</h1>
               <p className="text-gray-600 mt-1 text-sm sm:text-base">Quản lý thông tin tài khoản của bạn</p>
             </div>
             <button

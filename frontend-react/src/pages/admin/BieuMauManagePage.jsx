@@ -110,11 +110,11 @@ const BieuMauForm = ({ initial, onSave, onCancel, loading }) => {
         <span className="text-sm font-medium text-gray-700">Hien thi ra trang cong khai</span>
       </label>
 
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
         <button type="button" onClick={onCancel}
           className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Huy</button>
         <button type="submit" disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">
+          className="flex items-center justify-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">
           <Save className="w-4 h-4" /> {loading ? 'Dang luu...' : 'Luu'}
         </button>
       </div>
@@ -162,11 +162,11 @@ const BieuMauRow = ({ item, onEdit, onDelete, onToggle, toggling }) => {
           {item.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
         </button>
         <button onClick={() => onEdit(item)} title="Chinh sua"
-          className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all">
+          className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
           <Pencil className="w-4 h-4" />
         </button>
         <button onClick={() => onDelete(item.id)} title="Xoa"
-          className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all">
+          className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
           <Trash2 className="w-4 h-4" />
         </button>
       </div>

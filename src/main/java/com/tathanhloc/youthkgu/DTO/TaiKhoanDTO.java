@@ -20,6 +20,9 @@ public class TaiKhoanDTO {
     private LocalDateTime createdAt;
     private String maSv;
     private String maGv;
-    /** Cấp BCH: 1/2/3. Null nếu không phải BCH. */
-    private Integer bchLevel;
+    /** true = QUAN_LY có toàn quyền */
+    private Boolean laAdmin;
+
+    private String maKhoa;
+    private String tenKhoa;
 }

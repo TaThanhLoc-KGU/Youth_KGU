@@ -101,4 +101,7 @@ public interface DangKyHoatDongRepository extends JpaRepository<DangKyHoatDong, 
             "ORDER BY nam, thang",
             nativeQuery = true)
     List<Object[]> findTrendDangKyLast12Months(@Param("startDate") java.time.LocalDate startDate);
+
+    // Tìm đăng ký theo mã sinh viên và mã hoạt động — dùng cho checkout winners cuộc thi
+    Optional<DangKyHoatDong> findBySinhVienMaSvAndHoatDongMaHoatDong(String maSv, String maHoatDong);
 }

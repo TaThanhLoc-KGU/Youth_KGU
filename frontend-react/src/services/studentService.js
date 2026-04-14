@@ -10,6 +10,8 @@ const studentService = {
       direction = 'asc',
       search,
       maLop,
+      maKhoa,
+      maNganh,
       isActive
     } = params;
     
@@ -22,6 +24,8 @@ const studentService = {
     
     if (search) queryParams.search = search;
     if (maLop) queryParams.maLop = maLop;
+    if (maKhoa) queryParams.maKhoa = maKhoa;
+    if (maNganh) queryParams.maNganh = maNganh;
     if (isActive !== null && isActive !== undefined) queryParams.isActive = isActive;
     
     const response = await api.get('/api/sinhvien', { params: queryParams });

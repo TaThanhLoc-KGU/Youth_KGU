@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
-import { Plus, Edit, Trash2, RotateCcw, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, RotateCcw, RefreshCw, Search } from 'lucide-react';
 import giangvienService from '../../services/giangvienService';
 import khoaService from '../../services/khoaService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import SearchInput from '../../components/common/SearchInput';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
@@ -15,6 +16,7 @@ import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import { useForm } from 'react-hook-form';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const GiangVienForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas }) => {
   const { register, handleSubmit, formState: { errors } } = useForm({
@@ -99,9 +101,13 @@ const GiangVienForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoa
 
 const GiangVien = () => {
   const queryClient = useQueryClient();
-  const { hasPermission, hasAnyPermission } = useAuthStore();
+  const { hasPermission } = useAuthStore();
   const canView   = hasPermission(PERMISSIONS.XEM_GIANG_VIEN);
-  const canManage = hasAnyPermission([PERMISSIONS.THEM_GIANG_VIEN, PERMISSIONS.SUA_GIANG_VIEN]);
+  const canAdd    = hasPermission(PERMISSIONS.THEM_GIANG_VIEN);
+  const canEdit   = hasPermission(PERMISSIONS.SUA_GIANG_VIEN);
+  const canDelete = hasPermission(PERMISSIONS.XOA_GIANG_VIEN);
+  const canViewKhoa = hasPermission(PERMISSIONS.XEM_KHOA);
+  const [confirmState, setConfirmState] = useState(null);
   const [search, setSearch] = useState('');
   const [khoaFilter, setKhoaFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -109,9 +115,11 @@ const GiangVien = () => {
   const [selectedGV, setSelectedGV] = useState(null);
   const [modalMode, setModalMode] = useState('create');
 
+  // Chỉ fetch khoa khi có quyền để tránh spam 403
   const { data: khoas = [] } = useQuery({
     queryKey: ['khoa-for-gv'],
-    queryFn: () => khoaService.getAll()
+    queryFn: () => khoaService.getAll(),
+    enabled: canViewKhoa,
   });
 
   const { data: gvList = [], isLoading, error, refetch } = useQuery({
@@ -181,11 +189,7 @@ const GiangVien = () => {
     {
       header: 'Khoa',
       accessor: 'tenKhoa',
-    },
-    {
-      header: 'Số điện thoại',
-      accessor: 'sdt',
-      render: (v) => v || '-',
+      render: (v) => v || <span className="text-gray-400 italic">—</span>,
     },
     {
       header: 'Trạng thái',
@@ -201,7 +205,7 @@ const GiangVien = () => {
       accessor: 'actions',
       render: (_, row) => (
         <div className="flex gap-2">
-          {canManage && (
+          {canEdit && (
             <Button
               size="sm"
               variant="ghost"
@@ -213,30 +217,22 @@ const GiangVien = () => {
               }}
             />
           )}
-          {canManage && row.isActive && (
+          {canDelete && row.isActive && (
             <Button
               size="sm"
               variant="ghost"
               icon={Trash2}
               className="text-red-600"
-              onClick={() => {
-                if (window.confirm(`Xóa giảng viên ${row.hoTen}?`)) {
-                  deleteMutation.mutate(row.maGv);
-                }
-              }}
+              onClick={() => setConfirmState({ type: 'delete', id: row.maGv, name: row.hoTen })}
             />
           )}
-          {canManage && !row.isActive && (
+          {canEdit && !row.isActive && (
             <Button
               size="sm"
               variant="ghost"
               icon={RotateCcw}
               className="text-blue-600"
-              onClick={() => {
-                if (window.confirm(`Khôi phục giảng viên ${row.hoTen}?`)) {
-                  restoreMutation.mutate(row.maGv);
-                }
-              }}
+              onClick={() => setConfirmState({ type: 'restore', id: row.maGv, name: row.hoTen })}
             />
           )}
         </div>
@@ -251,7 +247,7 @@ const GiangVien = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Giảng viên</h1>
           <p className="text-gray-600 mt-1">Quản lý thông tin giảng viên</p>
         </div>
-        {canManage && (
+        {canAdd && (
           <Button icon={Plus} onClick={() => {
             setSelectedGV(null);
             setModalMode('create');
@@ -262,34 +258,76 @@ const GiangVien = () => {
         )}
       </div>
 
-      <Card>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <SearchInput
-              placeholder="Tìm kiếm mã, tên, email..."
-              value={search}
-              onSearch={setSearch}
-              className="md:col-span-2"
-            />
-            <Select
-              options={[{ value: '', label: 'Tất cả khoa' }, ...khoas.map(k => ({
-                value: k.maKhoa, label: k.tenKhoa
-              }))]}
+      {/* Filters Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Tìm kiếm */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Tìm kiếm giảng viên
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="Nhập mã GV, tên hoặc email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Khoa */}
+          <div>
+            <SearchableSelect
+              label="Khoa"
+              labelClassName="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
+              placeholder="Tất cả khoa"
+              options={khoas.map(k => ({
+                value: k.maKhoa,
+                label: k.tenKhoa
+              }))}
               value={khoaFilter}
-              onChange={(e) => setKhoaFilter(e.target.value)}
-            />
-            <Select
-              options={[
-                { value: '', label: 'Tất cả trạng thái' },
-                { value: 'active', label: 'Hoạt động' },
-                { value: 'inactive', label: 'Ngừng' },
-              ]}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={setKhoaFilter}
             />
           </div>
+
+          {/* Trạng thái */}
+          <div className="flex flex-col">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Trạng thái
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="block w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none cursor-pointer"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Ngừng hoạt động</option>
+            </select>
+          </div>
         </div>
-      </Card>
+
+        <div className="flex justify-end mt-4 pt-4 border-t border-gray-50">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={RefreshCw}
+            onClick={() => {
+              setSearch('');
+              setKhoaFilter('');
+              setStatusFilter('');
+            }}
+            className="text-gray-500 hover:text-primary-600 font-medium text-xs"
+          >
+            Làm mới bộ lọc
+          </Button>
+        </div>
+      </div>
 
       <Card>
         {isLoading ? (
@@ -336,6 +374,24 @@ const GiangVien = () => {
           onCancel={() => setIsModalOpen(false)}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!confirmState && confirmState.type === 'delete'}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa giảng viên"
+        description={`Bạn có chắc muốn xóa giảng viên "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
+        isLoading={deleteMutation.isPending}
+      />
+      <ConfirmDialog
+        isOpen={!!confirmState && confirmState.type === 'restore'}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { restoreMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Khôi phục giảng viên"
+        description={`Bạn có chắc muốn khôi phục giảng viên "${confirmState?.name}"?`}
+        isLoading={restoreMutation.isPending}
+        variant="warning"
+      />
     </div>
   );
 };

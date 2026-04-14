@@ -51,6 +51,9 @@ public class DangKyHoatDongDTO {
     private Boolean daXacNhan;
     private Boolean isActive;
 
+    // Trạng thái của hoạt động (để sinh viên biết có thể check-in chưa)
+    private String trangThaiHoatDong;
+
     // Trạng thái điểm danh (để kiểm tra)
     private Boolean daDiemDanh;
     private LocalDateTime thoiGianDiemDanh;

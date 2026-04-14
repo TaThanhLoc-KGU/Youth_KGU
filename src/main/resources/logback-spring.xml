@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <property name="LOGS" value="./logs" />
+    <!-- Dev: ./logs | Prod: /opt/youth-kgu/backend/logs (override bằng env LOG_PATH) -->
+    <property name="LOGS" value="${LOG_PATH:-./logs}" />
 
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>

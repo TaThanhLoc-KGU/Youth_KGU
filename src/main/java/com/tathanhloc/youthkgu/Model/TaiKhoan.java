@@ -83,11 +83,16 @@ public class TaiKhoan {
     private String ghiChu;
 
     /**
-     * Cấp độ BCH: 1 = Bí thư/Chủ tịch, 2 = Trưởng ban/Phó ban, 3 = Thành viên.
-     * Chỉ áp dụng khi vaiTro == BCH. Null nếu không phải BCH.
+     * Cờ admin: true = tài khoản Quản lý có toàn quyền.
+     * Chỉ áp dụng cho tài khoản QUAN_LY.
      */
-    @Column(name = "bch_level")
-    private Integer bchLevel;
+    @Column(name = "la_admin")
+    @Builder.Default
+    private Boolean laAdmin = false;
+
+    @ManyToOne
+    @JoinColumn(name = "ma_khoa")
+    private Khoa khoa; // null = Đoàn trường (không giới hạn), non-null = cán bộ cấp Khoa
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

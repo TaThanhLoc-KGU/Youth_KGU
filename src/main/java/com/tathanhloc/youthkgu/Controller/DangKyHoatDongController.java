@@ -30,7 +30,7 @@ public class DangKyHoatDongController {
 
     @PostMapping
     @Operation(summary = "Đăng ký hoạt động")
-    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
+    @PreAuthorize("hasRole('USER') or hasPermission(null, 'DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<DangKyHoatDongDTO>> register(
             @Valid @RequestBody DangKyHoatDongRequest request) {
         log.info("POST /api/dang-ky - Student {} registering for activity {}",
@@ -42,7 +42,7 @@ public class DangKyHoatDongController {
 
     @DeleteMapping
     @Operation(summary = "Hủy đăng ký")
-    @PreAuthorize("hasPermission(null, 'HUY_DANG_KY_HOAT_DONG')")
+    @PreAuthorize("hasRole('USER') or hasPermission(null, 'HUY_DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> cancel(
             @RequestParam String maSv,
             @RequestParam String maHoatDong) {
@@ -76,7 +76,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/student/{maSv}")
     @Operation(summary = "Danh sách đăng ký của sinh viên")
-    @PreAuthorize("hasPermission(null, 'XEM_LICH_SU_THAM_GIA') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUAN_LY_DANG_KY')")
+    @PreAuthorize("hasRole('USER') or hasPermission(null, 'XEM_LICH_SU_THAM_GIA') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUAN_LY_DANG_KY')")
     public ResponseEntity<ApiResponse<List<DangKyHoatDongDTO>>> getByStudent(
             @PathVariable String maSv) {
         log.info("GET /api/dang-ky/student/{}", maSv);
@@ -107,7 +107,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/qrcode-image")
     @Operation(summary = "Lấy QR code dạng Base64")
-    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
+    @PreAuthorize("hasRole('USER') or hasPermission(null, 'DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<String>> getQRCodeBase64(
             @RequestParam String maSv,
             @RequestParam String maHoatDong) {
@@ -160,7 +160,7 @@ public class DangKyHoatDongController {
 
     @PostMapping("/tham-gia")
     @Operation(summary = "Sinh viên đăng ký tham gia hoạt động (Alias)")
-    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
+    @PreAuthorize("hasRole('USER') or hasPermission(null, 'DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<DangKyHoatDongDTO>> dangKyThamGia(@RequestBody Map<String, Object> request) {
         String maSv = (String) request.get("maSv");
         String maHoatDong = request.get("maHoatDong").toString();
@@ -173,7 +173,7 @@ public class DangKyHoatDongController {
 
     @PostMapping("/huy")
     @Operation(summary = "Hủy đăng ký tham gia (Alias)")
-    @PreAuthorize("hasPermission(null, 'HUY_DANG_KY_HOAT_DONG')")
+    @PreAuthorize("hasRole('USER') or hasPermission(null, 'HUY_DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> huyDangKy(@RequestBody Map<String, Object> request) {
         String maSv = (String) request.get("maSv");
         String maHoatDong = request.get("maHoatDong").toString();
@@ -182,7 +182,7 @@ public class DangKyHoatDongController {
 
     @GetMapping("/qr-code")
     @Operation(summary = "Lấy chuỗi mã QR để check-in (Alias)")
-    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
+    @PreAuthorize("hasRole('USER') or hasPermission(null, 'DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<String>> getQrCode(
             @RequestParam String maSv,
             @RequestParam String maHoatDong) {
@@ -200,7 +200,7 @@ public class DangKyHoatDongController {
      */
     @PostMapping("/check-in-location")
     @Operation(summary = "Sinh viên gửi vị trí GPS khi hiển thị QR")
-    @PreAuthorize("hasPermission(null, 'DANG_KY_HOAT_DONG')")
+    @PreAuthorize("hasRole('USER') or hasPermission(null, 'DANG_KY_HOAT_DONG')")
     public ResponseEntity<ApiResponse<Void>> submitCheckInLocation(
             @RequestBody java.util.Map<String, Object> body) {
         String maQR     = (String) body.get("maQR");

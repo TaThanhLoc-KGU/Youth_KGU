@@ -151,14 +151,14 @@ const TinTucEditorPage = ({ backPath = '/admin/news', basePath = '/admin/news' }
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => saveMutation.mutate({ action: 'draft' })}
               disabled={saveMutation.isPending}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              Lưu nháp
+              <span className="hidden sm:inline">Lưu nháp</span>
             </button>
             <button
               onClick={() => saveMutation.mutate({ action: 'publish' })}
@@ -166,7 +166,7 @@ const TinTucEditorPage = ({ backPath = '/admin/news', basePath = '/admin/news' }
               className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
-              Đăng bài
+              <span className="hidden sm:inline">Đăng bài</span>
             </button>
           </div>
         </div>

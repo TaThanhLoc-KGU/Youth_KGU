@@ -1,5 +1,7 @@
 import api from './api';
 
+const enc = (s) => encodeURIComponent(s);
+
 const activityService = {
   // Get all activities
   getAll: async () => {
@@ -22,9 +24,9 @@ const activityService = {
     return response.data;
   },
 
-  // Get activity by ID
+  // Get activity by ID — dùng query param để tránh lỗi %2F trong path
   getById: async (maHoatDong) => {
-    const response = await api.get(`/api/hoat-dong/${maHoatDong}`);
+    const response = await api.get('/api/hoat-dong/detail', { params: { ma: maHoatDong } });
     return response.data.data;
   },
 
@@ -36,13 +38,13 @@ const activityService = {
 
   // Update activity
   update: async (maHoatDong, activityData) => {
-    const response = await api.put(`/api/hoat-dong/${maHoatDong}`, activityData);
+    const response = await api.put('/api/hoat-dong/update', activityData, { params: { ma: maHoatDong } });
     return response.data.data;
   },
 
   // Delete activity
   delete: async (maHoatDong) => {
-    const response = await api.delete(`/api/hoat-dong/${maHoatDong}`);
+    const response = await api.delete('/api/hoat-dong/delete', { params: { ma: maHoatDong } });
     return response.data;
   },
 
@@ -94,45 +96,51 @@ const activityService = {
 
   // Open registration
   openRegistration: async (maHoatDong) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/open-registration`);
+    const response = await api.post('/api/hoat-dong/open-registration', null, { params: { ma: maHoatDong } });
     return response.data;
   },
 
   // Close registration
   closeRegistration: async (maHoatDong) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/close-registration`);
+    const response = await api.post('/api/hoat-dong/close-registration', null, { params: { ma: maHoatDong } });
     return response.data;
   },
 
   // Start activity
   start: async (maHoatDong) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/start`);
+    const response = await api.post('/api/hoat-dong/start', null, { params: { ma: maHoatDong } });
+    return response.data;
+  },
+
+  // Revert activity start (only if no one has checked in yet)
+  revertStart: async (maHoatDong) => {
+    const response = await api.post('/api/hoat-dong/revert-start', null, { params: { ma: maHoatDong } });
     return response.data;
   },
 
   // Complete activity
   complete: async (maHoatDong) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/complete`);
+    const response = await api.post('/api/hoat-dong/complete', null, { params: { ma: maHoatDong } });
     return response.data;
   },
 
   // Early terminate activity
   earlyTerminate: async (maHoatDong) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/ket-thuc-som`);
+    const response = await api.post('/api/hoat-dong/ket-thuc-som', null, { params: { ma: maHoatDong } });
     return response.data;
   },
 
   // Cancel activity
   cancel: async (maHoatDong, reason) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/cancel`, null, {
-      params: { lyDo: reason },
+    const response = await api.post('/api/hoat-dong/cancel', null, {
+      params: { ma: maHoatDong, lyDo: reason },
     });
     return response.data;
   },
 
   // Get statistics
   getStatistics: async (maHoatDong) => {
-    const response = await api.get(`/api/hoat-dong/${maHoatDong}/statistics`);
+    const response = await api.get('/api/hoat-dong/statistics/detail', { params: { ma: maHoatDong } });
     return response.data.data;
   },
 
@@ -144,7 +152,7 @@ const activityService = {
 
   // Get attendance status list
   getAttendanceStatusList: async (maHoatDong) => {
-    const response = await api.get(`/api/hoat-dong/${maHoatDong}/attendance-status`);
+    const response = await api.get('/api/hoat-dong/attendance-status', { params: { ma: maHoatDong } });
     return response.data.data;
   },
 
@@ -172,7 +180,7 @@ const activityService = {
 
   // Get registrations by activity
   getRegistrationsByActivity: async (maHoatDong) => {
-    const response = await api.get(`/api/dang-ky/activity/${maHoatDong}`);
+    const response = await api.get(`/api/dang-ky/activity/${enc(maHoatDong)}`);
     return response.data.data;
   },
 
@@ -182,12 +190,50 @@ const activityService = {
     return response.data.data;
   },
 
+  // ========== PUBLIC (không cần auth) ==========
+
+  // Lấy tất cả hoạt động — public, dùng cho trang tin tức
+  getPublic: async () => {
+    const response = await api.get('/api/public/hoat-dong');
+    return response.data.data;
+  },
+
+  // Danh sách sinh viên đã tham gia (chỉ tên + lớp) — public
+  // Dùng query param để tránh lỗi khi maHoatDong chứa dấu '/'
+  getPublicThamGia: async (maHoatDong) => {
+    const response = await api.get('/api/public/hoat-dong/tham-gia', {
+      params: { ma: maHoatDong },
+    });
+    return response.data.data;
+  },
+
   // Get QR Code Base64
   getQRCode: async (maSv, maHoatDong) => {
     const response = await api.get('/api/dang-ky/qrcode-image', {
       params: { maSv, maHoatDong },
     });
     return response.data.data;
+  },
+
+  // ── Public registration (student, requires login) ─────────────────────────
+  publicRegister: async (maHoatDong) => {
+    const response = await api.post('/api/public/hoat-dong/dang-ky', null, {
+      params: { ma: maHoatDong },
+    });
+    return response.data.data;
+  },
+
+  publicCancelRegister: async (maHoatDong) => {
+    await api.delete('/api/public/hoat-dong/huy-dang-ky', {
+      params: { ma: maHoatDong },
+    });
+  },
+
+  publicCheckRegister: async (maHoatDong) => {
+    const response = await api.get('/api/public/hoat-dong/trang-thai-dang-ky', {
+      params: { ma: maHoatDong },
+    });
+    return response.data.data; // { daDangKy: bool, maSv: string }
   },
 };
 

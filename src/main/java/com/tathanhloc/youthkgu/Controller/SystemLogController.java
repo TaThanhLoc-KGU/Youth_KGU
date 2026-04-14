@@ -1,23 +1,28 @@
 package com.tathanhloc.youthkgu.Controller;
 
+import com.tathanhloc.youthkgu.Model.SystemLog;
 import com.tathanhloc.youthkgu.Service.SystemLogService;
 import com.tathanhloc.youthkgu.payload.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @RestController @RequestMapping("/api/admin/logs")
 @RequiredArgsConstructor @Slf4j
 public class SystemLogController {
     private final SystemLogService service;
 
+    /**
+     * GET /api/admin/logs — tìm kiếm & phân trang
+     */
     @GetMapping
-    @PreAuthorize("hasPermission(null, 'XEM_SYSTEM_LOG')")
+    @PreAuthorize("hasPermission(null, 'XEM_SYSTEM_LOG') or hasRole('ADMIN')")
     public ResponseEntity<?> search(
             @RequestParam(required = false) String module,
             @RequestParam(required = false) String action,
@@ -28,8 +33,27 @@ public class SystemLogController {
             @RequestParam(required = false) String to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        Page<SystemLog> result = service.search(module, action, userId, logLevel, status, from, to, page, size);
+        return ResponseEntity.ok(ApiResponse.builder().success(true).data(result).build());
+    }
+
+    /**
+     * GET /api/admin/logs/stats — thống kê nhanh (24 giờ gần nhất)
+     */
+    @GetMapping("/stats")
+    @PreAuthorize("hasPermission(null, 'XEM_SYSTEM_LOG') or hasRole('ADMIN')")
+    public ResponseEntity<?> stats() {
+        Map<String, Object> stats = service.getQuickStats();
+        return ResponseEntity.ok(ApiResponse.builder().success(true).data(stats).build());
+    }
+
+    /**
+     * GET /api/admin/logs/recent — 100 bản ghi mới nhất (không cần filter)
+     */
+    @GetMapping("/recent")
+    @PreAuthorize("hasPermission(null, 'XEM_SYSTEM_LOG') or hasRole('ADMIN')")
+    public ResponseEntity<?> recent() {
         return ResponseEntity.ok(ApiResponse.builder()
-            .success(true).data(service.search(module, action, userId, logLevel, status, from, to, page, size))
-            .build());
+            .success(true).data(service.getRecent()).build());
     }
 }

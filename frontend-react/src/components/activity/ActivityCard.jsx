@@ -37,10 +37,10 @@ const ActivityCard = ({
         </div>
       )}
 
-      <div className="p-4">
+      <div className="p-4 sm:p-5">
         {/* Header with badges */}
         <div className="flex justify-between items-start gap-2 mb-2">
-          <h3 className="text-lg font-semibold text-gray-900 flex-1 line-clamp-2">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex-1 line-clamp-2">
             {activity.tenHoatDong}
           </h3>
           <Badge variant={trangThaiBadge}>{trangThaiLabel}</Badge>
@@ -118,10 +118,10 @@ const ActivityCard = ({
 
         {/* Actions */}
         {showActions && (
-          <div className="flex gap-2 pt-3 border-t">
+          <div className="flex flex-wrap gap-2 pt-3 border-t">
             <Button
               size="sm"
-              className="flex-1 flex items-center justify-center gap-1"
+              className="flex-1 min-w-0 flex items-center justify-center gap-1"
               onClick={() => onViewDetail?.(activity)}
             >
               Chi tiết

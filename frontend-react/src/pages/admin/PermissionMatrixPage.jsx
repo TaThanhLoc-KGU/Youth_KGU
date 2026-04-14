@@ -165,12 +165,12 @@ function LevelMatrixTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-semibold text-gray-700 w-64">Quyền</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700 min-w-[200px]">Quyền</th>
                 {LEVEL_CONFIG.map((lv) => (
-                  <th key={lv.key} className="text-center px-3 py-3 font-semibold text-gray-700 w-32">
-                    <div>{lv.label}</div>
-                    <div className="text-xs font-normal text-gray-400 whitespace-nowrap">{lv.sub}</div>
-                  </th>
+                <th key={lv.key} className="text-center px-3 py-3 font-semibold text-gray-700 min-w-[100px]">
+                <div>{lv.label}</div>
+                <div className="text-xs font-normal text-gray-400 whitespace-nowrap hidden sm:block">{lv.sub}</div>
+                </th>
                 ))}
               </tr>
             </thead>
@@ -624,7 +624,7 @@ export default function PermissionMatrixPage() {
           <Shield className="w-6 h-6 text-red-600" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Phân quyền BCH</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Phân quyền BCH</h1>
           <p className="text-sm text-gray-500">
             Cấu hình quyền theo Level và cấp quyền đặc biệt cho từng tài khoản.
             Thay đổi có hiệu lực sau khi người dùng đăng nhập lại.
@@ -633,7 +633,7 @@ export default function PermissionMatrixPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex flex-wrap gap-1 sm:gap-2 border-b border-gray-200 overflow-x-auto whitespace-nowrap">
         <button
           onClick={() => setActiveTab('level')}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${

@@ -122,8 +122,8 @@ public class StatisticsService {
         statistics.put("total", totalByRole);
         statistics.put("active", activeByRole);
         statistics.put("inactive", inactiveByRole);
-        statistics.put("nhom", vaiTro.getNhomVaiTro());
-        statistics.put("toChuc", vaiTro.getToChuc());
+        statistics.put("nhom", vaiTro == VaiTroEnum.QUAN_LY ? "QUAN_LY" : "THAM_GIA");
+        statistics.put("toChuc", "HE_THONG");
 
         return statistics;
     }
@@ -190,9 +190,8 @@ public class StatisticsService {
 
         for (VaiTroEnum vaiTro : VaiTroEnum.values()) {
             long count = taiKhoanRepository.countByVaiTroAndIsActiveTrue(vaiTro);
-            if ("QUAN_LY".equals(vaiTro.getNhomVaiTro())) quanLy += count;
-            else if ("PHU_VU".equals(vaiTro.getNhomVaiTro())) phuVu += count;
-            else if ("THAM_GIA".equals(vaiTro.getNhomVaiTro())) thamGia += count;
+            if (vaiTro == VaiTroEnum.QUAN_LY) quanLy += count;
+            else thamGia += count;
         }
 
         if (quanLy > 0) statistics.put("Quản lý", quanLy);
@@ -209,9 +208,7 @@ public class StatisticsService {
 
         for (VaiTroEnum vaiTro : VaiTroEnum.values()) {
             long count = taiKhoanRepository.countByVaiTroAndIsActiveTrue(vaiTro);
-            if ("DOAN".equals(vaiTro.getToChuc())) doan += count;
-            else if ("HOI".equals(vaiTro.getToChuc())) hoi += count;
-            else if ("HE_THONG".equals(vaiTro.getToChuc())) heThong += count;
+            heThong += count;
         }
 
         if (doan > 0) statistics.put("Đoàn", doan);

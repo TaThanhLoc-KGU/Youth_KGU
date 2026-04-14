@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { MapPin, Loader2, X, Info, CheckCircle2, PlayCircle, XCircle, Lock } from 'lucide-react';
+import {
+  MapPin, Loader2, X, Info, CheckCircle2, PlayCircle, XCircle, Lock,
+  FileText, Calendar, QrCode, Settings2, ArrowLeftRight, LogIn, LogOut, Zap,
+  Clock, Users, RotateCcw,
+} from 'lucide-react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Textarea from '../common/Textarea';
@@ -284,7 +288,8 @@ const StatusActions = ({ maHoatDong, currentStatus, onRefresh }) => {
     btns.push({ action: 'start',             label: 'Bắt đầu',      icon: PlayCircle, color: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' });
   }
   if (currentStatus === 'DANG_DIEN_RA') {
-    btns.push({ action: 'complete', label: 'Hoàn thành', icon: CheckCircle2, color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' });
+    btns.push({ action: 'revertStart', label: 'Hoàn tác bắt đầu', icon: XCircle,       color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' });
+    btns.push({ action: 'complete',    label: 'Hoàn thành',        icon: CheckCircle2, color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' });
   }
   const canCancel = !['DA_HOAN_THANH', 'DA_KET_THUC', 'DA_HUY'].includes(currentStatus);
   if (canCancel) {
@@ -311,6 +316,29 @@ const StatusActions = ({ maHoatDong, currentStatus, onRefresh }) => {
     </div>
   );
 };
+
+// ── Toggle switch (định nghĩa NGOÀI ActivityForm để tránh React remount mỗi render) ──
+const Toggle = ({ name, checked, label, hint, onChange }) => (
+  <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-gray-50 border border-gray-100">
+    <div>
+      <p className="text-sm font-medium text-gray-800">{label}</p>
+      {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange({ target: { name, value: !checked, type: 'checkbox', checked: !checked } })}
+      className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+        checked ? 'bg-primary' : 'bg-gray-300'
+      }`}
+    >
+      <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+        checked ? 'translate-x-[22px]' : 'translate-x-1'
+      }`} />
+    </button>
+  </div>
+);
 
 // ── ActivityForm ───────────────────────────────────────────────────────────────
 const ActivityForm = ({
@@ -483,9 +511,14 @@ const ActivityForm = ({
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    let finalValue = type === 'checkbox' ? checked : value;
+    // Mã hoạt động: chỉ cho phép A-Z, 0-9, _, - ; tự động xóa ký tự không hợp lệ
+    if (name === 'maHoatDong' && typeof finalValue === 'string') {
+      finalValue = finalValue.toUpperCase().replace(/[^A-Z0-9_\-]/g, '');
+    }
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: finalValue,
     }));
   };
 
@@ -511,486 +544,371 @@ const ActivityForm = ({
   const isLoading = createMutation.isPending || updateMutation.isPending;
   const namHocList = academicInfo?.danhSachNamHoc || [];
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          {isEdit ? 'Chỉnh sửa hoạt động' : 'Tạo hoạt động mới'}
-        </h2>
-        <p className="text-gray-600 text-sm">
-          {isEdit ? 'Cập nhật thông tin hoạt động' : 'Nhập thông tin hoạt động'}
-        </p>
+  // ── Section header component (inline) ────────────────────────────────────────
+  const SectionHead = ({ icon: Icon, color, label }) => (
+    <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-gray-100">
+      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${color}`}>
+        <Icon className="w-3.5 h-3.5" />
       </div>
+      <h3 className="font-semibold text-gray-900 text-sm">{label}</h3>
+    </div>
+  );
 
-      {/* Basic Information */}
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-3xl">
+
+      {/* ── Card 1: Thông tin cơ bản ─────────────────────────────────── */}
       <Card>
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Thông tin cơ bản</h3>
+        <div className="p-5">
+          <SectionHead icon={FileText} color="bg-violet-100 text-violet-600" label="Thông tin cơ bản" />
 
-          <div className="grid grid-cols-2 gap-4">
-            {!isEdit && (
-              <Input
-                label="Mã hoạt động *"
-                name="maHoatDong"
-                value={formData.maHoatDong}
-                onChange={handleChange}
-                placeholder="VD: HD001"
-                error={errors.maHoatDong}
-              />
-            )}
-            <Input
-              label="Tên hoạt động *"
-              name="tenHoatDong"
-              value={formData.tenHoatDong}
-              onChange={handleChange}
-              placeholder="VD: Hội thảo công nghệ"
-              error={errors.tenHoatDong}
-              className={!isEdit ? '' : 'col-span-2'}
-            />
-          </div>
-
-          <Textarea
-            label="Mô tả"
-            name="moTa"
-            value={formData.moTa || ''}
-            onChange={handleChange}
-            placeholder="Mô tả chi tiết về hoạt động..."
-            rows={3}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Loại hoạt động *"
-              name="loaiHoatDong"
-              value={formData.loaiHoatDong}
-              onChange={handleChange}
-            >
-              {LOAI_HOAT_DONG_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
-            <Select
-              label="Cấp độ *"
-              name="capDo"
-              value={formData.capDo}
-              onChange={handleChange}
-            >
-              {CAP_DO_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
-          </div>
-        </div>
-      </Card>
-
-      {/* Date & Time */}
-      <Card>
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Thời gian &amp; Địa điểm</h3>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="form-label">Ngày tổ chức *</label>
-              <div className="custom-date-input">
-                <input
-                  type="date"
-                  name="ngayToChuc"
-                  value={formData.ngayToChuc || ""}
-                  onChange={handleNgayToChucChange}
-                  className={`form-input ${errors.ngayToChuc ? 'border-red-500' : ''}`}
-                  placeholder=" " 
-                />
-                <div className="custom-date-display">
-                  {formData.ngayToChuc ? formatDate(formData.ngayToChuc) : <span className="text-gray-400">dd/mm/yyyy</span>}
-                </div>
-              </div>
-              {errors.ngayToChuc && <p className="form-error">{errors.ngayToChuc}</p>}
-            </div>
-            <div>
-              <Input
-                label="Giờ khai mạc"
-                type="time"
-                name="gioToChuc"
-                value={formData.gioToChuc}
-                onChange={handleGioToChucChange}
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Giờ chương trình chính thức bắt đầu
-              </p>
-            </div>
-          </div>
-
-          <LocationInput
-            diaDiem={formData.diaDiem}
-            viDo={formData.viDo}
-            kinhDo={formData.kinhDo}
-            onChange={({ diaDiem, viDo, kinhDo }) =>
-              setFormData((prev) => ({ ...prev, diaDiem, viDo, kinhDo }))
-            }
-          />
-
-          {/* Distance geofence */}
-          <div>
-            <Input
-              label="Bán kính điểm danh (mét)"
-              type="number"
-              name="khoangCachToiDa"
-              value={formData.khoangCachToiDa ?? ''}
-              onChange={handleChange}
-              min="0"
-              placeholder="Bỏ trống = không giới hạn khoảng cách"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Nếu nhập, sinh viên chỉ được điểm danh khi đang ở trong bán kính này (yêu cầu toạ độ địa điểm).
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Học kỳ & Năm học */}
-      <Card>
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Học kỳ &amp; Năm học</h3>
-          <p className="text-sm text-gray-500">Tự động tính theo ngày tổ chức. Bạn có thể điều chỉnh nếu cần.</p>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Select label="Học kỳ" name="soHocKy" value={formData.soHocKy} onChange={handleChange}>
-              <option value="">-- Chọn học kỳ --</option>
-              {HOC_KY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
-
-            {namHocList.length > 0 ? (
-              <Select label="Năm học" name="maNamHoc" value={formData.maNamHoc} onChange={handleChange}>
-                <option value="">-- Chọn năm học --</option>
-                {namHocList.map((nh) => (
-                  <option key={nh.maNamHoc} value={nh.maNamHoc}>{nh.tenNamHoc}</option>
-                ))}
-              </Select>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Năm học</label>
-                <div className="flex items-center h-10 px-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
-                  {formData.tenNamHoc || <span className="text-gray-400">Chưa xác định</span>}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Tự động tính từ ngày tổ chức</p>
-              </div>
-            )}
-          </div>
-
-          {(formData.soHocKy || formData.tenNamHoc) && (
-            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />
-              <span className="text-sm text-blue-700">
-                Hoạt động thuộc{' '}
-                <strong>
-                  {formData.soHocKy ? `Học kỳ ${formData.soHocKy}` : ''}
-                  {formData.soHocKy && formData.tenNamHoc ? ' – ' : ''}
-                  {formData.tenNamHoc || ''}
-                </strong>
-              </span>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Check-in Settings */}
-      <Card>
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-semibold text-lg text-gray-900">Cài đặt Điểm danh</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Xác định chế độ và khung giờ hợp lệ để sinh viên check-in và check-out.
-            </p>
-          </div>
-
-          {/* Chế độ điểm danh */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Chế độ điểm danh</label>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { value: 'CHECKIN_CHECKOUT', label: '↔️ Check-in & Check-out', desc: 'Yêu cầu cả check-in lẫn check-out' },
-                { value: 'CHECKIN_ONLY',     label: '→ Chỉ Check-in',          desc: 'Chỉ cần quét QR khi đến' },
-                { value: 'CHECKOUT_ONLY',    label: '← Chỉ Check-out',         desc: 'Check-in tự động, chỉ quét QR khi ra về' },
-                { value: 'AUTO_FULL',        label: '⚡ Tự động toàn bộ',      desc: 'BCH xác nhận, toàn bộ đăng ký = tham gia' },
-              ].map((opt) => (
-                <label
-                  key={opt.value}
-                  className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                    formData.cheDoDiemDanh === opt.value
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="cheDoDiemDanh"
-                    value={opt.value}
-                    checked={formData.cheDoDiemDanh === opt.value}
+          <div className="space-y-3">
+            {/* Mã + Tên */}
+            <div className={`grid gap-3 ${!isEdit ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              {!isEdit && (
+                <div>
+                  <Input
+                    label="Mã hoạt động *"
+                    name="maHoatDong"
+                    value={formData.maHoatDong}
                     onChange={handleChange}
-                    className="mt-0.5 w-4 h-4 text-blue-600"
+                    placeholder="HD2025_01"
+                    error={errors.maHoatDong}
                   />
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">{opt.label}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-            {formData.cheDoDiemDanh === 'AUTO_FULL' && (
-              <p className="mt-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                ⚡ Sau khi kết thúc, BCH nhấn &quot;Xác nhận tham gia&quot; để ghi nhận toàn bộ SV đăng ký. Không cần quét QR.
-              </p>
-            )}
-            {formData.cheDoDiemDanh === 'CHECKOUT_ONLY' && (
-              <p className="mt-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                ← Check-in tự động theo giờ bắt đầu. Sinh viên chỉ cần quét QR khi ra về.
-              </p>
-            )}
-          </div>
-
-          {/* Timeline hint */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 space-y-1">
-            <p className="font-bold mb-1 underline">Mốc thời gian thực tế dựa trên cài đặt của bạn:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-              <p>
-                <span className="font-semibold">Mở Check-in:</span> {formData.thoiGianBatDau ? addMinutesToTime(formData.thoiGianBatDau, -(formData.choPhepCheckInSom || 30)) : '—'}
-              </p>
-              <p>
-                <span className="font-semibold">Đóng Check-in:</span> {formData.thoiGianBatDau ? addMinutesToTime(formData.thoiGianBatDau, (formData.thoiGianTreToiDa || 15)) : '—'}
-              </p>
-              <p>
-                <span className="font-semibold">Mở Check-out:</span> {formData.thoiGianKetThuc || '—'}
-              </p>
-              <p>
-                <span className="font-semibold">Đóng Check-out:</span> {formData.thoiGianKetThuc ? addMinutesToTime(formData.thoiGianKetThuc, 30) : '—'}
-              </p>
-            </div>
-            <p className="mt-2 italic text-[10px] text-amber-600">
-              * Hệ thống sẽ tự động từ chối quét QR ngoài các khung giờ nêu trên.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Input
-                label="Giờ bắt đầu hoạt động *"
-                type="time"
-                name="thoiGianBatDau"
-                value={formData.thoiGianBatDau}
-                onChange={handleChange}
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Cổng check-in mở từ <strong>[giờ này − {formData.choPhepCheckInSom || 30} phút]</strong>
-              </p>
-            </div>
-            <div>
-              <Input
-                label="Giờ kết thúc hoạt động *"
-                type="time"
-                name="thoiGianKetThuc"
-                value={formData.thoiGianKetThuc}
-                onChange={handleChange}
-                error={errors.thoiGianKetThuc}
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Cổng check-out mở từ giờ này, đóng sau 30 phút
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Input
-                label="Cho phép check-in sớm (phút)"
-                type="number"
-                name="choPhepCheckInSom"
-                value={formData.choPhepCheckInSom}
-                onChange={handleChange}
-                min="0"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Mặc định: 30 phút trước giờ bắt đầu
-              </p>
-            </div>
-            <div>
-              <Input
-                label="Thời gian trễ tối đa (phút)"
-                type="number"
-                name="thoiGianTreToiDa"
-                value={formData.thoiGianTreToiDa}
-                onChange={handleChange}
-                min="0"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Muộn quá mức này = không tính điểm danh
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <Input
-              label="Thời gian tham gia tối thiểu (phút)"
-              type="number"
-              name="thoiGianToiThieu"
-              value={formData.thoiGianToiThieu}
-              onChange={handleChange}
-              min="0"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Yêu cầu check-out: sinh viên phải tham gia ít nhất ngần này phút mới được tính hoàn thành
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="yeuCauCheckOut"
-              name="yeuCauCheckOut"
-              checked={formData.yeuCauCheckOut}
-              onChange={handleChange}
-              className="w-4 h-4 text-primary rounded border-gray-300"
-            />
-            <label htmlFor="yeuCauCheckOut" className="text-sm text-gray-700">
-              Yêu cầu check-out (bắt buộc sinh viên phải quét QR khi về mới tính hoàn thành)
-            </label>
-          </div>
-        </div>
-      </Card>
-
-      {/* Capacity */}
-      <Card>
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Quy mô</h3>
-          <Input
-            label="Số lượng tối đa"
-            type="number"
-            name="soLuongToiDa"
-            value={formData.soLuongToiDa}
-            onChange={handleChange}
-            min="0"
-            className="max-w-xs"
-          />
-        </div>
-      </Card>
-
-      {/* Điểm rèn luyện */}
-      <Card>
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-semibold text-lg text-gray-900">Điểm rèn luyện</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Chọn tiêu chí phù hợp theo quy chế đánh giá rèn luyện sinh viên của trường.
-            </p>
-          </div>
-          <RenLuyenSelector
-            maDanhMuc={formData.maDanhMucRenLuyen}
-            maTieuChi={formData.maTieuChiRenLuyen}
-            diemRenLuyen={formData.diemRenLuyen}
-            onChange={handleRenLuyenChange}
-          />
-        </div>
-      </Card>
-
-      {/* Registration & Status */}
-      <Card>
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Đăng ký &amp; Trạng thái</h3>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="form-label">Hạn đăng ký</label>
-              <div className="custom-date-input">
-                <input
-                  type="datetime-local"
-                  name="hanDangKy"
-                  value={formData.hanDangKy || ""}
-                  onChange={handleChange}
-                  className="form-input"
-                  placeholder=" "
-                />
-                <div className="custom-date-display">
-                  {formData.hanDangKy ? formatDateTime(formData.hanDangKy) : <span className="text-gray-400">dd/mm/yyyy HH:mm</span>}
+                  <p className="text-xs text-gray-400 mt-1">A–Z, 0–9, _ và - (tự xóa ký tự lạ)</p>
                 </div>
+              )}
+              <div className={!isEdit ? 'col-span-2' : ''}>
+                <Input
+                  label="Tên hoạt động *"
+                  name="tenHoatDong"
+                  value={formData.tenHoatDong}
+                  onChange={handleChange}
+                  placeholder="VD: Hội thảo công nghệ 2025"
+                  error={errors.tenHoatDong}
+                />
               </div>
             </div>
 
-            {/* Trạng thái: dropdown khi tạo mới, badge + action buttons khi edit */}
-            {isEdit ? (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Trạng thái hiện tại
-                </label>
-                <StatusBadge status={formData.trangThai} />
-                <StatusActions
-                  maHoatDong={initialData?.maHoatDong}
-                  currentStatus={formData.trangThai}
-                  onRefresh={handleStatusRefresh}
-                />
-              </div>
-            ) : (
-              <Select
-                label="Trạng thái ban đầu"
-                name="trangThai"
-                value={formData.trangThai}
-                onChange={handleChange}
-              >
-                {TRANG_THAI_OPTIONS.map((opt) => (
+            {/* Loại + Cấp độ */}
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Loại hoạt động" name="loaiHoatDong" value={formData.loaiHoatDong} onChange={handleChange}>
+                {LOAI_HOAT_DONG_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </Select>
+              <Select label="Cấp độ" name="capDo" value={formData.capDo} onChange={handleChange}>
+                {CAP_DO_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </Select>
+            </div>
+
+            <Textarea
+              label="Mô tả"
+              name="moTa"
+              value={formData.moTa || ''}
+              onChange={handleChange}
+              placeholder="Mô tả ngắn về hoạt động..."
+              rows={2}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* ── Card 2: Thời gian & Địa điểm ────────────────────────────── */}
+      <Card>
+        <div className="p-5">
+          <SectionHead icon={Calendar} color="bg-blue-100 text-blue-600" label="Thời gian & Địa điểm" />
+
+          <div className="space-y-3">
+            {/* Ngày + Giờ bắt đầu + Giờ kết thúc */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="form-label">Ngày tổ chức *</label>
+                <div className="custom-date-input">
+                  <input
+                    type="date"
+                    name="ngayToChuc"
+                    value={formData.ngayToChuc || ''}
+                    onChange={handleNgayToChucChange}
+                    className={`form-input ${errors.ngayToChuc ? 'border-red-400' : ''}`}
+                    placeholder=" "
+                  />
+                  <div className="custom-date-display text-sm">
+                    {formData.ngayToChuc ? formatDate(formData.ngayToChuc) : <span className="text-gray-400">dd/mm/yyyy</span>}
+                  </div>
+                </div>
+                {errors.ngayToChuc && <p className="form-error">{errors.ngayToChuc}</p>}
+              </div>
+              <Input label="Giờ bắt đầu" type="time" name="thoiGianBatDau" value={formData.thoiGianBatDau} onChange={handleChange} />
+              <Input label="Giờ kết thúc" type="time" name="thoiGianKetThuc" value={formData.thoiGianKetThuc} onChange={handleChange} error={errors.thoiGianKetThuc} />
+            </div>
+
+            {/* Học kỳ auto-badge */}
+            {(formData.soHocKy || formData.tenNamHoc) && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+                <Info className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                <span className="text-xs text-blue-700 flex-1">
+                  Xếp vào <strong>{formData.soHocKy ? `Học kỳ ${formData.soHocKy}` : ''}{formData.soHocKy && formData.tenNamHoc ? ' – ' : ''}{formData.tenNamHoc || ''}</strong>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <select name="soHocKy" value={formData.soHocKy} onChange={handleChange}
+                    className="text-xs border border-blue-200 rounded px-1.5 py-0.5 bg-white text-blue-700">
+                    <option value="">HK?</option>
+                    {HOC_KY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </select>
+                  {namHocList.length > 0 && (
+                    <select name="maNamHoc" value={formData.maNamHoc} onChange={handleChange}
+                      className="text-xs border border-blue-200 rounded px-1.5 py-0.5 bg-white text-blue-700">
+                      <option value="">NH?</option>
+                      {namHocList.map((nh) => <option key={nh.maNamHoc} value={nh.maNamHoc}>{nh.tenNamHoc}</option>)}
+                    </select>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Địa điểm */}
+            <LocationInput
+              diaDiem={formData.diaDiem}
+              viDo={formData.viDo}
+              kinhDo={formData.kinhDo}
+              onChange={({ diaDiem, viDo, kinhDo }) => setFormData((prev) => ({ ...prev, diaDiem, viDo, kinhDo }))}
+            />
+
+            {/* Bán kính + Số lượng */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Input label="Bán kính điểm danh (m)" type="number" name="khoangCachToiDa"
+                  value={formData.khoangCachToiDa ?? ''} onChange={handleChange} min="0" placeholder="Không giới hạn" />
+                <p className="text-xs text-gray-400 mt-1">Cần toạ độ GPS</p>
+              </div>
+              <div>
+                <Input label="Số lượng tối đa" type="number" name="soLuongToiDa"
+                  value={formData.soLuongToiDa} onChange={handleChange} min="0" placeholder="Không giới hạn" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* ── Card 3: Điểm danh ────────────────────────────────────────── */}
+      <Card>
+        <div className="p-5">
+          <SectionHead icon={QrCode} color="bg-emerald-100 text-emerald-600" label="Cài đặt Điểm danh" />
+
+          <div className="space-y-4">
+            {/* Chế độ — 4 pill cards với icon */}
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Chế độ quét QR</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'CHECKIN_CHECKOUT', icon: ArrowLeftRight, label: 'Check-in & Check-out',
+                    desc: 'Quét cả khi đến lẫn khi về',   color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-400' },
+                  { value: 'CHECKIN_ONLY',     icon: LogIn,          label: 'Chỉ Check-in',
+                    desc: 'Quét QR một lần khi đến',       color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-400' },
+                  { value: 'CHECKOUT_ONLY',    icon: LogOut,         label: 'Chỉ Check-out',
+                    desc: 'Tự check-in, quét QR khi về',   color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-400' },
+                  { value: 'AUTO_FULL',        icon: Zap,            label: 'Tự động hoàn toàn',
+                    desc: 'BCH xác nhận, không quét QR',   color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-400' },
+                ].map(({ value, icon: Icon, label, desc, color, bg, border }) => {
+                  const active = formData.cheDoDiemDanh === value;
+                  return (
+                    <label key={value}
+                      className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        active ? `${border} ${bg}` : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      <input type="radio" name="cheDoDiemDanh" value={value}
+                        checked={active} onChange={handleChange} className="sr-only" />
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${active ? bg : 'bg-gray-100'}`}>
+                        <Icon className={`w-4 h-4 ${active ? color : 'text-gray-400'}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-sm font-semibold leading-tight ${active ? 'text-gray-900' : 'text-gray-700'}`}>{label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 leading-tight">{desc}</p>
+                      </div>
+                      {active && (
+                        <div className={`ml-auto w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${color.replace('text-', 'bg-').replace('600', '500')}`}>
+                          <CheckCircle2 className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Timeline bar */}
+            {(() => {
+              const start   = formData.thoiGianBatDau;
+              const end     = formData.thoiGianKetThuc;
+              const ciSom   = Number(formData.choPhepCheckInSom) || 30;
+              const coExtra = 30;
+              const ciOpen  = start ? addMinutesToTime(start, -ciSom) : null;
+              const coClose = end   ? addMinutesToTime(end, coExtra)   : null;
+              const mode    = formData.cheDoDiemDanh;
+              const showCI  = mode !== 'CHECKOUT_ONLY' && mode !== 'AUTO_FULL';
+              const showCO  = mode === 'CHECKIN_CHECKOUT' || mode === 'CHECKOUT_ONLY';
+              return (
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-3.5">
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <Clock className="w-3.5 h-3.5 text-gray-400" />
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Khung giờ hoạt động</p>
+                  </div>
+                  <div className="flex h-6 rounded-lg overflow-hidden text-[10px] font-bold text-white shadow-sm">
+                    {showCI && ciOpen && (
+                      <div className="flex items-center justify-center bg-indigo-400 px-1.5 min-w-[48px]" style={{ flex: ciSom }}>
+                        {ciOpen}
+                      </div>
+                    )}
+                    <div className={`flex items-center justify-center px-2 min-w-[80px] ${mode === 'AUTO_FULL' ? 'bg-purple-500' : 'bg-emerald-500'}`} style={{ flex: 100 }}>
+                      {start && end ? `${start} → ${end}` : start ? `Từ ${start}` : 'Sự kiện'}
+                    </div>
+                    {showCO && end && (
+                      <div className="flex items-center justify-center bg-orange-400 px-1.5 min-w-[48px]" style={{ flex: coExtra }}>
+                        {coClose}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-[10px] text-gray-400">
+                    {showCI  && <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" />Check-in sớm</span>}
+                    <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full inline-block ${mode === 'AUTO_FULL' ? 'bg-purple-500' : 'bg-emerald-500'}`} />{mode === 'AUTO_FULL' ? 'Tự động' : 'Đang diễn ra'}</span>
+                    {showCO  && <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />Check-out (+{coExtra}p)</span>}
+                    {(!start || !end) && <span className="text-amber-500 font-medium">⚠ Điền giờ bắt đầu &amp; kết thúc</span>}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Tham số thời gian */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Input label="Check-in sớm (phút)" type="number" name="choPhepCheckInSom"
+                  value={formData.choPhepCheckInSom} onChange={handleChange} min="0" />
+                <p className="text-xs text-gray-400 mt-1">Trước giờ bắt đầu</p>
+              </div>
+              <div>
+                <Input label="Trễ tối đa (phút)" type="number" name="thoiGianTreToiDa"
+                  value={formData.thoiGianTreToiDa} onChange={handleChange} min="0" />
+                <p className="text-xs text-gray-400 mt-1">Quá mức = không tính</p>
+              </div>
+              {(formData.cheDoDiemDanh === 'CHECKIN_CHECKOUT' || formData.cheDoDiemDanh === 'CHECKOUT_ONLY') && (
+                <div>
+                  <Input label="Tối thiểu (phút)" type="number" name="thoiGianToiThieu"
+                    value={formData.thoiGianToiThieu} onChange={handleChange} min="0" />
+                  <p className="text-xs text-gray-400 mt-1">Ít hơn = không đạt</p>
+                </div>
+              )}
+            </div>
+
+            {/* Toggle yêu cầu check-out */}
+            {formData.cheDoDiemDanh === 'CHECKIN_CHECKOUT' && (
+              <Toggle
+                name="yeuCauCheckOut"
+                checked={formData.yeuCauCheckOut}
+                label="Bắt buộc check-out"
+                hint="Sinh viên phải quét QR khi về mới tính hoàn thành"
+                onChange={handleChange}
+              />
             )}
           </div>
+        </div>
+      </Card>
 
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="choPhepDangKy"
-                checked={formData.choPhepDangKy}
-                onChange={handleChange}
-                className="w-4 h-4 text-primary rounded border-gray-300"
+      {/* ── Card 4: Đăng ký & Cài đặt ───────────────────────────────── */}
+      <Card>
+        <div className="p-5">
+          <SectionHead icon={Settings2} color="bg-amber-100 text-amber-600" label="Đăng ký & Cài đặt" />
+
+          <div className="space-y-3">
+            {/* Hạn đăng ký + Trạng thái */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">Hạn đăng ký</label>
+                <div className="custom-date-input">
+                  <input type="datetime-local" name="hanDangKy"
+                    value={formData.hanDangKy || ''} onChange={handleChange}
+                    className="form-input" placeholder=" " />
+                  <div className="custom-date-display text-sm">
+                    {formData.hanDangKy ? formatDateTime(formData.hanDangKy) : <span className="text-gray-400">dd/mm/yyyy HH:mm</span>}
+                  </div>
+                </div>
+              </div>
+
+              {isEdit ? (
+                <div>
+                  <label className="form-label">Trạng thái</label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <StatusBadge status={formData.trangThai} />
+                  </div>
+                  <StatusActions
+                    maHoatDong={initialData?.maHoatDong}
+                    currentStatus={formData.trangThai}
+                    onRefresh={handleStatusRefresh}
+                  />
+                </div>
+              ) : (
+                <Select label="Trạng thái ban đầu" name="trangThai" value={formData.trangThai} onChange={handleChange}>
+                  {TRANG_THAI_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </Select>
+              )}
+            </div>
+
+            {/* Toggle cho phép đăng ký */}
+            <Toggle
+              name="choPhepDangKy"
+              checked={formData.choPhepDangKy}
+              label="Cho phép sinh viên đăng ký"
+              hint="Tắt để tạm ngưng nhận đăng ký mới"
+              onChange={handleChange}
+            />
+
+            {/* Điểm rèn luyện */}
+            <div className="pt-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-3.5 h-3.5 text-gray-400" />
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Điểm rèn luyện</p>
+              </div>
+              <RenLuyenSelector
+                maDanhMuc={formData.maDanhMucRenLuyen}
+                maTieuChi={formData.maTieuChiRenLuyen}
+                diemRenLuyen={formData.diemRenLuyen}
+                onChange={handleRenLuyenChange}
               />
-              <span className="text-sm text-gray-700">Cho phép đăng ký</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="yeuCauDiemDanh"
-                checked={formData.yeuCauDiemDanh}
+            </div>
+
+            {/* Ghi chú */}
+            <div className="pt-1">
+              <Textarea
+                label="Ghi chú nội bộ"
+                name="ghiChu"
+                value={formData.ghiChu || ''}
                 onChange={handleChange}
-                className="w-4 h-4 text-primary rounded border-gray-300"
+                placeholder="Ghi chú cho BCH, không hiển thị cho sinh viên..."
+                rows={2}
               />
-              <span className="text-sm text-gray-700">Yêu cầu điểm danh</span>
-            </label>
+            </div>
           </div>
         </div>
       </Card>
 
-      {/* Ghi chú & Poster */}
-      <Card>
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Thông tin thêm</h3>
-          <Textarea
-            label="Ghi chú"
-            name="ghiChu"
-            value={formData.ghiChu || ''}
-            onChange={handleChange}
-            placeholder="Ghi chú nội bộ..."
-            rows={2}
-          />
+      {/* ── Actions ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between pt-1">
+        <p className="text-xs text-gray-400">
+          {isEdit ? `Đang chỉnh sửa: ${initialData?.maHoatDong}` : 'Điền đầy đủ thông tin bắt buộc (*)'}
+        </p>
+        <div className="flex gap-2.5">
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={isLoading}>
+            Hủy
+          </Button>
+          <Button type="submit" isLoading={isLoading} icon={isEdit ? RotateCcw : undefined}>
+            {isEdit ? 'Lưu thay đổi' : 'Tạo hoạt động'}
+          </Button>
         </div>
-      </Card>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-          Hủy
-        </Button>
-        <Button type="submit" isLoading={isLoading}>
-          {isEdit ? 'Cập nhật' : 'Tạo hoạt động'}
-        </Button>
       </div>
     </form>
   );

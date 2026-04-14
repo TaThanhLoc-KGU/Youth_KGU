@@ -1,6 +1,5 @@
 package com.tathanhloc.youthkgu.DTO;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,7 +19,7 @@ public class CheckOutRequest {
 
     private String maQR;
 
-    @NotBlank(message = "Mã BCH xác nhận không được trống")
+    // ✅ FIX: Không @NotBlank — admin checkout thủ công có thể không có BCH xác nhận
     private String maBchXacNhan;
 
     private String ghiChu;

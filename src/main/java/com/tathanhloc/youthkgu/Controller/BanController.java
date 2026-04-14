@@ -26,7 +26,7 @@ public class BanController {
 
     @GetMapping
     @Operation(summary = "Lấy tất cả ban")
-    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<BanDTO>>> getAll() {
         log.info("GET /api/ban");
         List<BanDTO> list = banService.getAll();
@@ -35,7 +35,7 @@ public class BanController {
 
     @GetMapping("/{maBan}")
     @Operation(summary = "Lấy chi tiết ban")
-    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<BanDTO>> getById(@PathVariable String maBan) {
         log.info("GET /api/ban/{}", maBan);
         BanDTO dto = banService.getById(maBan);
@@ -74,7 +74,7 @@ public class BanController {
 
     @GetMapping("/loai-ban/{loaiBan}")
     @Operation(summary = "Lọc ban theo loại ban")
-    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<BanDTO>>> getByLoaiBan(
             @PathVariable String loaiBan) {
         log.info("GET /api/ban/loai-ban/{}", loaiBan);
@@ -84,7 +84,7 @@ public class BanController {
 
     @GetMapping("/khoa/{maKhoa}")
     @Operation(summary = "Lọc ban theo khoa")
-    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<BanDTO>>> getByKhoa(
             @PathVariable String maKhoa) {
         log.info("GET /api/ban/khoa/{}", maKhoa);
@@ -94,7 +94,7 @@ public class BanController {
 
     @GetMapping("/statistics")
     @Operation(summary = "Thống kê ban")
-    @PreAuthorize("hasPermission(null, 'XEM_BCH')")
+    @PreAuthorize("hasPermission(null, 'XEM_BCH') or hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<ApiResponse<Map<String, Long>>> getStatistics() {
         log.info("GET /api/ban/statistics");
         Map<String, Long> stats = banService.getStatistics();

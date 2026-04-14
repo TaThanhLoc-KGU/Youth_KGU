@@ -52,6 +52,9 @@ public class AccountDTO {
 
     private LocalDateTime updatedAt;
 
-    /** Cấp BCH: 1/2/3/4. Null nếu không phải BCH. */
-    private Integer bchLevel;
+    /** true = QUAN_LY có toàn quyền (admin bypass) */
+    private Boolean laAdmin;
+
+    private String maKhoa;
+    private String tenKhoa;
 }

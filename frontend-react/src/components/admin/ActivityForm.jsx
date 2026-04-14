@@ -3,12 +3,16 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Save, X } from 'lucide-react';
 import activityService from '../../services/activityService';
+import useAuthStore from '../../stores/authStore';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
 import { ACTIVITY_TYPES, ACTIVITY_LEVELS } from '../../utils/constants';
 
 const ActivityForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
+  const { maKhoa } = useAuthStore();
+  const isKhoaScoped = !!maKhoa;
+
   const {
     register,
     handleSubmit,
@@ -19,7 +23,7 @@ const ActivityForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => 
       tenHoatDong: '',
       moTa: '',
       loaiHoatDong: 'KHAC',
-      capDo: 'TRUONG',
+      capDo: isKhoaScoped ? 'KHOA' : 'TRUONG',
       ngayToChuc: '',
       diaDiem: '',
       soNguoiDangKy: 0,
@@ -61,6 +65,8 @@ const ActivityForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => 
           label="Mã hoạt động"
           {...register('maHoatDong', {
             required: 'Mã hoạt động là bắt buộc',
+            validate: (v) => !/[àáâãäåæçèéêëìíîïðñòóôõöùúûüýþÿÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖÙÚÛÜÝÞŸăđơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹĂĐƠƯẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪỬỮỰỲỴỶỸ]/.test(v)
+              || 'Phát hiện tiếng Việt — chỉ dùng chữ không dấu, số, gạch dưới hoặc gạch ngang',
           })}
           error={errors.maHoatDong?.message}
           disabled={mode === 'edit'}
@@ -91,10 +97,13 @@ const ActivityForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => 
         <Select
           label="Cấp độ"
           {...register('capDo')}
-          options={Object.entries(ACTIVITY_LEVELS).map(([key, value]) => ({
-            value: key,
-            label: value,
-          }))}
+          options={Object.entries(ACTIVITY_LEVELS)
+            .filter(([key]) => !isKhoaScoped || key !== 'TRUONG') // Cán bộ khoa không được tạo cấp Trường
+            .map(([key, value]) => ({
+              value: key,
+              label: value === 'TRUONG' ? 'Cấp trường' : value === 'KHOA' ? 'Cấp khoa' : value,
+            }))}
+          disabled={isKhoaScoped && mode === 'edit' && initialData?.capDo === 'TRUONG'}
         />
 
         {/* Ngày tổ chức */}
@@ -142,7 +151,7 @@ const ActivityForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => 
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-2 pt-4 border-t">
+      <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel} icon={X}>
           Hủy
         </Button>

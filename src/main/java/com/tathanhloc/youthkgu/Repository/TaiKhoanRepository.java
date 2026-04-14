@@ -83,4 +83,26 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
            "WHERE tk.banChuyenMon IS NOT NULL " +
            "GROUP BY tk.banChuyenMon.maBan, tk.banChuyenMon.tenBan")
     List<Object[]> countGroupByBan();
+
+    /**
+     * Chỉ lấy username của tất cả tài khoản active — nhẹ hơn findAll() khi broadcast notification.
+     */
+    @Query("SELECT tk.username FROM TaiKhoan tk WHERE tk.isActive = true")
+    List<String> findAllActiveUsernames();
+
+    /** Lấy trực tiếp maKhoa của user QUAN_LY — tránh lazy load khi dùng ngoài transaction */
+    @Query("SELECT tk.khoa.maKhoa FROM TaiKhoan tk WHERE tk.username = :username AND tk.khoa IS NOT NULL")
+    Optional<String> findMaKhoaByUsername(@Param("username") String username);
+
+    /**
+     * Lấy maKhoa của SINH_VIEN thông qua: TaiKhoan → sinhVien → lop → nganh → khoa.
+     * Dùng khi TaiKhoan không có FK khoa trực tiếp (trường hợp sinh viên).
+     */
+    @Query("SELECT sv.lop.nganh.khoa.maKhoa FROM TaiKhoan tk " +
+           "JOIN tk.sinhVien sv " +
+           "WHERE tk.username = :username " +
+           "AND sv.lop IS NOT NULL " +
+           "AND sv.lop.nganh IS NOT NULL " +
+           "AND sv.lop.nganh.khoa IS NOT NULL")
+    Optional<String> findMaKhoaBySinhVienUsername(@Param("username") String username);
 }

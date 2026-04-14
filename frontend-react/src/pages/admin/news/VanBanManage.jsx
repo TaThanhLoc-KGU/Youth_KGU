@@ -142,12 +142,14 @@ const VanBanManage = () => {
       header: 'Loại',
       accessor: 'loaiVanBan',
       width: '110px',
+      className: 'hidden sm:table-cell',
       render: (v) => <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{LOAI_LABEL[v] || v}</span>,
     },
     {
       header: 'Ngày ban hành',
       accessor: 'ngayBanHanh',
       width: '120px',
+      className: 'hidden sm:table-cell',
       render: (v) => v ? new Date(v).toLocaleDateString('vi-VN') : '—',
     },
     {
@@ -213,9 +215,9 @@ const VanBanManage = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Quản lý Văn bản</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Văn bản</h1>
           <p className="text-sm text-gray-500 mt-0.5">Kho văn bản, kế hoạch, công văn của Đoàn – Hội KGU</p>
         </div>
         {canManage && (
@@ -241,24 +243,26 @@ const VanBanManage = () => {
           value={loai}
           onChange={(e) => { setLoai(e.target.value); setPage(0); }}
           options={LOAI_OPTIONS}
-          className="sm:w-44"
+          className="w-full sm:w-44"
         />
         <Select
           value={trangThai}
           onChange={(e) => { setTrangThai(e.target.value); setPage(0); }}
           options={TRANG_THAI_OPTIONS}
-          className="sm:w-44"
+          className="w-full sm:w-44"
         />
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
         <Table
           columns={columns}
           data={items}
           isLoading={isLoading}
           emptyMessage="Không có văn bản nào."
         />
+        </div>
       </div>
 
       {/* Pagination */}

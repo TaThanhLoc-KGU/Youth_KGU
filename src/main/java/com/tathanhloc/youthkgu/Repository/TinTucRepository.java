@@ -83,4 +83,23 @@ public interface TinTucRepository extends JpaRepository<TinTuc, Long> {
 
     // Kiểm tra còn bài viết dùng chuyên mục này không (để từ chối xóa CM)
     boolean existsByChuyenMucIdAndIsDeletedFalse(Long chuyenMucId);
+
+    // Lọc tin tức theo khoa (admin)
+    Page<TinTuc> findByKhoaMaKhoaAndIsDeletedFalseOrderByCreatedAtDesc(
+            String maKhoa, Pageable pageable);
+
+    // Lọc tin tức theo khoa + từ khóa (admin)
+    @Query("SELECT t FROM TinTuc t WHERE t.khoa.maKhoa = :maKhoa AND t.isDeleted = false " +
+           "AND (:keyword IS NULL OR LOWER(t.tieuDe) LIKE LOWER(CONCAT('%', :keyword, '%')))" +
+           " ORDER BY t.createdAt DESC")
+    Page<TinTuc> findByKhoaAndKeyword(@Param("maKhoa") String maKhoa,
+                                       @Param("keyword") String keyword,
+                                       Pageable pageable);
+
+    // Public: lọc tin đã published theo khoa
+    @Query("SELECT t FROM TinTuc t WHERE t.khoa.maKhoa = :maKhoa " +
+           "AND t.trangThai = :trangThai AND t.isDeleted = false ORDER BY t.createdAt DESC")
+    Page<TinTuc> findPublishedByKhoa(@Param("maKhoa") String maKhoa,
+                                      @Param("trangThai") com.tathanhloc.youthkgu.Enum.TrangThaiTinTuc trangThai,
+                                      Pageable pageable);
 }

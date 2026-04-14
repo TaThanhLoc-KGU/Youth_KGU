@@ -10,7 +10,7 @@ const NewsSidebar = () => {
   const { sidebarBlocks } = useNewsLayoutStore();
 
   return (
-    <aside className="space-y-4">
+    <aside className="w-full space-y-5">
       {sidebarBlocks.map((block) => {
         const Component = BLOCK_REGISTRY[block.type];
         if (!Component) return null;

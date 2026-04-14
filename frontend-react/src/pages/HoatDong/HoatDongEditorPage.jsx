@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import ActivityForm from '../../components/activity/ActivityForm';
@@ -12,7 +12,8 @@ import activityService from '../../services/activityService';
  */
 const HoatDongEditorPage = ({ backPath = '/admin/activities' }) => {
   const navigate = useNavigate();
-  const { id } = useParams(); // maHoatDong khi edit
+  const [searchParams] = useSearchParams();
+  const id = searchParams.get('ma'); // maHoatDong khi edit (dùng query param để tránh lỗi slash trong URL path)
   const isEdit = !!id;
 
   const { data: existing, isLoading } = useQuery({

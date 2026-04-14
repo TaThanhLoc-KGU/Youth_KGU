@@ -1,10 +1,12 @@
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { ShieldOff } from 'lucide-react';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import PermissionGate from './components/common/PermissionGate';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import MainLayout from './components/layout/MainLayout';
+import StudentLayout from './components/layout/StudentLayout';
+import Loading from './components/common/Loading';
 import Login from './pages/auth/Login';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
@@ -23,6 +25,7 @@ import GiangVien from './pages/admin/GiangVien';
 import Taikhoan from './pages/admin/Taikhoan';
 import SystemLogPage from './pages/admin/SystemLogPage';
 import SettingsPermissionsPage from './pages/admin/SettingsPermissionsPage';
+import PermissionMatrixPage from './pages/admin/PermissionMatrixPage';
 import AttendanceReport from './pages/admin/AttendanceReport';
 import ChuyenVien from './pages/admin/ChuyenVien';
 import SettingsPage from './pages/admin/SettingsPage';
@@ -32,8 +35,9 @@ import StudentMyActivities from './pages/student/MyActivities';
 import StudentTrainingPoints from './pages/student/TrainingPoints';
 import StudentProfile from './pages/student/Profile';
 import Activities from './pages/admin/Activities';
-import CreateHoatDong from './pages/HoatDong/CreateHoatDong';
+import HoatDongEditorPage from './pages/HoatDong/HoatDongEditorPage';
 import ActivityAttendancePage from './pages/admin/ActivityAttendancePage';
+import HoatDongListPage from './pages/admin/HoatDongListPage';
 import StudentActivities from './pages/student/Activities';
 import ForbiddenPage from './pages/ForbiddenPage';
 // BCH pages
@@ -41,6 +45,47 @@ import BCHDashboard from './pages/bch/Dashboard';
 import BCHActivities from './pages/bch/Activities';
 import BCHAttendance from './pages/bch/Attendance';
 import BCHScanQR from './pages/bch/ScanQR';
+import AttendanceSelectionPage from './pages/bch/AttendanceSelectionPage';
+// eNews — layout
+import NewsLayout from './components/news/layout/NewsLayout';
+// eNews — public pages
+import NewsHomePage from './pages/news/NewsHomePage';
+import VanBanListPage from './pages/news/VanBanListPage';
+import BieuMauListPage from './pages/news/BieuMauListPage';
+import HoatDongPublicPage from './pages/news/HoatDongPublicPage';
+import NewsResolver from './components/news/public/NewsResolver';
+// eNews — admin manage pages
+import AdminTinTucManage from './pages/admin/news/TinTucManage';
+import AdminVanBanManage from './pages/admin/news/VanBanManage';
+import AdminChuyenMucManage from './pages/admin/news/ChuyenMucManage';
+// eNews — BCH manage pages
+import BCHTinTucManage from './pages/bch/news/TinTucManage';
+import BCHVanBanManage from './pages/bch/news/VanBanManage';
+// eNews — shared editor page
+import TinTucEditorPage from './pages/news/TinTucEditorPage';
+// Dashboard layout editor
+import LayoutEditorPage from './pages/admin/LayoutEditorPage';
+// News page layout editor
+import NewsLayoutEditorPage from './pages/admin/NewsLayoutEditorPage';
+// Content managers
+import SliderManagerPage    from './pages/admin/SliderManagerPage';
+import TickerManagerPage    from './pages/admin/TickerManagerPage';
+import AdBannerManagerPage  from './pages/admin/AdBannerManagerPage';
+import BieuMauManagePage    from './pages/admin/BieuMauManagePage';
+// Cuộc thi & Bình chọn
+import CuocThiManagePage    from './pages/admin/CuocThiManagePage';
+import BinhChonListPage     from './pages/news/BinhChonListPage';
+import BinhChonDetailPage   from './pages/news/BinhChonDetailPage';
+// Ký số
+import ChuKyManagePage      from './pages/admin/ChuKyManagePage';
+import ConDauManagePage     from './pages/admin/ConDauManagePage';
+import KySoLichSuPage       from './pages/admin/KySoLichSuPage';
+// Email config
+import EmailConfigPage      from './pages/admin/EmailConfigPage';
+// Ban hành public
+import BanHanhPublicPage    from './pages/public/BanHanhPublicPage';
+// Ban hành admin
+import AdminBanHanhPage     from './pages/admin/AdminBanHanhPage';
 
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from './utils/constants';
@@ -84,51 +129,41 @@ const NotFound = () => {
   );
 };
 
-// Quyền mở khóa trang quản trị (đồng bộ với Sidebar.jsx và route guard /admin)
-// Ai có ít nhất 1 trong các quyền này → được redirect về /admin/dashboard
+// Quyền mở khóa trang quản trị (đồng bộ với Login.jsx và Sidebar.jsx)
 const ADMIN_SECTION_PERMS = [
   PERMISSIONS.XEM_SINH_VIEN, PERMISSIONS.XEM_GIANG_VIEN, PERMISSIONS.XEM_CHUYEN_VIEN,
   PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
-  PERMISSIONS.XEM_KHOA, PERMISSIONS.XEM_NGANH, PERMISSIONS.XEM_LOP, PERMISSIONS.XEM_KHOA_HOC,
-  PERMISSIONS.QUAN_LY_CHUC_VU, PERMISSIONS.QUAN_LY_BAN,
-  PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
+  PERMISSIONS.QUET_QR,  // Tài khoản điểm danh chuyên dụng
+  PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
   PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
   PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
+  // eNews
+  PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.SUA_TIN_TUC, PERMISSIONS.DUYET_TIN_TUC,
+  PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
+  PERMISSIONS.QUAN_LY_CUOC_THI, PERMISSIONS.TAO_CUOC_THI,
 ];
 
-/**
- * SmartRedirect: dùng cho path "/".
- * - Chưa đăng nhập → /login
- * - Đã đăng nhập   → dashboard phù hợp với role/permission
- */
-const SmartRedirect = () => {
-  const { isAuthenticated, user, permissions, laBCH } = useAuthStore();
-  if (!isAuthenticated) {
-    return <Navigate to={ROUTES.LOGIN} replace />;
-  }
-  const hasAdminPerm = ADMIN_SECTION_PERMS.some((p) => permissions.includes(p));
-  if (user?.vaiTro === ROLES.ADMIN || hasAdminPerm) {
-    return <Navigate to={ROUTES.ADMIN_DASHBOARD} replace />;
-  }
-  if (laBCH) {
-    return <Navigate to={ROUTES.BCH_DASHBOARD} replace />;
-  }
-  if (user?.vaiTro === ROLES.SINHVIEN) {
-    return <Navigate to={ROUTES.STUDENT_DASHBOARD} replace />;
-  }
-  return <Navigate to={ROUTES.PROFILE} replace />;
-};
+
 
 function App() {
-  const { checkAuth } = useAuthStore();
+  const { checkAuth, refreshPermissions, isLoading: isAuthLoading } = useAuthStore();
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    const auth = checkAuth();
+    if (auth) {
+      refreshPermissions().catch(() => {});
+    }
+  }, []);
 
   return (
     <ErrorBoundary>
-      <Routes>
+      {/* Hiển thị loading toàn màn hình khi đang xử lý đăng nhập/đăng xuất */}
+      {isAuthLoading && <Loading fullScreen text="Đang xử lý..." />}
+      
+      {/* Theo dõi session timeout 1 giờ — không render gì */}
+      
+      <Suspense fallback={<Loading fullScreen text="Đang tải dữ liệu..." />}>
+        <Routes>
         {/* Public Routes */}
         <Route path={ROUTES.LOGIN} element={<Login />} />
         <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
@@ -148,8 +183,7 @@ function App() {
 
         {/* Admin Routes - ADMIN role HOẶC bất kỳ ai có quyền quản trị
             ADMIN luôn pass (hasAnyPermission trả true cho ADMIN)
-            GV001 (Bí thư, nhiều quyền), BCH cấp cao... cũng được vào
-            Mỗi sub-route có PermissionGate riêng + fallback NoPermissionMessage */}
+            GV001 (Bí thư, nhiều quyền), BCH cấp cao... cũng được vào */}
         <Route
           path={ROUTES.ADMIN}
           element={
@@ -158,9 +192,14 @@ function App() {
               PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
               PERMISSIONS.XEM_KHOA, PERMISSIONS.XEM_NGANH, PERMISSIONS.XEM_LOP, PERMISSIONS.XEM_KHOA_HOC,
               PERMISSIONS.QUAN_LY_CHUC_VU, PERMISSIONS.QUAN_LY_BAN,
-              PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
+              PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
               PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
               PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
+              // eNews
+              PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.SUA_TIN_TUC, PERMISSIONS.DUYET_TIN_TUC,
+              PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
+              // Cuộc thi
+              PERMISSIONS.QUAN_LY_CUOC_THI, PERMISSIONS.TAO_CUOC_THI,
             ]}>
               <MainLayout title="Admin" />
             </ProtectedRoute>
@@ -169,104 +208,187 @@ function App() {
           <Route index element={<Navigate to={ROUTES.ADMIN_DASHBOARD} replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="students" element={
-            <PermissionGate permission={PERMISSIONS.XEM_SINH_VIEN} fallback={<NoPermissionMessage feature="Sinh viên" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_SINH_VIEN}>
               <Students />
             </PermissionGate>
           } />
           <Route path="teachers" element={
-            <PermissionGate permission={PERMISSIONS.XEM_GIANG_VIEN} fallback={<NoPermissionMessage feature="Giảng viên" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_GIANG_VIEN}>
               <GiangVien />
             </PermissionGate>
           } />
           <Route path="giangvien" element={
-            <PermissionGate permission={PERMISSIONS.XEM_GIANG_VIEN} fallback={<NoPermissionMessage feature="Giảng viên" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_GIANG_VIEN}>
               <GiangVien />
             </PermissionGate>
           } />
           <Route path="activities" element={
-            <PermissionGate permission={PERMISSIONS.XEM_HOAT_DONG} fallback={<NoPermissionMessage feature="Hoạt động" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_HOAT_DONG}>
               <Activities />
             </PermissionGate>
           } />
           <Route path="activities/create" element={
-            <PermissionGate permission={PERMISSIONS.TAO_HOAT_DONG} fallback={<NoPermissionMessage feature="Tạo hoạt động" />}>
-              <CreateHoatDong />
+            <PermissionGate permission={PERMISSIONS.TAO_HOAT_DONG}>
+              <HoatDongEditorPage backPath="/admin/activities" />
             </PermissionGate>
           } />
-          <Route path="activities/:id/attendance" element={
-            <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH} fallback={<NoPermissionMessage feature="Điểm danh hoạt động" />}>
+          <Route path="activities/edit" element={
+            <PermissionGate permission={PERMISSIONS.SUA_HOAT_DONG}>
+              <HoatDongEditorPage backPath="/admin/activities" />
+            </PermissionGate>
+          } />
+          <Route path="activities/attendance" element={
+            <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH}>
               <ActivityAttendancePage />
             </PermissionGate>
           } />
+          <Route path="activities-list" element={
+            <PermissionGate permission={PERMISSIONS.XEM_HOAT_DONG}>
+              <HoatDongListPage />
+            </PermissionGate>
+          } />
           <Route path="bch" element={
-            <PermissionGate permission={PERMISSIONS.XEM_BCH} fallback={<NoPermissionMessage feature="BCH Đoàn - Hội" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_BCH}>
               <BCH />
             </PermissionGate>
           } />
           <Route path="chuc-vu" element={
-            <PermissionGate permission={PERMISSIONS.QUAN_LY_CHUC_VU} fallback={<NoPermissionMessage feature="Chức vụ" />}>
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_CHUC_VU}>
               <ChucVu />
             </PermissionGate>
           } />
           <Route path="ban" element={
-            <PermissionGate permission={PERMISSIONS.QUAN_LY_BAN} fallback={<NoPermissionMessage feature="Ban/Đội/CLB" />}>
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_BAN}>
               <Ban />
             </PermissionGate>
           } />
           <Route path="khoa" element={
-            <PermissionGate permission={PERMISSIONS.XEM_KHOA} fallback={<NoPermissionMessage feature="Khoa" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_KHOA}>
               <Khoa />
             </PermissionGate>
           } />
           <Route path="nganh" element={
-            <PermissionGate permission={PERMISSIONS.XEM_NGANH} fallback={<NoPermissionMessage feature="Ngành" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_NGANH}>
               <Nganh />
             </PermissionGate>
           } />
           <Route path="lop" element={
-            <PermissionGate permission={PERMISSIONS.XEM_LOP} fallback={<NoPermissionMessage feature="Lớp" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_LOP}>
               <Lop />
             </PermissionGate>
           } />
           <Route path="khoahoc" element={
-            <PermissionGate permission={PERMISSIONS.XEM_KHOA_HOC} fallback={<NoPermissionMessage feature="Khóa học" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_KHOA_HOC}>
               <KhoaHoc />
             </PermissionGate>
           } />
           <Route path="chuyenvien" element={
-            <PermissionGate permission={PERMISSIONS.XEM_CHUYEN_VIEN} fallback={<NoPermissionMessage feature="Chuyên viên" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_CHUYEN_VIEN}>
               <ChuyenVien />
             </PermissionGate>
           } />
           <Route path="logs" element={
-            <PermissionGate permission={PERMISSIONS.XEM_SYSTEM_LOG} fallback={<NoPermissionMessage feature="System Log" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_SYSTEM_LOG}>
               <SystemLogPage />
             </PermissionGate>
           } />
           <Route path="system-log" element={
-            <PermissionGate permission={PERMISSIONS.XEM_SYSTEM_LOG} fallback={<NoPermissionMessage feature="System Log" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_SYSTEM_LOG}>
               <SystemLogPage />
             </PermissionGate>
           } />
           <Route path="attendance" element={
-            <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH} fallback={<NoPermissionMessage feature="Điểm danh" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH}>
               <AttendanceReport />
             </PermissionGate>
           } />
           <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
           <Route path="accounts" element={
-            <PermissionGate permission={PERMISSIONS.XEM_TAI_KHOAN} fallback={<NoPermissionMessage feature="Quản lý tài khoản" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_TAI_KHOAN}>
               <AccountManagementPage />
             </PermissionGate>
           } />
           <Route path="account-statistics" element={
-            <PermissionGate permission={PERMISSIONS.XEM_THONG_KE} fallback={<NoPermissionMessage feature="Thống kê" />}>
+            <PermissionGate permission={PERMISSIONS.XEM_THONG_KE}>
               <DashboardStatisticsPage />
             </PermissionGate>
           } />
           <Route path="settings" element={
-            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM} fallback={<NoPermissionMessage feature="Cài đặt & Phân quyền" />}>
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM}>
               <SettingsPermissionsPage />
+            </PermissionGate>
+          } />
+          {/* Phân quyền BCH theo Level — Bí thư Level 1 cũng truy cập được */}
+          <Route path="phan-quyen" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM}>
+              <PermissionMatrixPage />
+            </PermissionGate>
+          } />
+          {/* eNews admin routes */}
+          <Route path="news" element={
+            <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
+              <AdminTinTucManage />
+            </PermissionGate>
+          } />
+          <Route path="news/create" element={
+            <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
+              <TinTucEditorPage backPath="/admin/news" basePath="/admin/news" />
+            </PermissionGate>
+          } />
+          <Route path="news/:id/edit" element={
+            <PermissionGate permission={PERMISSIONS.SUA_TIN_TUC}>
+              <TinTucEditorPage backPath="/admin/news" basePath="/admin/news" />
+            </PermissionGate>
+          } />
+          <Route path="van-ban" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_VAN_BAN}>
+              <AdminVanBanManage />
+            </PermissionGate>
+          } />
+          <Route path="chuyen-muc" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_CHUYEN_MUC}>
+              <AdminChuyenMucManage />
+            </PermissionGate>
+          } />
+          {/* Layout editor — admin only, no sidebar */}
+          <Route path="layout-editor" element={<LayoutEditorPage />} />
+          {/* News page layout editor — admin only, no sidebar */}
+          <Route path="news-layout-editor" element={<NewsLayoutEditorPage />} />
+          {/* Content managers */}
+          <Route path="slider-manager"    element={<SliderManagerPage />} />
+          <Route path="ticker-manager"    element={<TickerManagerPage />} />
+          <Route path="ad-banner-manager" element={<AdBannerManagerPage />} />
+          <Route path="bieu-mau"          element={<BieuMauManagePage />} />
+          {/* Cuộc thi & Bình chọn */}
+          <Route path="cuoc-thi" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_CUOC_THI}>
+              <CuocThiManagePage />
+            </PermissionGate>
+          } />
+          {/* Ký số */}
+          <Route path="ban-hanh" element={
+            <PermissionGate permission={PERMISSIONS.KY_SO_PDF}>
+              <AdminBanHanhPage />
+            </PermissionGate>
+          } />
+          <Route path="chu-ky" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <ChuKyManagePage />
+            </PermissionGate>
+          } />
+          <Route path="con-dau" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <ConDauManagePage />
+            </PermissionGate>
+          } />
+          <Route path="ky-so-lich-su" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <KySoLichSuPage />
+            </PermissionGate>
+          } />
+          <Route path="cau-hinh-email" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <EmailConfigPage />
             </PermissionGate>
           } />
         </Route>
@@ -276,7 +398,7 @@ function App() {
           path={ROUTES.STUDENT}
           element={
             <ProtectedRoute allowedRoles={[ROLES.SINHVIEN]}>
-              <MainLayout title="Student" />
+              <StudentLayout />
             </ProtectedRoute>
           }
         >
@@ -292,64 +414,59 @@ function App() {
           <Route path="profile" element={<Navigate to={ROUTES.PROFILE} replace />} />
         </Route>
 
-        {/* BCH Routes - chỉ BCH members (laBCH=true) hoặc ADMIN
-            Mỗi sub-route có PermissionGate riêng theo quyền cụ thể
-            "Xem thì vẫn cho" — dùng anyOf cho trang danh sách, strict cho create/scan */}
+        {/* BCH Routes - ai có quyền TAO_HOAT_DONG (BCH STAFF trở lên, kể cả SV là BCH) */}
         <Route
           path={ROUTES.BCH}
           element={
-            <ProtectedRoute requireBCH>
+            <ProtectedRoute requiredPermissions={[
+              PERMISSIONS.TAO_HOAT_DONG, PERMISSIONS.QUET_QR,
+              PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.QUAN_LY_VAN_BAN,
+            ]}>
               <MainLayout title="BCH" />
             </ProtectedRoute>
           }
         >
           <Route index element={<Navigate to={ROUTES.BCH_DASHBOARD} replace />} />
           <Route path="dashboard" element={<BCHDashboard />} />
-
-          {/* Danh sách hoạt động: xem được nếu có XEM hoặc TAO/SUA */}
-          <Route path="activities" element={
-            <PermissionGate
-              anyOf={[PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.TAO_HOAT_DONG, PERMISSIONS.SUA_HOAT_DONG]}
-              fallback={<NoPermissionMessage feature="Quản lý hoạt động" />}
-            >
-              <BCHActivities />
+          <Route path="activities" element={<BCHActivities />} />
+          <Route path="activities/create" element={<HoatDongEditorPage backPath="/bch/activities" />} />
+          <Route path="activities/edit" element={<HoatDongEditorPage backPath="/bch/activities" />} />
+          <Route path="activities/attendance" element={<ActivityAttendancePage />} />
+          <Route path="activities-list" element={<HoatDongListPage />} />
+          <Route path="diem-danh" element={
+            <PermissionGate permission={PERMISSIONS.QUET_QR}>
+              <AttendanceSelectionPage />
             </PermissionGate>
           } />
-
-          {/* Tạo hoạt động: chỉ ai có TAO_HOAT_DONG */}
-          <Route path="activities/create" element={
-            <PermissionGate permission={PERMISSIONS.TAO_HOAT_DONG} fallback={<NoPermissionMessage feature="Tạo hoạt động" />}>
-              <CreateHoatDong />
+          <Route path="attendance" element={<BCHAttendance />} />
+          <Route path="scan-qr" element={<BCHScanQR />} />
+          {/* eNews BCH routes */}
+          <Route path="news" element={
+            <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
+              <BCHTinTucManage />
             </PermissionGate>
           } />
-
-          {/* Chi tiết điểm danh 1 hoạt động: XEM hoặc CHINH_SUA hoặc PHAN_CONG */}
-          <Route path="activities/:id/attendance" element={
-            <PermissionGate
-              anyOf={[PERMISSIONS.XEM_DIEM_DANH, PERMISSIONS.CHINH_SUA_DIEM_DANH, PERMISSIONS.PHAN_CONG_DIEM_DANH]}
-              fallback={<NoPermissionMessage feature="Điểm danh hoạt động" />}
-            >
-              <ActivityAttendancePage />
+          <Route path="news/create" element={
+            <PermissionGate permission={PERMISSIONS.DANG_TIN_TUC}>
+              <TinTucEditorPage backPath="/bch/news" basePath="/bch/news" />
             </PermissionGate>
           } />
-
-          {/* Tổng hợp điểm danh: XEM hoặc QUET_QR hoặc CHINH_SUA */}
-          <Route path="attendance" element={
-            <PermissionGate
-              anyOf={[PERMISSIONS.XEM_DIEM_DANH, PERMISSIONS.QUET_QR, PERMISSIONS.CHINH_SUA_DIEM_DANH]}
-              fallback={<NoPermissionMessage feature="Điểm danh" />}
-            >
-              <BCHAttendance />
+          <Route path="news/:id/edit" element={
+            <PermissionGate permission={PERMISSIONS.SUA_TIN_TUC}>
+              <TinTucEditorPage backPath="/bch/news" basePath="/bch/news" />
             </PermissionGate>
           } />
-
-          {/* Quét QR: chỉ ai có QUET_QR */}
-          <Route path="scan-qr" element={
-            <PermissionGate permission={PERMISSIONS.QUET_QR} fallback={<NoPermissionMessage feature="Quét QR" />}>
-              <BCHScanQR />
+          <Route path="van-ban" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_VAN_BAN}>
+              <BCHVanBanManage />
             </PermissionGate>
           } />
-
+          {/* Phân quyền theo Level — dành cho Bí thư (Level 1) */}
+          <Route path="phan-quyen" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM}>
+              <PermissionMatrixPage />
+            </PermissionGate>
+          } />
           <Route path="profile" element={<Navigate to={ROUTES.PROFILE} replace />} />
         </Route>
 
@@ -357,12 +474,23 @@ function App() {
         <Route path="/unauthorized" element={<ForbiddenPage />} />
         <Route path="/403" element={<ForbiddenPage />} />
 
-        {/* 404 Not Found */}
-        <Route path="*" element={<NotFound />} />
+        {/* Ban hành public — không cần đăng nhập */}
+        <Route path="/ban-hanh/:maHoatDong" element={<BanHanhPublicPage />} />
 
-        {/* Home - smart redirect: chưa đăng nhập → login, đã đăng nhập → dashboard */}
-        <Route path={ROUTES.HOME} element={<SmartRedirect />} />
+        {/* eNews — Trang chủ và các trang công khai đặt tại gốc / */}
+        <Route path="/" element={<NewsLayout />}>
+          <Route index element={<NewsHomePage />} />
+          <Route path="news" element={<Navigate to="/" replace />} />
+          <Route path="van-ban" element={<VanBanListPage />} />
+          <Route path="bieu-mau" element={<BieuMauListPage />} />
+          <Route path="hoat-dong" element={<HoatDongPublicPage />} />
+          <Route path="binh-chon" element={<BinhChonListPage />} />
+          <Route path="binh-chon/:slug" element={<BinhChonDetailPage />} />
+          {/* Catch-all cho các URL động của tin tức (slug chuyên mục/bài viết) */}
+          <Route path="*" element={<NewsResolver />} />
+        </Route>
       </Routes>
+      </Suspense>
     </ErrorBoundary>
   );
 }

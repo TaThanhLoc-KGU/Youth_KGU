@@ -32,4 +32,6 @@ public class TinTucDTO {
     private LocalDateTime ngayXuatBan;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String maKhoa;
+    private String tenKhoa;
 }

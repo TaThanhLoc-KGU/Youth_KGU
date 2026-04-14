@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import sliderService from '../../services/sliderService';
 import ImagePickerModal from '../../components/common/ImagePickerModal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 // ─── Form modal ───────────────────────────────────────────────────────────────
 
@@ -104,13 +105,13 @@ const SliderForm = ({ initial = EMPTY, onSave, onCancel, loading }) => {
       </label>
 
       {/* Buttons */}
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
         <button type="button" onClick={onCancel}
           className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
           Hủy
         </button>
         <button type="submit" disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">
+          className="flex items-center justify-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">
           <Save className="w-4 h-4" /> {loading ? 'Đang lưu...' : 'Lưu'}
         </button>
       </div>
@@ -168,14 +169,14 @@ const SlideRow = ({
       </button>
       <button
         onClick={() => onEdit(item)}
-        className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all"
+        className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
         title="Chỉnh sửa"
       >
         <Pencil className="w-4 h-4" />
       </button>
       <button
         onClick={() => onDelete(item.id)}
-        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
         title="Xóa"
       >
         <Trash2 className="w-4 h-4" />
@@ -189,6 +190,7 @@ const SlideRow = ({
 const SliderManagerPage = () => {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [confirmState, setConfirmState] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);    // null = thêm mới
   const [dragOverId, setDragOverId] = useState(null);
@@ -240,8 +242,7 @@ const SliderManagerPage = () => {
   };
 
   const handleDelete = (id) => {
-    if (!window.confirm('Xóa slide này?')) return;
-    deleteMut.mutate(id);
+    setConfirmState({ id });
   };
 
   const handleToggle = (item) => {
@@ -339,6 +340,15 @@ const SliderManagerPage = () => {
           {items.filter(i => i.isActive).length} slide đang hiển thị trên trang chủ tin tức
         </p>
       )}
+
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMut.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa slide"
+        description="Bạn có chắc muốn xóa slide này? Hành động này không thể hoàn tác."
+        isLoading={deleteMut.isPending}
+      />
     </div>
   );
 };

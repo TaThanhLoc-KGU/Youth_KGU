@@ -47,20 +47,17 @@ public class SettingsService {
     public List<AccountPermissionDTO> getManagementAccounts() {
         List<TaiKhoan> allAccounts = taiKhoanRepository.findAll();
         return allAccounts.stream()
-                .filter(tk -> tk.getVaiTro() != VaiTroEnum.ADMIN
-                        && tk.getVaiTro() != VaiTroEnum.SINH_VIEN)
+                .filter(tk -> tk.getVaiTro() == VaiTroEnum.QUAN_LY)
                 .map(tk -> {
                     List<Long> assignedIds = getAccountPermissions(tk.getId());
-                    Map<Long, Boolean> overrideMap = assignedIds.stream()
-                            .collect(Collectors.toMap(id -> id, id -> true));
-                    
                     return AccountPermissionDTO.builder()
                             .accountId(tk.getId())
                             .username(tk.getUsername())
                             .hoTen(tk.getHoTen())
                             .vaiTro(tk.getVaiTro() != null ? tk.getVaiTro().name() : "")
                             .tenVaiTro(tk.getVaiTro() != null ? tk.getVaiTro().getTenHienThi() : "")
-                            .overrideMap(overrideMap)
+                            .laAdmin(Boolean.TRUE.equals(tk.getLaAdmin()))
+                            .quyenIds(new java.util.HashSet<>(assignedIds))
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -72,9 +69,8 @@ public class SettingsService {
     @Transactional(readOnly = true)
     @SuppressWarnings("unchecked")
     public List<Long> getAccountPermissions(Long taikhoanId) {
-        // Updated table name to account_permissions and column to tai_khoan_id
         List<Object> result = entityManager.createNativeQuery(
-                "SELECT permission_id FROM account_permissions WHERE tai_khoan_id = :taikhoanId AND is_granted = 1"
+                "SELECT quyen_id FROM tai_khoan_quyen WHERE tai_khoan_id = :taikhoanId"
         ).setParameter("taikhoanId", taikhoanId).getResultList();
         return result.stream()
                 .map(o -> ((Number) o).longValue())
@@ -88,14 +84,14 @@ public class SettingsService {
     public void assignPermissions(Long taikhoanId, List<Long> permissionIds) {
         // Xóa tất cả quyền cũ
         entityManager.createNativeQuery(
-                "DELETE FROM account_permissions WHERE tai_khoan_id = :taikhoanId"
+                "DELETE FROM tai_khoan_quyen WHERE tai_khoan_id = :taikhoanId"
         ).setParameter("taikhoanId", taikhoanId).executeUpdate();
 
         // Thêm quyền mới
         if (permissionIds != null && !permissionIds.isEmpty()) {
             for (Long permId : permissionIds) {
                 entityManager.createNativeQuery(
-                        "INSERT INTO account_permissions (tai_khoan_id, permission_id, is_granted, created_at) VALUES (:taikhoanId, :permId, 1, NOW())"
+                        "INSERT INTO tai_khoan_quyen (tai_khoan_id, quyen_id, created_at) VALUES (:taikhoanId, :permId, NOW())"
                 ).setParameter("taikhoanId", taikhoanId)
                  .setParameter("permId", permId)
                  .executeUpdate();

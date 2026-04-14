@@ -21,7 +21,7 @@ const StudentDetail = ({ student, onEdit, onClose }) => {
   return (
     <div className="space-y-6">
       {/* Avatar & Basic Info */}
-      <div className="flex items-center gap-6">
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
         <div className="w-24 h-24 rounded-full bg-primary-100 flex items-center justify-center">
           {student.hinhAnh ? (
             <img
@@ -35,8 +35,8 @@ const StudentDetail = ({ student, onEdit, onClose }) => {
             </span>
           )}
         </div>
-        <div className="flex-1">
-          <h3 className="text-2xl font-bold text-gray-900">{student.hoTen}</h3>
+        <div className="flex-1 min-w-0 text-center sm:text-left">
+          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{student.hoTen}</h3>
           <p className="text-gray-600">{student.maSv}</p>
           <div className="mt-2">
             <Badge variant={student.isActive ? 'success' : 'danger'} dot>
@@ -82,7 +82,7 @@ const StudentDetail = ({ student, onEdit, onClose }) => {
       )}
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-2 pt-4 border-t">
+      <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 pt-4 border-t">
         <Button variant="outline" onClick={onClose}>
           Đóng
         </Button>

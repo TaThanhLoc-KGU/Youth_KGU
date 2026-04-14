@@ -264,7 +264,8 @@ const accountService = {
         vaiTro: data.vaiTro,
         bchLevel: data.bchLevel ? parseInt(data.bchLevel) : null,
         banChuyenMon: data.banChuyenMon || null,
-        avatar: data.avatar
+        avatar: data.avatar,
+        maKhoa: data.maKhoa || null
       });
       return response.data.data;
     } catch (error) {
@@ -301,7 +302,8 @@ const accountService = {
         avatar: data.avatar,
         vaiTro: data.vaiTro,
         bchLevel: data.bchLevel ? parseInt(data.bchLevel) : null,
-        banChuyenMon: data.banChuyenMon || null
+        banChuyenMon: data.banChuyenMon || null,
+        maKhoa: data.maKhoa || null
       });
       return response.data.data;
     } catch (error) {

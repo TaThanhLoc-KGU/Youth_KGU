@@ -129,6 +129,32 @@ public class FileStorageService {
         }
     }
 
+    /**
+     * Liệt kê tất cả ảnh trong /uploads/tin-tuc/ (đệ quy), mới nhất trước.
+     */
+    public java.util.List<String> listNewsImages() {
+        Path newsDir = Paths.get(uploadBasePath, "tin-tuc");
+        if (!Files.exists(newsDir)) return java.util.Collections.emptyList();
+        try (java.util.stream.Stream<Path> stream = Files.walk(newsDir)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .filter(p -> {
+                        String n = p.getFileName().toString().toLowerCase();
+                        return n.endsWith(".jpg") || n.endsWith(".jpeg")
+                                || n.endsWith(".png") || n.endsWith(".gif") || n.endsWith(".webp");
+                    })
+                    .map(p -> {
+                        String rel = Paths.get(uploadBasePath).relativize(p).toString().replace("\\", "/");
+                        return "/uploads/" + rel;
+                    })
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .collect(java.util.stream.Collectors.toList());
+        } catch (IOException e) {
+            log.warn("Lỗi liệt kê news images: {}", e.getMessage());
+            return java.util.Collections.emptyList();
+        }
+    }
+
     // ── Biểu mẫu (form files) ──────────────────────────────────────────────────
 
     /**

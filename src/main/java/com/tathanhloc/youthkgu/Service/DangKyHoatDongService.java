@@ -51,9 +51,10 @@ public class DangKyHoatDongService {
         SinhVien sinhVien = sinhVienRepository.findById(request.getMaSv())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên: " + request.getMaSv()));
 
-        // 3. Kiểm tra đã đăng ký chưa
+        // 3. Kiểm tra đã đăng ký chưa (kể cả đã hủy)
         DangKyHoatDongId id = new DangKyHoatDongId(request.getMaSv(), request.getMaHoatDong());
-        if (dangKyRepository.existsById(id)) {
+        Optional<DangKyHoatDong> existing = dangKyRepository.findById(id);
+        if (existing.isPresent() && Boolean.TRUE.equals(existing.get().getIsActive())) {
             throw new RuntimeException("Sinh viên đã đăng ký hoạt động này");
         }
 
@@ -65,18 +66,27 @@ public class DangKyHoatDongService {
             }
         }
 
-        // 5. Tạo đăng ký
-        DangKyHoatDong dangKy = DangKyHoatDong.builder()
-                .id(id)
-                .sinhVien(sinhVien)
-                .hoatDong(hoatDong)
-                .ghiChu(request.getGhiChu())
-                .daXacNhan(false)
-                .isActive(true)
-                .build();
-
-        // Mã QR sẽ tự động sinh trong @PrePersist
-        dangKy.generateQRCode();
+        // 5. Tạo hoặc reactivate đăng ký
+        DangKyHoatDong dangKy;
+        if (existing.isPresent()) {
+            // Đã từng đăng ký rồi hủy → reactivate, sinh QR mới
+            dangKy = existing.get();
+            dangKy.setIsActive(true);
+            dangKy.setDaXacNhan(false);
+            dangKy.setGhiChu(request.getGhiChu());
+            dangKy.generateQRCode();
+            log.info("Reactivating cancelled registration: {}", id);
+        } else {
+            dangKy = DangKyHoatDong.builder()
+                    .id(id)
+                    .sinhVien(sinhVien)
+                    .hoatDong(hoatDong)
+                    .ghiChu(request.getGhiChu())
+                    .daXacNhan(false)
+                    .isActive(true)
+                    .build();
+            dangKy.generateQRCode();
+        }
         dangKy = dangKyRepository.save(dangKy);
 
         // 6. Sinh QR Code image
@@ -318,6 +328,9 @@ public class DangKyHoatDongService {
             }
         }
 
+        String trangThaiHoatDong = entity.getHoatDong() != null && entity.getHoatDong().getTrangThai() != null
+                ? entity.getHoatDong().getTrangThai().name() : null;
+
         return DangKyHoatDongDTO.builder()
                 .maSv(maSv)
                 .hoTenSinhVien(hoTenSinhVien)
@@ -331,6 +344,7 @@ public class DangKyHoatDongService {
                         ? entity.getHoatDong().getNamHoc().getMaNamHoc() : null)
                 .tenNamHoc(entity.getHoatDong() != null && entity.getHoatDong().getNamHoc() != null
                         ? entity.getHoatDong().getNamHoc().getTenNamHoc() : null)
+                .trangThaiHoatDong(trangThaiHoatDong)
                 .maQR(entity.getMaQR())
                 .qrCodeImagePath(entity.getQrCodeImagePath())
                 .ngayDangKy(entity.getNgayDangKy())

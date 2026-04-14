@@ -58,4 +58,23 @@ public interface BCHDoanHoiRepository extends JpaRepository<BCHDoanHoi, String> 
             "GROUP BY b.nhiemKy " +
             "ORDER BY b.nhiemKy DESC")
     List<Object[]> countByNhiemKy();
+
+    // Lọc BCH theo khoa:
+    //   - Sinh viên: qua sinhVien.lop.nganh.khoa
+    //   - Giảng viên: qua giangVien.khoa (trực tiếp)
+    //   - Chuyên viên: không gắn khoa → không lọc (luôn hiện)
+    @Query("SELECT b FROM BCHDoanHoi b WHERE b.isActive = true AND (" +
+            "(b.sinhVien IS NOT NULL AND b.sinhVien.lop.nganh.khoa.maKhoa = :maKhoa) OR " +
+            "(b.giangVien IS NOT NULL AND b.giangVien.khoa.maKhoa = :maKhoa)" +
+            ") ORDER BY b.maBch DESC")
+    List<BCHDoanHoi> findByKhoaMaKhoa(@Param("maKhoa") String maKhoa);
+
+    @Query("SELECT b FROM BCHDoanHoi b WHERE b.isActive = true AND (" +
+            "(b.sinhVien IS NOT NULL AND b.sinhVien.lop.nganh.khoa.maKhoa = :maKhoa) OR " +
+            "(b.giangVien IS NOT NULL AND b.giangVien.khoa.maKhoa = :maKhoa)" +
+            ") AND (LOWER(b.maBch) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR (b.sinhVien IS NOT NULL AND LOWER(b.sinhVien.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "OR (b.giangVien IS NOT NULL AND LOWER(b.giangVien.hoTen) LIKE LOWER(CONCAT('%', :keyword, '%')))) " +
+            "ORDER BY b.maBch DESC")
+    List<BCHDoanHoi> searchByKeywordAndKhoa(@Param("keyword") String keyword, @Param("maKhoa") String maKhoa);
 }

@@ -55,6 +55,16 @@ public class NewsManageController {
     }
 
     /**
+     * GET /api/news/images
+     * Liệt kê tất cả ảnh đã upload vào uploads/tin-tuc/ để chọn từ server.
+     */
+    @GetMapping("/images")
+    @PreAuthorize("hasPermission(null, 'DANG_TIN_TUC')")
+    public ResponseEntity<java.util.List<String>> listNewsImages() {
+        return ResponseEntity.ok(fileStorageService.listNewsImages());
+    }
+
+    /**
      * POST /api/news
      * Tạo bài viết mới ở trạng thái DRAFT.
      */

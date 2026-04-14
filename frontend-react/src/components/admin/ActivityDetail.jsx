@@ -141,7 +141,7 @@ const ActivityDetail = ({ activity, onEdit, onClose }) => {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-2 pt-4 border-t">
+      <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 pt-4 border-t">
         <Button variant="outline" onClick={onClose}>
           Đóng
         </Button>

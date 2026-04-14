@@ -97,11 +97,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 sm:py-12 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-800">Đăng ký tài khoản</h1>
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Đăng ký tài khoản</h1>
             <p className="text-gray-600 mt-2">
               Tạo tài khoản mới để tham gia vào Hệ thống Quản lý Hoạt động Đoàn - Hội
             </p>

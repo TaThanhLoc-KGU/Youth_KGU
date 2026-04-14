@@ -32,8 +32,7 @@ const HeroSlider = ({ slides = [], autoPlay = true, interval = 5000 }) => {
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-xl shadow-md"
-      style={{ aspectRatio: '16/6' }}
+      className="relative w-full overflow-hidden rounded-xl shadow-md aspect-[16/9] sm:aspect-[16/7] md:aspect-[16/6]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >

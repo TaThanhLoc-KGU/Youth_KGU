@@ -27,12 +27,20 @@ public class BCHDoanHoiService {
     private final BCHChucVuRepository bchChucVuRepository;
     private final ChucVuRepository chucVuRepository;
     private final BanRepository banRepository;
+    private final KhoaScopeService khoaScopeService;
 
     // ========== CRUD OPERATIONS ==========
 
     @Transactional(readOnly = true)
     public List<BCHDoanHoiDTO> getAll() {
         log.debug("Getting all active BCH members");
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            return bchRepository.findByKhoaMaKhoa(maKhoa)
+                    .stream()
+                    .map(this::toDTOWithChucVu)
+                    .collect(Collectors.toList());
+        }
         return bchRepository.findByIsActiveTrueOrderByMaBchDesc()
                 .stream()
                 .map(this::toDTOWithChucVu)
@@ -212,6 +220,13 @@ public class BCHDoanHoiService {
     @Transactional(readOnly = true)
     public List<BCHDoanHoiDTO> searchByKeyword(String keyword) {
         log.debug("Searching BCH by keyword: {}", keyword);
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            return bchRepository.searchByKeywordAndKhoa(keyword, maKhoa)
+                    .stream()
+                    .map(this::toDTOWithChucVu)
+                    .collect(Collectors.toList());
+        }
         return bchRepository.searchByKeyword(keyword)
                 .stream()
                 .map(this::toDTOWithChucVu)

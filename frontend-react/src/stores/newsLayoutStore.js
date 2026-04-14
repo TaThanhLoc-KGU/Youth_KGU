@@ -136,7 +136,6 @@ export const COL_SPAN_OPTIONS = [
 ];
 
 export const DEFAULT_MAIN_BLOCKS = [
-  { id: 'b-search',   type: BLOCK_TYPES.SEARCH_BAR,      config: {},                      colSpan: 12 },
   { id: 'b-slider',   type: BLOCK_TYPES.HERO_SLIDER,     config: {},                      colSpan: 12 },
   { id: 'b-ticker',   type: BLOCK_TYPES.NEWS_TICKER,     config: {},                      colSpan: 12 },
   { id: 'b-featured', type: BLOCK_TYPES.FEATURED_GRID,   config: { size: 4 },             colSpan: 12 },
@@ -215,7 +214,7 @@ const useNewsLayoutStore = create(
         sidebarBlocks: DEFAULT_SIDEBAR_BLOCKS,
       }),
     }),
-    { name: 'news-layout-v3' }  // bumped from v2 → fresh start with new sidebar blocks
+    { name: 'news-layout-v4' }  // bumped from v3 → remove search bar block from defaults
   )
 );
 

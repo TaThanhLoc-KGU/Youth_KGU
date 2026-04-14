@@ -29,19 +29,15 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
     },
   });
 
-  // Fetch danh sách lớp
-  const { data: classesList = [] } = useQuery({
-    queryKey: ['classes'],
-    queryFn: () => lopService.getAll(),
-    select: (data) => {
-        const list = Array.isArray(data) ? data : data.content || [];
-        return list.map(lop => ({
-          value: lop.maLop,
-          label: `${lop.maLop} - ${lop.tenLop || ''}`
-  }));
-      }
-    }
-  );
+  // Fetch danh sách lớp (raw để dùng cho datalist combobox)
+  const { data: lopList = [] } = useQuery({
+    queryKey: ['lop-all-raw'],
+    queryFn: async () => {
+      const data = await lopService.getAll();
+      if (Array.isArray(data)) return data;
+      return data?.data || data?.content || [];
+    },
+  });
 
   const mutation = useMutation({
     mutationFn: (data) => {
@@ -60,7 +56,12 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
       onSuccess();
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Có lỗi xảy ra!';
+      toast.error(msg);
     },
   });
 
@@ -71,6 +72,7 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
         {/* Mã sinh viên */}
         <Input
           label="Mã sinh viên"
@@ -103,21 +105,23 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
         {/* Giới tính */}
         <Select
           label="Giới tính"
-          {...register('gioiTinh')}
+          {...register('gioiTinh', { required: 'Vui lòng chọn giới tính' })}
           options={[
             { value: '', label: '-- Chọn giới tính --' },
             { value: 'NAM', label: 'Nam' },
             { value: 'NU', label: 'Nữ' },
           ]}
           error={errors.gioiTinh?.message}
+          required
         />
 
         {/* Ngày sinh */}
         <Input
           label="Ngày sinh"
           type="date"
-          {...register('ngaySinh')}
+          {...register('ngaySinh', { required: 'Ngày sinh là bắt buộc' })}
           error={errors.ngaySinh?.message}
+          required
         />
 
         {/* Email */}
@@ -141,23 +145,45 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
           {...register('sdt', {
             pattern: {
               value: /^[0-9]{10}$/,
-              message: 'Số điện thoại phải có 10 chữ số',
+              message: 'Số điện thoại phải có đúng 10 chữ số',
             },
           })}
           error={errors.sdt?.message}
           placeholder="0123456789"
         />
 
-        {/* Mã lớp */}
-        <Select
-          label="Mã lớp"
-          {...register('maLop')}
-          options={[
-            { value: '', label: '-- Chọn lớp --' },
-            ...classesList
-          ]}
-          error={errors.maLop?.message}
-        />
+        {/* Mã lớp — combobox (nhập hoặc chọn từ danh sách) */}
+        <div className="col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Mã lớp <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            list="lop-datalist"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Nhập hoặc chọn mã lớp..."
+            {...register('maLop', { required: 'Vui lòng chọn hoặc nhập mã lớp' })}
+            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
+              errors.maLop
+                ? 'border-red-400 focus:ring-red-300 bg-red-50'
+                : 'border-gray-300 focus:ring-blue-500'
+            }`}
+          />
+          <datalist id="lop-datalist">
+            {lopList.map((lop) => (
+              <option key={lop.maLop} value={lop.maLop}>
+                {lop.tenLop || lop.maLop}
+              </option>
+            ))}
+          </datalist>
+          {errors.maLop && (
+            <p className="text-red-500 text-xs mt-1">{errors.maLop.message}</p>
+          )}
+          {lopList.length === 0 && (
+            <p className="text-gray-400 text-xs mt-1">Đang tải danh sách lớp...</p>
+          )}
+        </div>
 
         {/* Trạng thái */}
         <Select
@@ -171,15 +197,15 @@ const StudentForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-2 pt-4 border-t">
+      <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel} icon={X}>
           Hủy
         </Button>
         <Button
           type="submit"
           icon={Save}
-          isLoading={mutation.isLoading}
-          disabled={mutation.isLoading}
+          isLoading={mutation.isPending}
+          disabled={mutation.isPending}
         >
           {mode === 'create' ? 'Thêm sinh viên' : 'Cập nhật'}
         </Button>

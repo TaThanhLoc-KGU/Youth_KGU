@@ -22,12 +22,14 @@ import useAuthStore from '../../stores/authStore';
 import { ROUTES, PERMISSIONS, ACTIVITY_STATUS_LABELS, ACTIVITY_STATUS_COLORS } from '../../utils/constants';
 import { formatDate } from '../../utils/dateFormat';
 import Loading from '../../components/common/Loading';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const BCHActivities = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
 
+  const [confirmState, setConfirmState] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -161,11 +163,11 @@ const BCHActivities = () => {
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                     {/* Điểm danh - khi đang diễn ra */}
                     {act.trangThai === 'DANG_DIEN_RA' && hasPermission(PERMISSIONS.QUET_QR) && (
                       <Link
-                        to={`${ROUTES.BCH}/activities/${act.maHoatDong}/attendance`}
+                        to={`${ROUTES.BCH}/activities/attendance?ma=${encodeURIComponent(act.maHoatDong)}`}
                         className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-medium hover:bg-green-100 transition"
                       >
                         <ClipboardCheck className="w-3.5 h-3.5" /> Điểm danh
@@ -215,11 +217,7 @@ const BCHActivities = () => {
                     {/* Hủy */}
                     {['CHUA_MO_DANG_KY', 'MO_DANG_KY', 'DONG_DANG_KY'].includes(act.trangThai) && hasPermission(PERMISSIONS.SUA_HOAT_DONG) && (
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Hủy hoạt động "${act.tenHoatDong}"?`)) {
-                            cancelMutation.mutate(act.maHoatDong);
-                          }
-                        }}
+                        onClick={() => setConfirmState({ id: act.maHoatDong, name: act.tenHoatDong })}
                         className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 transition"
                       >
                         <XCircle className="w-3.5 h-3.5" /> Hủy
@@ -232,6 +230,16 @@ const BCHActivities = () => {
           })
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { cancelMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Hủy hoạt động"
+        description={`Bạn có chắc muốn hủy hoạt động "${confirmState?.name}"?`}
+        isLoading={cancelMutation.isPending}
+        variant="warning"
+      />
     </div>
   );
 };

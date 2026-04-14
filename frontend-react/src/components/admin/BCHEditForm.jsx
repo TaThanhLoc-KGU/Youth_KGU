@@ -115,7 +115,7 @@ const BCHEditForm = ({ isOpen, bch, onClose, onSuccess }) => {
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Thông tin cá nhân</h3>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700">Loại thành viên</label>
                   <div className="mt-2">
@@ -155,7 +155,7 @@ const BCHEditForm = ({ isOpen, bch, onClose, onSuccess }) => {
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Thông tin nhiệm kỳ</h3>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Nhiệm kỳ"
                   placeholder="VD: 2023-2024"
@@ -251,7 +251,7 @@ const BCHEditForm = ({ isOpen, bch, onClose, onSuccess }) => {
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4">
             <Button variant="outline" onClick={onClose}>
               Hủy
             </Button>

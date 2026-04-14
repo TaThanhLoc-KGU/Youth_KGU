@@ -195,9 +195,9 @@ const ChartTrendWidget = () => {
   return (
     <WidgetShell>
       <WidgetHeader title="Xu hướng hoạt động" icon={TrendingUp} />
-      <div className="p-4" style={{ height: 220 }}>
+      <div className="p-4" style={{ height: 220, minHeight: 220 }}>
         {isLoading ? <Skeleton className="w-full h-full" /> : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={200}>
             <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -229,9 +229,9 @@ const ChartFacultyWidget = () => {
   return (
     <WidgetShell>
       <WidgetHeader title="Phân bổ theo Khoa" icon={Building2} />
-      <div className="p-4" style={{ height: 220 }}>
+      <div className="p-4" style={{ height: 220, minHeight: 220 }}>
         {isLoading ? <Skeleton className="w-full h-full" /> : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data} margin={{ top: 4, right: 8, bottom: 30, left: -20 }}>
               <XAxis
                 dataKey="label"

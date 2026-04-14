@@ -1,178 +1,92 @@
 import api from './api';
 
+// Suppress 403 errors silently (user lacks permission) — only log unexpected errors
+const silentFetch = async (fn, fallback = null) => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error?.response?.status === 403 || error?.response?.status === 401) {
+      return fallback; // User doesn’t have this permission — silent
+    }
+    console.error('Dashboard API error:', error?.response?.status, error?.config?.url);
+    return fallback;
+  }
+};
+
 const dashboardService = {
   // Get unified dashboard stats (tongQuan, xuHuongTheoThang, topHoatDong, topSinhVien, theoKhoa)
-  getDashboardStats: async () => {
-    try {
-      const response = await api.get('/api/baocao/dashboard');
-      return response.data.data;
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-      return null;
-    }
-  },
+  getDashboardStats: () =>
+    silentFetch(() => api.get('/api/baocao/dashboard').then((r) => r.data.data)),
 
   // Get dashboard overview
-  getDashboard: async () => {
-    try {
-      const response = await api.get('/api/thong-ke/dashboard');
-      return response.data.data;
-    } catch (error) {
-      console.error('Error fetching dashboard:', error);
-      return null;
-    }
-  },
+  getDashboard: () =>
+    silentFetch(() => api.get('/api/thong-ke/dashboard').then((r) => r.data.data)),
 
   // Get student count
-  getStudentCount: async () => {
-    try {
-      const response = await api.get('/api/sinhvien/count');
-      return response.data || { count: 0 };
-    } catch (error) {
-      console.error('Error fetching student count:', error);
-      return { count: 0 };
-    }
-  },
+  getStudentCount: () =>
+    silentFetch(() => api.get('/api/sinhvien/count').then((r) => r.data || { count: 0 }), { count: 0 }),
 
   // Get activity overview
-  getActivityOverview: async (startDate, endDate) => {
-    try {
-      const response = await api.get('/api/thong-ke/hoat-dong/tong-quan', {
-        params: { startDate, endDate },
-      });
-      return response.data.data;
-    } catch (error) {
-      console.error('Error fetching activity overview:', error);
-      return null;
-    }
-  },
+  getActivityOverview: (startDate, endDate) =>
+    silentFetch(() =>
+      api.get('/api/thong-ke/hoat-dong/tong-quan', { params: { startDate, endDate } })
+        .then((r) => r.data.data)
+    ),
 
-  // Get activity trends (mock data - sẽ implement proper API sau)
-  getActivityTrends: async () => {
-    try {
-      // API này cần được implement trong backend tại /api/thong-ke/activity-trends
-      const response = await api.get('/api/thong-ke/activity-trends');
-      return response.data.data;
-    } catch (error) {
-      // Fallback to mock data
-      console.warn('Activity trends API not available, using mock data');
-      return [
-        { name: 'T2', value: 120 },
-        { name: 'T3', value: 150 },
-        { name: 'T4', value: 180 },
-        { name: 'T5', value: 200 },
-        { name: 'T6', value: 160 },
-        { name: 'T7', value: 90 },
+  // Get activity trends — fallback to mock data when API not available / no permission
+  getActivityTrends: () =>
+    silentFetch(
+      () => api.get('/api/thong-ke/activity-trends').then((r) => r.data.data),
+      [
+        { name: 'T2', value: 120 }, { name: 'T3', value: 150 }, { name: 'T4', value: 180 },
+        { name: 'T5', value: 200 }, { name: 'T6', value: 160 }, { name: 'T7', value: 90 },
         { name: 'CN', value: 30 },
-      ];
-    }
-  },
+      ]
+    ),
 
-  // Get participation by faculty
-  getParticipationByFaculty: async () => {
-    try {
-      // API này cần được implement trong backend tại /api/thong-ke/participation-by-faculty
-      const response = await api.get('/api/thong-ke/participation-by-faculty');
-      return response.data.data;
-    } catch (error) {
-      // Fallback to mock data
-      console.warn('Participation by faculty API not available, using mock data');
-      return [
+  // Get participation by faculty — fallback to mock data when API not available / no permission
+  getParticipationByFaculty: () =>
+    silentFetch(
+      () => api.get('/api/thong-ke/participation-by-faculty').then((r) => r.data.data),
+      [
         { label: 'Công nghệ thông tin', data: 35 },
         { label: 'Kỹ thuật', data: 25 },
         { label: 'Quản lý', data: 20 },
         { label: 'Kinh tế', data: 15 },
         { label: 'Ngoại ngữ', data: 5 },
-      ];
-    }
-  },
+      ]
+    ),
 
   // Get top students
-  getTopStudents: async (limit = 10) => {
-    try {
-      const response = await api.get('/api/thong-ke/top-students', {
-        params: { limit },
-      });
-      return response.data.data || [];
-    } catch (error) {
-      console.error('Error fetching top students:', error);
-      return [];
-    }
-  },
+  getTopStudents: (limit = 10) =>
+    silentFetch(() => api.get('/api/thong-ke/top-students', { params: { limit } }).then((r) => r.data.data || []), []),
 
   // Get upcoming activities
-  getUpcomingActivities: async (days = 7) => {
-    try {
-      const response = await api.get('/api/hoat-dong/upcoming', {
-        params: { days },
-      });
-      return response.data.data || [];
-    } catch (error) {
-      console.error('Error fetching upcoming activities:', error);
-      return [];
-    }
-  },
+  getUpcomingActivities: (days = 7) =>
+    silentFetch(() => api.get('/api/hoat-dong/upcoming', { params: { days } }).then((r) => r.data.data || []), []),
 
   // Get activity statistics by status
-  getActivityStatistics: async () => {
-    try {
-      const response = await api.get('/api/thong-ke/hoat-dong/statistics');
-      return response.data.data || {};
-    } catch (error) {
-      console.error('Error fetching activity statistics:', error);
-      return {};
-    }
-  },
+  getActivityStatistics: () =>
+    silentFetch(() => api.get('/api/thong-ke/hoat-dong/statistics').then((r) => r.data.data || {}), {}),
 
-  // Get attendance statistics
-  getAttendanceStatistics: async () => {
-    try {
-      // API này cần được implement trong backend tại /api/thong-ke/attendance-statistics
-      const response = await api.get('/api/thong-ke/attendance-statistics');
-      return response.data.data;
-    } catch (error) {
-      // Fallback to mock data
-      console.warn('Attendance statistics API not available, using mock data');
-      return {
-        onTime: 65,
-        late: 20,
-        absent: 15,
-      };
-    }
-  },
+  // Get attendance statistics — fallback to mock data when API not available
+  getAttendanceStatistics: () =>
+    silentFetch(
+      () => api.get('/api/thong-ke/attendance-statistics').then((r) => r.data.data),
+      { onTime: 65, late: 20, absent: 15 }
+    ),
 
   // Get student history
-  getStudentHistory: async (maSv) => {
-    try {
-      const response = await api.get(`/api/thong-ke/sinh-vien/${maSv}`);
-      return response.data.data;
-    } catch (error) {
-      console.error('Error fetching student history:', error);
-      return null;
-    }
-  },
+  getStudentHistory: (maSv) =>
+    silentFetch(() => api.get(`/api/thong-ke/sinh-vien/${maSv}`).then((r) => r.data.data)),
 
   // Get BCH overview
-  getBCHOverview: async () => {
-    try {
-      const response = await api.get('/api/thong-ke/bch/overview');
-      return response.data.data;
-    } catch (error) {
-      console.error('Error fetching BCH overview:', error);
-      return null;
-    }
-  },
+  getBCHOverview: () =>
+    silentFetch(() => api.get('/api/thong-ke/bch/overview').then((r) => r.data.data)),
 
   // Get activity report
-  getActivityReport: async (maHoatDong) => {
-    try {
-      const response = await api.get(`/api/thong-ke/hoat-dong/${maHoatDong}`);
-      return response.data.data;
-    } catch (error) {
-      console.error('Error fetching activity report:', error);
-      return null;
-    }
-  },
+  getActivityReport: (maHoatDong) =>
+    silentFetch(() => api.get(`/api/thong-ke/hoat-dong/${maHoatDong}`).then((r) => r.data.data)),
 };
 
 export default dashboardService;

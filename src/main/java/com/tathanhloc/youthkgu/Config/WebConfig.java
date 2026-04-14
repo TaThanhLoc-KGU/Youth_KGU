@@ -1,18 +1,23 @@
-// THAY THẾ TOÀN BỘ WebConfig.java
 package com.tathanhloc.youthkgu.Config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.File;
+import java.nio.file.Paths;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(WebConfig.class);
+
+    /** Đọc cùng property với FileStorageService và QRCodeService */
+    @Value("${app.upload.path:./uploads}")
+    private String uploadBasePath;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -49,9 +54,10 @@ public class WebConfig implements WebMvcConfigurer {
                 .resourceChain(false);
         log.info("✅ Added CLASSPATH streams handler");
 
-        // ✅ UPLOADS configuration — phục vụ từ thư mục uploads/ trên disk
-        // Cache 1 ngày (86400s) để trình duyệt không gửi lại request mỗi lần load ảnh
-        String uploadsPath = new File("uploads").getAbsolutePath().replace("\\", "/");
+        // ✅ UPLOADS — dùng app.upload.path để đồng nhất với FileStorageService & QRCodeService
+        // Chuyển relative path thành absolute để Spring Resource handler hoạt động đúng
+        String uploadsPath = Paths.get(uploadBasePath).toAbsolutePath().normalize()
+                .toString().replace("\\", "/");
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:///" + uploadsPath + "/")
                 .setCachePeriod(86400)

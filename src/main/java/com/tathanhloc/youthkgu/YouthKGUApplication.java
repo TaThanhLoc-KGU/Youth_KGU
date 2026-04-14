@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 public class YouthKGUApplication {
 
     public static void main(String[] args) {
+        // Cho phép %2F (encoded slash) trong URL path — cần thiết khi mã hoạt động có dấu /
+        System.setProperty("org.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH", "true");
         SpringApplication.run(YouthKGUApplication.class, args);
     }
 
@@ -33,7 +35,8 @@ public class YouthKGUApplication {
             if (admin == null) {
                 admin = TaiKhoan.builder()
                         .username("admin")
-                        .vaiTro(VaiTroEnum.ADMIN)
+                        .vaiTro(VaiTroEnum.QUAN_LY)
+                        .laAdmin(true)
                         .createdAt(LocalDateTime.now())
                         .build();
             }

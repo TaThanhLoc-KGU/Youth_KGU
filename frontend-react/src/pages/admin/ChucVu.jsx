@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
-import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw, Search } from 'lucide-react';
 import chucVuService from '../../services/chucVuService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import SearchInput from '../../components/common/SearchInput';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
@@ -193,7 +194,7 @@ const ChucVu = () => {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Quản lý Chức vụ</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Chức vụ</h1>
           <p className="text-gray-600 mt-1">Quản lý các chức vụ trong Ban Chấp hành</p>
         </div>
         {canManage && (
@@ -204,7 +205,7 @@ const ChucVu = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <div className="text-center">
             <div className="text-3xl font-bold text-primary">{stats.total || 0}</div>
@@ -243,32 +244,58 @@ const ChucVu = () => {
         </Card>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-4 items-end">
-        <div className="flex-1">
-          <SearchInput
-            placeholder="Tìm theo mã hoặc tên chức vụ..."
-            value={search}
-            onChange={setSearch}
-          />
+      {/* Filters Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Tìm kiếm */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Tìm kiếm chức vụ
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="Mã hoặc tên chức vụ..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Thuộc ban */}
+          <div>
+            <SearchableSelect
+              label="Thuộc ban"
+              labelClassName="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
+              placeholder="Tất cả ban"
+              options={THUOC_BAN_OPTIONS.filter(opt => opt.value !== '').map(opt => ({
+                value: opt.value,
+                label: opt.label
+              }))}
+              value={thuocBanFilter}
+              onChange={setThuocBanFilter}
+            />
+          </div>
+
+          <div className="flex items-end">
+            <Button
+              variant="outline"
+              icon={RefreshCw}
+              onClick={() => {
+                setSearch('');
+                setThuocBanFilter('');
+                refetch();
+              }}
+              className="w-full"
+            >
+              Làm mới
+            </Button>
+          </div>
         </div>
-        <Select
-          value={thuocBanFilter}
-          onChange={(e) => setThuocBanFilter(e.target.value)}
-          className="w-48"
-        >
-          {THUOC_BAN_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </Select>
-        <Button
-          variant="outline"
-          icon={RefreshCw}
-          onClick={() => refetch()}
-          title="Làm mới"
-        />
       </div>
 
       {/* Table */}

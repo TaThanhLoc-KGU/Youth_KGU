@@ -30,4 +30,8 @@ public class DiemDanhStatusDTO {
     private Integer soPhutTre;
     private Integer soPhutVeSom;
     private String ghiChu;
+
+    // Vị trí GPS của sinh viên khi mở QR (để phát hiện gian lận)
+    private Double studentLatitude;
+    private Double studentLongitude;
 }

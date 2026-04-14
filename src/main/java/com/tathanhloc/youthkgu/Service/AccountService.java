@@ -13,6 +13,7 @@ import com.tathanhloc.youthkgu.Repository.TaiKhoanRepository;
 import com.tathanhloc.youthkgu.Repository.SinhVienRepository;
 import com.tathanhloc.youthkgu.Repository.GiangVienRepository;
 import com.tathanhloc.youthkgu.Repository.ChuyenVienRepository;
+import com.tathanhloc.youthkgu.Repository.KhoaRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,12 +51,17 @@ public class AccountService {
     private final SinhVienRepository sinhVienRepository;
     private final GiangVienRepository giangVienRepository;
     private final ChuyenVienRepository chuyenVienRepository;
+    private final KhoaRepository khoaRepository;
     private final SystemLogService systemLogService;
     private final HttpServletRequest request;
 
     @Autowired
     @Lazy
     private AccountService accountServiceSelf;
+
+    @Autowired
+    @Lazy
+    private PermissionService permissionService;
 
     /**
      * Đăng ký tài khoản mới
@@ -397,11 +403,15 @@ public class AccountService {
                 .gioiTinh(request.getGioiTinh())
                 .avatar(request.getAvatar())
                 .vaiTro(request.getVaiTro())
-                .bchLevel(request.getVaiTro() == VaiTroEnum.BCH ? request.getBchLevel() : null)
+                .laAdmin(Boolean.TRUE.equals(request.getLaAdmin()))
                 .isActive(true)
                 .trangThaiPheDuyet("DA_PHE_DUYET") // Tài khoản thủ công được phê duyệt ngay
                 .ngayPheDuyet(LocalDateTime.now())
                 .build();
+
+        if (request.getMaKhoa() != null && !request.getMaKhoa().isEmpty()) {
+            khoaRepository.findById(request.getMaKhoa()).ifPresent(newAccount::setKhoa);
+        }
 
         if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().isEmpty()) {
             Ban ban = banRepository.findById(request.getBanChuyenMon())
@@ -422,6 +432,15 @@ public class AccountService {
 
         TaiKhoan saved = taiKhoanRepository.save(newAccount);
         log.info("Tạo tài khoản thành công: {}", saved.getUsername());
+
+        // Gán quyền nếu là QUAN_LY thường (không phải admin)
+        if (saved.getVaiTro() == VaiTroEnum.QUAN_LY
+                && !Boolean.TRUE.equals(request.getLaAdmin())
+                && request.getPermissionIds() != null
+                && !request.getPermissionIds().isEmpty()) {
+            permissionService.setAccountPermissions(saved.getId(), request.getPermissionIds(), null);
+        }
+
         return saved;
     }
 
@@ -471,7 +490,9 @@ public class AccountService {
                 .isActive(taiKhoan.getIsActive())
                 .createdAt(taiKhoan.getCreatedAt())
                 .updatedAt(taiKhoan.getUpdatedAt())
-                .bchLevel(taiKhoan.getBchLevel())
+                .laAdmin(taiKhoan.getLaAdmin())
+                .maKhoa(taiKhoan.getKhoa() != null ? taiKhoan.getKhoa().getMaKhoa() : null)
+                .tenKhoa(taiKhoan.getKhoa() != null ? taiKhoan.getKhoa().getTenKhoa() : null)
                 .build();
     }
 
@@ -516,8 +537,6 @@ public class AccountService {
         }
         if (request.getVaiTro() != null) {
             account.setVaiTro(request.getVaiTro());
-            // bchLevel chỉ lưu khi vaiTro = BCH; vai trò khác → null
-            account.setBchLevel(request.getVaiTro() == VaiTroEnum.BCH ? request.getBchLevel() : null);
         }
         if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().isEmpty()) {
             Ban ban = banRepository.findById(request.getBanChuyenMon())
@@ -525,6 +544,13 @@ public class AccountService {
             account.setBanChuyenMon(ban);
         } else if (request.getBanChuyenMon() == null) {
             account.setBanChuyenMon(null);
+        }
+
+        if (request.getMaKhoa() != null && !request.getMaKhoa().isEmpty()) {
+            account.setKhoa(khoaRepository.findById(request.getMaKhoa()).orElse(null));
+        } else {
+            // empty string hoặc null → Đoàn trường, xóa ràng buộc khoa
+            account.setKhoa(null);
         }
 
         account.setUpdatedAt(LocalDateTime.now());

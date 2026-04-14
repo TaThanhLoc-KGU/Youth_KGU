@@ -121,12 +121,14 @@ const TinTucManage = () => {
       header: 'Ngày đăng',
       accessor: 'ngayXuatBan',
       width: '110px',
+      className: 'hidden sm:table-cell',
       render: (v) => v ? new Date(v).toLocaleDateString('vi-VN') : '—',
     },
     {
       header: 'Lượt xem',
       accessor: 'luotXem',
       width: '80px',
+      className: 'hidden sm:table-cell',
       render: (v) => <span className="text-sm">{v ?? 0}</span>,
     },
     {
@@ -189,9 +191,9 @@ const TinTucManage = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Quản lý Tin tức</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Tin tức</h1>
           <p className="text-sm text-gray-500 mt-0.5">Danh sách bài viết tin tức – Đoàn Hội KGU</p>
         </div>
         {canCreate && (
@@ -217,18 +219,20 @@ const TinTucManage = () => {
           value={trangThai}
           onChange={(e) => { setTrangThai(e.target.value); setPage(0); }}
           options={TRANG_THAI_OPTIONS}
-          className="sm:w-48"
+          className="w-full sm:w-48"
         />
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
         <Table
           columns={columns}
           data={items}
           isLoading={isLoading}
           emptyMessage="Không có bài viết nào."
         />
+        </div>
       </div>
 
       {/* Pagination */}

@@ -59,6 +59,15 @@ public class LoggingAspect {
         MODULE_CODES.put("ChuyenVien",           "CHUYEN_VIEN");
         MODULE_CODES.put("Settings",             "SETTINGS");
         MODULE_CODES.put("RefreshToken",         "AUTHENTICATION");
+        MODULE_CODES.put("TinTuc",               "TIN_TUC");
+        MODULE_CODES.put("VanBan",               "VAN_BAN");
+        MODULE_CODES.put("BieuMau",              "BIEU_MAU");
+        MODULE_CODES.put("ChuyenMuc",            "CHUYEN_MUC");
+        MODULE_CODES.put("CuocThi",              "CUOC_THI");
+        MODULE_CODES.put("ThiSinh",              "CUOC_THI");
+        MODULE_CODES.put("BinhChon",             "CUOC_THI");
+        MODULE_CODES.put("Notification",         "THONG_BAO");
+        MODULE_CODES.put("Account",              "TAI_KHOAN");
 
         MODULE_LABELS.put("HoatDong",            "hoạt động");
         MODULE_LABELS.put("SinhVien",            "sinh viên");
@@ -84,6 +93,15 @@ public class LoggingAspect {
         MODULE_LABELS.put("PhongHoc",            "phòng học");
         MODULE_LABELS.put("ChuyenVien",          "chuyên viên");
         MODULE_LABELS.put("Settings",            "phân quyền");
+        MODULE_LABELS.put("TinTuc",              "tin tức");
+        MODULE_LABELS.put("VanBan",              "văn bản");
+        MODULE_LABELS.put("BieuMau",             "biểu mẫu");
+        MODULE_LABELS.put("ChuyenMuc",           "chuyên mục");
+        MODULE_LABELS.put("CuocThi",             "cuộc thi");
+        MODULE_LABELS.put("ThiSinh",             "thí sinh");
+        MODULE_LABELS.put("BinhChon",            "bình chọn");
+        MODULE_LABELS.put("Notification",        "thông báo");
+        MODULE_LABELS.put("Account",             "tài khoản");
     }
 
     // =================== Annotation @LogActivity ===================
@@ -146,6 +164,11 @@ public class LoggingAspect {
         logDataOperation(joinPoint, "CREATE", "tạo mới");
     }
 
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.add(..))")
+    public void logAddOperations(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "CREATE", "thêm mới");
+    }
+
     @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.update(..))")
     public void logUpdateOperations(JoinPoint joinPoint) {
         logDataOperation(joinPoint, "UPDATE", "cập nhật");
@@ -154,6 +177,16 @@ public class LoggingAspect {
     @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.delete(..))")
     public void logDeleteOperations(JoinPoint joinPoint) {
         logDataOperation(joinPoint, "DELETE", "xóa");
+    }
+
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.registerActivity(..))")
+    public void logRegisterActivity(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "REGISTER", "đăng ký");
+    }
+
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.cancelRegistration(..))")
+    public void logCancelRegistration(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "CANCEL", "hủy đăng ký");
     }
 
     /**

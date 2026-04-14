@@ -410,7 +410,7 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Thông tin nhiệm kỳ</h3>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Nhiệm kỳ"
                   placeholder="VD: 2023-2024"
@@ -459,7 +459,7 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Chức vụ
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Select
                       id="chucVuSelect"
                       className="flex-1"
@@ -541,7 +541,7 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
               Tiếp theo
             </Button>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex flex-col-reverse sm:flex-row gap-2">
               <Button variant="outline" onClick={onClose}>
                 Hủy
               </Button>

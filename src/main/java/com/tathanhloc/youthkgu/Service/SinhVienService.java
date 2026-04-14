@@ -19,6 +19,7 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
 
     private final SinhVienRepository sinhVienRepository;
     private final LopRepository lopRepository;
+    private final KhoaScopeService khoaScopeService;
 
     @Override
     protected JpaRepository<SinhVien, String> getRepository() {
@@ -71,6 +72,8 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
                 .isActive(sv.getIsActive())
                 .maLop(sv.getLop() != null ? sv.getLop().getMaLop() : null)
                 .tenLop(sv.getLop() != null ? sv.getLop().getTenLop() : null)
+                .maKhoa(sv.getLop() != null && sv.getLop().getMaKhoa() != null ? sv.getLop().getMaKhoa().getMaKhoa() : null)
+                .maNganh(sv.getLop() != null && sv.getLop().getNganh() != null ? sv.getLop().getNganh().getMaNganh() : null)
                 .build();
     }
 
@@ -95,8 +98,27 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
         return toDTO(sinhVien);
     }
 
-    // Chỉ lấy sinh viên đang hoạt động
+    @Override
+    public List<SinhVienDTO> getAll() {
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            return sinhVienRepository.findByLopNganhKhoaMaKhoa(maKhoa).stream()
+                    .map(this::toDTO)
+                    .toList();
+        }
+        return sinhVienRepository.findAll().stream()
+                .map(this::toDTO)
+                .toList();
+    }
+
+    // Chỉ lấy sinh viên đang hoạt động (có scope filter theo khoa)
     public List<SinhVienDTO> getAllActive() {
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            return sinhVienRepository.findByLopNganhKhoaMaKhoaAndIsActiveTrue(maKhoa).stream()
+                    .map(this::toDTO)
+                    .toList();
+        }
         return sinhVienRepository.findAll().stream()
                 .filter(sv -> sv.getIsActive() != null && sv.getIsActive())
                 .map(this::toDTO)

@@ -27,6 +27,7 @@ import Modal from '../../common/Modal';
 import Button from '../../common/Button';
 import newsService from '../../../services/newsService';
 import ImageCropModal from '../../common/ImageCropModal';
+import { API_BASE_URL } from '../../../services/api';
 
 // ── Custom FontSize extension ─────────────────────────────────────────────────
 const FontSizeExtension = Extension.create({
@@ -611,6 +612,8 @@ const RichTextEditor = ({ value, onChange, placeholder = 'Nhập nội dung bài
   const [imageTab, setImageTab]                 = useState('upload');
   const [imageUrl, setImageUrl]                 = useState('');
   const [uploading, setUploading]               = useState(false);
+  const [serverImages, setServerImages]         = useState([]);
+  const [loadingServer, setLoadingServer]       = useState(false);
 
   // Keep a stable ref to setUploading so handlePaste closure stays stable
   const setUploadingRef = useRef(setUploading);
@@ -652,6 +655,18 @@ const RichTextEditor = ({ value, onChange, placeholder = 'Nhập nội dung bài
       // Strip file:// image URLs injected by Word/Office paste
       transformPastedHTML(html) {
         return html.replace(/<img[^>]+src=["']file:\/\/[^"']*["'][^>]*\/?>/gi, '');
+      },
+      // Upload ảnh kéo thả vào editor
+      handleDrop(view, event, _slice, moved) {
+        if (!moved && event.dataTransfer?.files?.length) {
+          const file = event.dataTransfer.files[0];
+          if (file.type.startsWith('image/')) {
+            event.preventDefault();
+            uploadFileAndInsert(file, view.__tiptap_editor, setUploadingRef.current);
+            return true;
+          }
+        }
+        return false;
       },
       // Upload actual clipboard image files
       handlePaste(view, event) {
@@ -728,9 +743,35 @@ const RichTextEditor = ({ value, onChange, placeholder = 'Nhập nội dung bài
     }
   };
 
+  const handleOpenImageModal = () => {
+    setIsImageModalOpen(true);
+    setImageTab('upload');
+  };
+
+  const handleSwitchTab = async (tab) => {
+    setImageTab(tab);
+    if (tab === 'server' && serverImages.length === 0) {
+      setLoadingServer(true);
+      try {
+        const imgs = await newsService.getImages();
+        setServerImages(imgs || []);
+      } catch (e) {
+        console.error('Lỗi tải ảnh từ server:', e);
+      } finally {
+        setLoadingServer(false);
+      }
+    }
+  };
+
+  const insertServerImage = (relativePath) => {
+    const src = `${API_BASE_URL}${relativePath}`;
+    editor.chain().focus().setImage({ src }).run();
+    setIsImageModalOpen(false);
+  };
+
   return (
     <div className="editor-container border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
-      <MenuBar editor={editor} onOpenImageModal={() => setIsImageModalOpen(true)} uploading={uploading} />
+      <MenuBar editor={editor} onOpenImageModal={handleOpenImageModal} uploading={uploading} />
 
       {/* Scrollable content area */}
       <div className="editor-content bg-white overflow-y-auto" style={{ height }}>
@@ -776,32 +817,38 @@ const RichTextEditor = ({ value, onChange, placeholder = 'Nhập nội dung bài
       `}} />
 
       {/* Image Modal */}
-      <Modal isOpen={isImageModalOpen} onClose={() => setIsImageModalOpen(false)} title="Chèn ảnh vào bài viết" size="md">
+      <Modal isOpen={isImageModalOpen} onClose={() => setIsImageModalOpen(false)} title="Chèn ảnh vào bài viết" size="lg">
         <div className="space-y-4 py-2">
           <div className="flex border-b border-gray-200">
-            {['upload', 'url'].map((tab) => (
+            {[
+              { key: 'upload', label: 'Upload từ máy' },
+              { key: 'url',    label: 'Nhập URL ảnh' },
+              { key: 'server', label: 'Chọn từ server' },
+            ].map(({ key, label }) => (
               <button
-                key={tab}
-                onClick={() => setImageTab(tab)}
+                key={key}
+                onClick={() => handleSwitchTab(key)}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  imageTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  imageTab === key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {tab === 'upload' ? 'Upload từ máy' : 'Nhập URL ảnh'}
+                {label}
               </button>
             ))}
           </div>
 
-          {imageTab === 'upload' ? (
+          {imageTab === 'upload' && (
             <div
               className="py-6 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
               onClick={() => document.getElementById('editor-file-upload').click()}
             >
               <ImageIcon className="w-12 h-12 text-gray-400 mb-2" />
-              <p className="text-sm font-medium text-gray-600">Click để chọn ảnh hoặc kéo thả</p>
+              <p className="text-sm font-medium text-gray-600">Click để chọn ảnh hoặc kéo thả vào editor</p>
               <input id="editor-file-upload" type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
             </div>
-          ) : (
+          )}
+
+          {imageTab === 'url' && (
             <div className="space-y-4 py-4">
               <input
                 type="text"
@@ -814,6 +861,42 @@ const RichTextEditor = ({ value, onChange, placeholder = 'Nhập nội dung bài
                 <Button variant="outline" onClick={() => setIsImageModalOpen(false)}>Hủy</Button>
                 <Button onClick={insertImageUrl} disabled={!imageUrl}>Chèn</Button>
               </div>
+            </div>
+          )}
+
+          {imageTab === 'server' && (
+            <div>
+              {loadingServer ? (
+                <div className="flex items-center justify-center py-12 gap-2 text-gray-400">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Đang tải ảnh từ server...</span>
+                </div>
+              ) : serverImages.length === 0 ? (
+                <div className="text-center py-12 text-gray-400 text-sm">Chưa có ảnh nào trên server.</div>
+              ) : (
+                <div className="grid grid-cols-4 gap-2 max-h-80 overflow-y-auto p-1">
+                  {serverImages.map((path) => (
+                    <button
+                      key={path}
+                      type="button"
+                      onClick={() => insertServerImage(path)}
+                      className="relative group rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all"
+                      title={path}
+                    >
+                      <img
+                        src={`${API_BASE_URL}${path}`}
+                        alt=""
+                        className="w-full h-20 object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-medium bg-blue-600 px-2 py-0.5 rounded transition-opacity">
+                          Chèn
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

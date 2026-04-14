@@ -86,14 +86,16 @@ const CreateHoatDong = () => {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center mb-6">
-        <button 
-          onClick={() => navigate('/admin/activities')}
-          className="mr-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
-        >
-          <ArrowLeft className="w-6 h-6 text-gray-600" />
-        </button>
-        <h1 className="text-2xl font-bold text-gray-800">Tạo Hoạt Động Mới</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/admin/activities')}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <ArrowLeft className="w-6 h-6 text-gray-600" />
+          </button>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Tạo Hoạt Động Mới</h1>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg shadow-md p-6">
@@ -377,7 +379,7 @@ const CreateHoatDong = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-4 pt-4 border-t">
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-4 justify-end pt-4 border-t">
           <button
             type="button"
             onClick={() => navigate('/admin/activities')}
@@ -388,7 +390,7 @@ const CreateHoatDong = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center disabled:bg-blue-400"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center disabled:bg-blue-400"
           >
             <Save className="w-5 h-5 mr-2" />
             {isSubmitting ? 'Đang lưu...' : 'Tạo hoạt động'}

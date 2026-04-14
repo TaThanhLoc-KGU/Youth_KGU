@@ -51,13 +51,13 @@ const TreeRow = ({ node, depth = 0, onEdit, onAddChild, onDelete, canManage }) =
             )}
           </div>
         </td>
-        <td className="py-2.5 px-4 text-sm text-gray-500">{node.fullPathSlug}</td>
-        <td className="py-2.5 px-4">
+        <td className="hidden sm:table-cell py-2.5 px-4 text-sm text-gray-500">{node.fullPathSlug}</td>
+        <td className="hidden sm:table-cell py-2.5 px-4">
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TO_CHUC_COLOR[node.toChuc] || 'bg-gray-100 text-gray-600'}`}>
             {TO_CHUC_LABEL[node.toChuc] || node.toChuc}
           </span>
         </td>
-        <td className="py-2.5 px-4 text-sm text-center">{node.thuTu ?? 0}</td>
+        <td className="hidden sm:table-cell py-2.5 px-4 text-sm text-center">{node.thuTu ?? 0}</td>
         <td className="py-2.5 px-4">
           <span className={`inline-block w-2 h-2 rounded-full ${node.isActive ? 'bg-green-400' : 'bg-gray-300'}`} />
         </td>
@@ -127,9 +127,9 @@ const ChuyenMucManage = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Quản lý Chuyên mục</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Chuyên mục</h1>
           <p className="text-sm text-gray-500 mt-0.5">Cây chuyên mục – danh mục tin tức</p>
         </div>
         {canManage && (
@@ -153,9 +153,9 @@ const ChuyenMucManage = () => {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600">Tên chuyên mục</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600">Slug</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600">Tổ chức</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-600">Thứ tự</th>
+                  <th className="hidden sm:table-cell text-left py-3 px-4 font-semibold text-gray-600">Slug</th>
+                  <th className="hidden sm:table-cell text-left py-3 px-4 font-semibold text-gray-600">Tổ chức</th>
+                  <th className="hidden sm:table-cell text-center py-3 px-4 font-semibold text-gray-600">Thứ tự</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600">Active</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600">Thao tác</th>
                 </tr>

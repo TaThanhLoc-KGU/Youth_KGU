@@ -10,27 +10,17 @@ const NewsLayout = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <NewsHeader
-        onMenuToggle={() => setMobileMenuOpen((v) => !v)}
+        onMenuToggle={() => setMobileMenuOpen(v => !v)}
         menuOpen={mobileMenuOpen}
+        onMenuClose={() => setMobileMenuOpen(false)}
       />
 
-      {/* Mobile menu overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-
-      <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6">
-        <div className="flex gap-6">
-          {/* Content area */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-5">
+        <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 min-w-0">
             <Outlet />
           </div>
-
-          {/* Right sidebar — only on very large screens */}
-          <aside className="hidden xl:block w-72 flex-shrink-0">
+          <aside className="w-full lg:w-72 xl:w-80 flex-shrink-0">
             <NewsSidebar />
           </aside>
         </div>

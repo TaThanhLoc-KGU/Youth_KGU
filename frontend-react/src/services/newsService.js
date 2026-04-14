@@ -81,6 +81,12 @@ const newsService = {
     return response.data;
   },
 
+  /** Liệt kê ảnh đã upload lên server (để chọn từ server trong editor) */
+  getImages: async () => {
+    const response = await api.get('/api/news/images');
+    return response.data;
+  },
+
   /**
    * Upload ảnh vào bài viết (nội dung hoặc đại diện).
    * Trả về URL string của ảnh đã upload.

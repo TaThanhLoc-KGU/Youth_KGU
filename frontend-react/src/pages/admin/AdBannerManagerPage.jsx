@@ -17,6 +17,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import adBannerService from '../../services/adBannerService';
 import ImagePickerModal from '../../components/common/ImagePickerModal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 // ─── Form modal ───────────────────────────────────────────────────────────────
 
@@ -38,14 +39,14 @@ const BannerForm = ({ initial = EMPTY, onSave, onCancel, loading }) => {
       {/* Loại */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Loại banner</label>
-        <div className="flex gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           {[
             { value: 'MAIN',    label: 'Banner chính (ngang)',    icon: LayoutTemplate },
             { value: 'SIDEBAR', label: 'Widget sidebar (phải)',   icon: Columns },
           ].map(({ value, label, icon: Icon }) => (
             <label
               key={value}
-              className={`flex-1 flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors
+              className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors
                 ${form.loai === value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
             >
               <input type="radio" name="loai" value={value} checked={form.loai === value} onChange={set('loai')} className="sr-only" />
@@ -119,13 +120,13 @@ const BannerForm = ({ initial = EMPTY, onSave, onCancel, loading }) => {
       </div>
 
       {/* Buttons */}
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
         <button type="button" onClick={onCancel}
           className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
           Hủy
         </button>
         <button type="submit" disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">
+          className="flex items-center justify-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">
           <Save className="w-4 h-4" /> {loading ? 'Đang lưu...' : 'Lưu'}
         </button>
       </div>
@@ -211,14 +212,14 @@ const BannerRow = ({
       )}
       <button
         onClick={() => onEdit(item)}
-        className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all"
+        className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
         title="Chỉnh sửa"
       >
         <Pencil className="w-4 h-4" />
       </button>
       <button
         onClick={() => onDelete(item.id)}
-        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
         title="Xóa"
       >
         <Trash2 className="w-4 h-4" />
@@ -232,6 +233,7 @@ const BannerRow = ({
 const AdBannerManagerPage = () => {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [confirmState, setConfirmState] = useState(null);
   const [activeTab, setActiveTab] = useState('ALL');   // ALL | MAIN | SIDEBAR
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState(null);
@@ -308,8 +310,7 @@ const AdBannerManagerPage = () => {
   };
 
   const handleDelete = (id) => {
-    if (!window.confirm('Xóa banner này?')) return;
-    deleteMut.mutate(id);
+    setConfirmState({ id });
   };
 
   const openEdit  = (item) => { setEditing(item); setShowForm(true); };
@@ -471,6 +472,14 @@ const AdBannerManagerPage = () => {
         </div>
       </div>
 
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMut.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa banner"
+        description="Bạn có chắc muốn xóa banner này? Hành động này không thể hoàn tác."
+        isLoading={deleteMut.isPending}
+      />
     </div>
   );
 };

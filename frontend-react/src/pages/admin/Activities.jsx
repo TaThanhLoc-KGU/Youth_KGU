@@ -27,6 +27,7 @@ import {
   getHocKyLabel,
 } from '../../constants/activityConstants';
 import { findTieuChi } from '../../constants/renLuyenCriteria';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const Activities = () => {
   const navigate = useNavigate();
@@ -63,6 +64,7 @@ const Activities = () => {
   const [semesterFilter, setSemesterFilter] = useState(String(defaultSemester));
   const [yearFilter, setYearFilter] = useState(defaultAcademicYear);
 
+  const [confirmState, setConfirmState] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
 
@@ -81,15 +83,31 @@ const Activities = () => {
     enabled: canView,
   });
 
-  // Client-side filter for Semester and Year
-  const displayActivities = (activitiesData?.content || []).filter(act => {
-    const matchesSemester = !semesterFilter || semesterFilter === 'all' || String(act.soHocKy) === semesterFilter;
-    const matchesYear = !yearFilter || yearFilter === 'all' || act.maNamHoc === yearFilter;
-    const matchesStatus = statusFilter === 'all' || act.trangThai === statusFilter;
-    const matchesSearch = !search || act.tenHoatDong.toLowerCase().includes(search.toLowerCase()) || act.maHoatDong.toLowerCase().includes(search.toLowerCase());
-    
-    return matchesSemester && matchesYear && matchesStatus && matchesSearch;
-  });
+  // Client-side filter + sort theo ngày tạo mới nhất
+  const displayActivities = (activitiesData?.content || [])
+    .filter(act => {
+      const matchesSemester = !semesterFilter || semesterFilter === 'all' || String(act.soHocKy) === semesterFilter;
+      const matchesYear = !yearFilter || yearFilter === 'all' || act.maNamHoc === yearFilter;
+      const matchesStatus = statusFilter === 'all' || act.trangThai === statusFilter;
+      const matchesSearch = !search || act.tenHoatDong.toLowerCase().includes(search.toLowerCase()) || act.maHoatDong.toLowerCase().includes(search.toLowerCase());
+      return matchesSemester && matchesYear && matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => {
+      const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
+      const db = b.createdAt ? new Date(b.createdAt) : new Date(0);
+      return db - da;
+    });
+
+  // Phân nhóm: Đoàn trường (maKhoa = null) vs Đoàn Khoa
+  const doanTruongList = displayActivities.filter(a => !a.maKhoa);
+  const doanKhoaList = displayActivities.filter(a => !!a.maKhoa);
+  const doanKhoaGroups = doanKhoaList.reduce((acc, a) => {
+    const key = a.tenKhoa || a.maKhoa || 'Khoa khác';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(a);
+    return acc;
+  }, {});
+  const hasSections = doanTruongList.length > 0 || doanKhoaList.length > 0;
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -223,7 +241,7 @@ const Activities = () => {
               size="sm"
               variant="ghost"
               icon={ClipboardList}
-              onClick={(e) => { e.stopPropagation(); navigate(`/admin/activities/${row.maHoatDong}/attendance`); }}
+              onClick={(e) => { e.stopPropagation(); navigate(`/admin/activities/attendance?ma=${encodeURIComponent(row.maHoatDong)}`); }}
               title="Danh sách điểm danh"
               className="text-blue-600 hover:text-blue-700"
             />
@@ -268,7 +286,7 @@ const Activities = () => {
   };
 
   const handleEdit = (activity) => {
-    navigate(`/admin/activities/${activity.maHoatDong}/edit`);
+    navigate(`/admin/activities/edit?ma=${encodeURIComponent(activity.maHoatDong)}`);
   };
 
   const handleView = (activity) => {
@@ -277,9 +295,7 @@ const Activities = () => {
   };
 
   const handleDelete = (activity) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa hoạt động "${activity.tenHoatDong}"?`)) {
-      deleteMutation.mutate(activity.maHoatDong);
-    }
+    setConfirmState({ id: activity.maHoatDong, name: activity.tenHoatDong });
   };
 
   return (
@@ -294,7 +310,7 @@ const Activities = () => {
         </div>
         {canCreate && (
           <Button icon={Plus} onClick={handleCreate}>
-            Tạo hoạt động mới
+            <span className="hidden sm:inline">Tạo hoạt động mới</span>
           </Button>
         )}
       </div>
@@ -367,14 +383,58 @@ const Activities = () => {
         </div>
       </Card>
 
-      {/* Table */}
-      <Card>
-        <Table
-          columns={columns}
-          data={displayActivities}
-          loading={isLoading}
-        />
-      </Card>
+      {/* Table — chia theo Đoàn trường / Đoàn Khoa */}
+      {isLoading ? (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table columns={columns} data={[]} loading={true} />
+          </div>
+        </Card>
+      ) : hasSections ? (
+        <>
+          {/* Đoàn trường */}
+          {doanTruongList.length > 0 && (
+            <Card>
+              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <div className="w-1 h-5 bg-blue-500 rounded-full flex-shrink-0" />
+                <h3 className="font-semibold text-blue-700 text-sm uppercase tracking-wide">
+                  Đoàn trường
+                </h3>
+                <span className="text-[11px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-semibold">
+                  {doanTruongList.length}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <Table columns={columns} data={doanTruongList} loading={false} />
+              </div>
+            </Card>
+          )}
+
+          {/* Đoàn Khoa groups */}
+          {Object.entries(doanKhoaGroups).map(([tenKhoa, list]) => (
+            <Card key={tenKhoa}>
+              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <div className="w-1 h-5 bg-emerald-500 rounded-full flex-shrink-0" />
+                <h3 className="font-semibold text-emerald-700 text-sm uppercase tracking-wide">
+                  Đoàn {tenKhoa}
+                </h3>
+                <span className="text-[11px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-semibold">
+                  {list.length}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <Table columns={columns} data={list} loading={false} />
+              </div>
+            </Card>
+          ))}
+        </>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table columns={columns} data={[]} loading={false} />
+          </div>
+        </Card>
+      )}
 
       {/* Detail Modal */}
       <Modal
@@ -392,6 +452,15 @@ const Activities = () => {
           onClose={() => setIsDetailModalOpen(false)}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa hoạt động"
+        description={`Bạn có chắc muốn xóa hoạt động "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 };

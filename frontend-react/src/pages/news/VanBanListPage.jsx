@@ -38,25 +38,25 @@ const VanBanListPage = () => {
       </Helmet>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Văn bản – Kế hoạch</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Văn bản – Kế hoạch</h1>
         <p className="text-gray-500">Kho lưu trữ văn bản, kế hoạch và công văn của Đoàn – Hội KGU</p>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <form onSubmit={(e) => { e.preventDefault(); setSearch(keyword); setPage(0); }} className="flex-1 flex gap-2">
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={keyword} onChange={(e) => setKeyword(e.target.value)}
               placeholder="Tìm theo số hiệu hoặc trích yếu..."
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-enews-400" />
+              className="w-full sm:w-64 lg:w-80 pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-enews-400" />
           </div>
           <button type="submit" className="px-4 py-2.5 bg-enews-600 text-white text-sm font-medium rounded-xl hover:bg-enews-700 transition-colors">
             Tìm
           </button>
         </form>
         <select value={loai} onChange={(e) => { setLoai(e.target.value); setPage(0); }}
-          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-enews-400 bg-white">
+          className="w-full sm:w-auto border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-enews-400 bg-white">
           {LOAI_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>

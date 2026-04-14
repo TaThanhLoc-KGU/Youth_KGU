@@ -122,7 +122,7 @@ const ActivityRegistrationModal = ({ activity, onSuccess, onCancel }) => {
       </label>
 
       {/* Actions */}
-      <div className="flex gap-3 pt-2 border-t border-gray-100">
+      <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2 border-t border-gray-100">
         <Button
           variant="outline"
           onClick={onCancel}

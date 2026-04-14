@@ -184,6 +184,10 @@ public class AuthService {
         taiKhoanRepository.save(taiKhoan);
 
         log.info("Password changed successfully for user: {}", request.getUsername());
+        systemLogService.log("AUTHENTICATION", "CHANGE_PASSWORD",
+                request.getUsername(), null,
+                "Đổi mật khẩu thành công",
+                SystemLog.LogLevel.INFO, "SUCCESS", this.request);
     }
 
     /**
@@ -219,6 +223,10 @@ public class AuthService {
         }
 
         log.info("Temporary password sent to email: {}", email);
+        systemLogService.log("AUTHENTICATION", "FORGOT_PASSWORD",
+                request.getUsername(), null,
+                "Cấp lại mật khẩu tạm thời qua email: " + email,
+                SystemLog.LogLevel.INFO, "SUCCESS");
     }
 
     /**

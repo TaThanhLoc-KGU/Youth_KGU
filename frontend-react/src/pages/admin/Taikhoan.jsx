@@ -17,6 +17,7 @@ import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import { formatDate } from '../../utils/dateFormat';
 import { useForm } from 'react-hook-form';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const CreateAccountModal = ({ isOpen, onClose, usersWithoutAccount, userType, onSuccess }) => {
   const { register, handleSubmit, formState: { errors }, reset } = useForm({
@@ -93,6 +94,7 @@ const Taikhoan = () => {
   const canCreate = hasPermission(PERMISSIONS.CREATE_TAI_KHOAN);
   const canEdit   = hasPermission(PERMISSIONS.EDIT_TAI_KHOAN);
   const canDelete = hasPermission(PERMISSIONS.DELETE_TAI_KHOAN);
+  const [confirmState, setConfirmState] = useState(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -226,11 +228,7 @@ const Taikhoan = () => {
               variant="ghost"
               icon={Key}
               title="Reset mật khẩu"
-              onClick={() => {
-                if (window.confirm('Reset mật khẩu cho tài khoản này?')) {
-                  resetPasswordMutation.mutate(row.id);
-                }
-              }}
+              onClick={() => setConfirmState({ type: 'reset', id: row.id, name: row.tenDangNhap })}
             />
           )}
           {canEdit && (
@@ -239,11 +237,7 @@ const Taikhoan = () => {
               variant="ghost"
               icon={row.isActive ? Lock : Shield}
               title={row.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
-              onClick={() => {
-                if (window.confirm(`${row.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'} tài khoản này?`)) {
-                  toggleStatusMutation.mutate(row.id);
-                }
-              }}
+              onClick={() => setConfirmState({ type: 'toggle', id: row.id, name: row.tenDangNhap, isActive: row.isActive })}
             />
           )}
           {canDelete && (
@@ -252,11 +246,7 @@ const Taikhoan = () => {
               variant="ghost"
               icon={Trash2}
               className="text-red-600"
-              onClick={() => {
-                if (window.confirm(`Xóa tài khoản ${row.tenDangNhap}?`)) {
-                  deleteMutation.mutate(row.id);
-                }
-              }}
+              onClick={() => setConfirmState({ type: 'delete', id: row.id, name: row.tenDangNhap })}
             />
           )}
         </div>
@@ -269,12 +259,12 @@ const Taikhoan = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Quản lý Tài khoản</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Tài khoản</h1>
         <p className="text-gray-600 mt-1">Quản lý tài khoản người dùng hệ thống</p>
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <div className="p-4">
             <p className="text-xs text-gray-600">Tổng tài khoản</p>
@@ -347,12 +337,12 @@ const Taikhoan = () => {
       {/* Filters */}
       <Card>
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <SearchInput
               placeholder="Tìm kiếm tên đăng nhập, tên..."
               value={search}
               onSearch={setSearch}
-              className="md:col-span-2"
+              className="w-full sm:w-64 lg:w-80"
             />
             <Select
               options={[
@@ -363,6 +353,7 @@ const Taikhoan = () => {
               ]}
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
+              className="w-full sm:w-auto"
             />
             <Select
               options={[
@@ -372,6 +363,7 @@ const Taikhoan = () => {
               ]}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full sm:w-auto"
             />
           </div>
         </div>
@@ -392,6 +384,33 @@ const Taikhoan = () => {
           queryClient.invalidateQueries(['students-no-account']);
           queryClient.invalidateQueries(['teachers-no-account']);
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmState && confirmState.type === 'reset'}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { resetPasswordMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Reset mật khẩu"
+        description={`Bạn có chắc muốn reset mật khẩu cho tài khoản "${confirmState?.name}"?`}
+        isLoading={resetPasswordMutation.isPending}
+        variant="warning"
+      />
+      <ConfirmDialog
+        isOpen={!!confirmState && confirmState.type === 'toggle'}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { toggleStatusMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title={confirmState?.isActive ? 'Vô hiệu hóa tài khoản' : 'Kích hoạt tài khoản'}
+        description={`Bạn có chắc muốn ${confirmState?.isActive ? 'vô hiệu hóa' : 'kích hoạt'} tài khoản "${confirmState?.name}"?`}
+        isLoading={toggleStatusMutation.isPending}
+        variant="warning"
+      />
+      <ConfirmDialog
+        isOpen={!!confirmState && confirmState.type === 'delete'}
+        onClose={() => setConfirmState(null)}
+        onConfirm={() => { deleteMutation.mutate(confirmState?.id); setConfirmState(null); }}
+        title="Xóa tài khoản"
+        description={`Bạn có chắc muốn xóa tài khoản "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
+        isLoading={deleteMutation.isPending}
       />
     </div>
   );

@@ -38,13 +38,26 @@ public class HoatDongService {
     private final NamHocRepository namHocRepository;
     private final DiemRenLuyenCriteriaService criteriaService;
     private final NotificationService notificationService;
+    private final KhoaScopeService khoaScopeService;
 
     // ========== CRUD OPERATIONS ==========
 
     @Transactional(readOnly = true)
     public List<HoatDongDTO> getAll() {
         log.debug("Getting all active activities");
-        return hoatDongRepository.findByIsActiveTrue().stream()
+        
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        List<HoatDong> list;
+
+        if (maKhoa != null) {
+            // Cán bộ khoa thấy: hoạt động của khoa mình + hoạt động cấp trường (khoa = null)
+            list = hoatDongRepository.findByKhoaScopeOrGlobal(maKhoa);
+        } else {
+            // Đoàn trường: thấy tất cả (findByIsActiveTrueOrIsActiveIsNull tương thích data cũ)
+            list = hoatDongRepository.findByIsActiveTrueOrIsActiveIsNull();
+        }
+        
+        return list.stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -52,6 +65,14 @@ public class HoatDongService {
     @Transactional(readOnly = true)
     public Page<HoatDongDTO> getAllWithPagination(Pageable pageable) {
         log.debug("Getting all activities with pagination");
+        
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            // Cán bộ khoa: hoạt động khoa mình + cấp trường
+            return hoatDongRepository.findByKhoaScopeOrGlobalPaged(maKhoa, pageable)
+                    .map(this::toDTO);
+        }
+
         return hoatDongRepository.findByIsActive(true, pageable).map(this::toDTO);
     }
 
@@ -60,6 +81,15 @@ public class HoatDongService {
         log.debug("Getting activity by ID: {}", maHoatDong);
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        
+        // Kiểm tra quyền truy cập (nếu là cán bộ khoa)
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            if (hoatDong.getKhoa() == null || !hoatDong.getKhoa().getMaKhoa().equals(maKhoa)) {
+                throw new RuntimeException("Bạn không có quyền xem hoạt động này");
+            }
+        }
+        
         return toDTO(hoatDong);
     }
 
@@ -76,6 +106,14 @@ public class HoatDongService {
         validateDiemRenLuyen(dto);
 
         HoatDong hoatDong = toEntity(dto);
+        
+        // ÉP SCOPE: Nếu người tạo là cán bộ khoa → ép capDo=KHOA và khoa=khoaOfUser
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            hoatDong.setCapDo(CapDoEnum.KHOA);
+            khoaRepository.findById(maKhoa).ifPresent(hoatDong::setKhoa);
+        }
+        
         hoatDong.setIsActive(true);
         hoatDong = hoatDongRepository.save(hoatDong);
 
@@ -98,6 +136,14 @@ public class HoatDongService {
 
         HoatDong existing = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        // KIỂM TRA SCOPE TRƯỚC KHI CẬP NHẬT
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maKhoa != null) {
+            if (existing.getKhoa() == null || !existing.getKhoa().getMaKhoa().equals(maKhoa)) {
+                throw new RuntimeException("Không có quyền sửa hoạt động của khoa khác");
+            }
+        }
 
         // Validate điểm rèn luyện so với tiêu chí
         validateDiemRenLuyen(dto);
@@ -227,10 +273,54 @@ public class HoatDongService {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
 
+        // Lưu lại trạng thái cũ để có thể revert nếu lỡ tay
+        if (hoatDong.getTrangThai() != TrangThaiHoatDongEnum.DANG_DIEN_RA) {
+            hoatDong.setTrangThaiTruocKhiBatDau(hoatDong.getTrangThai().name());
+        }
         hoatDong.setTrangThai(TrangThaiHoatDongEnum.DANG_DIEN_RA);
+        hoatDong.setThoiGianBatDauThucTe(java.time.LocalDateTime.now());
         hoatDongRepository.save(hoatDong);
 
-        log.info("Activity started: {}", maHoatDong);
+        log.info("Activity started: {} at {}", maHoatDong, hoatDong.getThoiGianBatDauThucTe());
+    }
+
+    /**
+     * Hoàn tác lệnh "Bắt đầu hoạt động" nếu chưa có sinh viên nào check-in.
+     * Quay lại trạng thái trước đó (DANG_MO_DANG_KY, SAP_DIEN_RA...).
+     */
+    @Transactional
+    public void revertActivityStart(String maHoatDong) {
+        log.info("Reverting activity start: {}", maHoatDong);
+
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        if (hoatDong.getTrangThai() != TrangThaiHoatDongEnum.DANG_DIEN_RA) {
+            throw new RuntimeException("Hoạt động chưa bắt đầu — không cần hoàn tác");
+        }
+
+        // Kiểm tra đã có ai check-in chưa
+        long soLuongDaDiemDanh = diemDanhRepository.countByHoatDongMaHoatDong(maHoatDong);
+        if (soLuongDaDiemDanh > 0) {
+            throw new RuntimeException(
+                    "Không thể hoàn tác: đã có " + soLuongDaDiemDanh + " sinh viên check-in. " +
+                    "Hãy dùng nút Kết thúc sớm để đóng hoạt động.");
+        }
+
+        // Khôi phục trạng thái cũ
+        TrangThaiHoatDongEnum prevStatus = TrangThaiHoatDongEnum.DANG_MO_DANG_KY;
+        if (hoatDong.getTrangThaiTruocKhiBatDau() != null) {
+            try {
+                prevStatus = TrangThaiHoatDongEnum.valueOf(hoatDong.getTrangThaiTruocKhiBatDau());
+            } catch (IllegalArgumentException ignored) { /* dùng default */ }
+        }
+
+        hoatDong.setTrangThai(prevStatus);
+        hoatDong.setThoiGianBatDauThucTe(null);
+        hoatDong.setTrangThaiTruocKhiBatDau(null);
+        hoatDongRepository.save(hoatDong);
+
+        log.info("Activity reverted to {}: {}", prevStatus, maHoatDong);
     }
 
     @Transactional
@@ -420,6 +510,8 @@ public class HoatDongService {
                     .maQR(dk.getMaQR())
                     .ngayDangKy(dk.getNgayDangKy())
                     .daDiemDanh(dd != null)
+                    .studentLatitude(dk.getStudentLatitude())
+                    .studentLongitude(dk.getStudentLongitude())
                     .build();
             
             if (dd != null) {

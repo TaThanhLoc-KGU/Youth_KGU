@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import {
-  LogIn, Eye, EyeOff, Info, KeyRound, Phone, Mail,
-  Bell, ShieldCheck, BookOpen, ChevronRight
+  LogIn, Eye, EyeOff, Info, KeyRound, Phone,
+  Bell, ShieldCheck, BookOpen, ChevronRight, Newspaper, ArrowLeft
 } from 'lucide-react';
+
+const NEWS_URL = import.meta.env.VITE_NEWS_URL || 'https://tuoitre.vnkgu.edu.vn';
 import { useQueryClient } from '@tanstack/react-query';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
@@ -87,6 +89,8 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const isExpired = searchParams.get('expired') === '1' || searchParams.get('expired') === 'true';
   const queryClient = useQueryClient();
   const login = useAuthStore((state) => state.login);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -162,23 +166,38 @@ const Login = () => {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-4 mb-3">
+          <Link
+            to="/news"
+            className="inline-flex items-center justify-center gap-4 mb-3 group cursor-pointer"
+            title="Về trang chủ tin tức"
+          >
             <img
               src="https://upload.wikimedia.org/wikipedia/vi/0/09/Huy_Hi%E1%BB%87u_%C4%90o%C3%A0n.png"
               alt="Logo Đoàn"
-              className="w-16 h-16 object-contain drop-shadow-md"
+              className="w-16 h-16 object-contain drop-shadow-md group-hover:scale-105 transition-transform"
             />
             <div className="text-left">
-              <h1 className="text-2xl font-bold text-[#0017B0] leading-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-[#0017B0] leading-tight group-hover:text-[#0033FF] transition-colors">
                 HỆ THỐNG QUẢN LÝ
               </h1>
               <p className="text-[#ED2124] font-semibold text-base">
                 Hoạt động Đoàn – Hội Sinh viên KGU
               </p>
             </div>
-          </div>
+          </Link>
           <div className="h-0.5 w-24 bg-gradient-to-r from-[#0017B0] to-[#ED2124] mx-auto rounded-full" />
         </div>
+
+        {/* Session expired banner */}
+        {isExpired && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-center gap-3">
+            <span className="text-amber-500 text-lg">⏰</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800">Phiên đăng nhập đã hết hạn</p>
+              <p className="text-xs text-amber-700">Do không hoạt động trong một thời gian dài. Vui lòng đăng nhập lại.</p>
+            </div>
+          </div>
+        )}
 
         {/* Main 2-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
@@ -192,7 +211,7 @@ const Login = () => {
                 <h2 className="text-lg font-bold text-white">Đăng nhập hệ thống</h2>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                   {/* Username */}
                   <div>
@@ -252,24 +271,6 @@ const Login = () => {
                     )}
                   </div>
 
-                  {/* Remember + Forgot */}
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        disabled={isLoading}
-                        className="w-4 h-4 rounded border-gray-300 text-[#0017B0] focus:ring-[#0017B0]"
-                        {...register('rememberMe')}
-                      />
-                      <span className="text-sm text-gray-600">Ghi nhớ đăng nhập</span>
-                    </label>
-                    <Link
-                      to={ROUTES.FORGOT_PASSWORD}
-                      className="text-sm text-[#0017B0] hover:text-[#ED2124] transition-colors font-medium"
-                    >
-                      Quên mật khẩu?
-                    </Link>
-                  </div>
 
                   {/* Submit */}
                   <button
@@ -342,6 +343,16 @@ const Login = () => {
               );
             })}
 
+            {/* Back to news */}
+            <a
+              href={NEWS_URL}
+              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border-2 border-[#0017B0]/20 bg-[#0017B0]/5 hover:bg-[#0017B0]/10 text-[#0017B0] text-sm font-medium transition-colors group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              Quay lại trang tin tức
+              <Newspaper className="w-4 h-4" />
+            </a>
+
             {/* Quick links */}
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
               <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
@@ -349,8 +360,8 @@ const Login = () => {
               </p>
               <div className="space-y-1">
                 {[
-                  { label: 'Trang tin tức Đoàn', href: '/news' },
-                  { label: 'Danh sách hoạt động', href: '/news/hoat-dong' },
+                  { label: 'Trang chủ tin tức', href: NEWS_URL },
+                  { label: 'Danh sách hoạt động', href: `${NEWS_URL}/hoat-dong` },
                 ].map((link) => (
                   <a
                     key={link.href}
