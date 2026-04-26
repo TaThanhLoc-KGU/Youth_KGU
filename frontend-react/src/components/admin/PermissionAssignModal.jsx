@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Shield, X, Save, Loader2, AlertTriangle, CheckSquare, Square, Wand2 } from 'lucide-react';
+import { Shield, X, Save, Loader2, AlertTriangle, CheckSquare, Square, Wand2, Users } from 'lucide-react';
 import permissionService from '../../services/permissionService';
 
 // ─── Preset: Toàn quyền cấp Khoa ──────────────────────────────────────────────
@@ -41,6 +41,32 @@ const PRESET_BCH_KHOA = [
   'XEM_SINH_VIEN', 'XEM_LOP', 'XEM_KHOA',
   // Báo cáo (chỉ xem)
   'XEM_BAO_CAO', 'XEM_LICH_SU_THAM_GIA',
+];
+
+// ─── Preset: Chủ nhiệm CLB ────────────────────────────────────────────────────
+// Quyền đủ để chủ nhiệm CLB quản lý hoạt động, điểm danh, thành viên trong CLB.
+const PRESET_CHU_NHIEM_CLB = [
+  'XEM_CLB', 'QUAN_LY_THANH_VIEN_CLB',
+  'XEM_HOAT_DONG', 'TAO_HOAT_DONG', 'SUA_HOAT_DONG',
+  'QUAN_LY_DANG_KY', 'DANG_KY_HOAT_DONG', 'HUY_DANG_KY_HOAT_DONG',
+  'XEM_DIEM_DANH', 'QUET_QR', 'CHINH_SUA_DIEM_DANH',
+  'XEM_LICH_SU_THAM_GIA', 'XUAT_DS_DIEM_DANH', 'XUAT_DS_DANG_KY',
+  'XEM_SINH_VIEN', 'XEM_LOP', 'XEM_KHOA',
+  'DANG_TIN_TUC', 'SUA_TIN_TUC', 'XEM_BAO_CAO',
+];
+
+// ─── Preset: Quản lý CLB (toàn quyền cấp CLB) ─────────────────────────────────
+// Dành cho tài khoản BCH cấp CLB, có đầy đủ quyền quản lý CLB đó.
+const PRESET_QUAN_LY_CLB_FULL = [
+  'XEM_CLB', 'QUAN_LY_CLB', 'QUAN_LY_THANH_VIEN_CLB',
+  'XEM_HOAT_DONG', 'TAO_HOAT_DONG', 'SUA_HOAT_DONG', 'XOA_HOAT_DONG',
+  'QUAN_LY_DANG_KY', 'DANG_KY_HOAT_DONG', 'HUY_DANG_KY_HOAT_DONG',
+  'XEM_DIEM_DANH', 'QUET_QR', 'CHINH_SUA_DIEM_DANH', 'PHAN_CONG_DIEM_DANH',
+  'GIAO_DIEM_DANH', 'XEM_LICH_SU_THAM_GIA', 'XUAT_DS_DIEM_DANH', 'XUAT_DS_DANG_KY',
+  'XEM_SINH_VIEN', 'XEM_LOP', 'XEM_KHOA', 'XEM_GIANG_VIEN',
+  'DANG_TIN_TUC', 'SUA_TIN_TUC', 'XOA_TIN_TUC', 'DUYET_TIN_TUC',
+  'XEM_BAO_CAO', 'XUAT_BAO_CAO', 'XEM_THONG_KE',
+  'XEM_HOC_KY', 'XEM_NAM_HOC',
 ];
 
 /**
@@ -145,6 +171,8 @@ const PermissionAssignModal = ({ account, isOpen, onClose }) => {
   const isLoading = loadingAll || loadingAccount;
   const isKhoaScoped = !!(account?.maKhoa || accountPerms?.maKhoa);
   const tenKhoa = account?.tenKhoa || accountPerms?.tenKhoa || account?.maKhoa;
+  const isClbScoped = !!(account?.maClb || accountPerms?.maClb);
+  const tenClb = account?.tenClb || accountPerms?.tenClb || account?.maClb;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
@@ -156,11 +184,17 @@ const PermissionAssignModal = ({ account, isOpen, onClose }) => {
             <Shield className="w-5 h-5 text-blue-600" />
             <div>
               <h2 className="text-lg font-bold text-gray-900">Phân quyền tài khoản</h2>
-              <p className="text-sm text-gray-500 flex items-center gap-2">
+              <p className="text-sm text-gray-500 flex items-center gap-2 flex-wrap">
                 {account?.hoTen || account?.username}
                 {isKhoaScoped && (
                   <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-700">
                     📍 {tenKhoa}
+                  </span>
+                )}
+                {isClbScoped && (
+                  <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-orange-100 text-orange-700 flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    {tenClb}
                   </span>
                 )}
               </p>
@@ -205,6 +239,18 @@ const PermissionAssignModal = ({ account, isOpen, onClose }) => {
                 </div>
               )}
 
+              {/* Cảnh báo laAdmin + maClb */}
+              {laAdmin && isClbScoped && (
+                <div className="flex items-start gap-2 p-3 mb-3 rounded-lg bg-orange-50 border border-orange-300 text-orange-800 text-sm">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-orange-500" />
+                  <span>
+                    Tài khoản này được gán phạm vi <strong>{tenClb}</strong>.
+                    "Toàn quyền Admin" sẽ bypass quyền nhưng CLB scope vẫn hoạt động.
+                    <strong> Khuyến nghị:</strong> bỏ tick và dùng preset <em>"Quản lý CLB"</em>.
+                  </span>
+                </div>
+              )}
+
               {/* ── Preset buttons ── */}
               {!laAdmin && (
                 <div className="mb-4">
@@ -212,6 +258,28 @@ const PermissionAssignModal = ({ account, isOpen, onClose }) => {
                     Bộ quyền nhanh
                   </p>
                   <div className="flex flex-wrap gap-2">
+
+                    {/* CLB Presets */}
+                    <button
+                      type="button"
+                      onClick={() => applyPreset(PRESET_QUAN_LY_CLB_FULL)}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shadow-sm"
+                    >
+                      <Users className="w-4 h-4" />
+                      Quản lý CLB
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyPreset(PRESET_CHU_NHIEM_CLB)}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-orange-400 hover:bg-orange-500 text-white transition-colors shadow-sm"
+                    >
+                      <Users className="w-4 h-4" />
+                      Chủ nhiệm CLB
+                    </button>
+
+                    {/* Divider */}
+                    <span className="self-center text-gray-300 text-sm">|</span>
 
                     {/* Toàn quyền cấp Khoa */}
                     <button
@@ -263,6 +331,16 @@ const PermissionAssignModal = ({ account, isOpen, onClose }) => {
                   {isKhoaScoped && selectedIds.size > 0 && (
                     <p className="mt-2 text-xs text-amber-700">
                       💡 Backend tự giới hạn dữ liệu theo <strong>{tenKhoa}</strong> — chỉ cần chọn đúng quyền chức năng.
+                    </p>
+                  )}
+                  {isClbScoped && selectedIds.size > 0 && (
+                    <p className="mt-2 text-xs text-orange-700">
+                      💡 Tài khoản này chỉ quản lý <strong>{tenClb}</strong> — dùng preset "Quản lý CLB" hoặc "Chủ nhiệm CLB".
+                    </p>
+                  )}
+                  {isClbScoped && selectedIds.size === 0 && (
+                    <p className="mt-2 text-xs text-orange-600">
+                      ⚠️ Tài khoản CLB-scoped chưa có quyền — hãy chọn preset phù hợp.
                     </p>
                   )}
                 </div>

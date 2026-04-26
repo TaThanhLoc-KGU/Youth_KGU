@@ -406,11 +406,13 @@ public class NamHocService {
     /**
      * Lấy danh sách học kỳ theo năm học
      */
+    @Transactional(readOnly = true)
     public List<HocKyDTO> getSemestersByYear(String maNamHoc) {
         log.debug("Getting semesters for academic year: {}", maNamHoc);
 
         try {
-            List<HocKyNamHoc> relations = hocKyNamHocRepository.findByNamHoc_MaNamHocAndIsActive(maNamHoc, true);
+            // Dùng JOIN FETCH để tránh LazyInitializationException
+            List<HocKyNamHoc> relations = hocKyNamHocRepository.findSemestersWithDetailsByYear(maNamHoc);
 
             return relations.stream()
                     .map(relation -> convertToHocKyDTO(relation.getHocKy()))

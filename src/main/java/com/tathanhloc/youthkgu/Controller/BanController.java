@@ -44,7 +44,7 @@ public class BanController {
 
     @PostMapping
     @Operation(summary = "Tạo ban mới")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_BAN')")
+    @PreAuthorize("hasPermission(null, 'THEM_CLB') or hasPermission(null, 'QUAN_LY_BAN')")
     public ResponseEntity<ApiResponse<BanDTO>> create(@RequestBody BanDTO dto) {
         log.info("POST /api/ban: {}", dto.getMaBan());
         BanDTO created = banService.create(dto);
@@ -54,7 +54,7 @@ public class BanController {
 
     @PutMapping("/{maBan}")
     @Operation(summary = "Cập nhật ban")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_BAN')")
+    @PreAuthorize("hasPermission(null, 'SUA_CLB') or hasPermission(null, 'QUAN_LY_BAN')")
     public ResponseEntity<ApiResponse<BanDTO>> update(
             @PathVariable String maBan,
             @RequestBody BanDTO dto) {
@@ -65,7 +65,7 @@ public class BanController {
 
     @DeleteMapping("/{maBan}")
     @Operation(summary = "Xóa ban (soft delete)")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_BAN')")
+    @PreAuthorize("hasPermission(null, 'XOA_CLB') or hasPermission(null, 'QUAN_LY_BAN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String maBan) {
         log.info("DELETE /api/ban/{}", maBan);
         banService.delete(maBan);

@@ -52,6 +52,9 @@ public class CreateAccountRequest {
     /** Khoa scope — null = Đoàn trường, non-null = chỉ quản lý khoa này */
     private String maKhoa;
 
+    /** CLB scope — null = không giới hạn, non-null = chỉ quản lý CLB này */
+    private String maClb;
+
     /** Danh sách ID quyền gán cho tài khoản QUAN_LY (khi laAdmin = false). */
     private java.util.List<Long> permissionIds;
 

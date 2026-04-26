@@ -39,6 +39,14 @@ public class HoatDong {
     @Column(name = "ngay_to_chuc", nullable = false)
     private LocalDate ngayToChuc;
 
+    /**
+     * Ngày kết thúc hoạt động.
+     * NULL = hoạt động 1 ngày (kết thúc cùng ngày ngayToChuc).
+     * Non-null = hoạt động nhiều ngày, check-out trên ngày này.
+     */
+    @Column(name = "ngay_ket_thuc")
+    private LocalDate ngayKetThuc;
+
     @Column(name = "gio_to_chuc")
     private LocalTime gioToChuc;
 
@@ -152,6 +160,10 @@ public class HoatDong {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ma_nam_hoc")
     private NamHoc namHoc;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ma_clb")
+    private CauLacBo cauLacBo;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "trang_thai", nullable = false, length = 50)

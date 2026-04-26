@@ -105,4 +105,8 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
            "AND sv.lop.nganh IS NOT NULL " +
            "AND sv.lop.nganh.khoa IS NOT NULL")
     Optional<String> findMaKhoaBySinhVienUsername(@Param("username") String username);
+
+    /** Lấy trực tiếp maClb của tài khoản CLB — dùng cho CLB scope enforcement */
+    @Query("SELECT tk.clb.maClb FROM TaiKhoan tk WHERE tk.username = :username AND tk.clb IS NOT NULL")
+    Optional<String> findMaClbByUsername(@Param("username") String username);
 }

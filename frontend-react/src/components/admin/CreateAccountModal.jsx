@@ -4,6 +4,7 @@ import { X, Loader2 } from 'lucide-react';
 import { GENDER } from '../../constants/accountConstants';
 import permissionService from '../../services/permissionService';
 import khoaService from '../../services/khoaService';
+import cauLacBoService from '../../services/cauLacBoService';
 
 const CATEGORY_LABELS = {
   HE_THONG: 'Hệ thống', SINH_VIEN: 'Sinh viên', GIANG_VIEN: 'Giảng viên',
@@ -24,6 +25,7 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
   const [vaiTro, setVaiTro] = useState('SINH_VIEN');
   const [laAdmin, setLaAdmin] = useState(false);
   const [maKhoa, setMaKhoa] = useState('');
+  const [maClb, setMaClb] = useState('');
   const [selectedPermIds, setSelectedPermIds] = useState(new Set());
   const [errors, setErrors] = useState({});
 
@@ -39,6 +41,13 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
     queryKey: ['khoaActive'],
     queryFn: () => khoaService.getActive(),
     enabled: isOpen && vaiTro === 'QUAN_LY',
+  });
+
+  const { data: listClb = [] } = useQuery({
+    queryKey: ['clbAll'],
+    queryFn: () => cauLacBoService.getAll({ isActive: true }),
+    enabled: isOpen && vaiTro === 'QUAN_LY',
+    staleTime: 5 * 60 * 1000,
   });
 
   const handleChange = (e) => {
@@ -88,6 +97,7 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
       vaiTro,
       laAdmin: vaiTro === 'QUAN_LY' ? laAdmin : false,
       maKhoa: vaiTro === 'QUAN_LY' ? (maKhoa || null) : null,
+      maClb: vaiTro === 'QUAN_LY' ? (maClb || null) : null,
       permissionIds: vaiTro === 'QUAN_LY' && !laAdmin ? Array.from(selectedPermIds) : [],
     };
     createAccountMutation.mutate(payload, {
@@ -96,6 +106,7 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
         setVaiTro('SINH_VIEN');
         setLaAdmin(false);
         setMaKhoa('');
+        setMaClb('');
         setSelectedPermIds(new Set());
         setErrors({});
         onClose();
@@ -108,6 +119,7 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
     setVaiTro('SINH_VIEN');
     setLaAdmin(false);
     setMaKhoa('');
+    setMaClb('');
     setSelectedPermIds(new Set());
     setErrors({});
     onClose();
@@ -206,27 +218,52 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
             </div>
           </div>
 
-          {/* Khoa Scope (chỉ khi QUAN_LY) */}
+          {/* Scope Section (chỉ khi QUAN_LY) */}
           {vaiTro === 'QUAN_LY' && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <label className="block text-sm font-semibold text-amber-900 mb-1">
-                Phạm vi Khoa (Khoa Scope)
-              </label>
-              <select
-                value={maKhoa}
-                onChange={(e) => setMaKhoa(e.target.value)}
-                className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-              >
-                <option value="">Đoàn trường (Toàn bộ trường)</option>
-                {listKhoa.map((k) => (
-                  <option key={k.maKhoa} value={k.maKhoa}>
-                    {k.tenKhoa}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-xs text-amber-700 italic">
-                * Nếu chọn Khoa, quản lý này chỉ có thể thấy và quản lý các hoạt động thuộc Khoa đó.
-              </p>
+            <div className="space-y-3">
+              {/* Khoa Scope */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <label className="block text-sm font-semibold text-amber-900 mb-1">
+                  Phạm vi Khoa (Khoa Scope)
+                </label>
+                <select
+                  value={maKhoa}
+                  onChange={(e) => { setMaKhoa(e.target.value); if (e.target.value) setMaClb(''); }}
+                  className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">Đoàn trường (Toàn bộ trường)</option>
+                  {listKhoa.map((k) => (
+                    <option key={k.maKhoa} value={k.maKhoa}>
+                      {k.tenKhoa}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-amber-700 italic">
+                  * Nếu chọn Khoa, quản lý này chỉ có thể thấy và quản lý các hoạt động thuộc Khoa đó.
+                </p>
+              </div>
+
+              {/* CLB Scope */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <label className="block text-sm font-semibold text-orange-900 mb-1">
+                  Phạm vi CLB (CLB Scope)
+                </label>
+                <select
+                  value={maClb}
+                  onChange={(e) => { setMaClb(e.target.value); if (e.target.value) setMaKhoa(''); }}
+                  className="w-full px-3 py-2 border border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="">Không giới hạn CLB</option>
+                  {listClb.map((c) => (
+                    <option key={c.maClb} value={c.maClb}>
+                      {c.tenClb}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-orange-700 italic">
+                  * Nếu chọn CLB, tài khoản này chỉ quản lý CLB đó (tự động vào portal CLB khi đăng nhập).
+                </p>
+              </div>
             </div>
           )}
 

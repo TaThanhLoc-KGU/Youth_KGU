@@ -69,13 +69,24 @@ const ActivityCard = ({
 
         {/* Info row 1 - Date & Time */}
         <div className="space-y-2 mb-3 text-sm">
-          <div className="flex items-center gap-2 text-gray-600">
-            <Calendar className="w-4 h-4" />
-            <span>{formatDate(activity.ngayToChuc)}</span>
+          <div className="flex items-center gap-2 text-gray-600 flex-wrap">
+            <Calendar className="w-4 h-4 flex-shrink-0" />
+            {activity.isMultiDay ? (
+              <span className="flex items-center gap-1 flex-wrap">
+                <span className="font-medium text-indigo-700">{formatDate(activity.ngayToChuc)}</span>
+                <span className="text-gray-400">→</span>
+                <span className="font-medium text-indigo-700">{formatDate(activity.ngayKetThuc)}</span>
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700">
+                  {activity.soNgay} ngày
+                </span>
+              </span>
+            ) : (
+              <span>{formatDate(activity.ngayToChuc)}</span>
+            )}
             {activity.gioToChuc && (
               <>
-                <span className="text-gray-400">-</span>
-                <Clock className="w-4 h-4" />
+                <span className="text-gray-400">·</span>
+                <Clock className="w-4 h-4 flex-shrink-0" />
                 <span>{formatTime(activity.gioToChuc)}</span>
               </>
             )}

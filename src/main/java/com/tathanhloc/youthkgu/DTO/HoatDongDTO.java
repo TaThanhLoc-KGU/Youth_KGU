@@ -18,6 +18,16 @@ public class HoatDongDTO {
     private LoaiHoatDongEnum loaiHoatDong;
     private CapDoEnum capDo;
     private LocalDate ngayToChuc;
+
+    /** Ngày kết thúc — null = 1 ngày, non-null = nhiều ngày */
+    private LocalDate ngayKetThuc;
+
+    /** Computed: số ngày diễn ra (1 nếu 1 ngày, ≥2 nếu nhiều ngày) */
+    private Integer soNgay;
+
+    /** Computed: true nếu ngayKetThuc != null && ngayKetThuc.isAfter(ngayToChuc) */
+    private Boolean isMultiDay;
+
     private LocalTime gioToChuc;
 
     // Chế độ điểm danh
@@ -59,6 +69,8 @@ public class HoatDongDTO {
     private String tenKhoa;
     private String maNganh;
     private String tenNganh;
+    private String maClb;
+    private String tenClb;
 
     // Học kỳ & Năm học
     private Integer soHocKy;

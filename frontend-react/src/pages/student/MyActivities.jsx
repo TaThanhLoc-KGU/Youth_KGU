@@ -378,13 +378,13 @@ const MyActivities = () => {
             const status = STATUS_CONFIG[statusKey];
             const Icon = status.icon;
 
-            // QR logic: hiện khi hoạt động đang diễn ra (trangThaiHoatDong) HOẶC đúng ngày
-            const today = new Date();
+            // QR logic: hiện khi hoạt động đang diễn ra (trangThaiHoatDong) HOẶC trong khoảng ngày tổ chức
+            const today = new Date(); today.setHours(0, 0, 0, 0);
             const actDate = reg.ngayToChuc ? new Date(reg.ngayToChuc) : null;
-            const isEventDay = actDate &&
-              today.getFullYear() === actDate.getFullYear() &&
-              today.getMonth() === actDate.getMonth() &&
-              today.getDate() === actDate.getDate();
+            const endDate = reg.ngayKetThuc ? new Date(reg.ngayKetThuc) : actDate;
+            if (actDate) actDate.setHours(0, 0, 0, 0);
+            if (endDate) endDate.setHours(0, 0, 0, 0);
+            const isEventDay = actDate && endDate && today >= actDate && today <= endDate;
             const isRunning = reg.trangThaiHoatDong === 'DANG_DIEN_RA';
             const isFuture = actDate && today < actDate && !isRunning;
             const qrDisabled = !isEventDay && !isRunning;
@@ -425,7 +425,10 @@ const MyActivities = () => {
                         {reg.ngayToChuc && (
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5" />
-                            {formatDate(reg.ngayToChuc)}
+                            {reg.isMultiDay
+                              ? <>{formatDate(reg.ngayToChuc)} <span className="text-gray-400">→</span> {formatDate(reg.ngayKetThuc)}</>
+                              : formatDate(reg.ngayToChuc)
+                            }
                           </span>
                         )}
                         {reg.thoiGianDiemDanh && (

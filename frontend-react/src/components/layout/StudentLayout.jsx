@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, CalendarPlus, ClipboardList, TrendingUp, User, LogOut, Home, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, CalendarPlus, ClipboardList, TrendingUp, User, LogOut, Home, ChevronRight, Users } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES } from '../../utils/constants';
 import useNotificationHistoryStore from '../../stores/notificationHistoryStore';
 
 const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: 'Tổng quan',   path: ROUTES.STUDENT_DASHBOARD          },
+  { icon: LayoutDashboard, label: 'Tổng quan',   path: ROUTES.STUDENT_DASHBOARD           },
   { icon: CalendarPlus,    label: 'Đăng ký',      path: ROUTES.STUDENT_REGISTER_ACTIVITIES },
   { icon: ClipboardList,   label: 'Của tôi',      path: ROUTES.STUDENT_MY_ACTIVITIES       },
   { icon: TrendingUp,      label: 'Rèn luyện',    path: ROUTES.STUDENT_TRAINING_POINTS     },
+  { icon: Users,           label: 'CLB',           path: ROUTES.STUDENT_CLB_REGISTRATION    },
 ];
 
 const StudentLayout = () => {

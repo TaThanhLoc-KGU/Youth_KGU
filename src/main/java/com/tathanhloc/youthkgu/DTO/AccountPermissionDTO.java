@@ -27,6 +27,10 @@ public class AccountPermissionDTO {
     private String maKhoa;
     private String tenKhoa;
 
+    /** CLB scope — null = không giới hạn, non-null = chỉ quản lý CLB này */
+    private String maClb;
+    private String tenClb;
+
     /** Tập hợp tên quyền hiệu lực (dùng cho kiểm tra phía FE và BE) */
     private Set<String> quyenTongHop;
 

@@ -359,6 +359,7 @@ const ActivityForm = ({
     loaiHoatDong: 'KHAC',                  // valid backend default
     capDo: 'KHOA',
     ngayToChuc: '',
+    ngayKetThuc: '',     // Ngày kết thúc — để trống = 1 ngày
     gioToChuc: '',
     thoiGianBatDau: '',                     // auto-populated from gioToChuc
     thoiGianKetThuc: '',
@@ -482,7 +483,9 @@ const ActivityForm = ({
     const errs = {};
     if (!formData.maHoatDong?.trim() && !isEdit) errs.maHoatDong = 'Mã hoạt động không được để trống';
     if (!formData.tenHoatDong?.trim()) errs.tenHoatDong = 'Tên hoạt động không được để trống';
-    if (!formData.ngayToChuc) errs.ngayToChuc = 'Vui lòng chọn ngày tổ chức';
+    if (!formData.ngayToChuc) errs.ngayToChuc = 'Vui lòng chọn ngày bắt đầu';
+    if (formData.ngayKetThuc && formData.ngayToChuc && formData.ngayKetThuc < formData.ngayToChuc)
+      errs.ngayKetThuc = 'Ngày kết thúc phải từ ngày bắt đầu trở đi';
     if (formData.thoiGianBatDau && formData.thoiGianKetThuc && formData.thoiGianKetThuc <= formData.thoiGianBatDau)
       errs.thoiGianKetThuc = 'Giờ kết thúc phải sau giờ bắt đầu';
     setErrors(errs);
@@ -622,10 +625,11 @@ const ActivityForm = ({
           <SectionHead icon={Calendar} color="bg-blue-100 text-blue-600" label="Thời gian & Địa điểm" />
 
           <div className="space-y-3">
-            {/* Ngày + Giờ bắt đầu + Giờ kết thúc */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Ngày bắt đầu + Ngày kết thúc (multi-day) + Giờ bắt đầu + Giờ kết thúc */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* Ngày tổ chức (bắt đầu) */}
               <div>
-                <label className="form-label">Ngày tổ chức *</label>
+                <label className="form-label">Ngày bắt đầu *</label>
                 <div className="custom-date-input">
                   <input
                     type="date"
@@ -641,9 +645,55 @@ const ActivityForm = ({
                 </div>
                 {errors.ngayToChuc && <p className="form-error">{errors.ngayToChuc}</p>}
               </div>
+
+              {/* Ngày kết thúc (tùy chọn — multi-day) */}
+              <div>
+                <label className="form-label flex items-center gap-1.5">
+                  Ngày kết thúc
+                  <span className="text-[10px] font-normal text-gray-400">(để trống nếu 1 ngày)</span>
+                </label>
+                <div className="custom-date-input">
+                  <input
+                    type="date"
+                    name="ngayKetThuc"
+                    value={formData.ngayKetThuc || ''}
+                    min={formData.ngayToChuc || ''}
+                    onChange={handleChange}
+                    className={`form-input ${errors.ngayKetThuc ? 'border-red-400' : ''}`}
+                    placeholder=" "
+                  />
+                  <div className="custom-date-display text-sm">
+                    {formData.ngayKetThuc
+                      ? <span className="text-blue-600 font-medium">{formatDate(formData.ngayKetThuc)}</span>
+                      : <span className="text-gray-400">Không chọn</span>}
+                  </div>
+                </div>
+                {errors.ngayKetThuc && <p className="form-error">{errors.ngayKetThuc}</p>}
+                {/* Nút xoá ngày kết thúc */}
+                {formData.ngayKetThuc && (
+                  <button type="button"
+                    onClick={() => setFormData(p => ({ ...p, ngayKetThuc: '' }))}
+                    className="mt-1 text-[11px] text-red-500 hover:text-red-700 flex items-center gap-0.5">
+                    <X className="w-3 h-3" /> Xoá ngày kết thúc
+                  </button>
+                )}
+              </div>
+
               <Input label="Giờ bắt đầu" type="time" name="thoiGianBatDau" value={formData.thoiGianBatDau} onChange={handleChange} />
               <Input label="Giờ kết thúc" type="time" name="thoiGianKetThuc" value={formData.thoiGianKetThuc} onChange={handleChange} error={errors.thoiGianKetThuc} />
             </div>
+
+            {/* Multi-day banner */}
+            {formData.ngayKetThuc && formData.ngayToChuc && formData.ngayKetThuc > formData.ngayToChuc && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
+                <Calendar className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                <span>
+                  Hoạt động <strong>nhiều ngày</strong>:{' '}
+                  {formatDate(formData.ngayToChuc)} → {formatDate(formData.ngayKetThuc)}
+                  {' '}({Math.round((new Date(formData.ngayKetThuc) - new Date(formData.ngayToChuc)) / 86400000) + 1} ngày)
+                </span>
+              </div>
+            )}
 
             {/* Học kỳ auto-badge */}
             {(formData.soHocKy || formData.tenNamHoc) && (

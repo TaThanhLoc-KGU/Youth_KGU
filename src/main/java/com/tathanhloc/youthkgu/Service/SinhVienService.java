@@ -256,4 +256,77 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
         }
         return count;
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // BATCH MATCH — Dò MSSV/Tên từ file Excel để nhập CLB
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Dò khớp danh sách hàng Excel với sinh viên trong hệ thống.
+     * Ưu tiên: MSSV exact → Tên chuẩn hóa không dấu (+ lớp nếu có) → Không tìm thấy.
+     */
+    @Transactional(readOnly = true)
+    public List<ClbImportMatchDTO> batchMatchForClb(List<ClbImportRowDTO> rows) {
+        // Load toàn bộ sinh viên active một lần (tránh N+1)
+        List<SinhVien> all = sinhVienRepository.findByIsActive(true);
+
+        // Index MSSV → SinhVien
+        Map<String, SinhVien> byMaSv = new HashMap<>();
+        // Index tên chuẩn hóa → list sinh viên
+        Map<String, List<SinhVien>> byNormName = new HashMap<>();
+
+        for (SinhVien sv : all) {
+            byMaSv.put(sv.getMaSv().toUpperCase().trim(), sv);
+            String norm = normalizeVietnamese(sv.getHoTen());
+            byNormName.computeIfAbsent(norm, k -> new ArrayList<>()).add(sv);
+        }
+
+        return rows.stream().map(row -> {
+            // 1. Thử MSSV trước
+            if (row.getMaSv() != null && !row.getMaSv().isBlank()) {
+                SinhVien sv = byMaSv.get(row.getMaSv().trim().toUpperCase());
+                if (sv != null) return ClbImportMatchDTO.matchedByMaSv(row.getRowIndex(), sv);
+            }
+
+            // 2. Thử tên chuẩn hóa
+            if (row.getHoTen() != null && !row.getHoTen().isBlank()) {
+                String normHoTen = normalizeVietnamese(row.getHoTen());
+                List<SinhVien> candidates = byNormName.getOrDefault(normHoTen, List.of());
+
+                // Thu hẹp theo lớp nếu có
+                if (row.getTenLop() != null && !row.getTenLop().isBlank()) {
+                    String normLop = row.getTenLop().trim().toUpperCase();
+                    List<SinhVien> filtered = candidates.stream()
+                            .filter(sv -> sv.getLop() != null && (
+                                    sv.getLop().getMaLop().toUpperCase().equals(normLop) ||
+                                    sv.getLop().getTenLop().toUpperCase().contains(normLop) ||
+                                    normLop.contains(sv.getLop().getMaLop().toUpperCase())
+                            ))
+                            .collect(Collectors.toList());
+                    if (!filtered.isEmpty()) candidates = filtered;
+                }
+
+                if (candidates.size() == 1) {
+                    return ClbImportMatchDTO.matchedByName(row.getRowIndex(), candidates.get(0), row);
+                } else if (candidates.size() > 1) {
+                    return ClbImportMatchDTO.ambiguous(row.getRowIndex(), row, candidates.size());
+                }
+            }
+
+            return ClbImportMatchDTO.notFound(row.getRowIndex(), row);
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Chuẩn hóa tên tiếng Việt: xóa dấu, chữ thường, loại ký tự đặc biệt.
+     */
+    public static String normalizeVietnamese(String s) {
+        if (s == null || s.isBlank()) return "";
+        // Xử lý "đ" trước (không phân tách được bằng NFD)
+        String r = s.trim().toLowerCase()
+                .replace("đ", "d");
+        r = java.text.Normalizer.normalize(r, java.text.Normalizer.Form.NFD);
+        r = r.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        return r.replaceAll("[^a-z0-9 ]", "").replaceAll("\\s+", " ").trim();
+    }
 }

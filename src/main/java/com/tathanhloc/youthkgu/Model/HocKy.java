@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -45,6 +46,16 @@ public class HocKy {
     @Column(name = "is_current")
     @Builder.Default
     private Boolean isCurrent = false;
+
+    @Column(name = "is_clb_locked")
+    @Builder.Default
+    private Boolean isClbLocked = false;
+
+    @Column(name = "clb_locked_at")
+    private LocalDateTime clbLockedAt;
+
+    @Column(name = "clb_locked_by")
+    private String clbLockedBy;
 
     // Quan hệ với NamHoc thông qua bảng trung gian
     @OneToMany(mappedBy = "hocKy", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

@@ -80,6 +80,8 @@ public class PermissionService {
                 .laAdmin(laAdmin)
                 .maKhoa(taiKhoan.getKhoa() != null ? taiKhoan.getKhoa().getMaKhoa() : null)
                 .tenKhoa(taiKhoan.getKhoa() != null ? taiKhoan.getKhoa().getTenKhoa() : null)
+                .maClb(taiKhoan.getClb() != null ? taiKhoan.getClb().getMaClb() : null)
+                .tenClb(taiKhoan.getClb() != null ? taiKhoan.getClb().getTenClb() : null)
                 .quyenTongHop(quyenTongHop)
                 .quyenIds(new HashSet<>(quyenIds))
                 .build();

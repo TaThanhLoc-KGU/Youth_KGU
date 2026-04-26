@@ -98,6 +98,17 @@ export const PERMISSIONS = {
   // ─── KY_SO (id 59) ────────────────────────────────────────────────────────
   KY_SO_PDF:                        'KY_SO_PDF',                      // 59
 
+  // ─── CLB (id 60-63, 77-79) ─────────────────────────────────────────────────
+  XEM_CLB:                         'XEM_CLB',                        // 60
+  THEM_CLB:                        'THEM_CLB',                       // 61
+  SUA_CLB:                         'SUA_CLB',                        // 62
+  XOA_CLB:                         'XOA_CLB',                        // 63
+  QUAN_LY_CLB:                     'QUAN_LY_CLB',                    // 75 – Tạo/sửa/xóa CLB
+  QUAN_LY_THANH_VIEN_CLB:          'QUAN_LY_THANH_VIEN_CLB',         // 76 – Quản lý thành viên CLB
+  DUYET_THANH_VIEN_CLB:            'DUYET_THANH_VIEN_CLB',           // 77 – Duyệt đơn đăng ký CLB
+  CAU_HINH_CLB:                    'CAU_HINH_CLB',                   // 78 – Cấu hình CLB
+  DANG_KY_CLB:                     'DANG_KY_CLB',                    // 79 – Sinh viên đăng ký CLB
+
   // ─── CUOC_THI (Competition & Voting) ─────────────────────────────────────
   QUAN_LY_CUOC_THI:                'QUAN_LY_CUOC_THI',
   TAO_CUOC_THI:                    'TAO_CUOC_THI',
@@ -190,22 +201,30 @@ export const ACTIVITY_TYPE_LABELS = {
   [ACTIVITY_TYPES.KHAC]: 'Khác',
 };
 
-// Activity Levels
+// Activity Levels — PHẢI khớp với CapDoEnum.java ở backend
 export const ACTIVITY_LEVELS = {
-  TRUONG: 'TRUONG',
-  KHOA: 'KHOA',
-  TINH_THANH: 'TINH_THANH',
-  QUOC_GIA: 'QUOC_GIA',
-  QUOC_TE: 'QUOC_TE',
+  DOAN_TRUONG:        'DOAN_TRUONG',
+  HOI_SINH_VIEN:      'HOI_SINH_VIEN',
+  TRUONG:             'TRUONG',
+  PHONG:              'PHONG',
+  KHOA:               'KHOA',
+  CHI_DOAN:           'CHI_DOAN',
+  BAN_DOI_CLB:        'BAN_DOI_CLB',
+  TINH_DOAN:          'TINH_DOAN',
+  HOAT_DONG_PHOI_HOP: 'HOAT_DONG_PHOI_HOP',
 };
 
 // Activity Level Labels
 export const ACTIVITY_LEVEL_LABELS = {
-  [ACTIVITY_LEVELS.TRUONG]: 'Cấp trường',
-  [ACTIVITY_LEVELS.KHOA]: 'Cấp khoa',
-  [ACTIVITY_LEVELS.TINH_THANH]: 'Cấp tỉnh/thành',
-  [ACTIVITY_LEVELS.QUOC_GIA]: 'Cấp quốc gia',
-  [ACTIVITY_LEVELS.QUOC_TE]: 'Cấp quốc tế',
+  [ACTIVITY_LEVELS.DOAN_TRUONG]:        'Đoàn trường',
+  [ACTIVITY_LEVELS.HOI_SINH_VIEN]:      'Hội sinh viên',
+  [ACTIVITY_LEVELS.TRUONG]:             'Trường',
+  [ACTIVITY_LEVELS.PHONG]:              'Phòng',
+  [ACTIVITY_LEVELS.KHOA]:               'Khoa',
+  [ACTIVITY_LEVELS.CHI_DOAN]:           'Chi đoàn',
+  [ACTIVITY_LEVELS.BAN_DOI_CLB]:        'Ban - Đội - CLB',
+  [ACTIVITY_LEVELS.TINH_DOAN]:          'Tỉnh đoàn',
+  [ACTIVITY_LEVELS.HOAT_DONG_PHOI_HOP]: 'Hoạt động phối hợp',
 };
 
 // Attendance Status
@@ -259,14 +278,18 @@ export const ROUTES = {
   ADMIN_CHUYENVIEN: '/admin/chuyenvien',
   ADMIN_CHUC_VU: '/admin/chuc-vu',
   ADMIN_BAN: '/admin/ban',
+  ADMIN_CAU_LAC_BO: '/admin/cau-lac-bo',
   ADMIN_ATTENDANCE: '/admin/attendance',
   ADMIN_CERTIFICATES: '/admin/certificates',
   ADMIN_STATISTICS: '/admin/statistics',
   ADMIN_SETTINGS: '/admin/settings',
   ADMIN_PHAN_QUYEN: '/admin/phan-quyen',
+  ADMIN_PHAN_QUYEN_CLB: '/admin/phan-quyen-clb',
+  ADMIN_CLB_PORTAL:     '/admin/clb-portal',
   ADMIN_ACCOUNTS: '/admin/accounts',
   ADMIN_ACCOUNT_STATISTICS: '/admin/account-statistics',
   ADMIN_SYSTEM_LOG: '/admin/system-log',
+  ADMIN_NAM_HOC: '/admin/nam-hoc',
 
   // User routes
   PROFILE: '/profile',
@@ -281,6 +304,7 @@ export const ROUTES = {
   STUDENT_REGISTER_ACTIVITIES: '/student/register-activities',
   STUDENT_MY_ACTIVITIES: '/student/my-activities',
   STUDENT_TRAINING_POINTS: '/student/training-points',
+  STUDENT_CLB_REGISTRATION: '/student/clb-registration',
 
   // BCH routes
   BCH: '/bch',

@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -33,6 +34,11 @@ public class HocKyDTO {
     private String maNamHoc;
     private String tenNamHoc;
     private Integer thuTu; // Thứ tự trong năm học
+
+    // CLB lock fields
+    private Boolean isClbLocked;
+    private LocalDateTime clbLockedAt;
+    private String clbLockedBy;
 
     // Computed fields
     private String trangThai;

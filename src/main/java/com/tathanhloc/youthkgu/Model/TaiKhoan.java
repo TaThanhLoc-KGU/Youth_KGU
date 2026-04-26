@@ -94,6 +94,23 @@ public class TaiKhoan {
     @JoinColumn(name = "ma_khoa")
     private Khoa khoa; // null = Đoàn trường (không giới hạn), non-null = cán bộ cấp Khoa
 
+    /**
+     * CLB scope: null = không giới hạn, non-null = chỉ quản lý CLB này.
+     * Tương tự maKhoa nhưng dành cho BCH/chủ nhiệm CLB.
+     */
+    @ManyToOne
+    @JoinColumn(name = "ma_clb")
+    private CauLacBo clb; // null = không giới hạn, non-null = chỉ quản lý CLB này
+
+    /**
+     * Danh sách CLB mà tài khoản được phép quản lý.
+     * Lưu dạng JSON array string: "[\"CLB001\", \"CLB002\", ...]"
+     * Dùng cho phân quyền cấp CLB - mỗi BCH chỉ quản lý CLB được gán.
+     */
+    @Column(name = "managed_clb_ids", columnDefinition = "JSON DEFAULT '[]'")
+    @Builder.Default
+    private String managedClbIds = "[]";
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

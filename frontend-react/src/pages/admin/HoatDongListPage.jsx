@@ -76,9 +76,12 @@ const ActivityListItem = ({ activity, onViewParticipants }) => {
 
               {/* Meta: ngày & địa điểm */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 flex-wrap">
                   <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                  {formatDate(activity.ngayToChuc)}
+                  {activity.isMultiDay
+                    ? <><span className="font-medium text-indigo-600">{formatDate(activity.ngayToChuc)}</span><span className="text-gray-400">→</span><span className="font-medium text-indigo-600">{formatDate(activity.ngayKetThuc)}</span><span className="px-1 rounded bg-indigo-50 text-indigo-600 text-[10px]">{activity.soNgay}N</span></>
+                    : formatDate(activity.ngayToChuc)
+                  }
                   {activity.thoiGianBatDau && (
                     <span className="text-gray-400">
                       {' '}· {activity.thoiGianBatDau?.slice(0, 5)}
@@ -319,9 +322,12 @@ const HoatDongListPage = () => {
                 {selectedActivity.tenHoatDong}
               </h3>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-indigo-700">
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 flex-wrap">
                   <Calendar className="w-4 h-4" />
-                  {formatDate(selectedActivity.ngayToChuc)}
+                  {selectedActivity.isMultiDay
+                    ? <>{formatDate(selectedActivity.ngayToChuc)} <span className="text-indigo-400">→</span> {formatDate(selectedActivity.ngayKetThuc)} <span className="px-1.5 rounded bg-indigo-200 text-indigo-800 text-xs font-semibold">{selectedActivity.soNgay} ngày</span></>
+                    : formatDate(selectedActivity.ngayToChuc)
+                  }
                 </span>
                 {selectedActivity.diaDiem && (
                   <span className="flex items-center gap-1">

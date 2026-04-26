@@ -55,4 +55,24 @@ public class KhoaScopeService {
     public boolean isKhoaScoped() {
         return getCurrentMaKhoa() != null;
     }
+
+    /**
+     * Trả về maClb của user đang đăng nhập.
+     * null  = không phải tài khoản CLB (không giới hạn theo CLB).
+     * non-null = tài khoản CLB, chỉ được thao tác dữ liệu của CLB đó.
+     */
+    @Transactional(readOnly = true)
+    public String getCurrentMaClb() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()
+                || "anonymousUser".equals(auth.getPrincipal())) {
+            return null;
+        }
+        return taiKhoanRepository.findMaClbByUsername(auth.getName()).orElse(null);
+    }
+
+    /** true nếu user hiện tại bị giới hạn theo CLB */
+    public boolean isClbScoped() {
+        return getCurrentMaClb() != null;
+    }
 }

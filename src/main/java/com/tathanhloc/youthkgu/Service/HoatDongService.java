@@ -36,6 +36,7 @@ public class HoatDongService {
     private final DangKyHoatDongRepository dangKyRepository;
     private final DiemDanhHoatDongRepository diemDanhRepository;
     private final NamHocRepository namHocRepository;
+    private final CauLacBoRepository cauLacBoRepository;
     private final DiemRenLuyenCriteriaService criteriaService;
     private final NotificationService notificationService;
     private final KhoaScopeService khoaScopeService;
@@ -47,9 +48,13 @@ public class HoatDongService {
         log.debug("Getting all active activities");
         
         String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        String maClb  = khoaScopeService.getCurrentMaClb();
         List<HoatDong> list;
 
-        if (maKhoa != null) {
+        if (maClb != null) {
+            // Tài khoản CLB: chỉ thấy hoạt động của CLB mình
+            list = hoatDongRepository.findByCauLacBoMaClbOrderByNgayToChucDesc(maClb);
+        } else if (maKhoa != null) {
             // Cán bộ khoa thấy: hoạt động của khoa mình + hoạt động cấp trường (khoa = null)
             list = hoatDongRepository.findByKhoaScopeOrGlobal(maKhoa);
         } else {
@@ -106,12 +111,19 @@ public class HoatDongService {
         validateDiemRenLuyen(dto);
 
         HoatDong hoatDong = toEntity(dto);
-        
-        // ÉP SCOPE: Nếu người tạo là cán bộ khoa → ép capDo=KHOA và khoa=khoaOfUser
-        String maKhoa = khoaScopeService.getCurrentMaKhoa();
-        if (maKhoa != null) {
-            hoatDong.setCapDo(CapDoEnum.KHOA);
-            khoaRepository.findById(maKhoa).ifPresent(hoatDong::setKhoa);
+
+        // ÉP SCOPE CLB: tài khoản CLB → ép capDo=BAN_DOI_CLB và gán cauLacBo
+        String maClb = khoaScopeService.getCurrentMaClb();
+        if (maClb != null) {
+            hoatDong.setCapDo(CapDoEnum.BAN_DOI_CLB);
+            cauLacBoRepository.findById(maClb).ifPresent(hoatDong::setCauLacBo);
+        } else {
+            // ÉP SCOPE KHOA: cán bộ khoa → ép capDo=KHOA và khoa=khoaOfUser
+            String maKhoa = khoaScopeService.getCurrentMaKhoa();
+            if (maKhoa != null) {
+                hoatDong.setCapDo(CapDoEnum.KHOA);
+                khoaRepository.findById(maKhoa).ifPresent(hoatDong::setKhoa);
+            }
         }
         
         hoatDong.setIsActive(true);
@@ -138,8 +150,13 @@ public class HoatDongService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
 
         // KIỂM TRA SCOPE TRƯỚC KHI CẬP NHẬT
+        String maClb  = khoaScopeService.getCurrentMaClb();
         String maKhoa = khoaScopeService.getCurrentMaKhoa();
-        if (maKhoa != null) {
+        if (maClb != null) {
+            if (existing.getCauLacBo() == null || !existing.getCauLacBo().getMaClb().equals(maClb)) {
+                throw new RuntimeException("Không có quyền sửa hoạt động của CLB khác");
+            }
+        } else if (maKhoa != null) {
             if (existing.getKhoa() == null || !existing.getKhoa().getMaKhoa().equals(maKhoa)) {
                 throw new RuntimeException("Không có quyền sửa hoạt động của khoa khác");
             }
@@ -570,15 +587,21 @@ public class HoatDongService {
         LocalDate today = LocalDate.now();
         LocalTime now = LocalTime.now();
         LocalDate ngayToChuc = hoatDong.getNgayToChuc();
+        // Ngày kết thúc thực sự: dùng ngayKetThuc nếu có, fallback về ngayToChuc
+        LocalDate ngayKetThucThucSu = hoatDong.getNgayKetThuc() != null
+                ? hoatDong.getNgayKetThuc() : ngayToChuc;
 
         if (ngayToChuc != null) {
-            // Past day → DA_KET_THUC
-            if (today.isAfter(ngayToChuc)) {
+            // Trước ngày bắt đầu → SAP_DIEN_RA
+            if (today.isBefore(ngayToChuc)) {
+                // handled below (falls through to DANG_MO_DANG_KY or SAP_DIEN_RA)
+            }
+            // Sau ngày kết thúc → DA_KET_THUC
+            else if (today.isAfter(ngayKetThucThucSu)) {
                 return TrangThaiHoatDongEnum.DA_KET_THUC;
             }
-            // Same day
-            if (today.equals(ngayToChuc)) {
-                // After end time (including checkout window) → DA_KET_THUC
+            // Ngày kết thúc (last day): kiểm tra giờ kết thúc
+            else if (today.equals(ngayKetThucThucSu)) {
                 if (hoatDong.getThoiGianKetThuc() != null) {
                     int allowedCheckout = hoatDong.getThoiGianChoPhepCheckOut() != null
                             ? hoatDong.getThoiGianChoPhepCheckOut() : 30;
@@ -587,14 +610,24 @@ public class HoatDongService {
                         return TrangThaiHoatDongEnum.DA_KET_THUC;
                     }
                 }
-                // After start time → DANG_DIEN_RA (includes checkout window period)
+                // Vẫn trong khoảng thời gian → DANG_DIEN_RA
+                if (hoatDong.getThoiGianBatDau() == null || !now.isBefore(hoatDong.getThoiGianBatDau())
+                        || stored == TrangThaiHoatDongEnum.DANG_DIEN_RA) {
+                    return TrangThaiHoatDongEnum.DANG_DIEN_RA;
+                }
+            }
+            // Ngày bắt đầu (first day): check giờ bắt đầu
+            else if (today.equals(ngayToChuc)) {
                 if (hoatDong.getThoiGianBatDau() != null && !now.isBefore(hoatDong.getThoiGianBatDau())) {
                     return TrangThaiHoatDongEnum.DANG_DIEN_RA;
                 }
-                // BCH manually started before scheduled time → preserve DANG_DIEN_RA
                 if (stored == TrangThaiHoatDongEnum.DANG_DIEN_RA) {
                     return TrangThaiHoatDongEnum.DANG_DIEN_RA;
                 }
+            }
+            // Giữa ngày bắt đầu và ngày kết thúc (multi-day middle days) → DANG_DIEN_RA
+            else if (today.isAfter(ngayToChuc) && today.isBefore(ngayKetThucThucSu)) {
+                return TrangThaiHoatDongEnum.DANG_DIEN_RA;
             }
         }
 
@@ -662,13 +695,26 @@ public class HoatDongService {
 
         long soNguoiDangKy = dangKyRepository.countByHoatDongMaHoatDongAndIsActiveTrue(entity.getMaHoatDong());
 
+        // Tính số ngày và isMultiDay
+        LocalDate ngayKetThuc = entity.getNgayKetThuc();
+        LocalDate ngayToChucEntity = entity.getNgayToChuc();
+        boolean isMultiDay = ngayKetThuc != null && ngayToChucEntity != null
+                && ngayKetThuc.isAfter(ngayToChucEntity);
+        int soNgay = 1;
+        if (isMultiDay) {
+            soNgay = (int) (ngayKetThuc.toEpochDay() - ngayToChucEntity.toEpochDay() + 1);
+        }
+
         return HoatDongDTO.builder()
                 .maHoatDong(entity.getMaHoatDong())
                 .tenHoatDong(entity.getTenHoatDong())
                 .moTa(entity.getMoTa())
                 .loaiHoatDong(entity.getLoaiHoatDong())
                 .capDo(entity.getCapDo())
-                .ngayToChuc(entity.getNgayToChuc())
+                .ngayToChuc(ngayToChucEntity)
+                .ngayKetThuc(ngayKetThuc)
+                .soNgay(soNgay)
+                .isMultiDay(isMultiDay)
                 .gioToChuc(entity.getGioToChuc())
                 .thoiGianBatDau(entity.getThoiGianBatDau())
                 .thoiGianKetThuc(entity.getThoiGianKetThuc())
@@ -698,6 +744,8 @@ public class HoatDongService {
                 .tenKhoa(entity.getKhoa() != null ? entity.getKhoa().getTenKhoa() : null)
                 .maNganh(entity.getNganh() != null ? entity.getNganh().getMaNganh() : null)
                 .tenNganh(entity.getNganh() != null ? entity.getNganh().getTenNganh() : null)
+                .maClb(entity.getCauLacBo() != null ? entity.getCauLacBo().getMaClb() : null)
+                .tenClb(entity.getCauLacBo() != null ? entity.getCauLacBo().getTenClb() : null)
                 .soHocKy(entity.getSoHocKy())
                 .maNamHoc(entity.getNamHoc() != null ? entity.getNamHoc().getMaNamHoc() : null)
                 .tenNamHoc(entity.getNamHoc() != null ? entity.getNamHoc().getTenNamHoc() : null)
@@ -721,6 +769,7 @@ public class HoatDongService {
                 .loaiHoatDong(dto.getLoaiHoatDong())
                 .capDo(dto.getCapDo())
                 .ngayToChuc(dto.getNgayToChuc())
+                .ngayKetThuc(dto.getNgayKetThuc())
                 .gioToChuc(dto.getGioToChuc())
                 .thoiGianBatDau(dto.getThoiGianBatDau())
                 .thoiGianKetThuc(dto.getThoiGianKetThuc())
@@ -765,6 +814,9 @@ public class HoatDongService {
         if (dto.getMaNganh() != null) {
             entity.setNganh(nganhRepository.findById(dto.getMaNganh()).orElse(null));
         }
+        if (dto.getMaClb() != null) {
+            entity.setCauLacBo(cauLacBoRepository.findById(dto.getMaClb()).orElse(null));
+        }
 
         // Xác định Năm học và Học kỳ
         LocalDate activityDate = dto.getNgayToChuc() != null ? dto.getNgayToChuc() : LocalDate.now();
@@ -791,6 +843,8 @@ public class HoatDongService {
         if (dto.getLoaiHoatDong() != null) entity.setLoaiHoatDong(dto.getLoaiHoatDong());
         if (dto.getCapDo() != null) entity.setCapDo(dto.getCapDo());
         if (dto.getNgayToChuc() != null) entity.setNgayToChuc(dto.getNgayToChuc());
+        // ngayKetThuc: cập nhật kể cả khi null (để xoá multi-day → single-day)
+        entity.setNgayKetThuc(dto.getNgayKetThuc());
         if (dto.getGioToChuc() != null) entity.setGioToChuc(dto.getGioToChuc());
         if (dto.getThoiGianBatDau() != null) entity.setThoiGianBatDau(dto.getThoiGianBatDau());
         if (dto.getThoiGianKetThuc() != null) entity.setThoiGianKetThuc(dto.getThoiGianKetThuc());
@@ -829,6 +883,9 @@ public class HoatDongService {
         }
         if (dto.getMaNganh() != null) {
             entity.setNganh(nganhRepository.findById(dto.getMaNganh()).orElse(null));
+        }
+        if (dto.getMaClb() != null) {
+            entity.setCauLacBo(cauLacBoRepository.findById(dto.getMaClb()).orElse(null));
         }
 
         // Cập nhật Năm học và Học kỳ

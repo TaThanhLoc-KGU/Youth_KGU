@@ -1,8 +1,11 @@
 package com.tathanhloc.youthkgu.Controller;
 
+import com.tathanhloc.youthkgu.DTO.ApiResponse;
 import com.tathanhloc.youthkgu.DTO.ExcelImportPreviewDTO;
 import com.tathanhloc.youthkgu.DTO.SinhVienDTO;
 import com.tathanhloc.youthkgu.DTO.StudentCountDTO;
+import com.tathanhloc.youthkgu.DTO.ClbImportRowDTO;
+import com.tathanhloc.youthkgu.DTO.ClbImportMatchDTO;
 import com.tathanhloc.youthkgu.Service.SinhVienExcelService;
 import com.tathanhloc.youthkgu.Service.SinhVienService;
 import jakarta.validation.Valid;
@@ -421,5 +424,26 @@ public class SinhVienController {
             log.error("Error exporting to Excel", e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // BATCH MATCH — Dùng cho import thành viên CLB từ Excel
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Dò khớp danh sách hàng Excel (MSSV / Họ tên / Lớp) với sinh viên trong DB.
+     * Trả về kết quả match cho từng dòng để frontend hiển thị preview.
+     */
+    @PostMapping("/batch-match")
+    @PreAuthorize("hasPermission(null, 'XEM_CLB') or hasPermission(null, 'QUAN_LY_THANH_VIEN_CLB') or hasPermission(null, 'QUAN_LY_CLB')")
+    public ResponseEntity<ApiResponse<List<ClbImportMatchDTO>>> batchMatch(
+            @RequestBody List<ClbImportRowDTO> rows) {
+        log.info("POST /api/sinhvien/batch-match - {} dòng", rows.size());
+        if (rows.size() > 500) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Tối đa 500 dòng mỗi lần nhập"));
+        }
+        List<ClbImportMatchDTO> results = sinhVienService.batchMatchForClb(rows);
+        return ResponseEntity.ok(ApiResponse.success(results));
     }
 }

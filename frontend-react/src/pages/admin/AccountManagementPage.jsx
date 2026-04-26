@@ -63,10 +63,10 @@ export default function AccountManagementPage() {
   const [approveNote, setApproveNote] = useState('');
   const [createFormData, setCreateFormData] = useState({
     username: '', email: '', password: '', hoTen: '',
-    soDienThoai: '', ngaySinh: '', gioiTinh: '', vaiTro: '', banChuyenMon: '', maKhoa: ''
+    soDienThoai: '', ngaySinh: '', gioiTinh: '', vaiTro: '', banChuyenMon: '', maKhoa: '', maClb: ''
   });
   const [editFormData, setEditFormData] = useState({
-    hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '', maKhoa: ''
+    hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '', maKhoa: '', maClb: ''
   });
   const [createErrors, setCreateErrors] = useState({});
   const [editErrors, setEditErrors] = useState({});
@@ -129,6 +129,12 @@ export default function AccountManagementPage() {
   const { data: khoaList = [] } = useQuery({
     queryKey: ['khoaActive'],
     queryFn: () => api.get('/api/khoa/active').then(r => r.data?.data || r.data || [])
+  });
+
+  const { data: clbList = [] } = useQuery({
+    queryKey: ['clbActiveList'],
+    queryFn: () => api.get('/api/clb', { params: { isActive: true } }).then(r => r.data?.data || r.data || []),
+    staleTime: 5 * 60 * 1000,
   });
 
   // Client-side filtered accounts for the 'all' tab
@@ -233,7 +239,7 @@ export default function AccountManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['pendingAccounts'] });
       setShowEditModal(false);
       setSelectedAccount(null);
-      setEditFormData({ hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '', maKhoa: '' });
+      setEditFormData({ hoTen: '', soDienThoai: '', ngaySinh: '', gioiTinh: '', avatar: '', vaiTro: '', banChuyenMon: '', maKhoa: '', maClb: '' });
       setEditErrors({})
     },
     onError: (error) => {
@@ -287,7 +293,7 @@ export default function AccountManagementPage() {
       hoTen: account.hoTen || '', soDienThoai: account.soDienThoai || '',
       ngaySinh: account.ngaySinh || '', gioiTinh: account.gioiTinh || '',
       avatar: account.avatar || '', vaiTro: account.vaiTro || '',
-      banChuyenMon: account.banChuyenMon || '', maKhoa: account.maKhoa || '',
+      banChuyenMon: account.banChuyenMon || '', maKhoa: account.maKhoa || '', maClb: account.maClb || '',
     });
     setShowEditModal(true);
   };
@@ -755,22 +761,41 @@ export default function AccountManagementPage() {
               </div>
             </div>
 
-            {/* Khoa Scope — chỉ hiện khi vai trò là QUAN_LY */}
+            {/* Scope — chỉ hiện khi vai trò là QUAN_LY */}
             {createFormData.vaiTro === 'QUAN_LY' && (
-              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <label className="block text-sm font-semibold text-amber-900 mb-1">
-                  Phạm vi Khoa <span className="font-normal text-amber-700">(tuỳ chọn)</span>
-                </label>
-                <select name="maKhoa" value={createFormData.maKhoa} onChange={handleCreateFormChange}
-                  className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="">Đoàn trường — không giới hạn khoa</option>
-                  {khoaList.map(k => (
-                    <option key={k.maKhoa} value={k.maKhoa}>{k.tenKhoa}</option>
-                  ))}
-                </select>
-                <p className="mt-1.5 text-xs text-amber-700 italic">
-                  Nếu chọn Khoa, tài khoản này chỉ thấy và quản lý hoạt động của Khoa đó.
-                </p>
+              <div className="mb-4 space-y-3">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <label className="block text-sm font-semibold text-amber-900 mb-1">
+                    Phạm vi Khoa <span className="font-normal text-amber-700">(tuỳ chọn)</span>
+                  </label>
+                  <select name="maKhoa" value={createFormData.maKhoa}
+                    onChange={(e) => { handleCreateFormChange(e); if (e.target.value) setCreateFormData(p => ({ ...p, maClb: '' })); }}
+                    className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <option value="">Đoàn trường — không giới hạn khoa</option>
+                    {khoaList.map(k => (
+                      <option key={k.maKhoa} value={k.maKhoa}>{k.tenKhoa}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-amber-700 italic">
+                    Nếu chọn Khoa, tài khoản này chỉ thấy và quản lý hoạt động của Khoa đó.
+                  </p>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <label className="block text-sm font-semibold text-orange-900 mb-1">
+                    Phạm vi CLB <span className="font-normal text-orange-700">(tuỳ chọn)</span>
+                  </label>
+                  <select name="maClb" value={createFormData.maClb}
+                    onChange={(e) => { handleCreateFormChange(e); if (e.target.value) setCreateFormData(p => ({ ...p, maKhoa: '' })); }}
+                    className="w-full px-3 py-2 border border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    <option value="">Không giới hạn CLB</option>
+                    {clbList.map(c => (
+                      <option key={c.maClb} value={c.maClb}>{c.tenClb}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-orange-700 italic">
+                    Nếu chọn CLB, tài khoản này chỉ quản lý CLB đó (tự động vào portal CLB khi đăng nhập).
+                  </p>
+                </div>
               </div>
             )}
 
@@ -1019,20 +1044,39 @@ export default function AccountManagementPage() {
               </div>
             </div>
             {editFormData.vaiTro === 'QUAN_LY' && (
-              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <label className="block text-sm font-semibold text-amber-800 mb-2">
-                  Phạm vi Khoa <span className="font-normal text-amber-700">(tuỳ chọn)</span>
-                </label>
-                <select name="maKhoa" value={editFormData.maKhoa} onChange={handleEditFormChange}
-                  className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="">Đoàn trường — không giới hạn khoa</option>
-                  {khoaList.map(k => (
-                    <option key={k.maKhoa} value={k.maKhoa}>{k.tenKhoa}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-amber-600 mt-1">
-                  Chọn khoa để giới hạn tài khoản này chỉ quản lý dữ liệu của khoa đó.
-                </p>
+              <div className="mt-4 space-y-3">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <label className="block text-sm font-semibold text-amber-800 mb-2">
+                    Phạm vi Khoa <span className="font-normal text-amber-700">(tuỳ chọn)</span>
+                  </label>
+                  <select name="maKhoa" value={editFormData.maKhoa}
+                    onChange={(e) => { handleEditFormChange(e); if (e.target.value) setEditFormData(p => ({ ...p, maClb: '' })); }}
+                    className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <option value="">Đoàn trường — không giới hạn khoa</option>
+                    {khoaList.map(k => (
+                      <option key={k.maKhoa} value={k.maKhoa}>{k.tenKhoa}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-amber-600 mt-1">
+                    Chọn khoa để giới hạn tài khoản này chỉ quản lý dữ liệu của khoa đó.
+                  </p>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <label className="block text-sm font-semibold text-orange-800 mb-2">
+                    Phạm vi CLB <span className="font-normal text-orange-700">(tuỳ chọn)</span>
+                  </label>
+                  <select name="maClb" value={editFormData.maClb}
+                    onChange={(e) => { handleEditFormChange(e); if (e.target.value) setEditFormData(p => ({ ...p, maKhoa: '' })); }}
+                    className="w-full px-3 py-2 border border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    <option value="">Không giới hạn CLB</option>
+                    {clbList.map(c => (
+                      <option key={c.maClb} value={c.maClb}>{c.tenClb}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-orange-600 mt-1">
+                    Chọn CLB để tài khoản này chỉ quản lý CLB đó (tự động vào portal CLB khi đăng nhập).
+                  </p>
+                </div>
               </div>
             )}
             <div className="flex gap-3 justify-end mt-4">

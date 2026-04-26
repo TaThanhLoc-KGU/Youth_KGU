@@ -20,6 +20,8 @@ const useAuthStore = create(
       laAdmin: false,    // true = QUAN_LY có toàn quyền
       maKhoa: null,      // null = Đoàn trường (không giới hạn), non-null = chỉ khoa này
       tenKhoa: null,     // Tên khoa hiển thị (VD: "Khoa Công nghệ Thông tin")
+      maClb: null,       // null = không giới hạn, non-null = chỉ quản lý CLB này
+      tenClb: null,      // Tên CLB hiển thị (VD: "CLB Lập trình")
       loginTime: null,   // Timestamp lúc đăng nhập (ms) — dùng cho session timeout
 
       // Login
@@ -32,6 +34,8 @@ const useAuthStore = create(
           let laAdmin = false;
           let maKhoa = null;
           let tenKhoa = null;
+          let maClb = null;
+          let tenClb = null;
 
           try {
             const permData = await permissionService.getMyPermissions();
@@ -39,6 +43,8 @@ const useAuthStore = create(
             laAdmin = permData?.laAdmin || false;
             maKhoa = permData?.maKhoa || null;
             tenKhoa = permData?.tenKhoa || null;
+            maClb = permData?.maClb || null;
+            tenClb = permData?.tenClb || null;
 
             // Merge hoTen nếu login response không có
             if (permData?.hoTen && !data.user.hoTen) {
@@ -56,6 +62,8 @@ const useAuthStore = create(
             laAdmin,
             maKhoa,
             tenKhoa,
+            maClb,
+            tenClb,
             loginTime: Date.now(),
           });
 
@@ -83,6 +91,8 @@ const useAuthStore = create(
           laAdmin: false,
           maKhoa: null,
           tenKhoa: null,
+          maClb: null,
+          tenClb: null,
           loginTime: null,
         });
         localStorage.removeItem('accessToken');
@@ -117,6 +127,8 @@ const useAuthStore = create(
             laAdmin: permData?.laAdmin || false,
             maKhoa: permData?.maKhoa || null,
             tenKhoa: permData?.tenKhoa || null,
+            maClb: permData?.maClb || null,
+            tenClb: permData?.tenClb || null,
           });
         } catch (e) {
           console.warn('Không thể làm mới quyền:', e);
@@ -176,6 +188,19 @@ const useAuthStore = create(
         if (!maKhoa) return null;
         return { maKhoa, tenKhoa };
       },
+
+      // true nếu tài khoản bị giới hạn phạm vi theo CLB
+      isClbScoped: () => {
+        const { maClb } = get();
+        return !!maClb;
+      },
+
+      // Trả về { maClb, tenClb } của tài khoản, hoặc null nếu không có scope
+      getClbScope: () => {
+        const { maClb, tenClb } = get();
+        if (!maClb) return null;
+        return { maClb, tenClb };
+      },
     }),
     {
       name: 'auth-storage',
@@ -186,6 +211,8 @@ const useAuthStore = create(
         laAdmin: state.laAdmin,
         maKhoa: state.maKhoa,
         tenKhoa: state.tenKhoa,
+        maClb: state.maClb,
+        tenClb: state.tenClb,
         loginTime: state.loginTime,
       }),
     }

@@ -21,6 +21,7 @@ export const CAP_DO = {
   PHONG:              { value: 'PHONG',              label: 'Phòng',                color: '#8B5CF6' },
   KHOA:               { value: 'KHOA',               label: 'Khoa',                 color: '#EF4444' },
   CHI_DOAN:           { value: 'CHI_DOAN',           label: 'Chi đoàn',             color: '#6366F1' },
+  BAN_DOI_CLB:        { value: 'BAN_DOI_CLB',        label: 'Ban - Đội - CLB',      color: '#F97316' },
   TINH_DOAN:          { value: 'TINH_DOAN',          label: 'Tỉnh đoàn',            color: '#EC4899' },
   HOAT_DONG_PHOI_HOP: { value: 'HOAT_DONG_PHOI_HOP', label: 'Hoạt động phối hợp',  color: '#6B7280' },
 };

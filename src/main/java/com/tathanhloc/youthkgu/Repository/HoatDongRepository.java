@@ -31,6 +31,12 @@ public interface HoatDongRepository extends JpaRepository<HoatDong, String> {
     List<HoatDong> findByKhoaMaKhoa(String maKhoa);
     Page<HoatDong> findByKhoaMaKhoaAndIsActive(String maKhoa, Boolean isActive, Pageable pageable);
     List<HoatDong> findByNganhMaNganh(String maNganh);
+    
+    // CLB (Câu Lạc Bộ) related queries
+    List<HoatDong> findByCauLacBoMaClbOrderByNgayToChucDesc(String maClb);
+    
+    @Query("SELECT hd FROM HoatDong hd WHERE hd.cauLacBo.maClb = :maClb AND hd.namHoc.maNamHoc = :maNamHoc ORDER BY hd.ngayToChuc DESC")
+    List<HoatDong> findByCauLacBoMaClbAndNamHoc(@Param("maClb") String maClb, @Param("maNamHoc") String maNamHoc);
 
     /**
      * Khoa-scope: trả về hoạt động của khoa đó + hoạt động cấp trường (khoa = null).

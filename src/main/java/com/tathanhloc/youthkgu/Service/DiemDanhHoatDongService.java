@@ -396,11 +396,15 @@ public class DiemDanhHoatDongService {
                 ? LocalDateTime.of(hoatDong.getNgayToChuc(), hoatDong.getThoiGianBatDau())
                 : LocalDateTime.of(hoatDong.getNgayToChuc(), LocalTime.of(0, 0));
 
+        // Ngày kết thúc thực sự: dùng ngayKetThuc nếu multi-day, fallback về ngayToChuc
+        java.time.LocalDate ngayKetThucThucSu = hoatDong.getNgayKetThuc() != null
+                ? hoatDong.getNgayKetThuc() : hoatDong.getNgayToChuc();
+
         LocalDateTime checkOutTime;
         if (Boolean.TRUE.equals(hoatDong.getKetThucSom()) && hoatDong.getThoiGianKetThucThucTe() != null) {
             checkOutTime = hoatDong.getThoiGianKetThucThucTe();
         } else if (hoatDong.getThoiGianKetThuc() != null) {
-            checkOutTime = LocalDateTime.of(hoatDong.getNgayToChuc(), hoatDong.getThoiGianKetThuc());
+            checkOutTime = LocalDateTime.of(ngayKetThucThucSu, hoatDong.getThoiGianKetThuc());
         } else {
             checkOutTime = LocalDateTime.now();
         }
@@ -545,8 +549,11 @@ public class DiemDanhHoatDongService {
             return !nowDt.isBefore(earlyEnd) && nowDt.isBefore(deadline);
         }
 
-        // Normal end: same day (hoặc đang diễn ra sớm), after thoiGianKetThuc, within window
-        boolean onEventDay = today.equals(hoatDong.getNgayToChuc())
+        // Normal end: same day / last day của multi-day / đang diễn ra, after thoiGianKetThuc, within window
+        java.time.LocalDate ngayKetThucHD = hoatDong.getNgayKetThuc() != null
+                ? hoatDong.getNgayKetThuc() : hoatDong.getNgayToChuc();
+        boolean onEventDay = today.equals(ngayKetThucHD)
+                || (hoatDong.getNgayToChuc() != null && !today.isBefore(hoatDong.getNgayToChuc()) && !today.isAfter(ngayKetThucHD))
                 || hoatDong.getTrangThai() == TrangThaiHoatDongEnum.DANG_DIEN_RA;
         if (onEventDay && hoatDong.getThoiGianKetThuc() != null) {
             if (now.isAfter(hoatDong.getThoiGianKetThuc())) {

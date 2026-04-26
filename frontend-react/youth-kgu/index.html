@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Tuổi trẻ KGU" />
+    <title>Tuổi trẻ KGU - Đoàn Thanh niên Trường Đại học Kiên Giang</title>
+    <meta name="description" content="Trang tin tức, hoạt động Đoàn - Hội của Trường Đại học Kiên Giang" />
+    <meta name="keywords" content="Tuổi trẻ KGU, Đoàn KGU, Kiên Giang, sinh viên, hoạt động Đoàn" />
+    <meta property="og:title" content="Tuổi trẻ KGU" />
+    <meta property="og:description" content="Trang tin tức, hoạt động Đoàn - Hội của Trường Đại học Kiên Giang" />
+    <meta property="og:url" content="https://tuoitre.vnkgu.edu.vn" />
+    <meta property="og:type" content="website" />
+    <script type="module" crossorigin src="/assets/index-CIB8SqPg.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-pNZuoOs3.css">
+  </head>
+  <body>
+    <div id="root">
+      <!-- Màn hình chào tĩnh (Hiện ngay lập tức trước khi React kịp load) -->
+      <style>
+        .initial-loader {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background-color: #f9fafb;
+          z-index: 9999;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .loader-logo {
+          width: 80px;
+          height: 80px;
+          margin-bottom: 20px;
+          animation: pulse 2s infinite ease-in-out;
+        }
+        .loader-spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid #e5e7eb;
+          border-top: 3px solid #2563eb;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        .loader-text {
+          margin-top: 16px;
+          color: #4b5563;
+          font-size: 14px;
+          font-weight: 500;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.1); opacity: 0.8; }
+        }
+      </style>
+      <div class="initial-loader">
+        <img src="https://upload.wikimedia.org/wikipedia/vi/0/09/Huy_Hi%E1%BB%87u_%C4%90o%C3%A0n.png" class="loader-logo" alt="Logo">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Đang khởi động hệ thống...</div>
+      </div>
+    </div>
+  </body>
+</html>

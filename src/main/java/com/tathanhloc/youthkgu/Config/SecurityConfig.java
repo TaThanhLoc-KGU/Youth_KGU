@@ -59,6 +59,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/binh-chon/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        // Webhook ngân hàng (Casso/SePay) — gọi từ ngoài, không có JWT
+                        .requestMatchers(HttpMethod.POST, "/api/clb/webhook/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/permissions/me").authenticated()
                         .anyRequest().authenticated()
                 )

@@ -1,104 +1,86 @@
-# =====================================================
-# deploy.ps1 - Script tự động build và deploy Youth KGU
-# Chạy: .\deploy.ps1
-# Chạy chỉ backend: .\deploy.ps1 -Backend
-# Chạy chỉ frontend: .\deploy.ps1 -Frontend
-# =====================================================
-
 param(
     [switch]$Backend,
     [switch]$Frontend
 )
 
-# Nếu không truyền tham số → deploy cả 2
 if (-not $Backend -and -not $Frontend) {
     $Backend  = $true
     $Frontend = $true
 }
 
-# ===== CONFIG =====
-$PROJECT_DIR  = "D:\Youth_KGU"
-$SSH_KEY      = "$env:USERPROFILE\.ssh\youth-kgu-key"
-$REMOTE_USER  = "thanhlocta2408"
-$REMOTE_HOST  = "34.10.108.252"
-$REMOTE       = "${REMOTE_USER}@${REMOTE_HOST}"
-$SSH          = "ssh -i `"$SSH_KEY`" -o StrictHostKeyChecking=no"
-$SCP          = "scp -i `"$SSH_KEY`" -o StrictHostKeyChecking=no"
-# ==================
-
 $ErrorActionPreference = "Stop"
 $startTime = Get-Date
 
-function Log-Step($msg) { Write-Host "`n===== $msg =====" -ForegroundColor Cyan }
-function Log-OK($msg)   { Write-Host "[OK] $msg" -ForegroundColor Green }
-function Log-Error($msg){ Write-Host "[ERROR] $msg" -ForegroundColor Red; exit 1 }
+# ===== CONFIG =====
+$SRV      = "Dieukhientuxa@123.22.30.72"
+$PORT     = "32156"
+$SP       = "Vnkgu@Qtcsvc@2026"
+$PROJ     = "D:\Youth_KGU"
+$BE_DIR   = "/opt/youth-kgu/backend"
+$FE_DIR   = "/www/wwwroot/youth-kgu"
+# ==================
 
-Set-Location $PROJECT_DIR
+Set-Location $PROJ
 
-# ─── BACKEND ───
+# ─── BACKEND ──────────────────────────────────────────────────────────────
 if ($Backend) {
-    Log-Step "1/5  Build backend (Maven)"
+    Write-Host "`n===== Build backend =====" -ForegroundColor Cyan
     mvn clean package -DskipTests -q
-    if ($LASTEXITCODE -ne 0) { Log-Error "Maven build that bai" }
-    Log-OK "Maven build thanh cong"
+    if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Maven that bai" -ForegroundColor Red; exit 1 }
 
-    Log-Step "2/5  Upload JAR len server"
-    $JAR = "$PROJECT_DIR\target\youth-kgu-0.0.1-SNAPSHOT.jar"
-    Invoke-Expression "$SCP `"$JAR`" ${REMOTE}:/home/${REMOTE_USER}/youth-kgu-0.0.1-SNAPSHOT.jar"
-    if ($LASTEXITCODE -ne 0) { Log-Error "Upload JAR that bai" }
-    Log-OK "Upload JAR thanh cong"
+    Write-Host "`n===== Upload JAR =====" -ForegroundColor Cyan
+    $JAR = "$PROJ\target\youth-kgu-0.0.1-SNAPSHOT.jar"
+    scp -P $PORT $JAR "${SRV}:youth-kgu-0.0.1-SNAPSHOT.jar"
+    if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Upload JAR that bai" -ForegroundColor Red; exit 1 }
 }
 
-# ─── FRONTEND ───
+# ─── FRONTEND ─────────────────────────────────────────────────────────────
 if ($Frontend) {
-    Log-Step "3/5  Build frontend (npm)"
-    Set-Location "$PROJECT_DIR\frontend-react"
+    Write-Host "`n===== Build frontend =====" -ForegroundColor Cyan
+    Set-Location "$PROJ\frontend-react"
     npm run build --silent
-    if ($LASTEXITCODE -ne 0) { Log-Error "npm build that bai" }
-    Log-OK "npm build thanh cong"
+    if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] npm build that bai" -ForegroundColor Red; exit 1 }
+    Set-Location $PROJ
 
-    Log-Step "4/5  Nen va upload dist len server"
-    Compress-Archive -Path dist -DestinationPath "$PROJECT_DIR\dist.zip" -Force
-    Invoke-Expression "$SCP `"$PROJECT_DIR\dist.zip`" ${REMOTE}:/home/${REMOTE_USER}/dist.zip"
-    if ($LASTEXITCODE -ne 0) { Log-Error "Upload dist.zip that bai" }
-    Log-OK "Upload dist.zip thanh cong"
-    Set-Location $PROJECT_DIR
+    Write-Host "`n===== Upload dist =====" -ForegroundColor Cyan
+    Compress-Archive -Path "$PROJ\frontend-react\dist\*" -DestinationPath "$PROJ\dist.zip" -Force
+    scp -P $PORT "$PROJ\dist.zip" "${SRV}:dist.zip"
+    if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Upload dist that bai" -ForegroundColor Red; exit 1 }
+    Remove-Item "$PROJ\dist.zip" -Force
 }
 
-# ─── DEPLOY TREN SERVER ───
-Log-Step "5/5  Deploy tren server"
+# ─── BASH SCRIPT (LF only, UTF-8 no BOM) ─────────────────────────────────
+Write-Host "`n===== Deploy tren server =====" -ForegroundColor Cyan
 
-$lines = [System.Collections.Generic.List[string]]::new()
-$lines.Add("set -e")
+$lines = @("#!/bin/bash")
 
 if ($Backend) {
-    $lines.Add("echo '>>> Cap nhat backend...'")
-    $lines.Add("sudo cp ~/youth-kgu-0.0.1-SNAPSHOT.jar /opt/youth-kgu/backend/app.jar")
-    $lines.Add("sudo chown youthkgu:youthkgu /opt/youth-kgu/backend/app.jar")
+    $lines += "echo '--- Cap nhat backend...'"
+    $lines += "echo '$SP' | sudo -S cp ~/youth-kgu-0.0.1-SNAPSHOT.jar $BE_DIR/app.jar && echo 'OK: copy jar' || echo 'FAIL: copy jar'"
+    $lines += "echo '$SP' | sudo -S chown youthkgu:youthkgu $BE_DIR/app.jar && echo 'OK: chown jar' || echo 'FAIL: chown jar'"
 }
 if ($Frontend) {
-    $lines.Add("echo '>>> Cap nhat frontend...'")
-    $lines.Add("sudo rm -rf /opt/youth-kgu/frontend/dist")
-    $lines.Add("sudo unzip -o ~/dist.zip -d /opt/youth-kgu/frontend/")
-    $lines.Add("sudo chown -R youthkgu:youthkgu /opt/youth-kgu/frontend/")
+    $lines += "echo '--- Cap nhat frontend...'"
+    $lines += "echo '$SP' | sudo -S rm -rf $FE_DIR/* && echo 'OK: xoa cu' || echo 'FAIL: xoa cu'"
+    $lines += "echo '$SP' | sudo -S unzip -o ~/dist.zip -d $FE_DIR/ ; echo 'OK: unzip'"
+    $lines += "echo '$SP' | sudo -S chown -R www:www $FE_DIR/ 2>/dev/null ; echo 'OK: chown'"
 }
 if ($Backend) {
-    $lines.Add("echo '>>> Restart backend...'")
-    $lines.Add("sudo systemctl restart youth-kgu-backend")
-    $lines.Add("sleep 3")
-    $lines.Add("sudo systemctl is-active youth-kgu-backend && echo 'Backend: RUNNING' || echo 'Backend: FAILED'")
+    $lines += "echo '--- Restart backend...'"
+    $lines += "echo '$SP' | sudo -S systemctl restart youth-kgu-backend && echo 'OK: restart' || echo 'FAIL: restart'"
+    $lines += "sleep 3"
+    $lines += "echo '$SP' | sudo -S systemctl is-active youth-kgu-backend && echo 'Backend: RUNNING' || echo 'Backend: FAILED'"
 }
-if ($Frontend) {
-    $lines.Add("echo '>>> Reload nginx...'")
-    $lines.Add("sudo systemctl reload nginx")
-    $lines.Add("echo 'Nginx: OK'")
-}
-$lines.Add("rm -f ~/youth-kgu-0.0.1-SNAPSHOT.jar ~/dist.zip")
-$lines.Add("echo 'Xong!'")
+$lines += "rm -f ~/youth-kgu-0.0.1-SNAPSHOT.jar ~/dist.zip ~/deploy.sh"
+$lines += "echo '=== DONE ==='"
 
-# Pipe script qua stdin để tránh quoting hell
-$lines -join "`n" | & ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no $REMOTE "bash -s"
-if ($LASTEXITCODE -ne 0) { Log-Error "Deploy tren server that bai" }
+$tmp = "$env:TEMP\deploy.sh"
+[System.IO.File]::WriteAllText($tmp, ($lines -join "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
+
+scp -P $PORT $tmp "${SRV}:deploy.sh"
+ssh -p $PORT $SRV "bash ~/deploy.sh"
+
+Remove-Item $tmp -Force -ErrorAction SilentlyContinue
 
 $elapsed = [math]::Round(((Get-Date) - $startTime).TotalSeconds)
-Write-Host "`nDeploy hoan tat sau ${elapsed}s" -ForegroundColor Green
+Write-Host "`nDone! (${elapsed}s)" -ForegroundColor Green

@@ -14,6 +14,7 @@ import com.tathanhloc.youthkgu.Repository.SinhVienRepository;
 import com.tathanhloc.youthkgu.Repository.GiangVienRepository;
 import com.tathanhloc.youthkgu.Repository.ChuyenVienRepository;
 import com.tathanhloc.youthkgu.Repository.KhoaRepository;
+import com.tathanhloc.youthkgu.Repository.CauLacBoRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ public class AccountService {
     private final GiangVienRepository giangVienRepository;
     private final ChuyenVienRepository chuyenVienRepository;
     private final KhoaRepository khoaRepository;
+    private final CauLacBoRepository cauLacBoRepository;
     private final SystemLogService systemLogService;
     private final HttpServletRequest request;
 
@@ -413,6 +415,10 @@ public class AccountService {
             khoaRepository.findById(request.getMaKhoa()).ifPresent(newAccount::setKhoa);
         }
 
+        if (request.getMaClb() != null && !request.getMaClb().isEmpty()) {
+            cauLacBoRepository.findById(request.getMaClb()).ifPresent(newAccount::setClb);
+        }
+
         if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().isEmpty()) {
             Ban ban = banRepository.findById(request.getBanChuyenMon())
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ban chuyên môn: " + request.getBanChuyenMon()));
@@ -493,6 +499,8 @@ public class AccountService {
                 .laAdmin(taiKhoan.getLaAdmin())
                 .maKhoa(taiKhoan.getKhoa() != null ? taiKhoan.getKhoa().getMaKhoa() : null)
                 .tenKhoa(taiKhoan.getKhoa() != null ? taiKhoan.getKhoa().getTenKhoa() : null)
+                .maClb(taiKhoan.getClb() != null ? taiKhoan.getClb().getMaClb() : null)
+                .tenClb(taiKhoan.getClb() != null ? taiKhoan.getClb().getTenClb() : null)
                 .build();
     }
 
@@ -551,6 +559,13 @@ public class AccountService {
         } else {
             // empty string hoặc null → Đoàn trường, xóa ràng buộc khoa
             account.setKhoa(null);
+        }
+
+        if (request.getMaClb() != null && !request.getMaClb().isEmpty()) {
+            account.setClb(cauLacBoRepository.findById(request.getMaClb()).orElse(null));
+        } else {
+            // empty string hoặc null → không giới hạn CLB
+            account.setClb(null);
         }
 
         account.setUpdatedAt(LocalDateTime.now());

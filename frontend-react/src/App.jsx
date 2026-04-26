@@ -26,6 +26,7 @@ import Taikhoan from './pages/admin/Taikhoan';
 import SystemLogPage from './pages/admin/SystemLogPage';
 import SettingsPermissionsPage from './pages/admin/SettingsPermissionsPage';
 import PermissionMatrixPage from './pages/admin/PermissionMatrixPage';
+import ClbPermissionPage from './pages/admin/ClbPermissionPage';
 import AttendanceReport from './pages/admin/AttendanceReport';
 import ChuyenVien from './pages/admin/ChuyenVien';
 import SettingsPage from './pages/admin/SettingsPage';
@@ -86,6 +87,10 @@ import EmailConfigPage      from './pages/admin/EmailConfigPage';
 import BanHanhPublicPage    from './pages/public/BanHanhPublicPage';
 // Ban hành admin
 import AdminBanHanhPage     from './pages/admin/AdminBanHanhPage';
+import NamHocPage           from './pages/admin/NamHocPage';
+import CauLacBoPage        from './pages/admin/CauLacBoPage';
+import ClbPortalPage       from './pages/clb/ClbPortalPage';
+import ClbRegistrationPage from './pages/student/ClbRegistrationPage';
 
 import useAuthStore from './stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from './utils/constants';
@@ -297,6 +302,21 @@ function App() {
               <SystemLogPage />
             </PermissionGate>
           } />
+          <Route path="nam-hoc" element={
+            <PermissionGate permission={PERMISSIONS.XEM_NAM_HOC}>
+              <NamHocPage />
+            </PermissionGate>
+          } />
+          <Route path="cau-lac-bo" element={
+            <PermissionGate permission={PERMISSIONS.XEM_CLB}>
+              <CauLacBoPage />
+            </PermissionGate>
+          } />
+          <Route path="clb-portal" element={
+            <PermissionGate anyOf={[PERMISSIONS.QUAN_LY_CLB, PERMISSIONS.QUAN_LY_THANH_VIEN_CLB]}>
+              <ClbPortalPage />
+            </PermissionGate>
+          } />
           <Route path="attendance" element={
             <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH}>
               <AttendanceReport />
@@ -322,6 +342,12 @@ function App() {
           <Route path="phan-quyen" element={
             <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM}>
               <PermissionMatrixPage />
+            </PermissionGate>
+          } />
+          {/* Phân quyền CLB cho BCH */}
+          <Route path="phan-quyen-clb" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN}>
+              <ClbPermissionPage />
             </PermissionGate>
           } />
           {/* eNews admin routes */}
@@ -408,6 +434,7 @@ function App() {
           <Route path="register-activities" element={<StudentRegisterActivities />} />
           <Route path="my-activities" element={<StudentMyActivities />} />
           <Route path="training-points" element={<StudentTrainingPoints />} />
+          <Route path="clb-registration" element={<ClbRegistrationPage />} />
           <Route path="registrations" element={<ComingSoon title="Đăng ký của tôi" />} />
           <Route path="certificates" element={<ComingSoon title="Chứng nhận" />} />
           {/* VẤN ĐỀ 4: /student/profile redirect về /profile duy nhất */}

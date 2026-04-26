@@ -5,7 +5,7 @@ import {
   Zap, Building, UserCog, UserPlus, BarChart2, ScrollText, QrCode,
   Newspaper, FileText, FolderOpen, LayoutGrid, LayoutTemplate,
   SlidersHorizontal, Megaphone, RectangleHorizontal, Download, User, X,
-  PenLine, Stamp, History, Mail, FileCheck,
+  PenLine, Stamp, History, Mail, FileCheck, GraduationCap, Trophy,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
@@ -37,8 +37,11 @@ const ADMIN_GROUPS = [
       { icon: Briefcase, label: 'Ngành',       path: ROUTES.ADMIN_NGANH,    permission: PERMISSIONS.CAI_DAT_HE_THONG, hideForKhoa: true },
       { icon: BookOpen,  label: 'Lớp',         path: ROUTES.ADMIN_LOP,      permission: PERMISSIONS.CAI_DAT_HE_THONG, hideForKhoa: true },
       { icon: Calendar,  label: 'Khóa học',    path: ROUTES.ADMIN_KHOAHOC,  permission: PERMISSIONS.CAI_DAT_HE_THONG, hideForKhoa: true },
-      { icon: Zap,       label: 'Chức vụ',     path: ROUTES.ADMIN_CHUC_VU,  permission: PERMISSIONS.MANAGE_BCH       },
+      { icon: Zap,       label: 'Chức vụ',     path: ROUTES.ADMIN_CHUC_VU,     permission: PERMISSIONS.MANAGE_BCH       },
       { icon: Building,  label: 'Ban / Đội / CLB', path: ROUTES.ADMIN_BAN,  permission: PERMISSIONS.MANAGE_BCH       },
+      { icon: Trophy,    label: 'CLB / Đội / Nhóm',   path: ROUTES.ADMIN_CAU_LAC_BO,  permission: PERMISSIONS.XEM_CLB },
+      { icon: Users,     label: 'Cổng quản lý CLB',  path: ROUTES.ADMIN_CLB_PORTAL,  anyOf: [PERMISSIONS.QUAN_LY_CLB, PERMISSIONS.QUAN_LY_THANH_VIEN_CLB] },
+      { icon: GraduationCap, label: 'Năm học & Học kỳ', path: ROUTES.ADMIN_NAM_HOC, permission: PERMISSIONS.XEM_NAM_HOC, hideForKhoa: true },
     ],
   },
   {
@@ -93,6 +96,7 @@ const STUDENT_MENU = [
   { icon: Calendar,        label: 'Đăng ký hoạt động', path: ROUTES.STUDENT_REGISTER_ACTIVITIES  },
   { icon: ClipboardCheck,  label: 'Hoạt động của tôi', path: ROUTES.STUDENT_MY_ACTIVITIES        },
   { icon: BarChart3,       label: 'Điểm rèn luyện',    path: ROUTES.STUDENT_TRAINING_POINTS      },
+  { icon: Trophy,          label: 'Đăng ký CLB',       path: ROUTES.STUDENT_CLB_REGISTRATION     },
 ];
 
 const ADMIN_SECTION_PERMS = [
@@ -106,13 +110,15 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.SUA_TIN_TUC, PERMISSIONS.DUYET_TIN_TUC,
   PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
   PERMISSIONS.QUAN_LY_CUOC_THI, PERMISSIONS.TAO_CUOC_THI,
+  PERMISSIONS.XEM_CLB, PERMISSIONS.QUAN_LY_CLB, PERMISSIONS.QUAN_LY_THANH_VIEN_CLB,
 ];
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 const Sidebar = ({ isOpen = false, onClose }) => {
   const location = useLocation();
-  const { user, logout, hasPermission, hasAnyPermission, laAdmin, tenKhoa, maKhoa } = useAuthStore();
+  const { user, logout, hasPermission, hasAnyPermission, laAdmin, tenKhoa, maKhoa, tenClb, maClb } = useAuthStore();
   const isKhoaScoped = !!maKhoa;
+  const isClbScoped = !!maClb;
 
   const isAdmin = laAdmin;
   const showAdminSection = user?.vaiTro === ROLES.QUAN_LY && (laAdmin || hasAnyPermission(ADMIN_SECTION_PERMS));
@@ -160,6 +166,7 @@ const Sidebar = ({ isOpen = false, onClose }) => {
     const visibleItems = group.items.filter((item) =>
       (!item.adminOnly || isAdmin) &&
       (!item.permission || hasPermission(item.permission)) &&
+      (!item.anyOf || hasAnyPermission(item.anyOf)) &&
       !(item.hideForKhoa && isKhoaScoped)
     );
     if (visibleItems.length === 0) return null;
@@ -230,6 +237,11 @@ const Sidebar = ({ isOpen = false, onClose }) => {
                 {tenKhoa && (
                   <span className="text-[10px] text-amber-300 font-semibold truncate leading-tight uppercase tracking-wider">
                     {tenKhoa}
+                  </span>
+                )}
+                {tenClb && (
+                  <span className="text-[10px] text-orange-300 font-semibold truncate leading-tight uppercase tracking-wider">
+                    {tenClb}
                   </span>
                 )}
               </div>
