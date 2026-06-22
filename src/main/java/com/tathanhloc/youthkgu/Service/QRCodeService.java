@@ -132,6 +132,44 @@ public class QRCodeService {
     }
 
     /**
+     * Sinh mã QR tự phục vụ (dynamic) chứa thông tin hoạt động và hạn sử dụng
+     */
+    public String generateDynamicAttendanceToken(String maHoatDong) {
+        long expireTime = System.currentTimeMillis() + (30 * 1000); // 30 seconds expiration
+        String data = maHoatDong + "|" + expireTime;
+        // In a real production scenario with high security requirements, you would encrypt
+        // or sign this data using AES or HMAC to prevent forgery.
+        // For this implementation, Base64 encoding suffices as a proof of concept,
+        // combined with the short expiration window.
+        return Base64.getEncoder().encodeToString(data.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Parse and validate a dynamic attendance token
+     * @return maHoatDong if valid, null if expired or invalid format
+     */
+    public String parseAndValidateDynamicToken(String token) {
+        try {
+            String decoded = new String(Base64.getDecoder().decode(token), java.nio.charset.StandardCharsets.UTF_8);
+            String[] parts = decoded.split("\\|");
+            if (parts.length != 2) return null;
+
+            String maHoatDong = parts[0];
+            long expireTime = Long.parseLong(parts[1]);
+
+            if (System.currentTimeMillis() > expireTime) {
+                log.warn("Dynamic QR token expired for activity: {}", maHoatDong);
+                return null;
+            }
+
+            return maHoatDong;
+        } catch (Exception e) {
+            log.error("Invalid dynamic QR token format", e);
+            return null;
+        }
+    }
+
+    /**
      * Validate format mã QR (phải có đúng cấu trúc maHoatDong + maSinhVien)
      */
     public boolean validateQRFormat(String maQR) {

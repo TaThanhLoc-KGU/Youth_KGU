@@ -90,6 +90,70 @@ const chuyenVienService = {
       throw error;
     }
   },
+
+  // Download Excel template
+  downloadTemplate: async () => {
+    try {
+      const response = await api.get('/api/chuyenvien/excel/template', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'template-chuyen-vien.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      throw error;
+    }
+  },
+
+  // Preview Excel
+  previewExcel: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await api.post('/api/chuyenvien/excel/preview', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data?.data;
+    } catch (error) {
+      console.error('Error previewing excel:', error);
+      throw error;
+    }
+  },
+
+  // Import Excel
+  importExcel: async (data) => {
+    try {
+      const response = await api.post('/api/chuyenvien/excel/import', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error importing excel:', error);
+      throw error;
+    }
+  },
+
+  // Export Excel
+  exportExcel: async () => {
+    try {
+      const response = await api.get('/api/chuyenvien/excel/export', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'danh-sach-chuyen-vien.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exporting excel:', error);
+      throw error;
+    }
+  },
 };
 
 export default chuyenVienService;

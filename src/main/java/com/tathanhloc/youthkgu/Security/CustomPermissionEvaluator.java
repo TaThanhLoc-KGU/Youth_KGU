@@ -25,7 +25,7 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
             return false;
         }
 
-        // ROLE_ADMIN (QUAN_LY + laAdmin=true) luôn có tàn quyền
+        // ROLE_ADMIN (VaiTro.ADMIN) → toàn quyền
         if (authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
             return true;
@@ -36,7 +36,7 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
 
         String permissionName = (String) permission;
 
-        // Cache permissions trong request scope để tránh nhiều lần query DB
+        // Cache permissions trong request scope để tránh N+1 query
         @SuppressWarnings("unchecked")
         Set<String> cachedPerms = (Set<String>) request.getAttribute("USER_PERMISSIONS");
 
@@ -47,7 +47,7 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
                 cachedPerms = (loaded != null) ? loaded : new java.util.HashSet<>();
                 request.setAttribute("USER_PERMISSIONS", cachedPerms);
             } catch (Exception e) {
-                log.error("Error loading permissions for user {}: {}", username, e.getMessage());
+                log.error("Lỗi load permissions cho user {}: {}", username, e.getMessage());
                 return false;
             }
         }

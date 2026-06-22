@@ -1,6 +1,32 @@
 import api from './api';
 
 const authService = {
+  // ─── JWT utilities (không cần gọi server) ───────────────────────────────
+
+  decodeToken: (token) => {
+    if (!token) return null;
+    try {
+      return JSON.parse(atob(token.split('.')[1]));
+    } catch {
+      return null;
+    }
+  },
+
+  isTokenExpired: (token) => {
+    if (!token) return true;
+    const payload = authService.decodeToken(token);
+    if (!payload?.exp) return true;
+    // Thêm 5 giây buffer để tránh race condition
+    return payload.exp * 1000 <= Date.now() + 5000;
+  },
+
+  getTokenExpiry: (token) => {
+    const payload = authService.decodeToken(token);
+    return payload?.exp ? payload.exp * 1000 : null;
+  },
+
+  // ─── Auth API ────────────────────────────────────────────────────────────
+
   // Login
   login: async (credentials) => {
     const response = await api.post('/api/auth/login', credentials);
@@ -65,9 +91,21 @@ const authService = {
     return response.data.data;
   },
 
-  // Check if user is authenticated
+  // Check if user is authenticated (token tồn tại, không cần valid ở đây — checkAuth xử lý)
   isAuthenticated: () => {
     return !!localStorage.getItem('accessToken');
+  },
+
+  // Kiểm tra session còn hợp lệ không (cả access + refresh đều hết → false)
+  isSessionValid: () => {
+    const access  = localStorage.getItem('accessToken');
+    const refresh = localStorage.getItem('refreshToken');
+    if (!access) return false;
+    // Access còn hạn → valid
+    if (!authService.isTokenExpired(access)) return true;
+    // Access hết nhưng refresh còn → có thể tự refresh → vẫn "valid"
+    if (refresh && !authService.isTokenExpired(refresh)) return true;
+    return false;
   },
 
   // Get stored user

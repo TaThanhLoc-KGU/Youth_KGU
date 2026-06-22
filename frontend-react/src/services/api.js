@@ -1,88 +1,117 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-// Get base URL from environment variable or use default
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 30000, // 30 seconds
-  withCredentials: true, // Crucial for Cookie-based sessions
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 30000,
+  withCredentials: true,
 });
 
-// Request interceptor - Add auth token to requests
+// ─── Session expired handler ─────────────────────────────────────────────────
+// Được set từ App.jsx để tránh circular dependency (api → authStore → authService → api)
+let _onSessionExpired = null;
+
+export const registerSessionExpiredHandler = (handler) => {
+  _onSessionExpired = handler;
+};
+
+const handleSessionExpired = () => {
+  // Xóa tokens khỏi localStorage (surgical, không xóa toàn bộ localStorage)
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  localStorage.removeItem('lastActiveTime');
+
+  if (_onSessionExpired) {
+    _onSessionExpired();
+  } else {
+    // Fallback nếu handler chưa được đăng ký
+    window.location.href = '/login?expired=true';
+  }
+};
+
+// ─── Request interceptor ─────────────────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor - Handle errors globally
+// ─── Response interceptor ────────────────────────────────────────────────────
+let _isRefreshing = false;
+let _refreshQueue = []; // requests waiting for token refresh
+
+const processRefreshQueue = (error, token = null) => {
+  _refreshQueue.forEach((p) => {
+    if (error) p.reject(error);
+    else p.resolve(token);
+  });
+  _refreshQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401, not a login request, and not already retrying
-    if (
-      error.response?.status === 401 &&
-      originalRequest.url !== '/api/auth/login' &&
-      !originalRequest._retry
-    ) {
+    // 401 trên login → không refresh, throw thẳng
+    if (originalRequest.url === '/api/auth/login') {
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Nếu đang refresh rồi → xếp hàng chờ
+      if (_isRefreshing) {
+        return new Promise((resolve, reject) => {
+          _refreshQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        });
+      }
+
       originalRequest._retry = true;
+      _isRefreshing = true;
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) throw new Error('No refresh token');
 
-        // Try to refresh token
-        const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
-          refreshToken,
-        });
-
+        const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, { refreshToken });
         const { accessToken, refreshToken: newRefreshToken } = response.data.data;
 
-        // Update tokens
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', newRefreshToken);
 
-        // Retry original request with new token
+        processRefreshQueue(null, accessToken);
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed - logout user completely
-        localStorage.clear(); // Nuclear option
-        window.location.href = '/login?expired=true';
+        processRefreshQueue(refreshError);
+        // Token hết hạn hoàn toàn → buộc logout
+        handleSessionExpired();
         return Promise.reject(refreshError);
+      } finally {
+        _isRefreshing = false;
       }
     }
 
-    // Handle other errors
+    // Lỗi khác — chỉ toast cho lỗi thực sự (không spam 401/403)
     const status = error.response?.status;
-    const errorMessage = error.response?.data?.message || error.message || 'Đã xảy ra lỗi';
-
-    // Không toast cho:
-    //   401 - đã xử lý redirect ở trên
-    //   403 - không có quyền, UI đã ẩn/disable nút bằng hasPermission(); toast ở đây chỉ spam
-    // Chỉ toast cho lỗi thực sự: 400 Bad Request, 404, 5xx, network error
     const shouldToast =
       status !== 401 &&
       status !== 403 &&
-      error.config?.url !== '/api/auth/login';
+      originalRequest.url !== '/api/auth/login';
 
     if (shouldToast) {
-      toast.error(errorMessage);
+      const message = error.response?.data?.message || error.message || 'Đã xảy ra lỗi';
+      toast.error(message);
     }
 
     return Promise.reject(error);
@@ -90,6 +119,4 @@ api.interceptors.response.use(
 );
 
 export default api;
-
-// Export base URL for use in components
 export { API_BASE_URL };

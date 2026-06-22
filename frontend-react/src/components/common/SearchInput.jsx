@@ -41,20 +41,20 @@ const SearchInput = ({
 
   return (
     <div className={clsx('relative', className)}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
       <input
         type="text"
         value={localValue}
         onChange={handleChange}
         placeholder={placeholder}
-        className="form-input pl-10 pr-10"
+        className="form-input h-9 pl-9 pr-8 text-sm"
       />
       {localValue && (
         <button
           onClick={handleClear}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded transition-colors"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
         >
-          <X className="w-4 h-4 text-gray-400" />
+          <X className="w-3.5 h-3.5" />
         </button>
       )}
     </div>

@@ -187,21 +187,30 @@ const StatsBCHWidget = () => {
 // ─── 3. Chart — Activity Trend ────────────────────────────────────────────────
 
 const ChartTrendWidget = () => {
-  const { data = [], isLoading } = useQuery({
-    queryKey: ['dash-trends'],
-    queryFn: dashboardService.getActivityTrends,
-    staleTime: 5 * 60 * 1000,
+  const { data: dashData, isLoading } = useQuery({
+    queryKey: ['dash-hd-stats'],
+    queryFn: dashboardService.getDashboardStats,
+    staleTime: 2 * 60 * 1000,
   });
+
+  // xuHuongTheoThang: [{ thang: "2024-01", soHoatDong: N, ... }]
+  const data = (dashData?.xuHuongTheoThang || []).map((d) => ({
+    name: d.thang ? `T${d.thang.split('-')[1]}` : '—',
+    value: d.soHoatDong || 0,
+  }));
+
   return (
     <WidgetShell>
-      <WidgetHeader title="Xu hướng hoạt động" icon={TrendingUp} />
+      <WidgetHeader title="Xu hướng hoạt động (12 tháng)" icon={TrendingUp} />
       <div className="p-4" style={{ height: 220, minHeight: 220 }}>
-        {isLoading ? <Skeleton className="w-full h-full" /> : (
+        {isLoading ? <Skeleton className="w-full h-full" /> : data.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center pt-16">Chưa có dữ liệu.</p>
+        ) : (
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip formatter={(v) => [v, 'Hoạt động']} />
               <Line
                 type="monotone"
                 dataKey="value"
@@ -221,16 +230,26 @@ const ChartTrendWidget = () => {
 // ─── 4. Chart — By Faculty ────────────────────────────────────────────────────
 
 const ChartFacultyWidget = () => {
-  const { data = [], isLoading } = useQuery({
-    queryKey: ['dash-faculty'],
-    queryFn: dashboardService.getParticipationByFaculty,
-    staleTime: 5 * 60 * 1000,
+  const { data: dashData, isLoading } = useQuery({
+    queryKey: ['dash-hd-stats'],
+    queryFn: dashboardService.getDashboardStats,
+    staleTime: 2 * 60 * 1000,
   });
+
+  // theoKhoa: [{ tenKhoa: "...", tongDiemDanh: N, tyLe: N }]
+  const data = (dashData?.theoKhoa || []).map((d) => ({
+    label: d.tenKhoa || '—',
+    data: d.tongDiemDanh || 0,
+    tyLe: d.tyLe || 0,
+  }));
+
   return (
     <WidgetShell>
-      <WidgetHeader title="Phân bổ theo Khoa" icon={Building2} />
+      <WidgetHeader title="Điểm danh theo Khoa" icon={Building2} />
       <div className="p-4" style={{ height: 220, minHeight: 220 }}>
-        {isLoading ? <Skeleton className="w-full h-full" /> : (
+        {isLoading ? <Skeleton className="w-full h-full" /> : data.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center pt-16">Chưa có dữ liệu.</p>
+        ) : (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data} margin={{ top: 4, right: 8, bottom: 30, left: -20 }}>
               <XAxis
@@ -240,8 +259,8 @@ const ChartFacultyWidget = () => {
                 textAnchor="end"
                 interval={0}
               />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip formatter={(v, n, p) => [v, 'Điểm danh']} />
               <Bar dataKey="data" radius={[4, 4, 0, 0]}>
                 {data.map((_, i) => (
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -307,10 +326,11 @@ const NewsCategoriesWidget = () => {
 // ─── 6. Upcoming Activities ───────────────────────────────────────────────────
 
 const UpcomingActivitiesWidget = () => {
-  const { data: items = [], isLoading } = useQuery({
+  const { data: items = [], isLoading, isError } = useQuery({
     queryKey: ['dash-upcoming'],
-    queryFn: () => dashboardService.getUpcomingActivities(14),
+    queryFn: () => dashboardService.getUpcomingActivities(30),
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
   return (
     <WidgetShell>

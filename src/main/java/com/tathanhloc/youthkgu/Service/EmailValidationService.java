@@ -129,19 +129,10 @@ public class EmailValidationService {
      */
     public String validateEmailWithMessage(String email) {
         if (email == null || email.trim().isEmpty()) {
-            return "Email không được để trống";
+            return ""; // Email không bắt buộc
         }
 
-        if (!email.contains("@")) {
-            return "Email phải chứa ký tự @";
-        }
-
-        String domain = extractDomain(email);
-        if (!VALID_EMAIL_DOMAIN.equalsIgnoreCase(domain)) {
-            return "Email phải sử dụng domain @vnkgu.edu.vn";
-        }
-
-        if (!pattern.matcher(email.toLowerCase()).matches()) {
+        if (!email.contains("@") || !email.contains(".")) {
             return "Định dạng email không hợp lệ";
         }
 

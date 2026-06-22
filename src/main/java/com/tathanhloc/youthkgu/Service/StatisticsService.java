@@ -122,7 +122,7 @@ public class StatisticsService {
         statistics.put("total", totalByRole);
         statistics.put("active", activeByRole);
         statistics.put("inactive", inactiveByRole);
-        statistics.put("nhom", vaiTro == VaiTroEnum.QUAN_LY ? "QUAN_LY" : "THAM_GIA");
+        statistics.put("nhom", vaiTro.isQuanLy() ? "QUAN_LY" : "THAM_GIA");
         statistics.put("toChuc", "HE_THONG");
 
         return statistics;
@@ -190,7 +190,7 @@ public class StatisticsService {
 
         for (VaiTroEnum vaiTro : VaiTroEnum.values()) {
             long count = taiKhoanRepository.countByVaiTroAndIsActiveTrue(vaiTro);
-            if (vaiTro == VaiTroEnum.QUAN_LY) quanLy += count;
+            if (vaiTro.isQuanLy()) quanLy += count;
             else thamGia += count;
         }
 

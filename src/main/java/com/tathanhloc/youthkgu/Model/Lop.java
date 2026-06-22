@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+
 @Entity
 @Table(name = "lop")
 @Data
@@ -35,4 +36,14 @@ public class Lop {
 
     @Column(name = "is_active")
     private boolean isActive;
+
+    /**
+     * Loại bản ghi:
+     *   LOP      — lớp sinh viên thông thường
+     *   CHI_DOAN — chi đoàn (giảng viên, chuyên viên, hoặc chi đoàn sinh viên)
+     * Mặc định: LOP để tương thích ngược.
+     */
+    @Builder.Default
+    @Column(name = "loai", nullable = false, length = 20)
+    private String loai = "LOP";
 }

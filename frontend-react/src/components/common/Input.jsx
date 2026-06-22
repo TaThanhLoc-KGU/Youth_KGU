@@ -33,10 +33,10 @@ const Input = forwardRef(
             ref={ref}
             lang={props.type === 'date' ? 'vi' : undefined}
             className={clsx(
-              'form-input',
+              'form-input h-9',
               LeftIcon && 'pl-10',
               RightIcon && 'pr-10',
-              error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
+              error && '!border-red-400 focus:!border-red-500 focus:!ring-red-500/20',
               className
             )}
             {...props}

@@ -28,7 +28,7 @@ const MapPinIcon = () => (
 );
 
 const NewsFooter = () => (
-  <footer style={{ backgroundColor: '#0d3f52' }} className="text-gray-300 mt-auto">
+  <footer style={{ backgroundColor: '#1a3868' }} className="text-gray-300 mt-auto">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
 

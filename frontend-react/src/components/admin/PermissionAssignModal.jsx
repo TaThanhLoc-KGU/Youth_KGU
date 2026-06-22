@@ -1,85 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Shield, X, Save, Loader2, AlertTriangle, CheckSquare, Square, Wand2, Users } from 'lucide-react';
+import { Shield, X, Save, Loader2, CheckSquare, Square, Info, Lock } from 'lucide-react';
 import permissionService from '../../services/permissionService';
+import { ROLE_LABELS } from '../../constants/accountConstants';
 
-// ─── Preset: Toàn quyền cấp Khoa ──────────────────────────────────────────────
-// Tất cả quyền liên quan hoạt động / điểm danh / BCH / xem sinh viên-lớp /
-// báo cáo / tin tức.
-// KHÔNG bao gồm: quản lý tài khoản, cài đặt hệ thống, nhập liệu danh mục.
-const PRESET_KHOA_ADMIN = [
-  // Hoạt động
-  'XEM_HOAT_DONG', 'TAO_HOAT_DONG', 'SUA_HOAT_DONG', 'XOA_HOAT_DONG',
-  'QUAN_LY_DANG_KY', 'DANG_KY_HOAT_DONG', 'HUY_DANG_KY_HOAT_DONG',
-  // Điểm danh
-  'XEM_DIEM_DANH', 'QUET_QR', 'CHINH_SUA_DIEM_DANH', 'PHAN_CONG_DIEM_DANH', 'XEM_LICH_SU_THAM_GIA',
-  // BCH
-  'XEM_BCH', 'THEM_BCH', 'SUA_BCH', 'XOA_BCH',
-  // Sinh viên / Lớp / Khoa (chỉ xem)
-  'XEM_SINH_VIEN', 'XEM_LOP', 'XEM_KHOA', 'XEM_NGANH',
-  // Giảng viên (xem)
-  'XEM_GIANG_VIEN',
-  // Báo cáo
-  'XEM_BAO_CAO', 'XUAT_BAO_CAO', 'XEM_THONG_KE',
-  // Tin tức cấp khoa
-  'DANG_TIN_TUC', 'SUA_TIN_TUC', 'XOA_TIN_TUC', 'DUYET_TIN_TUC',
-  // Cuộc thi
-  'TAO_CUOC_THI', 'SUA_CUOC_THI', 'XOA_CUOC_THI', 'QUAN_LY_CUOC_THI',
-];
-
-// ─── Preset: BCH cấp Khoa ─────────────────────────────────────────────────────
-// Quyền tối thiểu cho cán bộ BCH khoa: quét QR, điểm danh, xem danh sách.
-const PRESET_BCH_KHOA = [
-  // Hoạt động
-  'XEM_HOAT_DONG', 'DANG_KY_HOAT_DONG', 'HUY_DANG_KY_HOAT_DONG',
-  // Điểm danh
-  'XEM_DIEM_DANH', 'QUET_QR', 'PHAN_CONG_DIEM_DANH', 'XEM_LICH_SU_THAM_GIA',
-  // BCH
-  'XEM_BCH', 'THEM_BCH', 'SUA_BCH',
-  // Sinh viên / Lớp / Khoa (chỉ xem)
-  'XEM_SINH_VIEN', 'XEM_LOP', 'XEM_KHOA',
-  // Báo cáo (chỉ xem)
-  'XEM_BAO_CAO', 'XEM_LICH_SU_THAM_GIA',
-];
-
-// ─── Preset: Chủ nhiệm CLB ────────────────────────────────────────────────────
-// Quyền đủ để chủ nhiệm CLB quản lý hoạt động, điểm danh, thành viên trong CLB.
-const PRESET_CHU_NHIEM_CLB = [
-  'XEM_CLB', 'QUAN_LY_THANH_VIEN_CLB',
-  'XEM_HOAT_DONG', 'TAO_HOAT_DONG', 'SUA_HOAT_DONG',
-  'QUAN_LY_DANG_KY', 'DANG_KY_HOAT_DONG', 'HUY_DANG_KY_HOAT_DONG',
-  'XEM_DIEM_DANH', 'QUET_QR', 'CHINH_SUA_DIEM_DANH',
-  'XEM_LICH_SU_THAM_GIA', 'XUAT_DS_DIEM_DANH', 'XUAT_DS_DANG_KY',
-  'XEM_SINH_VIEN', 'XEM_LOP', 'XEM_KHOA',
-  'DANG_TIN_TUC', 'SUA_TIN_TUC', 'XEM_BAO_CAO',
-];
-
-// ─── Preset: Quản lý CLB (toàn quyền cấp CLB) ─────────────────────────────────
-// Dành cho tài khoản BCH cấp CLB, có đầy đủ quyền quản lý CLB đó.
-const PRESET_QUAN_LY_CLB_FULL = [
-  'XEM_CLB', 'QUAN_LY_CLB', 'QUAN_LY_THANH_VIEN_CLB',
-  'XEM_HOAT_DONG', 'TAO_HOAT_DONG', 'SUA_HOAT_DONG', 'XOA_HOAT_DONG',
-  'QUAN_LY_DANG_KY', 'DANG_KY_HOAT_DONG', 'HUY_DANG_KY_HOAT_DONG',
-  'XEM_DIEM_DANH', 'QUET_QR', 'CHINH_SUA_DIEM_DANH', 'PHAN_CONG_DIEM_DANH',
-  'GIAO_DIEM_DANH', 'XEM_LICH_SU_THAM_GIA', 'XUAT_DS_DIEM_DANH', 'XUAT_DS_DANG_KY',
-  'XEM_SINH_VIEN', 'XEM_LOP', 'XEM_KHOA', 'XEM_GIANG_VIEN',
-  'DANG_TIN_TUC', 'SUA_TIN_TUC', 'XOA_TIN_TUC', 'DUYET_TIN_TUC',
-  'XEM_BAO_CAO', 'XUAT_BAO_CAO', 'XEM_THONG_KE',
-  'XEM_HOC_KY', 'XEM_NAM_HOC',
-];
+const CATEGORY_LABELS = {
+  HE_THONG: 'Hệ thống', SINH_VIEN: 'Sinh viên', GIANG_VIEN: 'Giảng viên',
+  CHUYEN_VIEN: 'Chuyên viên', TO_CHUC: 'Tổ chức', HOAT_DONG: 'Hoạt động',
+  DIEM_DANH: 'Điểm danh', BCH: 'BCH Đoàn - Hội',
+  TAI_KHOAN: 'Tài khoản', PHAN_QUYEN: 'Phân quyền',
+  BAO_CAO: 'Báo cáo', SYSTEM: 'Hệ thống (log)', NEWS: 'Tin tức',
+};
 
 /**
- * Modal phân quyền tài khoản QUAN_LY.
+ * Modal phân quyền tài khoản — hệ thống 6 vai trò mới.
  *
- * @param {Object}   account   - { id, username, hoTen, maKhoa, tenKhoa }
+ * Hiển thị quyền mặc định của role (khóa, không bỏ được) và cho phép
+ * thêm quyền tùy chỉnh ngoài role defaults.
+ *
+ * @param {Object}   account  - { id, username, hoTen, vaiTro, tenVaiTro, maKhoa, tenKhoa, maLop, tenLop }
  * @param {boolean}  isOpen
  * @param {Function} onClose
  */
 const PermissionAssignModal = ({ account, isOpen, onClose }) => {
   const queryClient = useQueryClient();
-  const [laAdmin, setLaAdmin] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(new Set());
+  // customIds: quyền extra ngoài role defaults
+  const [customIds, setCustomIds] = useState(new Set());
 
   const { data: allGrouped = {}, isLoading: loadingAll } = useQuery({
     queryKey: ['permissionsAll'],
@@ -95,21 +42,20 @@ const PermissionAssignModal = ({ account, isOpen, onClose }) => {
 
   useEffect(() => {
     if (accountPerms) {
-      setLaAdmin(accountPerms.laAdmin || false);
-      setSelectedIds(new Set(accountPerms.quyenIds || []));
+      setCustomIds(new Set(accountPerms.customQuyenIds || []));
     }
   }, [accountPerms]);
 
+  const defaultIds = new Set(accountPerms?.defaultQuyenIds || []);
+  const isAdmin = account?.vaiTro === 'ADMIN' || accountPerms?.laAdmin;
+
   const saveMutation = useMutation({
     mutationFn: () => permissionService.setAccountPermissions(account.id, {
-      laAdmin,
-      permissionIds: laAdmin ? [] : Array.from(selectedIds),
-      adminId: null,
+      permissionIds: Array.from(customIds),
     }),
     onSuccess: () => {
-      toast.success(`Đã cập nhật quyền cho ${account.username}`);
+      toast.success(`Đã cập nhật quyền tùy chỉnh cho ${account?.username}`);
       queryClient.invalidateQueries({ queryKey: ['accountPermissions', account?.id] });
-      queryClient.invalidateQueries({ queryKey: ['allAccounts'] });
       onClose();
     },
     onError: (err) => {
@@ -117,87 +63,68 @@ const PermissionAssignModal = ({ account, isOpen, onClose }) => {
     },
   });
 
-  // ── helpers ──────────────────────────────────────────────────────────────────
   const allPermissions = Object.values(allGrouped).flat();
-  const allPermissionIds = allPermissions.map(p => p.id);
-  const allSelected = allPermissionIds.length > 0 && allPermissionIds.every(id => selectedIds.has(id));
 
-  /** Build map name → id từ allGrouped để áp preset */
-  const nameToId = () => {
-    const map = {};
-    allPermissions.forEach(p => { map[p.name] = p.id; });
-    return map;
-  };
-
-  const applyPreset = (names) => {
-    const map = nameToId();
-    const ids = names.filter(n => map[n]).map(n => map[n]);
-    setSelectedIds(new Set(ids));
-    const notFound = names.filter(n => !map[n]);
-    if (notFound.length > 0) {
-      console.warn('Preset: quyền chưa có trong DB:', notFound);
-    }
-  };
-
-  const toggleId = (id) => {
-    setSelectedIds(prev => {
+  const toggleCustom = (id) => {
+    if (defaultIds.has(id)) return; // không toggle quyền default
+    setCustomIds(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
 
-  const toggleCategory = (items) => {
-    const ids = items.map(p => p.id);
-    const allSel = ids.every(id => selectedIds.has(id));
-    setSelectedIds(prev => {
+  const toggleCategoryCustom = (items) => {
+    const nonDefaultIds = items.map(p => p.id).filter(id => !defaultIds.has(id));
+    const allChecked = nonDefaultIds.every(id => customIds.has(id) || defaultIds.has(id));
+    setCustomIds(prev => {
       const next = new Set(prev);
-      allSel ? ids.forEach(id => next.delete(id)) : ids.forEach(id => next.add(id));
+      allChecked
+        ? nonDefaultIds.forEach(id => next.delete(id))
+        : nonDefaultIds.forEach(id => next.add(id));
       return next;
     });
   };
 
-  const CATEGORY_LABELS = {
-    HE_THONG: 'Hệ thống', SINH_VIEN: 'Sinh viên', GIANG_VIEN: 'Giảng viên',
-    CHUYEN_VIEN: 'Chuyên viên', TO_CHUC: 'Tổ chức', HOAT_DONG: 'Hoạt động',
-    DIEM_DANH: 'Điểm danh', BCH: 'BCH Đoàn - Hội',
-    TAI_KHOAN: 'Tài khoản', PHAN_QUYEN: 'Phân quyền',
-    BAO_CAO: 'Báo cáo', SYSTEM: 'Hệ thống',
-    NEWS: 'Tin tức', VAN_BAN: 'Văn bản',
+  const selectAllCustom = () => {
+    const nonDefault = allPermissions.map(p => p.id).filter(id => !defaultIds.has(id));
+    setCustomIds(new Set(nonDefault));
   };
+
+  const clearCustom = () => setCustomIds(new Set());
 
   if (!isOpen) return null;
 
   const isLoading = loadingAll || loadingAccount;
-  const isKhoaScoped = !!(account?.maKhoa || accountPerms?.maKhoa);
-  const tenKhoa = account?.tenKhoa || accountPerms?.tenKhoa || account?.maKhoa;
-  const isClbScoped = !!(account?.maClb || accountPerms?.maClb);
-  const tenClb = account?.tenClb || accountPerms?.tenClb || account?.maClb;
+  const roleLabel = ROLE_LABELS[account?.vaiTro] || account?.tenVaiTro || account?.vaiTro;
+  const totalEffective = defaultIds.size + customIds.size;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm sm:max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Shield className="w-5 h-5 text-blue-600" />
             <div>
               <h2 className="text-lg font-bold text-gray-900">Phân quyền tài khoản</h2>
-              <p className="text-sm text-gray-500 flex items-center gap-2 flex-wrap">
-                {account?.hoTen || account?.username}
-                {isKhoaScoped && (
-                  <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-700">
-                    📍 {tenKhoa}
+              <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                <span className="text-sm text-gray-600">{account?.hoTen || account?.username}</span>
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                  {roleLabel}
+                </span>
+                {account?.maKhoa && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                    📍 {account?.tenKhoa || account?.maKhoa}
                   </span>
                 )}
-                {isClbScoped && (
-                  <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-orange-100 text-orange-700 flex items-center gap-1">
-                    <Users className="w-3 h-3" />
-                    {tenClb}
+                {account?.maLop && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                    🏫 {account?.tenLop || account?.maLop}
                   </span>
                 )}
-              </p>
+              </div>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -205,242 +132,153 @@ const PermissionAssignModal = ({ account, isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* ── Body ── */}
+        {/* Body */}
         <div className="flex-1 overflow-y-auto p-5">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
             </div>
+          ) : isAdmin ? (
+            <div className="text-center py-10">
+              <Shield className="w-12 h-12 text-blue-500 mx-auto mb-3" />
+              <p className="font-semibold text-gray-800">Tài khoản ADMIN</p>
+              <p className="text-sm text-gray-500 mt-1">Có toàn quyền — bypass mọi kiểm tra quyền trong hệ thống.</p>
+            </div>
           ) : (
             <>
-              {/* Toàn quyền Admin toggle */}
-              <label className="flex items-center gap-3 p-3 mb-3 rounded-lg border-2 border-blue-200 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={laAdmin}
-                  onChange={e => setLaAdmin(e.target.checked)}
-                  className="w-5 h-5 accent-blue-600"
-                />
+              {/* Info banner */}
+              <div className="flex items-start gap-2.5 p-3 mb-4 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-blue-900">Toàn quyền Admin — cấp Đoàn trường</p>
-                  <p className="text-xs text-blue-600">Bypass kiểm tra quyền · truy cập toàn bộ hệ thống · không bị giới hạn khoa</p>
+                  <strong>Quyền mặc định theo vai trò ({defaultIds.size} quyền)</strong> — tự động áp dụng, không thể bỏ.
+                  Bạn có thể tick thêm quyền bổ sung bên dưới.
+                  <br/>
+                  <span className="text-blue-600">Tổng hiệu lực: {totalEffective} quyền</span>
                 </div>
-              </label>
+              </div>
 
-              {/* Cảnh báo laAdmin + maKhoa */}
-              {laAdmin && isKhoaScoped && (
-                <div className="flex items-start gap-2 p-3 mb-3 rounded-lg bg-orange-50 border border-orange-300 text-orange-800 text-sm">
-                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-orange-500" />
-                  <span>
-                    Tài khoản này đang giới hạn theo <strong>{tenKhoa}</strong>.
-                    Dùng "Toàn quyền Admin" sẽ bypass kiểm tra quyền nhưng backend vẫn lọc đúng khoa.
-                    <strong> Khuyến nghị:</strong> bỏ tick và dùng preset <em>"Toàn quyền cấp Khoa"</em>.
-                  </span>
-                </div>
-              )}
+              {/* Toolbar */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs text-gray-500 mr-auto">
+                  Quyền bổ sung: <strong>{customIds.size}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={selectAllCustom}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded border border-gray-300 hover:bg-gray-50 text-gray-700"
+                >
+                  <CheckSquare className="w-3.5 h-3.5" /> Chọn tất cả extra
+                </button>
+                <button
+                  type="button"
+                  onClick={clearCustom}
+                  disabled={customIds.size === 0}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-40 text-gray-700"
+                >
+                  <Square className="w-3.5 h-3.5" /> Xóa extra
+                </button>
+              </div>
 
-              {/* Cảnh báo laAdmin + maClb */}
-              {laAdmin && isClbScoped && (
-                <div className="flex items-start gap-2 p-3 mb-3 rounded-lg bg-orange-50 border border-orange-300 text-orange-800 text-sm">
-                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-orange-500" />
-                  <span>
-                    Tài khoản này được gán phạm vi <strong>{tenClb}</strong>.
-                    "Toàn quyền Admin" sẽ bypass quyền nhưng CLB scope vẫn hoạt động.
-                    <strong> Khuyến nghị:</strong> bỏ tick và dùng preset <em>"Quản lý CLB"</em>.
-                  </span>
-                </div>
-              )}
+              {/* Permission groups */}
+              <div className="space-y-2">
+                {Object.entries(allGrouped).map(([category, perms]) => {
+                  const label = CATEGORY_LABELS[category] || category;
+                  const allEffective = perms.every(p => defaultIds.has(p.id) || customIds.has(p.id));
+                  const someEffective = perms.some(p => defaultIds.has(p.id) || customIds.has(p.id));
 
-              {/* ── Preset buttons ── */}
-              {!laAdmin && (
-                <div className="mb-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                    Bộ quyền nhanh
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-
-                    {/* CLB Presets */}
-                    <button
-                      type="button"
-                      onClick={() => applyPreset(PRESET_QUAN_LY_CLB_FULL)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shadow-sm"
-                    >
-                      <Users className="w-4 h-4" />
-                      Quản lý CLB
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => applyPreset(PRESET_CHU_NHIEM_CLB)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-orange-400 hover:bg-orange-500 text-white transition-colors shadow-sm"
-                    >
-                      <Users className="w-4 h-4" />
-                      Chủ nhiệm CLB
-                    </button>
-
-                    {/* Divider */}
-                    <span className="self-center text-gray-300 text-sm">|</span>
-
-                    {/* Toàn quyền cấp Khoa */}
-                    <button
-                      type="button"
-                      onClick={() => applyPreset(PRESET_KHOA_ADMIN)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors shadow-sm"
-                    >
-                      <Wand2 className="w-4 h-4" />
-                      Toàn quyền cấp Khoa
-                    </button>
-
-                    {/* BCH cấp Khoa */}
-                    <button
-                      type="button"
-                      onClick={() => applyPreset(PRESET_BCH_KHOA)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors shadow-sm"
-                    >
-                      <Wand2 className="w-4 h-4" />
-                      BCH cấp Khoa
-                    </button>
-
-                    {/* Divider */}
-                    <span className="self-center text-gray-300 text-sm">|</span>
-
-                    {/* Chọn tất cả */}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedIds(new Set(allPermissionIds))}
-                      disabled={allSelected}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-gray-700 hover:bg-gray-800 disabled:bg-gray-300 text-white transition-colors"
-                    >
-                      <CheckSquare className="w-3.5 h-3.5" />
-                      Tất cả
-                    </button>
-
-                    {/* Bỏ chọn tất cả */}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedIds(new Set())}
-                      disabled={selectedIds.size === 0}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-40 text-gray-600 transition-colors"
-                    >
-                      <Square className="w-3.5 h-3.5" />
-                      Bỏ tất cả
-                    </button>
-                  </div>
-
-                  {/* Mô tả preset đang active */}
-                  {isKhoaScoped && selectedIds.size > 0 && (
-                    <p className="mt-2 text-xs text-amber-700">
-                      💡 Backend tự giới hạn dữ liệu theo <strong>{tenKhoa}</strong> — chỉ cần chọn đúng quyền chức năng.
-                    </p>
-                  )}
-                  {isClbScoped && selectedIds.size > 0 && (
-                    <p className="mt-2 text-xs text-orange-700">
-                      💡 Tài khoản này chỉ quản lý <strong>{tenClb}</strong> — dùng preset "Quản lý CLB" hoặc "Chủ nhiệm CLB".
-                    </p>
-                  )}
-                  {isClbScoped && selectedIds.size === 0 && (
-                    <p className="mt-2 text-xs text-orange-600">
-                      ⚠️ Tài khoản CLB-scoped chưa có quyền — hãy chọn preset phù hợp.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* ── Danh sách quyền chi tiết ── */}
-              {!laAdmin && (
-                <>
-                  <div className="flex items-center justify-between mb-3 px-1">
-                    <span className="text-sm text-gray-500">
-                      Đã chọn <strong>{selectedIds.size}</strong> / {allPermissionIds.length} quyền
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {Object.entries(allGrouped).map(([category, perms]) => {
-                      const label = CATEGORY_LABELS[category] || category;
-                      const ids = perms.map(p => p.id);
-                      const allSel = ids.every(id => selectedIds.has(id));
-                      const someSel = ids.some(id => selectedIds.has(id));
-
-                      return (
-                        <div key={category} className="border rounded-lg overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => toggleCategory(perms)}
-                            className={`w-full flex items-center gap-2 px-4 py-2.5 text-left font-semibold text-sm transition-colors ${
-                              allSel ? 'bg-blue-600 text-white'
-                              : someSel ? 'bg-blue-50 text-blue-800'
-                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center ${
-                              allSel ? 'bg-white border-white'
-                              : someSel ? 'border-blue-500'
-                              : 'border-gray-400'
-                            }`}>
-                              {allSel && <span className="w-2 h-2 bg-blue-600 rounded-sm" />}
-                              {someSel && !allSel && <span className="w-2 h-0.5 bg-blue-500 rounded" />}
-                            </span>
-                            {label}
-                            <span className="ml-auto text-xs font-normal opacity-70">
-                              {ids.filter(id => selectedIds.has(id)).length}/{ids.length}
-                            </span>
-                          </button>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 p-3 bg-white">
-                            {perms.map(perm => (
-                              <label key={perm.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm">
+                  return (
+                    <div key={category} className="border rounded-lg overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => toggleCategoryCustom(perms)}
+                        className={`w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm font-semibold transition-colors ${
+                          allEffective ? 'bg-blue-600 text-white'
+                          : someEffective ? 'bg-blue-50 text-blue-800'
+                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center ${
+                          allEffective ? 'bg-white border-white'
+                          : someEffective ? 'border-blue-500'
+                          : 'border-gray-400'
+                        }`}>
+                          {allEffective && <span className="w-2 h-2 bg-blue-600 rounded-sm" />}
+                          {someEffective && !allEffective && <span className="w-2 h-0.5 bg-blue-500 rounded" />}
+                        </span>
+                        {label}
+                        <span className="ml-auto text-xs font-normal opacity-75">
+                          {perms.filter(p => defaultIds.has(p.id) || customIds.has(p.id)).length}/{perms.length}
+                        </span>
+                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 p-3 bg-white">
+                        {perms.map(perm => {
+                          const isDefault = defaultIds.has(perm.id);
+                          const isCustom = customIds.has(perm.id);
+                          const isChecked = isDefault || isCustom;
+                          return (
+                            <label
+                              key={perm.id}
+                              className={`flex items-center gap-2 p-1.5 rounded text-sm cursor-pointer ${
+                                isDefault ? 'bg-blue-50 cursor-not-allowed' : 'hover:bg-gray-50'
+                              }`}
+                              title={isDefault ? 'Quyền mặc định theo vai trò — không thể bỏ chọn' : ''}
+                            >
+                              <div className="relative flex-shrink-0">
                                 <input
                                   type="checkbox"
-                                  checked={selectedIds.has(perm.id)}
-                                  onChange={() => toggleId(perm.id)}
-                                  className="w-4 h-4 accent-blue-600"
+                                  checked={isChecked}
+                                  disabled={isDefault}
+                                  onChange={() => toggleCustom(perm.id)}
+                                  className="w-4 h-4 accent-blue-600 disabled:opacity-60"
                                 />
-                                <span className="text-gray-700 truncate">{perm.description || perm.name}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-
-              {laAdmin && (
-                <p className="text-center text-sm text-gray-500 py-8">
-                  Tài khoản này có toàn quyền Admin — không cần chọn quyền chi tiết.
-                </p>
-              )}
+                                {isDefault && (
+                                  <Lock className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 text-blue-400" />
+                                )}
+                              </div>
+                              <span className={`truncate ${isDefault ? 'text-blue-700' : 'text-gray-700'}`}>
+                                {perm.description || perm.name}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </>
           )}
         </div>
 
-        {/* ── Footer ── */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 border-t bg-gray-50">
-          {!laAdmin ? (
+        {/* Footer */}
+        {!isAdmin && (
+          <div className="flex items-center justify-between gap-3 p-4 border-t bg-gray-50">
             <p className="text-sm text-gray-500">
-              Đã chọn <strong>{selectedIds.size}</strong> quyền
+              <span className="text-blue-600 font-medium">{defaultIds.size}</span> quyền vai trò
+              {customIds.size > 0 && (
+                <> + <span className="text-green-600 font-medium">{customIds.size}</span> bổ sung</>
+              )}
             </p>
-          ) : <div />}
-          <div className="flex gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-100"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium"
-            >
-              {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Lưu quyền
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-100"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium"
+              >
+                {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Lưu quyền bổ sung
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

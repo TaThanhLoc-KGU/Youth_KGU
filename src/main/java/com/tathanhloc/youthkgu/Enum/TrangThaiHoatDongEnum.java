@@ -1,6 +1,7 @@
 package com.tathanhloc.youthkgu.Enum;
 
 public enum TrangThaiHoatDongEnum {
+    CHO_DUYET("Chờ phê duyệt"),
     SAP_DIEN_RA("Sắp diễn ra"),
     DANG_MO_DANG_KY("Đang mở đăng ký"),
     DANG_DIEN_RA("Đang diễn ra"),

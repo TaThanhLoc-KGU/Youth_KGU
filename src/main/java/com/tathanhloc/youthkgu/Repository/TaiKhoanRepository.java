@@ -109,4 +109,21 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
     /** Lấy trực tiếp maClb của tài khoản CLB — dùng cho CLB scope enforcement */
     @Query("SELECT tk.clb.maClb FROM TaiKhoan tk WHERE tk.username = :username AND tk.clb IS NOT NULL")
     Optional<String> findMaClbByUsername(@Param("username") String username);
+
+    // ========== Scope-based queries cho phân quyền đa cấp ==========
+
+    /** Lấy tài khoản theo scope khoa */
+    List<TaiKhoan> findByKhoa_MaKhoaAndIsActiveTrue(String maKhoa);
+
+    /** Lấy tài khoản theo scope chi đoàn (lớp) */
+    List<TaiKhoan> findByLop_MaLopAndIsActiveTrue(String maLop);
+
+    /** Lấy trực tiếp maLop của tài khoản */
+    @Query("SELECT tk.lop.maLop FROM TaiKhoan tk WHERE tk.username = :username AND tk.lop IS NOT NULL")
+    Optional<String> findMaLopByUsername(@Param("username") String username);
+
+    /** Tìm kiếm tài khoản theo keyword trong phạm vi khoa */
+    @Query("SELECT tk FROM TaiKhoan tk WHERE tk.khoa.maKhoa = :maKhoa AND tk.isActive = true AND " +
+           "(LOWER(tk.hoTen) LIKE LOWER(CONCAT('%',:kw,'%')) OR LOWER(tk.username) LIKE LOWER(CONCAT('%',:kw,'%')))")
+    List<TaiKhoan> searchByKeywordAndKhoa(@Param("kw") String keyword, @Param("maKhoa") String maKhoa);
 }

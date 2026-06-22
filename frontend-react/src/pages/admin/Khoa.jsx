@@ -36,7 +36,7 @@ const KhoaForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
     },
     onSuccess: () => {
         toast.success(
-          mode === 'create' ? 'Thêm khoa thành công!' : 'Cập nhật khoa thành công!'
+          mode === 'create' ? 'Thêm Khoa/Phòng/Ban/Trung tâm thành công!' : 'Cập nhật Khoa/Phòng/Ban/Trung tâm thành công!'
         );
         onSuccess();
     },
@@ -49,15 +49,15 @@ const KhoaForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
   return (
     <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
       <Input
-        label="Mã khoa"
-        {...register('maKhoa', { required: 'Mã khoa là bắt buộc' })}
+        label="Mã Khoa/Phòng/Ban/Trung tâm"
+        {...register('maKhoa', { required: 'Mã là bắt buộc' })}
         error={errors.maKhoa?.message}
         disabled={mode === 'edit'}
         required
       />
       <Input
-        label="Tên khoa"
-        {...register('tenKhoa', { required: 'Tên khoa là bắt buộc' })}
+        label="Tên Khoa/Phòng/Ban/Trung tâm"
+        {...register('tenKhoa', { required: 'Tên là bắt buộc' })}
         error={errors.tenKhoa?.message}
         required
       />
@@ -72,7 +72,7 @@ const KhoaForm = ({ initialData, mode = 'create', onSuccess, onCancel }) => {
       <div className="flex gap-2 justify-end pt-4 border-t">
         <Button variant="outline" onClick={onCancel}>Hủy</Button>
         <Button isLoading={mutation.isLoading} disabled={mutation.isLoading}>
-          {mode === 'create' ? 'Thêm khoa' : 'Cập nhật'}
+          {mode === 'create' ? 'Thêm Khoa/Phòng/Ban/Trung tâm' : 'Cập nhật'}
         </Button>
       </div>
     </form>
@@ -109,14 +109,14 @@ const Khoa = () => {
     keepPreviousData: true,
       retry: 3,
       onError: (error) => {
-        toast.error('Không thể tải danh sách khoa. Vui lòng thử lại.');
+        toast.error('Không thể tải danh sách Khoa/Phòng/Ban/Trung tâm. Vui lòng thử lại.');
       }
   });
 
   const deleteMutation = useMutation({
     mutationFn: (maKhoa) => khoaService.delete(maKhoa),
     onSuccess: () => {
-        toast.success('Xóa khoa thành công!');
+        toast.success('Xóa Khoa/Phòng/Ban/Trung tâm thành công!');
         queryClient.invalidateQueries(['khoa']);
         setDeleteTarget(null);
     },
@@ -129,12 +129,12 @@ const Khoa = () => {
 
   const columns = [
     {
-      header: 'Mã khoa',
+      header: 'Mã Khoa/Phòng/Ban/Trung tâm',
       accessor: 'maKhoa',
       render: (value) => <span className="font-medium">{value}</span>,
     },
     {
-      header: 'Tên khoa',
+      header: 'Tên Khoa/Phòng/Ban/Trung tâm',
       accessor: 'tenKhoa',
     },
     {
@@ -180,8 +180,8 @@ const Khoa = () => {
     <div className="space-y-5">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Quản lý Khoa</h1>
-          <p className="page-subtitle">Quản lý các khoa/bộ môn</p>
+          <h1 className="page-title">Quản lý Khoa/Phòng/Ban/Trung tâm</h1>
+          <p className="page-subtitle">Quản lý các Khoa, Phòng, Ban, Trung tâm</p>
         </div>
         {canManage && (
           <Button icon={Plus} onClick={() => {
@@ -189,7 +189,7 @@ const Khoa = () => {
             setModalMode('create');
             setIsModalOpen(true);
           }}>
-            <span className="hidden sm:inline">Thêm khoa</span>
+            <span className="hidden sm:inline">Thêm Khoa/Phòng/Ban/Trung tâm</span>
           </Button>
         )}
       </div>
@@ -200,7 +200,7 @@ const Khoa = () => {
           {/* Tìm kiếm */}
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Tìm kiếm khoa
+              Tìm kiếm
             </label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -208,7 +208,7 @@ const Khoa = () => {
               </div>
               <input
                 type="text"
-                placeholder="Mã khoa hoặc tên khoa..."
+                placeholder="Mã hoặc tên..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
@@ -253,7 +253,7 @@ const Khoa = () => {
         {isError && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl mb-4">
             <p className="text-red-700 font-medium">
-              Có lỗi xảy ra khi tải danh sách khoa
+              Có lỗi xảy ra khi tải danh sách Khoa/Phòng/Ban/Trung tâm
             </p>
             <p className="text-red-600 text-sm mt-1">
               {error?.response?.data?.message || error?.message || 'Vui lòng thử lại'}
@@ -274,7 +274,7 @@ const Khoa = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={modalMode === 'create' ? 'Thêm khoa' : 'Chỉnh sửa khoa'}
+        title={modalMode === 'create' ? 'Thêm Khoa/Phòng/Ban/Trung tâm' : 'Chỉnh sửa Khoa/Phòng/Ban/Trung tâm'}
         size="md"
       >
         <KhoaForm
@@ -292,8 +292,8 @@ const Khoa = () => {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteMutation.mutate(deleteTarget?.maKhoa)}
-        title="Xóa khoa"
-        description={`Bạn có chắc chắn muốn xóa khoa "${deleteTarget?.tenKhoa}"? Hành động này không thể hoàn tác.`}
+        title="Xóa Khoa/Phòng/Ban/Trung tâm"
+        description={`Bạn có chắc chắn muốn xóa "${deleteTarget?.tenKhoa}"? Hành động này không thể hoàn tác.`}
         isLoading={deleteMutation.isPending || deleteMutation.isLoading}
       />
     </div>

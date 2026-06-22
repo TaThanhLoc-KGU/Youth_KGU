@@ -9,6 +9,7 @@ import { PERMISSIONS } from '../../utils/constants';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import SearchableSelect from '../../components/common/SearchableSelect';
+import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
@@ -65,7 +66,7 @@ const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas = 
     <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
       {khoasError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-700">⚠️ Không thể tải danh sách khoa</p>
+          <p className="text-sm text-red-700">⚠️ Không thể tải danh sách Khoa/Phòng/Ban/Trung tâm</p>
         </div>
       )}
 
@@ -83,9 +84,9 @@ const NganhForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas = 
         required
       />
       <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Khoa <span className="text-red-500">*</span></label>
+        <label className="block text-sm font-medium text-gray-700">Khoa/Phòng/Ban/Trung tâm <span className="text-red-500">*</span></label>
         <SearchableSelect
-          placeholder="-- Chọn khoa --"
+          placeholder="-- Chọn Khoa/Phòng/Ban/Trung tâm --"
           options={khoas.map(k => ({ value: k.maKhoa, label: k.tenKhoa }))}
           value={register('maKhoa').value}
           onChange={(val) => {
@@ -143,7 +144,7 @@ const Nganh = () => {
     queryFn: () => khoaService.getAll(),
     retry: 3,
     onError: () => {
-      toast.error('Không thể tải danh sách khoa');
+      toast.error('Không thể tải danh sách Khoa/Phòng/Ban/Trung tâm');
     }
   });
 
@@ -214,7 +215,7 @@ const Nganh = () => {
       accessor: 'tenNganh',
     },
     {
-      header: 'Khoa',
+      header: 'Khoa/Phòng/Ban/Trung tâm',
       accessor: 'tenKhoa',
     },
     {
@@ -307,9 +308,9 @@ const Nganh = () => {
           {/* Khoa */}
           <div>
             <SearchableSelect
-              label="Khoa"
+              label="Khoa/Phòng/Ban/Trung tâm"
               labelClassName="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
-              placeholder="Tất cả khoa"
+              placeholder="Tất cả Khoa/Phòng/Ban/Trung tâm"
               options={khoas.map(k => ({
                 value: k.maKhoa,
                 label: k.tenKhoa

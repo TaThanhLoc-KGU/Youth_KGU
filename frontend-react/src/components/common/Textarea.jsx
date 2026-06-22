@@ -25,7 +25,7 @@ const Textarea = forwardRef(
           ref={ref}
           className={clsx(
             'form-input resize-none',
-            error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
+            error && '!border-red-400 focus:!border-red-500 focus:!ring-red-500/20',
             className
           )}
           {...props}

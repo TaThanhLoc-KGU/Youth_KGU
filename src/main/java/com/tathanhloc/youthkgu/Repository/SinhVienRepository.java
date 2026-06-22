@@ -12,6 +12,12 @@ public interface SinhVienRepository extends JpaRepository<SinhVien, String> {
     Optional<SinhVien> findByEmail(String email);
     Optional<SinhVien> findByMaSv(String maSv);
 
+    @Query("SELECT sv FROM SinhVien sv WHERE sv.isActive = true AND " +
+           "(LOWER(sv.hoTen) LIKE LOWER(CONCAT('%',:kw,'%')) OR " +
+           "LOWER(sv.maSv) LIKE LOWER(CONCAT('%',:kw,'%')) OR " +
+           "LOWER(sv.email) LIKE LOWER(CONCAT('%',:kw,'%')))")
+    List<SinhVien> searchByKeyword(@Param("kw") String keyword);
+
 
     @Query("SELECT COUNT(sv) FROM SinhVien sv WHERE sv.lop.maLop = :maLop AND sv.isActive = true")
     long countByLopMaLopAndIsActiveTrue(@Param("maLop") String maLop);

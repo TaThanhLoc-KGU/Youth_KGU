@@ -241,6 +241,17 @@ public class HoatDong {
     @Column(name = "ghi_chu", columnDefinition = "TEXT")
     private String ghiChu;
 
+    // ========== APPROVAL WORKFLOW (CLB / KHOA activities) ==========
+
+    @Column(name = "nguoi_duyet", length = 100)
+    private String nguoiDuyet;
+
+    @Column(name = "ngay_duyet")
+    private LocalDateTime ngayDuyet;
+
+    @Column(name = "ly_do_tu_choi", columnDefinition = "TEXT")
+    private String lyDoTuChoi;
+
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;

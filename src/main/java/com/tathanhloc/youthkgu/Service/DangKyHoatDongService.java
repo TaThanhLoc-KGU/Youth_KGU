@@ -299,7 +299,7 @@ public class DangKyHoatDongService {
 
         String maHoatDong = (entity.getId() != null) ? entity.getId().getMaHoatDong() : null;
 
-        // Thông tin sinh viên (null-safe)
+        // Thong tin sinh vien (null-safe)
         String hoTenSinhVien = null;
         String emailSinhVien = null;
         String tenLop = null;
@@ -307,6 +307,7 @@ public class DangKyHoatDongService {
             hoTenSinhVien = entity.getSinhVien().getHoTen();
             emailSinhVien = entity.getSinhVien().getEmail();
             if (entity.getSinhVien().getLop() != null) {
+                // Neu la chi doan thi hien thi ten chi doan, nguoc lai hien thi ten lop
                 tenLop = entity.getSinhVien().getLop().getTenLop();
             }
         }

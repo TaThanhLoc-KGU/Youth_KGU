@@ -11,6 +11,7 @@ import khoahocService from '../../services/khoahocService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import SearchableSelect from '../../components/common/SearchableSelect';
+import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
@@ -31,10 +32,12 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
       maNganh: '',
       maKhoahoc: '',
       isActive: true,
+      loai: 'LOP',
     },
   });
 
   const selectedKhoa = watch('maKhoa');
+  const selectedLoai = watch('loai');
 
   const filteredNganhs = selectedKhoa
     ? nganhs.filter(n => n.maKhoa === selectedKhoa)
@@ -49,6 +52,9 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
       };
 
       if (mode === 'create') {
+        if (submitData.loai === 'CHI_DOAN') {
+          return api.post('/api/lop/chi-doan', submitData).then(res => res.data?.data);
+        }
         return lopService.create(submitData);
       } else {
         return lopService.update(initialData.maLop, submitData);
@@ -69,10 +75,24 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
       <Input
         label="Mã lớp"
         {...register('maLop', { required: 'Mã lớp là bắt buộc' })}
-        error={errors.maLop?.message}
         disabled={mode === 'edit'}
         required
       />
+
+      <div className="space-y-1">
+        <label className="block text-sm font-medium text-gray-700">Loại</label>
+        <div className="flex items-center gap-4 mt-2">
+          <label className="inline-flex items-center">
+            <input type="radio" value="LOP" {...register('loai')} className="form-radio text-primary-600" />
+            <span className="ml-2">Lớp học</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input type="radio" value="CHI_DOAN" {...register('loai')} className="form-radio text-primary-600" />
+            <span className="ml-2">Chi đoàn</span>
+          </label>
+        </div>
+      </div>
+
       <Input
         label="Tên lớp"
         {...register('tenLop', { required: 'Tên lớp là bắt buộc' })}
@@ -80,9 +100,9 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
         required
       />
       <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Khoa <span className="text-red-500">*</span></label>
+        <label className="block text-sm font-medium text-gray-700">Khoa/Phòng/Ban/Trung tâm (Bỏ trống nếu trực thuộc Đoàn trường)</label>
         <SearchableSelect
-          placeholder="-- Chọn khoa --"
+          placeholder="-- Chọn Khoa/Phòng/Ban/Trung tâm --"
           options={khoas.map(k => ({ value: k.maKhoa, label: k.tenKhoa }))}
           value={watch('maKhoa')}
           onChange={(val) => {
@@ -96,23 +116,26 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
         {errors.maKhoa && <p className="text-xs text-red-500">{errors.maKhoa.message}</p>}
       </div>
 
-      <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Ngành <span className="text-red-500">*</span></label>
-        <SearchableSelect
-          placeholder="-- Chọn ngành --"
-          options={filteredNganhs.map(n => ({ value: n.maNganh, label: n.tenNganh }))}
-          value={watch('maNganh')}
-          onChange={(val) => {
-            const e = { target: { name: 'maNganh', value: val } };
-            register('maNganh').onChange(e);
-          }}
-          isDisabled={!selectedKhoa}
-        />
-        {errors.maNganh && <p className="text-xs text-red-500">{errors.maNganh.message}</p>}
-      </div>
+      {selectedLoai === 'LOP' && (
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Ngành (Bỏ trống nếu là Chi đoàn)</label>
+          <SearchableSelect
+            placeholder="-- Chọn ngành --"
+            options={filteredNganhs.map(n => ({ value: n.maNganh, label: n.tenNganh }))}
+            value={watch('maNganh')}
+            onChange={(val) => {
+              const e = { target: { name: 'maNganh', value: val } };
+              register('maNganh').onChange(e);
+            }}
+            isDisabled={!selectedKhoa}
+          />
+          {errors.maNganh && <p className="text-xs text-red-500">{errors.maNganh.message}</p>}
+        </div>
+      )}
 
-      <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Khóa học</label>
+      {selectedLoai === 'LOP' && (
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Khóa học</label>
         <SearchableSelect
           placeholder="-- Chọn khóa học --"
           options={khoahocs.map(k => ({ value: k.maKhoahoc, label: k.tenKhoahoc }))}
@@ -123,6 +146,7 @@ const LopForm = ({ initialData, mode = 'create', onSuccess, onCancel, khoas, nga
           }}
         />
       </div>
+      )}
 
       <Select
         label="Trạng thái"
@@ -244,11 +268,11 @@ const Lop = () => {
       accessor: 'tenLop',
     },
     {
-      header: 'Khoa',
+      header: 'Khoa/Phòng/Ban/Trung tâm',
       accessor: 'tenKhoa',
       render: (value) => (
         <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-          {value || '-'}
+          {value || 'Trực thuộc Đoàn trường'}
         </span>
       ),
     },
@@ -268,6 +292,15 @@ const Lop = () => {
         <Badge variant={value ? 'success' : 'danger'} dot>
           {value ? 'Hoạt động' : 'Ngừng'}
         </Badge>
+      ),
+    },
+    {
+      header: 'Loại',
+      accessor: 'loai',
+      render: (value) => (
+        <span className="inline-block px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-semibold">
+          {value === 'CHI_DOAN' ? 'Chi đoàn' : 'Lớp học'}
+        </span>
       ),
     },
     {
@@ -318,8 +351,8 @@ const Lop = () => {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Lớp</h1>
-          <p className="text-gray-600 mt-1">Quản lý các lớp học</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Lớp / Chi đoàn</h1>
+          <p className="text-gray-600 mt-1">Quản lý các lớp học và chi đoàn trực thuộc</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canManage && (
@@ -392,9 +425,9 @@ const Lop = () => {
           {/* Khoa */}
           <div>
             <SearchableSelect
-              label="Khoa"
+              label="Khoa/Phòng/Ban/Trung tâm"
               labelClassName="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
-              placeholder="Tất cả khoa"
+              placeholder="Tất cả Khoa/Phòng/Ban/Trung tâm"
               options={khoas.map(k => ({ value: k.maKhoa, label: k.tenKhoa }))}
               value={khoaFilter}
               onChange={(val) => {

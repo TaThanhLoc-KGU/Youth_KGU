@@ -142,7 +142,7 @@ const StudentActivityCard = ({
 const RegisterActivities = () => {
   const { user } = useAuthStore();
   // maSv: ưu tiên linkedEntityId, fallback sang username (vì username = maSv với tài khoản sinh viên)
-  const maSv = user?.linkedEntityId || (user?.vaiTro === 'SINH_VIEN' ? user?.username : null);
+  const maSv = user?.linkedEntityId || (user?.vaiTro === 'DOAN_VIEN' ? user?.username : null);
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');

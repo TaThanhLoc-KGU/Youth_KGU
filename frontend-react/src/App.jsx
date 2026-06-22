@@ -24,12 +24,9 @@ import KhoaHoc from './pages/admin/KhoaHoc';
 import GiangVien from './pages/admin/GiangVien';
 import Taikhoan from './pages/admin/Taikhoan';
 import SystemLogPage from './pages/admin/SystemLogPage';
-import SettingsPermissionsPage from './pages/admin/SettingsPermissionsPage';
 import PermissionMatrixPage from './pages/admin/PermissionMatrixPage';
-import ClbPermissionPage from './pages/admin/ClbPermissionPage';
 import AttendanceReport from './pages/admin/AttendanceReport';
 import ChuyenVien from './pages/admin/ChuyenVien';
-import SettingsPage from './pages/admin/SettingsPage';
 import StudentDashboard from './pages/student/Dashboard';
 import StudentRegisterActivities from './pages/student/RegisterActivities';
 import StudentMyActivities from './pages/student/MyActivities';
@@ -38,6 +35,7 @@ import StudentProfile from './pages/student/Profile';
 import Activities from './pages/admin/Activities';
 import HoatDongEditorPage from './pages/HoatDong/HoatDongEditorPage';
 import ActivityAttendancePage from './pages/admin/ActivityAttendancePage';
+import DoanVienKhoaPage from './pages/admin/DoanVienKhoaPage';
 import HoatDongListPage from './pages/admin/HoatDongListPage';
 import StudentActivities from './pages/student/Activities';
 import ForbiddenPage from './pages/ForbiddenPage';
@@ -91,9 +89,18 @@ import NamHocPage           from './pages/admin/NamHocPage';
 import CauLacBoPage        from './pages/admin/CauLacBoPage';
 import ClbPortalPage       from './pages/clb/ClbPortalPage';
 import ClbRegistrationPage from './pages/student/ClbRegistrationPage';
+import SelfAttendanceScanner from './components/student/SelfAttendanceScanner';
 
 import useAuthStore from './stores/authStore';
-import { ROUTES, ROLES, PERMISSIONS } from './utils/constants';
+import useSessionTimeout from './hooks/useSessionTimeout';
+import { registerSessionExpiredHandler } from './services/api';
+import { ROUTES, ROLES, PERMISSIONS, MANAGER_ROLES } from './utils/constants';
+
+// SessionManager: mounted 1 lần ở gốc app — kích hoạt toàn bộ session logic
+function SessionManager() {
+  useSessionTimeout();
+  return null;
+}
 
 // Hiển thị inline khi người dùng gõ URL trực tiếp nhưng không có quyền
 // Render TRONG layout (sidebar vẫn hiển thị) thay vì redirect 403 toàn trang
@@ -151,22 +158,35 @@ const ADMIN_SECTION_PERMS = [
 
 
 function App() {
-  const { checkAuth, refreshPermissions, isLoading: isAuthLoading } = useAuthStore();
+  const { checkAuth, refreshPermissions, reset, isLoading: isAuthLoading, isHydrating } = useAuthStore();
 
   useEffect(() => {
+    // Đăng ký handler cho api.js khi refresh token hết hạn (tránh circular dep)
+    registerSessionExpiredHandler(() => {
+      reset();
+      window.location.href = '/login?expired=true';
+    });
+
+    // Validate session ngay khi app load (kiểm tra JWT expiry từ localStorage)
     const auth = checkAuth();
     if (auth) {
       refreshPermissions().catch(() => {});
     }
   }, []);
 
+  // Chờ checkAuth() chạy xong trước khi render routes
+  // Tránh flash UI "đã đăng nhập" với token thực ra đã hết hạn
+  if (isHydrating) {
+    return <Loading fullScreen text="Đang khởi động..." />;
+  }
+
   return (
     <ErrorBoundary>
-      {/* Hiển thị loading toàn màn hình khi đang xử lý đăng nhập/đăng xuất */}
+      {/* Session manager: theo dõi token expiry + inactivity timeout */}
+      <SessionManager />
+
       {isAuthLoading && <Loading fullScreen text="Đang xử lý..." />}
-      
-      {/* Theo dõi session timeout 1 giờ — không render gì */}
-      
+
       <Suspense fallback={<Loading fullScreen text="Đang tải dữ liệu..." />}>
         <Routes>
         {/* Public Routes */}
@@ -186,26 +206,27 @@ function App() {
           <Route index element={<ProfilePage />} />
         </Route>
 
-        {/* Admin Routes - ADMIN role HOẶC bất kỳ ai có quyền quản trị
-            ADMIN luôn pass (hasAnyPermission trả true cho ADMIN)
-            GV001 (Bí thư, nhiều quyền), BCH cấp cao... cũng được vào */}
+        {/* Admin Routes — CHỈ các role quản lý (ADMIN, QUAN_LY_KHOA, ...) mới vào được.
+            DOAN_VIEN bị chặn tại đây dù có một số quyền trùng (XEM_HOAT_DONG, QUET_QR, ...) */}
         <Route
           path={ROUTES.ADMIN}
           element={
-            <ProtectedRoute requiredPermissions={[
-              PERMISSIONS.XEM_SINH_VIEN, PERMISSIONS.XEM_GIANG_VIEN, PERMISSIONS.XEM_CHUYEN_VIEN,
-              PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
-              PERMISSIONS.XEM_KHOA, PERMISSIONS.XEM_NGANH, PERMISSIONS.XEM_LOP, PERMISSIONS.XEM_KHOA_HOC,
-              PERMISSIONS.QUAN_LY_CHUC_VU, PERMISSIONS.QUAN_LY_BAN,
-              PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
-              PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
-              PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
-              // eNews
-              PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.SUA_TIN_TUC, PERMISSIONS.DUYET_TIN_TUC,
-              PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
-              // Cuộc thi
-              PERMISSIONS.QUAN_LY_CUOC_THI, PERMISSIONS.TAO_CUOC_THI,
-            ]}>
+            <ProtectedRoute
+              allowedRoles={MANAGER_ROLES}
+              requiredPermissions={[
+                PERMISSIONS.XEM_SINH_VIEN, PERMISSIONS.XEM_GIANG_VIEN, PERMISSIONS.XEM_CHUYEN_VIEN,
+                PERMISSIONS.XEM_BCH, PERMISSIONS.XEM_HOAT_DONG, PERMISSIONS.XEM_DIEM_DANH,
+                PERMISSIONS.XEM_KHOA, PERMISSIONS.XEM_NGANH, PERMISSIONS.XEM_LOP, PERMISSIONS.XEM_KHOA_HOC,
+                PERMISSIONS.QUAN_LY_CHUC_VU, PERMISSIONS.QUAN_LY_BAN,
+                PERMISSIONS.CAI_DAT_HE_THONG, PERMISSIONS.XEM_TAI_KHOAN, PERMISSIONS.XEM_THONG_KE,
+                PERMISSIONS.XEM_SYSTEM_LOG, PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM,
+                PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
+                PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.SUA_TIN_TUC, PERMISSIONS.DUYET_TIN_TUC,
+                PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
+                PERMISSIONS.QUAN_LY_CUOC_THI, PERMISSIONS.TAO_CUOC_THI,
+                PERMISSIONS.QUET_QR,
+              ]}
+            >
               <MainLayout title="Admin" />
             </ProtectedRoute>
           }
@@ -308,7 +329,7 @@ function App() {
             </PermissionGate>
           } />
           <Route path="cau-lac-bo" element={
-            <PermissionGate permission={PERMISSIONS.XEM_CLB}>
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_CLB}>
               <CauLacBoPage />
             </PermissionGate>
           } />
@@ -333,21 +354,15 @@ function App() {
               <DashboardStatisticsPage />
             </PermissionGate>
           } />
-          <Route path="settings" element={
-            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM}>
-              <SettingsPermissionsPage />
-            </PermissionGate>
-          } />
-          {/* Phân quyền BCH theo Level — Bí thư Level 1 cũng truy cập được */}
           <Route path="phan-quyen" element={
             <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_NHOM}>
               <PermissionMatrixPage />
             </PermissionGate>
           } />
-          {/* Phân quyền CLB cho BCH */}
-          <Route path="phan-quyen-clb" element={
-            <PermissionGate permission={PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN}>
-              <ClbPermissionPage />
+          {/* Quản lý đoàn viên cấp dưới theo khoa/chi đoàn */}
+          <Route path="doan-vien-khoa" element={
+            <PermissionGate permission={PERMISSIONS.XEM_SINH_VIEN}>
+              <DoanVienKhoaPage />
             </PermissionGate>
           } />
           {/* eNews admin routes */}
@@ -419,11 +434,11 @@ function App() {
           } />
         </Route>
 
-        {/* Student Routes - chỉ SINH_VIEN (kể cả SINH_VIEN là BCH, vaiTro vẫn là SINH_VIEN) */}
+        {/* Student Routes - chỉ DOAN_VIEN */}
         <Route
           path={ROUTES.STUDENT}
           element={
-            <ProtectedRoute allowedRoles={[ROLES.SINHVIEN]}>
+            <ProtectedRoute allowedRoles={[ROLES.DOAN_VIEN]}>
               <StudentLayout />
             </ProtectedRoute>
           }
@@ -435,20 +450,26 @@ function App() {
           <Route path="my-activities" element={<StudentMyActivities />} />
           <Route path="training-points" element={<StudentTrainingPoints />} />
           <Route path="clb-registration" element={<ClbRegistrationPage />} />
+          <Route path="fees" element={<Navigate to="/student/clb-registration?tab=fees" replace />} />
           <Route path="registrations" element={<ComingSoon title="Đăng ký của tôi" />} />
           <Route path="certificates" element={<ComingSoon title="Chứng nhận" />} />
-          {/* VẤN ĐỀ 4: /student/profile redirect về /profile duy nhất */}
-          <Route path="profile" element={<Navigate to={ROUTES.PROFILE} replace />} />
+          <Route path="self-scan" element={<SelfAttendanceScanner />} />
+          {/* VẤN ĐỀ 4: /student/profile redirect về dashboard thay vì /profile */}
+          <Route path="profile" element={<Navigate to={ROUTES.STUDENT_DASHBOARD} replace />} />
         </Route>
 
-        {/* BCH Routes - ai có quyền TAO_HOAT_DONG (BCH STAFF trở lên, kể cả SV là BCH) */}
+        {/* BCH Routes — chỉ management roles có thể vào (PHO_CHI_DOAN trở lên) */}
         <Route
           path={ROUTES.BCH}
           element={
-            <ProtectedRoute requiredPermissions={[
-              PERMISSIONS.TAO_HOAT_DONG, PERMISSIONS.QUET_QR,
-              PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.QUAN_LY_VAN_BAN,
-            ]}>
+            <ProtectedRoute
+              allowedRoles={MANAGER_ROLES}
+              requiredPermissions={[
+                PERMISSIONS.TAO_HOAT_DONG, PERMISSIONS.QUET_QR,
+                PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.QUAN_LY_VAN_BAN,
+                PERMISSIONS.GIAO_DIEM_DANH, PERMISSIONS.XEM_DIEM_DANH,
+              ]}
+            >
               <MainLayout title="BCH" />
             </ProtectedRoute>
           }
@@ -494,7 +515,8 @@ function App() {
               <PermissionMatrixPage />
             </PermissionGate>
           } />
-          <Route path="profile" element={<Navigate to={ROUTES.PROFILE} replace />} />
+          {/* Redirect profile về dashboard cho BCH */}
+          <Route path="profile" element={<Navigate to={ROUTES.BCH_DASHBOARD} replace />} />
         </Route>
 
         {/* Unauthorized / Forbidden */}

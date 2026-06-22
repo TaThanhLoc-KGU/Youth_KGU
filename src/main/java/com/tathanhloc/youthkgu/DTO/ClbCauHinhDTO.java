@@ -29,6 +29,11 @@ public class ClbCauHinhDTO {
     private String webhookSecret;
     private String webhookProvider;
 
+    // PayOS
+    private String payosClientId;
+    private String payosApiKey;
+    private String payosChecksumKey;
+
     // Mô tả
     private String moTaYeuCau;
 }

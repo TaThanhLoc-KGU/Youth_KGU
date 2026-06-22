@@ -198,6 +198,18 @@ public class CauLacBoController {
         return ResponseEntity.ok(ApiResponse.success(cauLacBoService.getHoatDong(maClb, maNamHoc)));
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // THỐNG KÊ NHANH (Dashboard CLB)
+    // ══════════════════════════════════════════════════════════════
+
+    @GetMapping("/{maClb}/stats")
+    @Operation(summary = "Thống kê nhanh của CLB: số thành viên, hoạt động, điểm rèn luyện")
+    @PreAuthorize("hasPermission(null, 'XEM_CLB') or hasPermission(null, 'QUAN_LY_CLB') or hasPermission(null, 'QUAN_LY_THANH_VIEN_CLB')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getStats(@PathVariable String maClb) {
+        log.info("GET /api/clb/{}/stats", maClb);
+        return ResponseEntity.ok(ApiResponse.success(cauLacBoService.getStats(maClb)));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("Error in CauLacBoController", e);

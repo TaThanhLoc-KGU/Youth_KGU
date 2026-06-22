@@ -6,6 +6,9 @@ import com.tathanhloc.youthkgu.DTO.SinhVienDTO;
 import com.tathanhloc.youthkgu.DTO.StudentCountDTO;
 import com.tathanhloc.youthkgu.DTO.ClbImportRowDTO;
 import com.tathanhloc.youthkgu.DTO.ClbImportMatchDTO;
+import com.tathanhloc.youthkgu.Enum.VaiTroEnum;
+import com.tathanhloc.youthkgu.Model.TaiKhoan;
+import com.tathanhloc.youthkgu.Repository.TaiKhoanRepository;
 import com.tathanhloc.youthkgu.Service.SinhVienExcelService;
 import com.tathanhloc.youthkgu.Service.SinhVienService;
 import jakarta.validation.Valid;
@@ -20,6 +23,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,9 +40,27 @@ import java.util.Map;
 public class SinhVienController {
 
     private final SinhVienService sinhVienService;
+    private final TaiKhoanRepository taiKhoanRepository;
 
     @Autowired
     private SinhVienExcelService excelService;
+
+    private record ScopeFilter(String maKhoa, String maLop) {}
+
+    /** Đọc scope từ SecurityContext — hoạt động kể cả khi gọi nội bộ giữa các method. */
+    private ScopeFilter resolveScope() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return new ScopeFilter(null, null);
+        TaiKhoan tk = taiKhoanRepository.findByUsername(auth.getName()).orElse(null);
+        if (tk == null) return new ScopeFilter(null, null);
+        VaiTroEnum role = tk.getVaiTro();
+        if (role == VaiTroEnum.ADMIN) return new ScopeFilter(null, null);
+        if (role.isScopedToKhoa() && tk.getKhoa() != null)
+            return new ScopeFilter(tk.getKhoa().getMaKhoa(), null);
+        if (role.isScopedToChiDoan() && tk.getLop() != null)
+            return new ScopeFilter(null, tk.getLop().getMaLop());
+        return new ScopeFilter(null, null);
+    }
 
     @GetMapping
     @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
@@ -56,6 +79,11 @@ public class SinhVienController {
                 direction.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending()
         );
 
+        // Ép scope theo khoa/chi đoàn (ghi đè filter người dùng truyền vào)
+        ScopeFilter scope = resolveScope();
+        String effectiveMaKhoa = scope.maKhoa() != null ? scope.maKhoa() : maKhoa;
+        String effectiveMaLop  = scope.maLop()  != null ? scope.maLop()  : maLop;
+
         List<SinhVienDTO> allStudents = sinhVienService.getAll();
 
         // Apply filters
@@ -68,15 +96,15 @@ public class SinhVienController {
                     .toList();
         }
 
-        if (maLop != null && !maLop.isEmpty()) {
+        if (effectiveMaLop != null && !effectiveMaLop.isEmpty()) {
             allStudents = allStudents.stream()
-                    .filter(s -> s.getMaLop() != null && s.getMaLop().equals(maLop))
+                    .filter(s -> s.getMaLop() != null && s.getMaLop().equals(effectiveMaLop))
                     .toList();
         }
 
-        if (maKhoa != null && !maKhoa.isEmpty()) {
+        if (effectiveMaKhoa != null && !effectiveMaKhoa.isEmpty()) {
             allStudents = allStudents.stream()
-                    .filter(s -> s.getMaKhoa() != null && s.getMaKhoa().equals(maKhoa))
+                    .filter(s -> s.getMaKhoa() != null && s.getMaKhoa().equals(effectiveMaKhoa))
                     .toList();
         }
 
@@ -109,7 +137,13 @@ public class SinhVienController {
     @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN') or hasPermission(null, 'XEM_BCH')")
     public ResponseEntity<List<SinhVienDTO>> getAllActive() {
         log.info("Lấy danh sách sinh viên đang hoạt động");
-        return ResponseEntity.ok(sinhVienService.getAllActive());
+        ScopeFilter scope = resolveScope();
+        List<SinhVienDTO> list = sinhVienService.getAllActive();
+        if (scope.maKhoa() != null)
+            list = list.stream().filter(s -> scope.maKhoa().equals(s.getMaKhoa())).toList();
+        else if (scope.maLop() != null)
+            list = list.stream().filter(s -> scope.maLop().equals(s.getMaLop())).toList();
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/{id}")
@@ -171,7 +205,13 @@ public class SinhVienController {
     @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<List<SinhVienDTO>> getAllStudentsNoPagination() {
         log.info("Lấy tất cả sinh viên (không phân trang)");
-        return ResponseEntity.ok(sinhVienService.getAll());
+        ScopeFilter scope = resolveScope();
+        List<SinhVienDTO> list = sinhVienService.getAll();
+        if (scope.maKhoa() != null)
+            list = list.stream().filter(s -> scope.maKhoa().equals(s.getMaKhoa())).toList();
+        else if (scope.maLop() != null)
+            list = list.stream().filter(s -> scope.maLop().equals(s.getMaLop())).toList();
+        return ResponseEntity.ok(list);
     }
 
     /**
@@ -389,19 +429,27 @@ public class SinhVienController {
      * Export sinh viên ra Excel
      */
     @GetMapping("/export-excel")
-    @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
+    @PreAuthorize("hasPermission(null, 'EXPORT_SINH_VIEN')")
     public ResponseEntity<byte[]> exportToExcel(
             @RequestParam(required = false) String maLop,
+            @RequestParam(required = false) String maKhoa,
             @RequestParam(required = false) Boolean isActive) {
         try {
-            log.info("Export to Excel - maLop: {}, isActive: {}", maLop, isActive);
+            log.info("Export to Excel - maLop: {}, maKhoa: {}, isActive: {}", maLop, maKhoa, isActive);
+
+            ScopeFilter scope = resolveScope();
+            String effectiveMaKhoa = scope.maKhoa() != null ? scope.maKhoa() : maKhoa;
+            String effectiveMaLop  = scope.maLop()  != null ? scope.maLop()  : maLop;
 
             List<SinhVienDTO> sinhVienList = sinhVienService.getAll();
 
-            // Filter if needed
-            if (maLop != null) {
+            if (effectiveMaLop != null) {
                 sinhVienList = sinhVienList.stream()
-                        .filter(sv -> sv.getMaLop().equals(maLop))
+                        .filter(sv -> effectiveMaLop.equals(sv.getMaLop()))
+                        .toList();
+            } else if (effectiveMaKhoa != null) {
+                sinhVienList = sinhVienList.stream()
+                        .filter(sv -> effectiveMaKhoa.equals(sv.getMaKhoa()))
                         .toList();
             }
 

@@ -37,9 +37,7 @@ public class TaiKhoan {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @NotBlank(message = "Email không được để trống")
-    @Email(message = "Email không hợp lệ")
-    @Column(name = "email", unique = true, nullable = false)
+    @Column(name = "email", unique = true, nullable = true)
     private String email;
 
     @NotNull(message = "Vai trò không được để trống")
@@ -110,6 +108,15 @@ public class TaiKhoan {
     @Column(name = "managed_clb_ids", columnDefinition = "JSON DEFAULT '[]'")
     @Builder.Default
     private String managedClbIds = "[]";
+
+    /**
+     * Scope cấp chi đoàn: null = không giới hạn theo lớp/chi đoàn.
+     * Áp dụng cho QUAN_LY_CHI_DOAN / PHO_CHI_DOAN.
+     * Trỏ đến Lop (loai = 'LOP' hoặc 'CHI_DOAN').
+     */
+    @ManyToOne
+    @JoinColumn(name = "ma_lop")
+    private Lop lop;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

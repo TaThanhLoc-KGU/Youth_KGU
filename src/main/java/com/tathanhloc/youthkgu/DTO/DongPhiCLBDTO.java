@@ -21,10 +21,21 @@ public class DongPhiCLBDTO {
     private String hinhThuc;
     private LocalDate ngayDong;
     private String ghiChu;
+    private String maReference;
     // webhook
     private String transactionId;
     private String noiDungCk;
     private BigDecimal soTienCk;
     private String nguon;
+    // PayOS
+    private Long payosOrderCode;
+    private String payosPaymentUrl;
+
+    // Ngân hàng & Chuyển khoản (để SV thấy thông tin CK)
+    private String bankAccountNo;
+    private String bankName;
+    private String accountName;
+    private String maXacThucCk;
+
     private LocalDateTime createdAt;
 }

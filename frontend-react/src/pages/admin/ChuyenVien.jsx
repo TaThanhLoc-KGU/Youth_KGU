@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Eye, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, RefreshCw, FileUp, FileDown } from 'lucide-react';
 import chuyenVienService from '../../services/chuyenVienService';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
@@ -15,18 +15,21 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Textarea from '../../components/common/Textarea';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import ExcelImportModal from '../../components/common/ExcelImportModal';
 
 const ChuyenVien = () => {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
   const canView   = hasPermission(PERMISSIONS.XEM_CHUYEN_VIEN);
-  const canManage = hasPermission(PERMISSIONS.QUAN_LY_CHUYEN_VIEN);
+  const canManage = hasPermission(PERMISSIONS.CAI_DAT_CHUYEN_VIEN);
   const [confirmState, setConfirmState] = useState(null);
   const [search, setSearch] = useState('');
   const [selectedChuyenVien, setSelectedChuyenVien] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('view'); // view, create, edit
   const [formData, setFormData] = useState({
+    maChuyenVien: '',
     hoTen: '',
     email: '',
     sdt: '',
@@ -104,6 +107,13 @@ const ChuyenVien = () => {
   // Table columns
   const columns = [
     {
+      header: 'Mã chuyên viên',
+      accessor: 'maChuyenVien',
+      headerClassName: 'hidden lg:table-cell',
+      cellClassName: 'hidden lg:table-cell',
+      render: (value) => <span className="font-mono text-xs">{value}</span>,
+    },
+    {
       header: 'Họ tên',
       accessor: 'hoTen',
       render: (value, row) => (
@@ -171,6 +181,7 @@ const ChuyenVien = () => {
     setSelectedChuyenVien(null);
     setModalMode('create');
     setFormData({
+      maChuyenVien: '',
       hoTen: '',
       email: '',
       sdt: '',
@@ -191,6 +202,7 @@ const ChuyenVien = () => {
     setSelectedChuyenVien(chuyenvien);
     setModalMode('edit');
     setFormData({
+      maChuyenVien: chuyenvien.maChuyenVien || '',
       hoTen: chuyenvien.hoTen || '',
       email: chuyenvien.email || '',
       sdt: chuyenvien.sdt || '',
@@ -209,6 +221,7 @@ const ChuyenVien = () => {
     setIsModalOpen(false);
     setSelectedChuyenVien(null);
     setFormData({
+      maChuyenVien: '',
       hoTen: '',
       email: '',
       sdt: '',
@@ -220,6 +233,7 @@ const ChuyenVien = () => {
 
   const validateForm = () => {
     const newErrors = {};
+    if (modalMode === 'create' && !formData.maChuyenVien) newErrors.maChuyenVien = 'Vui lòng nhập mã chuyên viên';
     if (!formData.hoTen) newErrors.hoTen = 'Vui lòng nhập họ tên';
     if (!formData.email) newErrors.email = 'Vui lòng nhập email';
     if (formData.email && !formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
@@ -246,6 +260,15 @@ const ChuyenVien = () => {
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      await chuyenVienService.exportExcel();
+      toast.success('Xuất file Excel thành công');
+    } catch (error) {
+      toast.error('Xuất file Excel thất bại');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -254,11 +277,21 @@ const ChuyenVien = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Chuyên viên</h1>
           <p className="text-gray-600 mt-1">Quản lý thông tin chuyên viên Ban Đoàn - Hội</p>
         </div>
-        {canManage && (
-          <Button icon={Plus} onClick={handleCreate}>
-            Thêm chuyên viên mới
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+            <Button variant="outline" icon={FileDown} onClick={handleExportExcel}>
+                Xuất Excel
+            </Button>
+            {canManage && (
+                <>
+                <Button variant="outline" icon={FileUp} onClick={() => setIsImportModalOpen(true)}>
+                    Nhập từ Excel
+                </Button>
+                <Button icon={Plus} onClick={handleCreate}>
+                    Thêm chuyên viên mới
+                </Button>
+                </>
+            )}
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -315,7 +348,7 @@ const ChuyenVien = () => {
         isLoading={deleteMutation.isPending}
       />
 
-      {/* Modal */}
+      {/* Create/Edit/View Modal */}
       <Modal isOpen={isModalOpen} onClose={handleModalClose} size="lg">
         {modalMode === 'view' ? (
           <div className="space-y-6 max-w-2xl">
@@ -324,6 +357,10 @@ const ChuyenVien = () => {
               <>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Mã chuyên viên</label>
+                      <p className="mt-1 font-mono">{selectedChuyenVien.maChuyenVien}</p>
+                    </div>
                     <div>
                       <label className="text-sm font-medium text-gray-700">Họ tên</label>
                       <p className="mt-1 font-medium">{selectedChuyenVien.hoTen}</p>
@@ -368,6 +405,14 @@ const ChuyenVien = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
+                  label="Mã chuyên viên"
+                  placeholder="Nhập mã (để trống để tự tạo)"
+                  value={formData.maChuyenVien}
+                  onChange={(e) => handleInputChange('maChuyenVien', e.target.value)}
+                  error={errors.maChuyenVien}
+                  disabled={modalMode === 'edit'}
+                />
+                <Input
                   label="Họ tên"
                   placeholder="Nhập họ tên"
                   value={formData.hoTen}
@@ -375,6 +420,9 @@ const ChuyenVien = () => {
                   error={errors.hoTen}
                   required
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Email"
                   type="email"
@@ -384,34 +432,33 @@ const ChuyenVien = () => {
                   error={errors.email}
                   required
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="SĐT"
                   placeholder="Nhập số điện thoại"
                   value={formData.sdt}
                   onChange={(e) => handleInputChange('sdt', e.target.value)}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Chức danh"
                   placeholder="VD: TS, ThS, Ths..."
                   value={formData.chucDanh}
                   onChange={(e) => handleInputChange('chucDanh', e.target.value)}
                 />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={formData.isActive}
-                  onChange={(e) => handleInputChange('isActive', e.target.checked)}
-                  className="rounded"
-                />
-                <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                  Đang hoạt động
-                </label>
+                <div className="flex items-center gap-2 h-full pt-6">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={formData.isActive}
+                    onChange={(e) => handleInputChange('isActive', e.target.checked)}
+                    className="rounded"
+                  />
+                  <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+                    Đang hoạt động
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -421,7 +468,7 @@ const ChuyenVien = () => {
               </Button>
               <Button
                 onClick={handleSubmit}
-                loading={createMutation.isLoading || updateMutation.isLoading}
+                loading={createMutation.isPending || updateMutation.isPending}
               >
                 {modalMode === 'create' ? 'Tạo mới' : 'Cập nhật'}
               </Button>
@@ -429,6 +476,20 @@ const ChuyenVien = () => {
           </div>
         )}
       </Modal>
+
+      {/* Excel Import Modal */}
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        entityName="chuyên viên"
+        onDownloadTemplate={chuyenVienService.downloadTemplate}
+        onPreview={chuyenVienService.previewExcel}
+        onImport={chuyenVienService.importExcel}
+        onSuccess={() => {
+            queryClient.invalidateQueries(['chuyenvien']);
+            queryClient.invalidateQueries(['chuyenvien-statistics']);
+        }}
+      />
     </div>
   );
 };

@@ -18,6 +18,7 @@ public class LopService {
     private final NganhRepository nganhRepository;
     private final KhoaHocRepository khoaHocRepository;
     private final SinhVienRepository sinhVienRepository;
+    private final KhoaRepository khoaRepository;
 
     // Lấy tất cả lớp (bao gồm cả đã xóa)
     @Transactional(readOnly = true)
@@ -108,6 +109,7 @@ public class LopService {
                 .maKhoa(e.getMaKhoa() != null ? e.getMaKhoa().getMaKhoa() : null)
                 .tenKhoa(e.getMaKhoa() != null ? e.getMaKhoa().getTenKhoa() : null)
                 .isActive(e.isActive())
+                .loai(e.getLoai() != null ? e.getLoai() : "LOP")
                 .build();
     }
 
@@ -147,11 +149,43 @@ public class LopService {
     }
     // Thêm vào class LopService
     public long countSinhVienByLop(String maLop) {
-        // Tìm lớp
-        Lop lop = lopRepository.findById(maLop)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy lớp với mã: " + maLop));
-
-        // Đếm sinh viên trong lớp (chỉ sinh viên đang hoạt động)
+        lopRepository.findById(maLop)
+                .orElseThrow(() -> new RuntimeException("Khong tim thay lop voi ma: " + maLop));
         return sinhVienRepository.countByLopMaLopAndIsActiveTrue(maLop);
+    }
+
+    // ========== CHI DOAN METHODS ==========
+
+    /** Lay tat ca chi doan dang hoat dong */
+    @Transactional(readOnly = true)
+    public List<LopDTO> getAllChiDoan() {
+        return lopRepository.findByLoaiAndIsActiveTrue("CHI_DOAN").stream()
+                .map(this::toDTO).toList();
+    }
+
+    /** Lay tat ca lop (loai = LOP) dang hoat dong */
+    @Transactional(readOnly = true)
+    public List<LopDTO> getAllLopOnly() {
+        return lopRepository.findByLoaiAndIsActiveTrue("LOP").stream()
+                .map(this::toDTO).toList();
+    }
+
+    /**
+     * Tao chi doan moi - khong yeu cau nganh/khoahoc.
+     * maKhoa co the null (cap truong) hoac co (cap khoa).
+     */
+    @Transactional
+    public LopDTO createChiDoan(LopDTO dto) {
+        Lop.LopBuilder builder = Lop.builder()
+                .maLop(dto.getMaLop())
+                .tenLop(dto.getTenLop())
+                .loai("CHI_DOAN")
+                .isActive(true);
+
+        if (dto.getMaKhoa() != null && !dto.getMaKhoa().isBlank()) {
+            khoaRepository.findById(dto.getMaKhoa()).ifPresent(builder::maKhoa);
+        }
+
+        return toDTO(lopRepository.save(builder.build()));
     }
 }

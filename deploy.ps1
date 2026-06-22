@@ -12,29 +12,54 @@ $ErrorActionPreference = "Stop"
 $startTime = Get-Date
 
 # ===== CONFIG =====
-$SRV      = "Dieukhientuxa@123.22.30.72"
-$PORT     = "32156"
+$HOST_IP  = "100.110.62.27"
+$USER     = "Dieukhientuxa"
+$PORT     = 32156
 $SP       = "Vnkgu@Qtcsvc@2026"
 $PROJ     = "D:\Youth_KGU"
 $BE_DIR   = "/opt/youth-kgu/backend"
 $FE_DIR   = "/www/wwwroot/youth-kgu"
 # ==================
 
+# ── Posh-SSH (cài nếu chưa có) ──────────────────────────────────────────────
+if (-not (Get-Module -ListAvailable -Name Posh-SSH)) {
+    Write-Host "Cai Posh-SSH..." -ForegroundColor Yellow
+    Install-Module -Name Posh-SSH -Force -Scope CurrentUser -AllowClobber
+}
+Import-Module Posh-SSH -Force
+
+$secPass = ConvertTo-SecureString $SP -AsPlainText -Force
+$cred    = New-Object PSCredential($USER, $secPass)
+
+Write-Host "Ket noi SSH..." -ForegroundColor Cyan
+$sess = New-SSHSession -ComputerName $HOST_IP -Port $PORT -Credential $cred -AcceptKey -Force
+$sid  = $sess.SessionId
+
+function Run($cmd) {
+    $r = Invoke-SSHCommand -SessionId $sid -Command $cmd
+    if ($r.Output) { Write-Host $r.Output }
+    if ($r.Error)  { Write-Host $r.Error -ForegroundColor Yellow }
+}
+
+function Upload($local, $remote) {
+    Set-SCPItem -ComputerName $HOST_IP -Port $PORT -Credential $cred `
+        -Path $local -Destination $remote -AcceptKey -Force
+}
+
 Set-Location $PROJ
 
-# ─── BACKEND ──────────────────────────────────────────────────────────────
+# ── BACKEND ──────────────────────────────────────────────────────────────────
 if ($Backend) {
-    Write-Host "`n===== Build backend =====" -ForegroundColor Cyan
+    Write-Host "`n===== 1/3 Build backend =====" -ForegroundColor Cyan
     mvn clean package -DskipTests -q
     if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Maven that bai" -ForegroundColor Red; exit 1 }
 
-    Write-Host "`n===== Upload JAR =====" -ForegroundColor Cyan
-    $JAR = "$PROJ\target\youth-kgu-0.0.1-SNAPSHOT.jar"
-    scp -P $PORT $JAR "${SRV}:youth-kgu-0.0.1-SNAPSHOT.jar"
-    if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Upload JAR that bai" -ForegroundColor Red; exit 1 }
+    Write-Host "`n===== 2/3 Upload JAR =====" -ForegroundColor Cyan
+    Upload "$PROJ\target\youth-kgu-0.0.1-SNAPSHOT.jar" "~"
+    Write-Host "Upload JAR OK"
 }
 
-# ─── FRONTEND ─────────────────────────────────────────────────────────────
+# ── FRONTEND ─────────────────────────────────────────────────────────────────
 if ($Frontend) {
     Write-Host "`n===== Build frontend =====" -ForegroundColor Cyan
     Set-Location "$PROJ\frontend-react"
@@ -44,31 +69,36 @@ if ($Frontend) {
 
     Write-Host "`n===== Upload dist =====" -ForegroundColor Cyan
     Compress-Archive -Path "$PROJ\frontend-react\dist\*" -DestinationPath "$PROJ\dist.zip" -Force
-    scp -P $PORT "$PROJ\dist.zip" "${SRV}:dist.zip"
-    if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Upload dist that bai" -ForegroundColor Red; exit 1 }
+    Upload "$PROJ\dist.zip" "~"
     Remove-Item "$PROJ\dist.zip" -Force
+    Write-Host "Upload dist OK"
 }
 
-# ─── BASH SCRIPT (LF only, UTF-8 no BOM) ─────────────────────────────────
+# ── DEPLOY TREN SERVER ───────────────────────────────────────────────────────
 Write-Host "`n===== Deploy tren server =====" -ForegroundColor Cyan
 
-$lines = @("#!/bin/bash")
+$lines = @("#!/bin/bash", "set -e")
 
 if ($Backend) {
     $lines += "echo '--- Cap nhat backend...'"
-    $lines += "echo '$SP' | sudo -S cp ~/youth-kgu-0.0.1-SNAPSHOT.jar $BE_DIR/app.jar && echo 'OK: copy jar' || echo 'FAIL: copy jar'"
-    $lines += "echo '$SP' | sudo -S chown youthkgu:youthkgu $BE_DIR/app.jar && echo 'OK: chown jar' || echo 'FAIL: chown jar'"
+    $lines += "echo '$SP' | sudo -S mkdir -p /opt/youth-kgu/logs/"
+    $lines += "echo '$SP' | sudo -S chown -R youthkgu:youthkgu /opt/youth-kgu/"
+    $lines += "echo '$SP' | sudo -S cp ~/youth-kgu-0.0.1-SNAPSHOT.jar $BE_DIR/app.jar && echo 'OK: copy jar'"
+    $lines += "echo '$SP' | sudo -S chown youthkgu:youthkgu $BE_DIR/app.jar && echo 'OK: chown jar'"
+    $lines += "echo '$SP' | sudo -S chmod 755 $BE_DIR/app.jar && echo 'OK: chmod jar'"
+    $lines += "echo '$SP' | sudo -S chown -R youthkgu:youthkgu $BE_DIR/"
+    $lines += "echo '$SP' | sudo -S chown -R youthkgu:youthkgu /opt/youth-kgu/logs/"
 }
 if ($Frontend) {
     $lines += "echo '--- Cap nhat frontend...'"
-    $lines += "echo '$SP' | sudo -S rm -rf $FE_DIR/* && echo 'OK: xoa cu' || echo 'FAIL: xoa cu'"
-    $lines += "echo '$SP' | sudo -S unzip -o ~/dist.zip -d $FE_DIR/ ; echo 'OK: unzip'"
+    $lines += "echo '$SP' | sudo -S rm -rf $FE_DIR/*"
+    $lines += "echo '$SP' | sudo -S unzip -o ~/dist.zip -d $FE_DIR/ && echo 'OK: unzip'"
     $lines += "echo '$SP' | sudo -S chown -R www:www $FE_DIR/ 2>/dev/null ; echo 'OK: chown'"
 }
 if ($Backend) {
     $lines += "echo '--- Restart backend...'"
-    $lines += "echo '$SP' | sudo -S systemctl restart youth-kgu-backend && echo 'OK: restart' || echo 'FAIL: restart'"
-    $lines += "sleep 3"
+    $lines += "echo '$SP' | sudo -S systemctl restart youth-kgu-backend && echo 'OK: restart'"
+    $lines += "sleep 4"
     $lines += "echo '$SP' | sudo -S systemctl is-active youth-kgu-backend && echo 'Backend: RUNNING' || echo 'Backend: FAILED'"
 }
 $lines += "rm -f ~/youth-kgu-0.0.1-SNAPSHOT.jar ~/dist.zip ~/deploy.sh"
@@ -77,10 +107,12 @@ $lines += "echo '=== DONE ==='"
 $tmp = "$env:TEMP\deploy.sh"
 [System.IO.File]::WriteAllText($tmp, ($lines -join "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
 
-scp -P $PORT $tmp "${SRV}:deploy.sh"
-ssh -p $PORT $SRV "bash ~/deploy.sh"
-
+Upload $tmp "~"
 Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+
+Run "bash ~/deploy.sh"
+
+Remove-SSHSession -SessionId $sid | Out-Null
 
 $elapsed = [math]::Round(((Get-Date) - $startTime).TotalSeconds)
 Write-Host "`nDone! (${elapsed}s)" -ForegroundColor Green

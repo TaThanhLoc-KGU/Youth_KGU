@@ -46,6 +46,25 @@ const diemDanhService = {
     return response.data; // DiemDanhQRResponse: { success, message, data, timestamp }
   },
 
+  // ===== SELF-SERVICE QR ATTENDANCE =====
+  
+  // Lấy mã QR động
+  getDynamicQRToken: async (maHoatDong) => {
+    const response = await api.get(`/api/diem-danh/activity/${enc(maHoatDong)}/dynamic-qr`);
+    return response.data.data;
+  },
+
+  // Tự điểm danh bằng QR động và GPS
+  selfScanQR: async (token, latitude, longitude) => {
+    const response = await api.post('/api/diem-danh/self-scan', {
+      token,
+      latitude,
+      longitude
+    });
+    return response.data; // DiemDanhQRResponse
+  },
+  // ======================================
+
   // Điểm danh thủ công hàng loạt
   manualCheckInBulk: async (maHoatDong, maSvList, ghiChu = null) => {
     const response = await api.post('/api/diem-danh/manual', {

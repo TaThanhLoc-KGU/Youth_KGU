@@ -3,8 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
-import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList, Bell } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList, Bell,
+         CheckCircle2, XCircle, Clock, Building2 } from 'lucide-react';
 import activityService from '../../services/activityService';
+import hoatDongService from '../../services/hoatDongService';
 import newsService from '../../services/newsService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
@@ -37,7 +39,11 @@ const Activities = () => {
   const canCreate  = hasPermission(PERMISSIONS.TAO_HOAT_DONG);
   const canEdit    = hasPermission(PERMISSIONS.SUA_HOAT_DONG);
   const canDelete  = hasPermission(PERMISSIONS.XOA_HOAT_DONG);
-  const canApprove = hasPermission(PERMISSIONS.DUYET_HOAT_DONG);
+  const canApprove       = hasPermission(PERMISSIONS.DUYET_HOAT_DONG);
+  const canApproveClb    = hasPermission(PERMISSIONS.DUYET_HOAT_DONG_CLB);
+  const [showApprovalPanel, setShowApprovalPanel] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectReason, setRejectReason]   = useState('');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
@@ -61,8 +67,8 @@ const Activities = () => {
   const startYear = month >= 8 ? year : year - 1;
   const defaultAcademicYear = `NH${startYear}-${startYear + 1}`;
 
-  const [semesterFilter, setSemesterFilter] = useState(String(defaultSemester));
-  const [yearFilter, setYearFilter] = useState(defaultAcademicYear);
+  const [semesterFilter, setSemesterFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
 
   const [confirmState, setConfirmState] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -73,6 +79,36 @@ const Activities = () => {
     queryKey: ['academic-info-list'],
     queryFn: () => activityService.getCurrentAcademicInfo(),
     staleTime: 30 * 60 * 1000,
+  });
+
+  // Fetch hoạt động chờ duyệt (CLB/Khoa tạo)
+  const { data: pendingActivities = [], refetch: refetchPending } = useQuery({
+    queryKey: ['activities-cho-duyet'],
+    queryFn: () => hoatDongService.getChouDuyet(),
+    enabled: canApproveClb,
+    refetchInterval: 30000,
+  });
+
+  const duyetMutation = useMutation({
+    mutationFn: ({ ma, trangThaiMoi }) => hoatDongService.duyet(ma, trangThaiMoi),
+    onSuccess: () => {
+      toast.success('Đã phê duyệt hoạt động');
+      queryClient.invalidateQueries(['activities-cho-duyet']);
+      queryClient.invalidateQueries(['activities']);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Lỗi phê duyệt'),
+  });
+
+  const tuChoiMutation = useMutation({
+    mutationFn: ({ ma, lyDo }) => hoatDongService.tuChoi(ma, lyDo),
+    onSuccess: () => {
+      toast.success('Đã từ chối hoạt động');
+      queryClient.invalidateQueries(['activities-cho-duyet']);
+      queryClient.invalidateQueries(['activities']);
+      setRejectTarget(null);
+      setRejectReason('');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Lỗi từ chối'),
   });
 
   // Fetch activities with pagination
@@ -226,9 +262,29 @@ const Activities = () => {
     {
       header: 'Thao tác',
       accessor: 'actions',
-      width: '180px',
+      width: '210px',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Nút Duyệt / Từ chối — chỉ hiện khi CHO_DUYET và có quyền */}
+          {canApproveClb && row.trangThai === 'CHO_DUYET' && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); duyetMutation.mutate({ ma: row.maHoatDong, trangThaiMoi: 'DANG_MO_DANG_KY' }); }}
+                disabled={duyetMutation.isPending}
+                title="Duyệt hoạt động"
+                className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-3 h-3" /> Duyệt
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setRejectTarget(row); }}
+                title="Từ chối hoạt động"
+                className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
+              >
+                <XCircle className="w-3 h-3" /> Từ chối
+              </button>
+            </>
+          )}
           <Button
             size="sm"
             variant="ghost"
@@ -308,12 +364,151 @@ const Activities = () => {
             Quản lý các hoạt động Đoàn - Hội sinh viên
           </p>
         </div>
-        {canCreate && (
-          <Button icon={Plus} onClick={handleCreate}>
-            <span className="hidden sm:inline">Tạo hoạt động mới</span>
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {canApproveClb && (
+            <button onClick={() => setShowApprovalPanel(p => !p)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pendingActivities.length > 0
+                  ? 'bg-orange-500 text-white hover:bg-orange-600'
+                  : showApprovalPanel
+                  ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+              }`}>
+              <Clock className="w-4 h-4" />
+              Phê duyệt CLB &amp; Khoa
+              {pendingActivities.length > 0 && (
+                <span className="bg-white text-orange-600 text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                  {pendingActivities.length}
+                </span>
+              )}
+            </button>
+          )}
+          {canCreate && (
+            <Button icon={Plus} onClick={handleCreate}>
+              <span className="hidden sm:inline">Tạo hoạt động mới</span>
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Approval Panel */}
+      {canApproveClb && showApprovalPanel && (() => {
+        const clbPending   = pendingActivities.filter(a => !!a.maClb);
+        const khoaPending  = pendingActivities.filter(a => !a.maClb && !!a.maKhoa);
+        return (
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-orange-800 flex items-center gap-2">
+                <Clock className="w-5 h-5" /> Hoạt động chờ phê duyệt ({pendingActivities.length})
+              </h3>
+              <button onClick={() => setShowApprovalPanel(false)} className="text-orange-500 hover:text-orange-700 text-xs">Đóng</button>
+            </div>
+
+            {pendingActivities.length === 0 ? (
+              <p className="text-orange-600 text-sm">Không có hoạt động nào chờ duyệt</p>
+            ) : (
+              <>
+                {/* ── Hoạt động CLB ── */}
+                {clbPending.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                        CLB / Ban / Đội ({clbPending.length})
+                      </span>
+                    </div>
+                    {clbPending.map(a => (
+                      <div key={a.maHoatDong} className="bg-white border border-blue-100 rounded-lg p-4 flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">{a.tenHoatDong}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {a.ngayToChuc}{a.diaDiem ? ` · ${a.diaDiem}` : ''}
+                            {a.tenClb && <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-medium">CLB: {a.tenClb}</span>}
+                          </p>
+                          {a.capDo && <p className="text-xs text-gray-400 mt-0.5">Cấp độ: {a.capDo}</p>}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => duyetMutation.mutate({ ma: a.maHoatDong, trangThaiMoi: 'DANG_MO_DANG_KY' })}
+                            disabled={duyetMutation.isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Duyệt
+                          </button>
+                          <button
+                            onClick={() => setRejectTarget(a)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-medium hover:bg-red-200">
+                            <XCircle className="w-3.5 h-3.5" /> Từ chối
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Hoạt động Khoa ── */}
+                {khoaPending.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-purple-500" />
+                      <span className="text-xs font-semibold text-purple-700 uppercase tracking-wide">
+                        Đoàn Khoa ({khoaPending.length})
+                      </span>
+                    </div>
+                    {khoaPending.map(a => (
+                      <div key={a.maHoatDong} className="bg-white border border-purple-100 rounded-lg p-4 flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">{a.tenHoatDong}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {a.ngayToChuc}{a.diaDiem ? ` · ${a.diaDiem}` : ''}
+                            {a.tenKhoa && <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-medium">Khoa: {a.tenKhoa}</span>}
+                          </p>
+                          {a.capDo && <p className="text-xs text-gray-400 mt-0.5">Cấp độ: {a.capDo}</p>}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => duyetMutation.mutate({ ma: a.maHoatDong, trangThaiMoi: 'DANG_MO_DANG_KY' })}
+                            disabled={duyetMutation.isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Duyệt
+                          </button>
+                          <button
+                            onClick={() => setRejectTarget(a)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-medium hover:bg-red-200">
+                            <XCircle className="w-3.5 h-3.5" /> Từ chối
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Reject Modal */}
+      {rejectTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold mb-2">Từ chối hoạt động</h3>
+            <p className="text-sm text-gray-600 mb-4">{rejectTarget.tenHoatDong}</p>
+            <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+              rows={3} placeholder="Lý do từ chối (không bắt buộc)..."
+              className="w-full border rounded-lg px-3 py-2 text-sm resize-none mb-4" />
+            <div className="flex gap-3">
+              <button onClick={() => { setRejectTarget(null); setRejectReason(''); }}
+                className="flex-1 py-2 border rounded-lg text-sm hover:bg-gray-50">Hủy</button>
+              <button
+                onClick={() => tuChoiMutation.mutate({ ma: rejectTarget.maHoatDong, lyDo: rejectReason })}
+                disabled={tuChoiMutation.isPending}
+                className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50">
+                {tuChoiMutation.isPending ? 'Đang xử lý…' : 'Xác nhận từ chối'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <Card>
@@ -340,8 +535,10 @@ const Activities = () => {
               variant="outline"
               icon={RefreshCw}
               onClick={() => {
-                setSemesterFilter(String(defaultSemester));
-                setYearFilter(defaultAcademicYear);
+                setSearch('');
+                setStatusFilter('all');
+                setSemesterFilter('all');
+                setYearFilter('all');
                 refetch();
               }}
             >

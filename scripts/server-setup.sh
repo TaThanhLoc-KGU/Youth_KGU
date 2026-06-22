@@ -117,6 +117,11 @@ mkdir -p "$APP_DIR"/{backend,frontend/dist,logs,uploads}
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 chmod -R 755 "$APP_DIR"
 
+# Cấp quyền chi tiết cho backend và logs
+chown -R "$APP_USER:$APP_USER" "$APP_DIR/backend/"
+chown -R "$APP_USER:$APP_USER" "$APP_DIR/logs/"
+chmod 755 "$APP_DIR/backend/"
+
 # ─── Systemd service ───
 echo ""
 echo "[7/7] Tao systemd service..."

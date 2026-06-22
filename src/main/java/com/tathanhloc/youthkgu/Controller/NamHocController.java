@@ -57,7 +57,7 @@ public class NamHocController {
      * Tạo năm học mới
      */
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<NamHocDTO> create(@Valid @RequestBody NamHocDTO dto) {
         log.info("Tạo năm học mới: {}", dto.getMaNamHoc());
         try {
@@ -73,7 +73,7 @@ public class NamHocController {
      * Tạo năm học mới với học kỳ mặc định
      */
     @PostMapping("/with-semesters")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<NamHocDTO> createWithDefaultSemesters(@Valid @RequestBody NamHocDTO dto) {
         log.info("Tạo năm học mới với học kỳ mặc định: {}", dto.getMaNamHoc());
         try {
@@ -89,7 +89,7 @@ public class NamHocController {
      * Cập nhật năm học
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<NamHocDTO> update(@PathVariable String id, @Valid @RequestBody NamHocDTO dto) {
         log.info("Cập nhật năm học với ID {}: {}", id, dto.getMaNamHoc());
         try {
@@ -104,7 +104,7 @@ public class NamHocController {
      * Xóa mềm năm học (soft delete)
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<Void> softDelete(@PathVariable String id) {
         log.info("Xóa mềm năm học với ID: {}", id);
         namHocService.softDelete(id);
@@ -115,7 +115,7 @@ public class NamHocController {
      * Khôi phục năm học đã xóa mềm
      */
     @PutMapping("/{id}/restore")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<NamHocDTO> restore(@PathVariable String id) {
         log.info("Khôi phục năm học với ID: {}", id);
         return ResponseEntity.ok(namHocService.restore(id));
@@ -169,7 +169,7 @@ public class NamHocController {
      * Đặt năm học làm hiện tại
      */
     @PutMapping("/{id}/set-current")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<NamHocDTO> setAsCurrent(@PathVariable String id) {
         log.info("Đặt năm học {} làm hiện tại", id);
         return ResponseEntity.ok(namHocService.setAsCurrent(id));
@@ -204,7 +204,7 @@ public class NamHocController {
      * Tạo học kỳ mặc định cho năm học
      */
     @PostMapping("/{maNamHoc}/create-semesters")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> createSemestersForYear(@PathVariable String maNamHoc) {
         log.info("API call: Create semesters for academic year: {}", maNamHoc);
 
@@ -246,7 +246,7 @@ public class NamHocController {
      * Xóa tất cả học kỳ của năm học
      */
     @DeleteMapping("/{maNamHoc}/semesters")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> deleteSemestersOfYear(@PathVariable String maNamHoc) {
         log.info("API call: Delete semesters for academic year: {}", maNamHoc);
 
@@ -306,7 +306,7 @@ public class NamHocController {
      * Xóa vĩnh viễn năm học (hard delete)
      */
     @DeleteMapping("/{id}/permanent")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<Void> hardDelete(@PathVariable String id) {
         log.info("Xóa vĩnh viễn năm học với ID: {}", id);
         namHocService.hardDelete(id);
@@ -327,7 +327,7 @@ public class NamHocController {
      * Xóa một học kỳ cụ thể khỏi năm học
      */
     @DeleteMapping("/{maNamHoc}/semesters/{maHocKy}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NAM_HOC')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NAM_HOC')")
     public ResponseEntity<Map<String, Object>> removeSemesterFromYear(
             @PathVariable String maNamHoc,
             @PathVariable String maHocKy) {

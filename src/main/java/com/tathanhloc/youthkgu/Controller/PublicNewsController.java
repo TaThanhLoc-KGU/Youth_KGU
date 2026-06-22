@@ -42,6 +42,9 @@ public class PublicNewsController {
     private final AdBannerService adBannerService;
     private final HoatDongService hoatDongService;
     private final DangKyHoatDongService dangKyHoatDongService;
+    private final BanChuNhiemCLBService banChuNhiemCLBService;
+    private final CauLacBoService cauLacBoService;
+    private final com.tathanhloc.youthkgu.Repository.CauLacBoRepository cauLacBoRepository;
 
     // ── Resolve URL ───────────────────────────────────────────────────────────
 
@@ -223,6 +226,7 @@ public class PublicNewsController {
             case SAP_DIEN_RA      -> 3;
             case DA_KET_THUC      -> 4;
             case DA_HOAN_THANH    -> 5;
+            case CHO_DUYET        -> 6;
             case DA_HUY           -> 7;
         };
     }
@@ -326,6 +330,48 @@ public class PublicNewsController {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<TinTucDTO> result = tinTucService.getTinTucByKhoa(maKhoa, pageable);
         return ResponseEntity.ok(result);
+    }
+
+    // ── CLB (Public) ───────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/public/clb/{maClb}/news
+     * Danh sách tin tức đã PUBLISHED của một câu lạc bộ cụ thể.
+     */
+    @GetMapping("/clb/{maClb}/news")
+    public ResponseEntity<?> getTinTucByClb(
+            @PathVariable String maClb,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("Public tin-tuc by clb: {}", maClb);
+        com.tathanhloc.youthkgu.Model.CauLacBo clb = cauLacBoRepository.findById(maClb)
+                .orElseThrow(() -> new com.tathanhloc.youthkgu.Exception.ResourceNotFoundException("Không tìm thấy CLB"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<TinTucDTO> result = tinTucService.getTinTucByClb(clb.getTenClb(), pageable);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * GET /api/public/clb/{maClb}/members
+     * Danh sách thành viên (Ban chủ nhiệm) đương nhiệm của câu lạc bộ.
+     */
+    @GetMapping("/clb/{maClb}/members")
+    public ResponseEntity<ApiResponse<List<BanChuNhiemCLBDTO>>> getMembersByClb(@PathVariable String maClb) {
+        log.info("Public get members by clb: {}", maClb);
+        List<BanChuNhiemCLBDTO> members = banChuNhiemCLBService.getPublicByClb(maClb);
+        return ResponseEntity.ok(ApiResponse.success(members));
+    }
+
+    /**
+     * GET /api/public/clb/{maClb}/thanh-vien
+     * Danh sách thành viên thông thường của câu lạc bộ.
+     */
+    @GetMapping("/clb/{maClb}/thanh-vien")
+    public ResponseEntity<ApiResponse<List<ThanhVienCLBDTO>>> getThanhVienByClb(@PathVariable String maClb) {
+        log.info("Public get thanh vien by clb: {}", maClb);
+        // Note: You may want to fetch active members only, but using getThanhVien for now
+        List<ThanhVienCLBDTO> thanhViens = cauLacBoService.getThanhVien(maClb, null);
+        return ResponseEntity.ok(ApiResponse.success(thanhViens));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

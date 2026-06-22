@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, CalendarPlus, ClipboardList, TrendingUp, User, LogOut, Home, ChevronRight, Users } from 'lucide-react';
+import { LayoutDashboard, CalendarPlus, ClipboardList, TrendingUp, User, LogOut, Home, ChevronRight, Users, QrCode } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES } from '../../utils/constants';
 import useNotificationHistoryStore from '../../stores/notificationHistoryStore';
@@ -8,8 +8,8 @@ import useNotificationHistoryStore from '../../stores/notificationHistoryStore';
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Tổng quan',   path: ROUTES.STUDENT_DASHBOARD           },
   { icon: CalendarPlus,    label: 'Đăng ký',      path: ROUTES.STUDENT_REGISTER_ACTIVITIES },
+  { icon: QrCode,          label: 'Điểm danh',    path: '/student/self-scan'               },
   { icon: ClipboardList,   label: 'Của tôi',      path: ROUTES.STUDENT_MY_ACTIVITIES       },
-  { icon: TrendingUp,      label: 'Rèn luyện',    path: ROUTES.STUDENT_TRAINING_POINTS     },
   { icon: Users,           label: 'CLB',           path: ROUTES.STUDENT_CLB_REGISTRATION    },
 ];
 
@@ -32,9 +32,10 @@ const StudentLayout = () => {
   const currentNav = NAV_ITEMS.find(n => isActive(n.path));
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-gray-50 flex flex-col">
+    <div className="min-h-screen min-h-[100dvh] flex flex-col" style={{ backgroundColor: '#f1f5f9' }}>
       {/* ── Top Header ─────────────────────────────────────────────── */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 pt-[var(--sat,0px)]">
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 pt-[var(--sat,0px)]">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-40" />
         <div className="flex items-center justify-between h-14 px-4">
           {/* Left: logo + page title */}
           <div className="flex items-center gap-3">
@@ -80,7 +81,7 @@ const StudentLayout = () => {
               <p className="text-sm font-semibold text-gray-900 truncate">{user?.hoTen || user?.username}</p>
               <p className="text-xs text-gray-500 truncate">{user?.email || (user?.linkedEntityId ? `MSSV: ${user.linkedEntityId}` : '')}</p>
             </div>
-            <Link to={ROUTES.PROFILE} onClick={() => setMenuOpen(false)}
+            <Link to={ROUTES.STUDENT_DASHBOARD} onClick={() => setMenuOpen(false)}
               className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
               <User className="w-4 h-4 text-gray-400" /> Hồ sơ cá nhân
               <ChevronRight className="w-3.5 h-3.5 text-gray-400 ml-auto" />
@@ -99,22 +100,23 @@ const StudentLayout = () => {
       </main>
 
       {/* ── Bottom Navigation Bar ────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom,0px)]">
-        <div className="flex">
-          {NAV_ITEMS.map(({ icon: Icon, label, path }) => {
-            const active = isActive(path);
-            return (
-              <Link key={path} to={path}
-                className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-                  active ? 'text-primary' : 'text-gray-400 hover:text-gray-600'
-                }`}>
-                <div className={`relative p-1 rounded-xl transition-colors ${active ? 'bg-primary/10' : ''}`}>
-                  <Icon className={`w-5 h-5 ${active ? 'stroke-[2.5]' : ''}`} />
-                </div>
-                <span className={`text-[10px] font-medium leading-none ${active ? 'text-primary' : ''}`}>{label}</span>
-              </Link>
-            );
-          })}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 pb-[env(safe-area-inset-bottom,0px)]">
+        <div className="bg-white/90 backdrop-blur-md border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.07)]">
+          <div className="flex h-[3.75rem]">
+            {NAV_ITEMS.map(({ icon: Icon, label, path }) => {
+              const active = isActive(path);
+              return (
+                <Link key={path} to={path}
+                  className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors relative">
+                  {active && (
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-primary" />
+                  )}
+                  <Icon className={`w-5 h-5 transition-colors ${active ? 'text-primary' : 'text-gray-400'}`} />
+                  <span className={`text-[10px] font-medium leading-tight transition-colors ${active ? 'text-primary' : 'text-gray-400'}`}>{label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </nav>
     </div>

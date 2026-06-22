@@ -30,6 +30,7 @@ export const CAP_DO_OPTIONS = Object.values(CAP_DO);
 
 // Trạng thái hoạt động
 export const TRANG_THAI_HOAT_DONG = {
+  CHO_DUYET: { value: 'CHO_DUYET', label: 'Chờ phê duyệt', color: '#F97316', badge: 'warning' },
   SAP_DIEN_RA: { value: 'SAP_DIEN_RA', label: 'Sắp diễn ra', color: '#3B82F6', badge: 'info' },
   DANG_MO_DANG_KY: { value: 'DANG_MO_DANG_KY', label: 'Đang mở đăng ký', color: '#10B981', badge: 'success' },
   DANG_DIEN_RA: { value: 'DANG_DIEN_RA', label: 'Đang diễn ra', color: '#F59E0B', badge: 'warning' },

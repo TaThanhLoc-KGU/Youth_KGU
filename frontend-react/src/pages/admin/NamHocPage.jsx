@@ -543,8 +543,8 @@ function NamHocCard({ namHoc, canManage, canManageHocKy }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function NamHocPage() {
   const { hasPermission, laAdmin } = useAuthStore();
-  const canManage = laAdmin || hasPermission(PERMISSIONS.QUAN_LY_NAM_HOC);
-  const canManageHocKy = laAdmin || hasPermission(PERMISSIONS.QUAN_LY_HOC_KY);
+  const canManage = laAdmin || hasPermission(PERMISSIONS.CAI_DAT_NAM_HOC);
+  const canManageHocKy = laAdmin || hasPermission(PERMISSIONS.CAI_DAT_HOC_KY);
 
   const [showAddNamHoc, setShowAddNamHoc] = useState(false);
   const [showInactive, setShowInactive] = useState(false);

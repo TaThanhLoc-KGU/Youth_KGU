@@ -1,14 +1,32 @@
-// User Roles - must match backend VaiTroEnum names exactly
+// User Roles - must match backend VaiTroEnum names exactly (6-level hierarchy)
 export const ROLES = {
-  SINH_VIEN: 'SINH_VIEN',
-  QUAN_LY: 'QUAN_LY',
-  // Aliases giữ tương thích ngược
-  SINHVIEN: 'SINH_VIEN',
-  ADMIN: 'QUAN_LY',
-  BCH: 'QUAN_LY',
-  GIANG_VIEN: 'QUAN_LY',
-  CHUYEN_VIEN: 'QUAN_LY',
+  ADMIN:              'ADMIN',
+  QUAN_LY_KHOA:       'QUAN_LY_KHOA',
+  PHO_QUAN_LY_KHOA:   'PHO_QUAN_LY_KHOA',
+  QUAN_LY_CHI_DOAN:   'QUAN_LY_CHI_DOAN',
+  PHO_CHI_DOAN:       'PHO_CHI_DOAN',
+  DOAN_VIEN:          'DOAN_VIEN',
+  DIEM_DANH_VIEN:     'DIEM_DANH_VIEN',
+  QUAN_LY_CLB:        'QUAN_LY_CLB',
+
+  // Aliases tương thích ngược (mapping từ hệ thống cũ)
+  SINH_VIEN:          'DOAN_VIEN',
+  SINHVIEN:           'DOAN_VIEN',
+  QUAN_LY:            'QUAN_LY_KHOA',
+  BCH:                'QUAN_LY_CHI_DOAN',
+  GIANG_VIEN:         'QUAN_LY_KHOA',
 };
+
+// Các role được phép vào khu vực quản trị (không phải đoàn viên thường)
+export const MANAGER_ROLES = [
+  'ADMIN',
+  'QUAN_LY_KHOA',
+  'PHO_QUAN_LY_KHOA',
+  'QUAN_LY_CHI_DOAN',
+  'PHO_CHI_DOAN',
+  'DIEM_DANH_VIEN',
+  'QUAN_LY_CLB',
+];
 
 // Permissions — values MUST match Permission.name in DB (V_permissions_cleanup.sql)
 // ID cố định 1-58, tham chiếu PERMISSIONS_REFERENCE.md để biết chi tiết
@@ -34,21 +52,21 @@ export const PERMISSIONS = {
 
   // ─── CHUYEN_VIEN (id 14-15) ───────────────────────────────────────────────
   XEM_CHUYEN_VIEN:                 'XEM_CHUYEN_VIEN',                // 14
-  QUAN_LY_CHUYEN_VIEN:             'QUAN_LY_CHUYEN_VIEN',            // 15
+  CAI_DAT_CHUYEN_VIEN:             'CAI_DAT_CHUYEN_VIEN',           // 15
 
   // ─── TO_CHUC (id 16-27) ───────────────────────────────────────────────────
   XEM_KHOA:                        'XEM_KHOA',                       // 16
-  QUAN_LY_KHOA:                    'QUAN_LY_KHOA',                   // 17
+  CAI_DAT_KHOA:                    'CAI_DAT_KHOA',                   // 17 (cũ: QUAN_LY_KHOA)
   XEM_NGANH:                       'XEM_NGANH',                      // 18
-  QUAN_LY_NGANH:                   'QUAN_LY_NGANH',                  // 19
+  CAI_DAT_NGANH:                   'CAI_DAT_NGANH',                  // 19
   XEM_LOP:                         'XEM_LOP',                        // 20
-  QUAN_LY_LOP:                     'QUAN_LY_LOP',                    // 21
+  CAI_DAT_LOP:                     'CAI_DAT_LOP',                    // 21
   XEM_KHOA_HOC:                    'XEM_KHOA_HOC',                   // 22
-  QUAN_LY_KHOA_HOC:                'QUAN_LY_KHOA_HOC',               // 23
+  CAI_DAT_KHOA_HOC:                'CAI_DAT_KHOA_HOC',               // 23
   XEM_HOC_KY:                      'XEM_HOC_KY',                     // 24
-  QUAN_LY_HOC_KY:                  'QUAN_LY_HOC_KY',                 // 25
+  CAI_DAT_HOC_KY:                  'CAI_DAT_HOC_KY',                 // 25
   XEM_NAM_HOC:                     'XEM_NAM_HOC',                    // 26
-  QUAN_LY_NAM_HOC:                 'QUAN_LY_NAM_HOC',                // 27
+  CAI_DAT_NAM_HOC:                 'CAI_DAT_NAM_HOC',                // 27
 
   // ─── HOAT_DONG (id 28-36) ─────────────────────────────────────────────────
   XEM_HOAT_DONG:                   'XEM_HOAT_DONG',                  // 28
@@ -108,6 +126,8 @@ export const PERMISSIONS = {
   DUYET_THANH_VIEN_CLB:            'DUYET_THANH_VIEN_CLB',           // 77 – Duyệt đơn đăng ký CLB
   CAU_HINH_CLB:                    'CAU_HINH_CLB',                   // 78 – Cấu hình CLB
   DANG_KY_CLB:                     'DANG_KY_CLB',                    // 79 – Sinh viên đăng ký CLB
+  QUAN_LY_BCN_CLB:                 'QUAN_LY_BCN_CLB',                // 80 – Quản lý Ban Chủ Nhiệm CLB
+  DUYET_HOAT_DONG_CLB:             'DUYET_HOAT_DONG_CLB',            // 81 – Phê duyệt hoạt động CLB/Khoa
 
   // ─── CUOC_THI (Competition & Voting) ─────────────────────────────────────
   QUAN_LY_CUOC_THI:                'QUAN_LY_CUOC_THI',
@@ -305,6 +325,7 @@ export const ROUTES = {
   STUDENT_MY_ACTIVITIES: '/student/my-activities',
   STUDENT_TRAINING_POINTS: '/student/training-points',
   STUDENT_CLB_REGISTRATION: '/student/clb-registration',
+  STUDENT_FEES: '/student/fees',
 
   // BCH routes
   BCH: '/bch',

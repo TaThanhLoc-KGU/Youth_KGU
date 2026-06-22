@@ -1,17 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import { ShieldOff } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
-import { ROUTES, ROLES } from '../utils/constants';
+import { ROUTES, MANAGER_ROLES } from '../utils/constants';
 
 const ForbiddenPage = () => {
   const navigate = useNavigate();
-  const { user, laBCH } = useAuthStore();
+  const { user } = useAuthStore();
 
   const getHomeRoute = () => {
     if (!user) return ROUTES.LOGIN;
-    if (user.vaiTro === ROLES.ADMIN) return ROUTES.ADMIN_DASHBOARD;
-    if (laBCH) return ROUTES.BCH_DASHBOARD;
-    if (user.vaiTro === ROLES.SINHVIEN) return ROUTES.STUDENT_DASHBOARD;
+    if (MANAGER_ROLES.includes(user.vaiTro)) return ROUTES.ADMIN_DASHBOARD;
+    if (user.vaiTro === 'DOAN_VIEN') return ROUTES.STUDENT_DASHBOARD;
     return ROUTES.PROFILE;
   };
 

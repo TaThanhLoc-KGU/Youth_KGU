@@ -19,4 +19,6 @@ public class LopDTO {
     private String maKhoa;
     private String tenKhoa;
     private Boolean isActive;
+    /** "LOP" hoac "CHI_DOAN" */
+    private String loai;
 }

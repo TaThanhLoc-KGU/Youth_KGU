@@ -40,6 +40,121 @@ public class DiemDanhHoatDongService {
     private final LopRepository lopRepository;
     private final QRCodeService qrCodeService;
     private final NotificationService notificationService;
+    private final KhoaScopeService khoaScopeService;
+
+    // ========== SELF-SERVICE DYNAMIC QR ==========
+
+    /**
+     * Lấy token QR động thay đổi mỗi 30s
+     */
+    public String getDynamicQRToken(String maHoatDong) {
+        return qrCodeService.generateDynamicAttendanceToken(maHoatDong);
+    }
+
+    /**
+     * Xử lý sinh viên tự quét mã QR
+     */
+    @Transactional
+    public DiemDanhQRResponse selfScanQRCode(DiemDanhSelfScanRequest request, String maSv) {
+        log.info("Processing self-scan QR for student: {}", maSv);
+
+        try {
+            if (request.getToken() == null || request.getToken().isBlank()) {
+                return DiemDanhQRResponse.failed("Token không được để trống");
+            }
+
+            // 1. Validate Token
+            String maHoatDong = qrCodeService.parseAndValidateDynamicToken(request.getToken());
+            if (maHoatDong == null) {
+                return DiemDanhQRResponse.failed("Mã QR đã hết hạn hoặc không hợp lệ. Vui lòng yêu cầu người tổ chức làm mới mã.");
+            }
+
+            // 2. Validate Đăng ký
+            DangKyHoatDong dangKy = dangKyRepository.findByHoatDongMaHoatDongAndIsActiveTrue(maHoatDong)
+                    .stream()
+                    .filter(dk -> dk.getSinhVien().getMaSv().equals(maSv))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("Bạn chưa đăng ký tham gia hoạt động này"));
+
+            if (!dangKy.getIsActive()) {
+                return DiemDanhQRResponse.failed("Đăng ký của bạn đã bị hủy");
+            }
+
+            HoatDong hoatDong = dangKy.getHoatDong();
+
+            if (!hoatDong.getYeuCauDiemDanh()) {
+                return DiemDanhQRResponse.failed("Hoạt động này không yêu cầu điểm danh");
+            }
+
+            // 3. Validate GPS
+            if (hoatDong.getViDo() != null && hoatDong.getKinhDo() != null && hoatDong.getKhoangCachToiDa() != null) {
+                if (request.getLatitude() == null || request.getLongitude() == null) {
+                    return DiemDanhQRResponse.failed("Yêu cầu bật GPS để điểm danh");
+                }
+                double distance = com.tathanhloc.youthkgu.Utils.GeoUtils.calculateDistance(
+                        request.getLatitude(), request.getLongitude(),
+                        hoatDong.getViDo(), hoatDong.getKinhDo());
+
+                if (distance > hoatDong.getKhoangCachToiDa()) {
+                    return DiemDanhQRResponse.failed(String.format(
+                            "Bạn đang ở quá xa địa điểm tổ chức (Cách %.0fm, tối đa cho phép %dm)", 
+                            distance, hoatDong.getKhoangCachToiDa()));
+                }
+            }
+
+            // 4. Determine CheckIn vs CheckOut based on time or existing record
+            LocalTime now = LocalTime.now();
+            Optional<DiemDanhHoatDong> existingOpt = diemDanhRepository
+                    .findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, hoatDong.getMaHoatDong());
+            boolean alreadyCheckedIn = existingOpt.isPresent();
+
+            CheDoDiemDanhEnum cheDoMode = hoatDong.getCheDoDiemDanh() != null
+                    ? hoatDong.getCheDoDiemDanh()
+                    : CheDoDiemDanhEnum.CHECKIN_CHECKOUT;
+
+            if (cheDoMode == CheDoDiemDanhEnum.AUTO_FULL) {
+                return DiemDanhQRResponse.failed("Hoạt động này tự động điểm danh");
+            }
+
+            // Re-use logic from standard QR Scan, bypassing "who scanned" check 
+            // since the student scanned it themselves via a secure dynamic token
+            DiemDanhQRRequest mockRequest = new DiemDanhQRRequest();
+            mockRequest.setMaQR(dangKy.getMaQR()); // Mock the QR ID just for the processor
+            mockRequest.setMaHoatDong(maHoatDong);
+
+            if (cheDoMode == CheDoDiemDanhEnum.CHECKIN_CHECKOUT) {
+                if (alreadyCheckedIn) {
+                    DiemDanhHoatDong dd = existingOpt.get();
+                    if (dd.getThoiGianCheckOut() != null) {
+                        return DiemDanhQRResponse.failed("Bạn đã hoàn thành điểm danh (check-in & check-out)");
+                    }
+                    return processCheckoutByQR(mockRequest, dd, hoatDong);
+                } else {
+                    return processCheckInByQR(mockRequest, dangKy, hoatDong, now);
+                }
+            } else if (cheDoMode == CheDoDiemDanhEnum.CHECKIN_ONLY) {
+                if (alreadyCheckedIn) {
+                    return DiemDanhQRResponse.failed("Bạn đã điểm danh check-in rồi");
+                }
+                return processCheckInByQR(mockRequest, dangKy, hoatDong, now);
+            } else if (cheDoMode == CheDoDiemDanhEnum.CHECKOUT_ONLY) {
+                if (alreadyCheckedIn && existingOpt.get().getThoiGianCheckOut() != null) {
+                     return DiemDanhQRResponse.failed("Bạn đã điểm danh check-out rồi");
+                }
+                // CHECKOUT_ONLY implies we do check-out but store it as check-in for attendance record
+                return processCheckInByQR(mockRequest, dangKy, hoatDong, now);
+            }
+
+            return DiemDanhQRResponse.failed("Chế độ điểm danh không hỗ trợ");
+
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.warn("Duplicate self-attendance detected for student: {}", maSv);
+            return DiemDanhQRResponse.failed("Bạn đã được điểm danh rồi");
+        } catch (Exception e) {
+            log.error("Error processing self-scan QR for student: {}", maSv, e);
+            return DiemDanhQRResponse.failed("Lỗi: " + e.getMessage());
+        }
+    }
 
     // ========== QR CODE ATTENDANCE ==========
 
@@ -1611,6 +1726,19 @@ public class DiemDanhHoatDongService {
             default:
                 activities = hoatDongRepository.findOngoingActivities(today);
                 break;
+        }
+
+        String currentMaKhoa = khoaScopeService.getCurrentMaKhoa();
+        String currentMaClb = khoaScopeService.getCurrentMaClb();
+
+        if (currentMaClb != null) {
+            activities = activities.stream()
+                    .filter(hd -> hd.getCauLacBo() != null && currentMaClb.equals(hd.getCauLacBo().getMaClb()))
+                    .collect(Collectors.toList());
+        } else if (currentMaKhoa != null) {
+            activities = activities.stream()
+                    .filter(hd -> hd.getKhoa() != null && currentMaKhoa.equals(hd.getKhoa().getMaKhoa()))
+                    .collect(Collectors.toList());
         }
 
         return activities.stream()

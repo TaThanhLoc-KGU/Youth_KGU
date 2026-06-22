@@ -16,24 +16,35 @@ public class AccountPermissionDTO {
     private String username;
     private String hoTen;
 
-    /** Loại tài khoản: SINH_VIEN hoặc QUAN_LY */
+    /** VaiTroEnum.name() */
     private String vaiTro;
+    /** VaiTroEnum.getLabel() — tên hiển thị tiếng Việt */
     private String tenVaiTro;
 
-    /** true = QUAN_LY có toàn quyền (admin) */
+    /** true nếu role == ADMIN */
     private boolean laAdmin;
 
-    /** Khoa scope — null = không giới hạn (Đoàn trường), non-null = chỉ khoa này */
+    /** Scope cấp khoa — null nếu không giới hạn */
     private String maKhoa;
     private String tenKhoa;
 
-    /** CLB scope — null = không giới hạn, non-null = chỉ quản lý CLB này */
+    /** Scope cấp CLB */
     private String maClb;
     private String tenClb;
 
-    /** Tập hợp tên quyền hiệu lực (dùng cho kiểm tra phía FE và BE) */
+    /** Scope cấp chi đoàn (Lop) */
+    private String maLop;
+    private String tenLop;
+
+    /** Tất cả quyền hiệu lực: role defaults UNION overrides cá nhân */
     private Set<String> quyenTongHop;
 
-    /** Tập hợp ID quyền (dùng cho UI checkbox) */
+    /** Tất cả ID quyền hiệu lực (role defaults + custom) */
     private Set<Long> quyenIds;
+
+    /** ID quyền mặc định theo role (role_default_permissions) — không thể bỏ chọn */
+    private Set<Long> defaultQuyenIds;
+
+    /** ID quyền tùy chỉnh thêm bên ngoài role defaults (tai_khoan_quyen) */
+    private Set<Long> customQuyenIds;
 }

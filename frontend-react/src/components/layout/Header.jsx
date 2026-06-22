@@ -198,15 +198,17 @@ const Header = ({ title, onMenuClick }) => {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-30 pt-[var(--sat)]">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 pt-[var(--sat)]">
+      {/* Accent top line */}
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-40" />
       <div className="flex items-center justify-between h-14 px-4 sm:px-6">
 
         {/* Left: mobile menu + page title */}
         <div className="flex items-center gap-3 min-w-0">
-          <button onClick={onMenuClick} className="lg:hidden p-2 hover:bg-gray-100 rounded-lg flex-shrink-0">
-            <Menu className="w-5 h-5 text-gray-600" />
+          <button onClick={onMenuClick} className="lg:hidden p-2 hover:bg-gray-100 rounded-lg flex-shrink-0 text-gray-500 hover:text-gray-700 transition-colors">
+            <Menu className="w-5 h-5" />
           </button>
-          <h1 className="text-base font-semibold text-gray-900 truncate">{title}</h1>
+          <h1 className="text-sm font-semibold text-gray-800 truncate">{title}</h1>
         </div>
 
         {/* Right: actions */}
@@ -214,12 +216,12 @@ const Header = ({ title, onMenuClick }) => {
 
           {/* Home link */}
           <Link
-            to="/"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors"
+            to="/news"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
             title="Về trang tin tức"
           >
             <Home className="w-4 h-4" />
-            <span>Trang chủ</span>
+            <span className="font-medium">Tin tức</span>
           </Link>
 
           {/* Browser notification toggle (only when not granted) */}
@@ -325,7 +327,7 @@ const Header = ({ title, onMenuClick }) => {
                   <p className="text-xs text-gray-400 truncate">{user?.email || user?.username}</p>
                 </div>
                 <Link
-                  to={ROUTES.PROFILE}
+                  to={user?.vaiTro === 'DOAN_VIEN' ? '/student/dashboard' : ROUTES.PROFILE}
                   onClick={() => setShowUserMenu(false)}
                   className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors w-full"
                 >

@@ -2,6 +2,8 @@ package com.tathanhloc.youthkgu.Controller;
 
 import com.tathanhloc.youthkgu.DTO.ApiResponse;
 import com.tathanhloc.youthkgu.DTO.ChuyenVienDTO;
+import com.tathanhloc.youthkgu.DTO.ExcelImportPreviewDTO;
+import com.tathanhloc.youthkgu.Service.ChuyenVienExcelService;
 import com.tathanhloc.youthkgu.Service.ChuyenVienService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +26,7 @@ import java.util.Map;
 public class ChuyenVienController {
 
     private final ChuyenVienService chuyenVienService;
+    private final ChuyenVienExcelService excelService;
 
     @GetMapping
     @Operation(summary = "Lấy tất cả chuyên viên")
@@ -33,6 +37,48 @@ public class ChuyenVienController {
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
+    // ========== EXCEL ENDPOINTS ==========
+
+    @GetMapping("/excel/template")
+    @Operation(summary = "Tải file template Excel")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_CHUYEN_VIEN')")
+    public ResponseEntity<byte[]> getTemplate() throws Exception {
+        byte[] excelContent = excelService.createTemplate();
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=template-chuyen-vien.xlsx")
+                .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .body(excelContent);
+    }
+
+    @PostMapping("/excel/preview")
+    @Operation(summary = "Xem trước dữ liệu từ file Excel")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_CHUYEN_VIEN')")
+    public ResponseEntity<ApiResponse<ExcelImportPreviewDTO>> previewExcel(
+            @RequestParam("file") MultipartFile file) throws Exception {
+        return ResponseEntity.ok(ApiResponse.success(excelService.previewExcel(file)));
+    }
+
+    @PostMapping("/excel/import")
+    @Operation(summary = "Nhập dữ liệu từ Excel")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_CHUYEN_VIEN')")
+    public ResponseEntity<ApiResponse<Void>> importExcel(@RequestBody List<ChuyenVienDTO> dtos) {
+        chuyenVienService.importFromExcel(dtos);
+        return ResponseEntity.ok(ApiResponse.success("Nhập dữ liệu thành công", null));
+    }
+
+    @GetMapping("/excel/export")
+    @Operation(summary = "Xuất danh sách chuyên viên ra Excel")
+    @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN')")
+    public ResponseEntity<byte[]> exportExcel() throws Exception {
+        List<ChuyenVienDTO> list = chuyenVienService.getAll();
+        byte[] excelContent = excelService.exportToExcel(list);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=danh-sach-chuyen-vien.xlsx")
+                .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .body(excelContent);
+    }
+
+    // ========== STANDARD CRUD ==========
     @GetMapping("/statistics")
     @Operation(summary = "Lấy thống kê chuyên viên")
     @PreAuthorize("hasPermission(null, 'XEM_CHUYEN_VIEN')")
@@ -53,7 +99,7 @@ public class ChuyenVienController {
 
     @PostMapping
     @Operation(summary = "Tạo chuyên viên mới")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUYEN_VIEN')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<ChuyenVienDTO>> create(@RequestBody ChuyenVienDTO dto) {
         log.info("POST /api/chuyenvien: {}", dto.getMaChuyenVien());
         ChuyenVienDTO created = chuyenVienService.create(dto);
@@ -63,7 +109,7 @@ public class ChuyenVienController {
 
     @PutMapping("/{maChuyenVien}")
     @Operation(summary = "Cập nhật chuyên viên")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUYEN_VIEN')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<ChuyenVienDTO>> update(
             @PathVariable String maChuyenVien,
             @RequestBody ChuyenVienDTO dto) {
@@ -74,7 +120,7 @@ public class ChuyenVienController {
 
     @DeleteMapping("/{maChuyenVien}")
     @Operation(summary = "Xóa chuyên viên (soft delete)")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_CHUYEN_VIEN')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_CHUYEN_VIEN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String maChuyenVien) {
         log.info("DELETE /api/chuyenvien/{}", maChuyenVien);
         chuyenVienService.delete(maChuyenVien);

@@ -129,6 +129,26 @@ const hoatDongService = {
     const response = await api.get('/api/hoat-dong/statistics/by-status');
     return response.data.data;
   },
+
+  // ── Approval workflow (CLB/Khoa activities) ───────────────────
+  getChouDuyet: async () => {
+    const response = await api.get('/api/hoat-dong/cho-duyet');
+    return response.data.data || [];
+  },
+
+  duyet: async (maHoatDong, trangThaiMoi = 'DANG_MO_DANG_KY') => {
+    const response = await api.put('/api/hoat-dong/duyet', null, {
+      params: { ma: maHoatDong, trangThaiMoi },
+    });
+    return response.data.data;
+  },
+
+  tuChoi: async (maHoatDong, lyDo = '') => {
+    const response = await api.put('/api/hoat-dong/tu-choi', { lyDo }, {
+      params: { ma: maHoatDong },
+    });
+    return response.data.data;
+  },
 };
 
 export default hoatDongService;

@@ -198,7 +198,7 @@ function AddThanhVienModal({ maClb, onClose, onSave }) {
 
   const { data: hocKyList = [] } = useQuery({
     queryKey: ['hoc-ky-active'],
-    queryFn: () => api.get('/api/hocky').then(r => r.data.data || []),
+    queryFn: () => api.get('/api/hocky').then(r => Array.isArray(r.data) ? r.data : (r.data?.data || [])),
   });
 
   const handleSubmit = (e) => {
@@ -429,7 +429,7 @@ function ClbDetailView({ maClb, onBack }) {
 
   const { data: hocKyList = [] } = useQuery({
     queryKey: ['hoc-ky-active'],
-    queryFn: () => api.get('/api/hocky').then(r => r.data.data || []),
+    queryFn: () => api.get('/api/hocky').then(r => Array.isArray(r.data) ? r.data : (r.data?.data || [])),
   });
 
   const addMutation = useMutation({

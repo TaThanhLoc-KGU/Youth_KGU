@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 const ICON_COLORS = {
-  blue:  'bg-blue-50 text-blue-600',
-  red:   'bg-red-50 text-red-600',
-  green: 'bg-green-50 text-green-600',
-  amber: 'bg-amber-50 text-amber-600',
+  blue:   'bg-blue-50 text-blue-600 ring-1 ring-blue-100',
+  red:    'bg-red-50 text-red-600 ring-1 ring-red-100',
+  green:  'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100',
+  amber:  'bg-amber-50 text-amber-600 ring-1 ring-amber-100',
+  primary:'bg-primary/10 text-primary ring-1 ring-primary/20',
 };
 
 const SIZES = {
@@ -20,7 +21,7 @@ const Modal = ({
   isOpen, onClose, title, subtitle, children, footer,
   size = 'md', showCloseButton = true,
   closeOnBackdropClick = true, closeOnEsc = true,
-  icon: Icon, iconColor = 'blue',
+  icon: Icon, iconColor = 'primary',
 }) => {
   useEffect(() => {
     if (!isOpen) return;
@@ -37,29 +38,37 @@ const Modal = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
       onClick={(e) => { if (closeOnBackdropClick && e.target === e.currentTarget) onClose(); }}
     >
-      <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col animate-slide-up max-h-[92vh] ${SIZES[size]}`}>
-
-        {/* Header */}
+      <div
+        className={`bg-white rounded-2xl w-full flex flex-col animate-slide-up max-h-[92vh] ${SIZES[size]}`}
+        style={{ boxShadow: '0 20px 60px -10px rgba(15,23,42,0.25), 0 0 0 1px rgba(15,23,42,0.06)' }}
+      >
+        {/* ── Header ────────────────────────────────────────────────────── */}
         {(title || showCloseButton) && (
-          <div className="flex items-start justify-between px-5 pt-4 pb-3.5 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-start justify-between px-5 pt-4 pb-3.5 border-b border-slate-100 flex-shrink-0">
             <div className="flex items-start gap-3 min-w-0">
               {Icon && (
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${ICON_COLORS[iconColor]}`}>
-                  <Icon className="w-4.5 h-4.5" />
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${ICON_COLORS[iconColor] ?? ICON_COLORS.primary}`}>
+                  <Icon className="w-4 h-4" />
                 </div>
               )}
-              <div className="min-w-0">
-                {title && <h2 className="text-base font-semibold text-gray-900 leading-snug">{title}</h2>}
-                {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+              <div className="min-w-0 pt-0.5">
+                {title && (
+                  <h2 className="text-[15px] font-semibold text-slate-900 leading-snug">
+                    {title}
+                  </h2>
+                )}
+                {subtitle && (
+                  <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+                )}
               </div>
             </div>
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="ml-3 flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="ml-3 flex-shrink-0 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -67,12 +76,14 @@ const Modal = ({
           </div>
         )}
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {/* ── Body ──────────────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
+          {children}
+        </div>
 
-        {/* Footer */}
+        {/* ── Footer ────────────────────────────────────────────────────── */}
         {footer && (
-          <div className="flex-shrink-0 px-5 py-3.5 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex items-center justify-end gap-2.5">
+          <div className="flex-shrink-0 px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex items-center justify-end gap-2">
             {footer}
           </div>
         )}

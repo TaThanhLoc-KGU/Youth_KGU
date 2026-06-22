@@ -30,19 +30,19 @@ public class KhoaController {
     }
 
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_KHOA')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_KHOA')")
     public KhoaDTO create(@RequestBody KhoaDTO dto) {
         return khoaService.create(dto);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_KHOA')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_KHOA')")
     public KhoaDTO update(@PathVariable String id, @RequestBody KhoaDTO dto) {
         return khoaService.update(id, dto);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_KHOA')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_KHOA')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         khoaService.softDelete(id);
         return ResponseEntity.noContent().build();

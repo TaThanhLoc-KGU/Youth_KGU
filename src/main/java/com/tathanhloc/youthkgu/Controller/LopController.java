@@ -50,20 +50,20 @@ public class LopController {
     }
 
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_LOP')")
     public LopDTO create(@Valid @RequestBody LopDTO dto) {
         return lopService.create(dto);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_LOP')")
     public LopDTO update(@PathVariable String id, @Valid @RequestBody LopDTO dto) {
         return lopService.update(id, dto);
     }
 
     // Xóa mềm
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_LOP')")
     public ResponseEntity<Void> softDelete(@PathVariable String id) {
         lopService.softDelete(id);
         return ResponseEntity.noContent().build();
@@ -71,7 +71,7 @@ public class LopController {
 
     // Khôi phục lớp đã xóa mềm
     @PutMapping("/{id}/restore")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_LOP')")
     public ResponseEntity<LopDTO> restore(@PathVariable String id) {
         LopDTO restored = lopService.restore(id);
         return ResponseEntity.ok(restored);
@@ -79,7 +79,7 @@ public class LopController {
 
     // Xóa vĩnh viễn
     @DeleteMapping("/{id}/hard")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_LOP')")
     public ResponseEntity<Void> hardDelete(@PathVariable String id) {
         lopService.hardDelete(id);
         return ResponseEntity.noContent().build();
@@ -111,7 +111,7 @@ public class LopController {
         long count = lopService.countInactive();
         return ResponseEntity.ok(count);
     }
-    // Thêm vào class LopController
+    // Them vao class LopController
     @GetMapping("/{maLop}/sinhvien/count")
     @PreAuthorize("hasPermission(null, 'XEM_LOP')")
     public ResponseEntity<Long> countSinhVienByLop(@PathVariable String maLop) {
@@ -119,9 +119,32 @@ public class LopController {
         return ResponseEntity.ok(count);
     }
 
+    // ========== CHI DOAN ENDPOINTS ==========
+
+    /** Lay danh sach chi doan dang hoat dong */
+    @GetMapping("/chi-doan")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
+    public List<LopDTO> getAllChiDoan() {
+        return lopService.getAllChiDoan();
+    }
+
+    /** Lay danh sach lop hoc (loai = LOP) */
+    @GetMapping("/lop-only")
+    @PreAuthorize("hasPermission(null, 'XEM_LOP')")
+    public List<LopDTO> getAllLopOnly() {
+        return lopService.getAllLopOnly();
+    }
+
+    /** Tao chi doan moi (khong can nganh/khoahoc) */
+    @PostMapping("/chi-doan")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_LOP')")
+    public ResponseEntity<LopDTO> createChiDoan(@RequestBody LopDTO dto) {
+        return ResponseEntity.ok(lopService.createChiDoan(dto));
+    }
+
     // Excel import/export endpoints
     @GetMapping("/template-excel")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_LOP')")
     public ResponseEntity<byte[]> downloadTemplate() throws Exception {
         byte[] excelFile = lopExcelService.createTemplate();
         return ResponseEntity.ok()
@@ -131,14 +154,14 @@ public class LopController {
     }
 
     @PostMapping("/import-excel/preview")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_LOP')")
     public ResponseEntity<ExcelImportPreviewDTO> previewExcelImport(@RequestParam MultipartFile file) throws Exception {
         ExcelImportPreviewDTO preview = lopExcelService.previewExcel(file);
         return ResponseEntity.ok(preview);
     }
 
     @PostMapping("/import-excel/confirm")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_LOP')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_LOP')")
     public ResponseEntity<ExcelImportPreviewDTO> confirmExcelImport(@RequestParam MultipartFile file) throws Exception {
         ExcelImportPreviewDTO preview = lopExcelService.previewExcel(file);
         

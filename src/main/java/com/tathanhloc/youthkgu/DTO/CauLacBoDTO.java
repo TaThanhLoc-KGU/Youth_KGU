@@ -51,6 +51,16 @@ public class CauLacBoDTO {
     private Boolean choPhepDangKyTuDo;
     private String moTaYeuCau;
 
+    // Ngân hàng / Thanh toán (từ clb_cau_hinh)
+    private String bankAccountNo;
+    private String bankName;
+    private String accountName;
+    private String maXacThucCk;
+    private String webhookProvider;
+    private String payosClientId;
+    private String payosApiKey;
+    private String payosChecksumKey;
+
     // Chi tiết thành viên (chỉ load khi xem detail)
     private List<ThanhVienCLBDTO> thanhViens;
 }

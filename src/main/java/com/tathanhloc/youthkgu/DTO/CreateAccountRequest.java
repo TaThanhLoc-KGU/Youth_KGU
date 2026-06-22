@@ -23,8 +23,6 @@ public class CreateAccountRequest {
     @NotBlank(message = "Tên đăng nhập không được để trống")
     private String username;
 
-    @NotBlank(message = "Email không được để trống")
-    @Email(message = "Email không hợp lệ")
     private String email;
 
     @NotBlank(message = "Mật khẩu không được để trống")
@@ -55,7 +53,10 @@ public class CreateAccountRequest {
     /** CLB scope — null = không giới hạn, non-null = chỉ quản lý CLB này */
     private String maClb;
 
-    /** Danh sách ID quyền gán cho tài khoản QUAN_LY (khi laAdmin = false). */
+    /** Chi đoàn scope (mã Lop) cho QUAN_LY_CHI_DOAN / PHO_CHI_DOAN */
+    private String maLop;
+
+    /** Danh sách ID quyền tùy chỉnh (override role defaults). */
     private java.util.List<Long> permissionIds;
 
     // Liên kết với đối tượng người dùng (nullable - chỉ set khi tạo từ danh sách)

@@ -102,6 +102,10 @@ public class TinTucService {
         return repo.findPublishedByKhoa(maKhoa, TrangThaiTinTuc.PUBLISHED, pageable).map(this::toDTO);
     }
 
+    public Page<TinTucDTO> getTinTucByClb(String donViDang, Pageable pageable) {
+        return repo.findPublishedByDonViDang(donViDang, TrangThaiTinTuc.PUBLISHED, pageable).map(this::toDTO);
+    }
+
     @Transactional(readOnly = true)
     public TinTucDetailDTO getById(Long id) {
         return toDetailDTO(findById(id));

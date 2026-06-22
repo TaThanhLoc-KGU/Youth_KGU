@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 
 import java.util.*;
 import java.io.ByteArrayInputStream;
@@ -83,6 +84,39 @@ public class DiemDanhHoatDongController {
         log.info("POST /api/diem-danh/check-out - ID: {}, QR: {}", request.getDiemDanhId(), request.getMaQR());
         DiemDanhHoatDongDTO result = diemDanhService.checkOut(request);
         return ResponseEntity.ok(ApiResponse.success("Check-out thành công", result));
+    }
+
+    // ========== SELF-SERVICE (GPS) ENDPOINTS ==========
+
+    @GetMapping("/activity/{maHoatDong}/dynamic-qr")
+    @Operation(summary = "Lấy token QR động cho điểm danh tự phục vụ (Thay đổi mỗi 30s)")
+    @PreAuthorize("hasPermission(null, 'QUET_QR')")
+    public ResponseEntity<ApiResponse<String>> getDynamicQRToken(@PathVariable String maHoatDong) {
+        log.info("GET /api/diem-danh/activity/{}/dynamic-qr", maHoatDong);
+        String token = diemDanhService.getDynamicQRToken(maHoatDong);
+        return ResponseEntity.ok(ApiResponse.success(token));
+    }
+
+    @PostMapping("/self-scan")
+    @Operation(summary = "Sinh viên tự quét mã QR động để điểm danh kèm GPS")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<DiemDanhQRResponse> selfScanQRCode(
+            @RequestBody DiemDanhSelfScanRequest request,
+            Authentication authentication) {
+        
+        com.tathanhloc.youthkgu.Security.CustomUserDetails userDetails = 
+                (com.tathanhloc.youthkgu.Security.CustomUserDetails) authentication.getPrincipal();
+        String maSv = userDetails.getTaiKhoan().getSinhVien().getMaSv();
+        
+        log.info("POST /api/diem-danh/self-scan - Student: {}", maSv);
+        
+        DiemDanhQRResponse response = diemDanhService.selfScanQRCode(request, maSv);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
     }
 
     // ========== AUTO ĐIỂM DANH (chế độ AUTO_FULL) ==========

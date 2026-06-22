@@ -47,7 +47,7 @@ public class SettingsService {
     public List<AccountPermissionDTO> getManagementAccounts() {
         List<TaiKhoan> allAccounts = taiKhoanRepository.findAll();
         return allAccounts.stream()
-                .filter(tk -> tk.getVaiTro() == VaiTroEnum.QUAN_LY)
+                .filter(tk -> tk.getVaiTro() != null && tk.getVaiTro().isQuanLy())
                 .map(tk -> {
                     List<Long> assignedIds = getAccountPermissions(tk.getId());
                     return AccountPermissionDTO.builder()

@@ -262,10 +262,14 @@ const accountService = {
         ngaySinh: data.ngaySinh,
         gioiTinh: data.gioiTinh,
         vaiTro: data.vaiTro,
-        bchLevel: data.bchLevel ? parseInt(data.bchLevel) : null,
         banChuyenMon: data.banChuyenMon || null,
         avatar: data.avatar,
-        maKhoa: data.maKhoa || null
+        maKhoa: data.maKhoa || null,
+        maClb:  data.maClb  || null,
+        maLop:  data.maLop  || null,
+        maSv:   data.maSv   || null,
+        maGv:   data.maGv   || null,
+        permissionIds: data.permissionIds || [],
       });
       return response.data.data;
     } catch (error) {
@@ -303,7 +307,8 @@ const accountService = {
         vaiTro: data.vaiTro,
         bchLevel: data.bchLevel ? parseInt(data.bchLevel) : null,
         banChuyenMon: data.banChuyenMon || null,
-        maKhoa: data.maKhoa || null
+        maKhoa: data.maKhoa || null,
+        maClb:  data.maClb  || null,
       });
       return response.data.data;
     } catch (error) {
@@ -365,7 +370,38 @@ const accountService = {
     } catch (error) {
       throw error.response?.data?.message || 'Lỗi tạo hàng loạt tài khoản';
     }
-  }
+  },
+
+  // ─── Quản lý đoàn viên cấp dưới ──────────────────────────────────────────
+
+  /** Lấy danh sách chi đoàn trong phạm vi scope của người dùng */
+  getChiDoanInScope: async () => {
+    const res = await api.get('/api/doan-vien/chi-doan');
+    return res.data?.data || [];
+  },
+
+  /** Lấy sinh viên trong phạm vi scope, filter theo maLop hoặc maKhoa */
+  getSinhVienInScope: async ({ maLop, maKhoa } = {}) => {
+    const params = {};
+    if (maLop) params.maLop = maLop;
+    if (maKhoa) params.maKhoa = maKhoa;
+    const res = await api.get('/api/doan-vien/sinh-vien', { params });
+    return res.data?.data || [];
+  },
+
+  /** Lấy danh sách ứng viên có thể được giao điểm danh */
+  getDiemDanhCandidates: async (maLop) => {
+    const res = await api.get('/api/doan-vien/diem-danh/candidates', {
+      params: maLop ? { maLop } : {}
+    });
+    return res.data?.data || [];
+  },
+
+  /** Lấy danh sách vai trò hệ thống */
+  getRoles: async () => {
+    const res = await api.get('/api/permissions/roles');
+    return res.data?.data || [];
+  },
 };
 
 export default accountService;

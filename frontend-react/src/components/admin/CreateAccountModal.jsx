@@ -22,7 +22,7 @@ const EMPTY_FORM = {
 
 const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
   const [form, setForm] = useState(EMPTY_FORM);
-  const [vaiTro, setVaiTro] = useState('SINH_VIEN');
+  const [vaiTro, setVaiTro] = useState('DOAN_VIEN');
   const [laAdmin, setLaAdmin] = useState(false);
   const [maKhoa, setMaKhoa] = useState('');
   const [maClb, setMaClb] = useState('');
@@ -40,13 +40,13 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
   const { data: listKhoa = [] } = useQuery({
     queryKey: ['khoaActive'],
     queryFn: () => khoaService.getActive(),
-    enabled: isOpen && vaiTro === 'QUAN_LY',
+    enabled: isOpen && vaiTro !== 'DOAN_VIEN',
   });
 
   const { data: listClb = [] } = useQuery({
     queryKey: ['clbAll'],
     queryFn: () => cauLacBoService.getAll({ isActive: true }),
-    enabled: isOpen && vaiTro === 'QUAN_LY',
+    enabled: isOpen && vaiTro !== 'DOAN_VIEN',
     staleTime: 5 * 60 * 1000,
   });
 
@@ -79,8 +79,7 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
     const e = {};
     if (!form.username.trim()) e.username = 'Tên đăng nhập không được để trống';
     else if (!/^[a-zA-Z0-9_]{3,50}$/.test(form.username)) e.username = 'Tên đăng nhập 3-50 ký tự (chữ, số, gạch dưới)';
-    if (!form.email.trim()) e.email = 'Email không được để trống';
-    else if (!/^[A-Za-z0-9+_.-]+@vnkgu\.edu\.vn$/i.test(form.email)) e.email = 'Email phải có dạng @vnkgu.edu.vn';
+    if (form.email.trim() && !/^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/i.test(form.email)) e.email = 'Định dạng email không hợp lệ';
     if (!form.password) e.password = 'Mật khẩu không được để trống';
     else if (form.password.length < 6) e.password = 'Mật khẩu phải có ít nhất 6 ký tự';
     if (!form.hoTen.trim()) e.hoTen = 'Họ tên không được để trống';
@@ -92,18 +91,19 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
 
+    const isManager = vaiTro !== 'DOAN_VIEN';
     const payload = {
       ...form,
       vaiTro,
-      laAdmin: vaiTro === 'QUAN_LY' ? laAdmin : false,
-      maKhoa: vaiTro === 'QUAN_LY' ? (maKhoa || null) : null,
-      maClb: vaiTro === 'QUAN_LY' ? (maClb || null) : null,
-      permissionIds: vaiTro === 'QUAN_LY' && !laAdmin ? Array.from(selectedPermIds) : [],
+      laAdmin: isManager ? laAdmin : false,
+      maKhoa: isManager ? (maKhoa || null) : null,
+      maClb: isManager ? (maClb || null) : null,
+      permissionIds: isManager && !laAdmin ? Array.from(selectedPermIds) : [],
     };
     createAccountMutation.mutate(payload, {
       onSuccess: () => {
         setForm(EMPTY_FORM);
-        setVaiTro('SINH_VIEN');
+        setVaiTro('DOAN_VIEN');
         setLaAdmin(false);
         setMaKhoa('');
         setMaClb('');
@@ -116,7 +116,7 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
 
   const handleClose = () => {
     setForm(EMPTY_FORM);
-    setVaiTro('SINH_VIEN');
+    setVaiTro('DOAN_VIEN');
     setLaAdmin(false);
     setMaKhoa('');
     setMaClb('');
@@ -149,7 +149,7 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { name: 'username', label: 'Tên đăng nhập *', placeholder: 'username' },
-              { name: 'email', label: 'Email *', placeholder: 'user@vnkgu.edu.vn', type: 'email' },
+              { name: 'email', label: 'Email', placeholder: 'email@example.com (không bắt buộc)', type: 'email' },
               { name: 'password', label: 'Mật khẩu *', placeholder: '••••••', type: 'password' },
               { name: 'hoTen', label: 'Họ tên *', placeholder: 'Họ và tên' },
               { name: 'soDienThoai', label: 'Số điện thoại', placeholder: '0987654321', type: 'tel' },
@@ -192,8 +192,8 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
             <label className="block text-sm font-semibold text-gray-700 mb-2">Loại tài khoản *</label>
             <div className="flex flex-col sm:flex-row gap-4">
               {[
-                { value: 'SINH_VIEN', label: 'Sinh viên', desc: 'Truy cập cổng sinh viên, đăng ký hoạt động' },
-                { value: 'QUAN_LY', label: 'Quản lý', desc: 'Truy cập dashboard quản trị với quyền được gán' },
+                { value: 'DOAN_VIEN', label: 'Đoàn viên', desc: 'Truy cập cổng đoàn viên, đăng ký hoạt động' },
+                { value: 'QUAN_LY_KHOA', label: 'Quản lý', desc: 'Truy cập dashboard quản trị với quyền được gán' },
               ].map(opt => (
                 <label
                   key={opt.value}
@@ -218,8 +218,8 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
             </div>
           </div>
 
-          {/* Scope Section (chỉ khi QUAN_LY) */}
-          {vaiTro === 'QUAN_LY' && (
+          {/* Scope Section (chỉ khi là quản lý) */}
+          {vaiTro !== 'DOAN_VIEN' && (
             <div className="space-y-3">
               {/* Khoa Scope */}
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
@@ -267,8 +267,8 @@ const CreateAccountModal = ({ isOpen, onClose, createAccountMutation }) => {
             </div>
           )}
 
-          {/* Phân quyền (chỉ khi QUAN_LY) */}
-          {vaiTro === 'QUAN_LY' && (
+          {/* Phân quyền (chỉ khi là quản lý) */}
+          {vaiTro !== 'DOAN_VIEN' && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Phân quyền</label>
 

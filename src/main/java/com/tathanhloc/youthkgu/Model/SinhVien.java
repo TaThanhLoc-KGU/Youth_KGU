@@ -50,7 +50,6 @@ public class SinhVien {
     @Column(name = "is_active")
     private Boolean isActive;
 
-    @NotNull(message = "Lớp không được để trống")
     @ManyToOne
     @JoinColumn(name = "ma_lop")
     private Lop lop;

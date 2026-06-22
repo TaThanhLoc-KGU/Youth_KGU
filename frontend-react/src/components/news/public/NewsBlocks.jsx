@@ -29,7 +29,7 @@ import { formatDate } from '../../../utils/dateFormat';
 const FallbackThumb = () => (
   <div
     className="w-full h-full flex items-center justify-center"
-    style={{ background: 'linear-gradient(135deg, #1c6681 0%, #00b0f0 100%)' }}
+    style={{ background: 'linear-gradient(135deg, #c0001a 0%, #7f0000 100%)' }}
   >
     <img
       src="https://upload.wikimedia.org/wikipedia/vi/0/09/Huy_Hi%E1%BB%87u_%C4%90o%C3%A0n.png"
@@ -41,18 +41,19 @@ const FallbackThumb = () => (
 
 // ─── SHARED: SECTION HEADER ────────────────────────────────────────────────────
 
+const NAV_COLOR = '#1a3868';
+
 const SectionHeader = ({ title, href, hrefLabel = 'Xem thêm' }) => (
-  <div className="flex items-center justify-between mb-4">
-    <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-      <span className="w-1 h-5 bg-primary rounded-full inline-block flex-shrink-0" />
+  <div className="flex items-center justify-between mb-3" style={{ backgroundColor: NAV_COLOR }}>
+    <h2 className="text-sm font-bold text-white uppercase tracking-wide px-3 py-2.5">
       {title}
     </h2>
     {href && (
       <Link
         to={href}
-        className="text-xs font-medium text-primary hover:text-primary-700 flex items-center gap-1 transition-colors"
+        className="text-xs text-white/75 hover:text-white flex items-center gap-0.5 px-3 whitespace-nowrap transition-colors"
       >
-        {hrefLabel} <ChevronRight className="w-3.5 h-3.5" />
+        {hrefLabel} <ChevronRight className="w-3 h-3" />
       </Link>
     )}
   </div>
@@ -89,7 +90,7 @@ export const SearchBlock = () => {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Tìm kiếm tin tức, sự kiện..."
-          className="w-full pl-12 pr-12 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-shadow"
+          className="w-full pl-12 pr-12 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-primary text-sm transition-shadow"
         />
         {searchInput && (
           <button
@@ -100,15 +101,15 @@ export const SearchBlock = () => {
           </button>
         )}
         {searching && (
-          <Loader2 className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-primary animate-spin" />
+          <Loader2 className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-red-600 animate-spin" />
         )}
       </div>
 
       {keyword && (
         <section className="mt-4 mb-8">
           <h2 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <Search className="w-4 h-4 text-primary" />
-            Kết quả cho <span className="text-primary">"{keyword}"</span>
+            <Search className="w-4 h-4 text-red-600" />
+            Kết quả cho <span className="text-red-600">"{keyword}"</span>
             <span className="text-sm font-normal text-gray-400">({searchResults.length} bài)</span>
           </h2>
           {searching ? (
@@ -192,24 +193,37 @@ export const NewsTickerBlock = () => {
 // ─── FEATURED GRID BLOCK ──────────────────────────────────────────────────────
 
 export const FeaturedGridBlock = ({ config = {} }) => {
-  const size = config.size || 4;
+  const size = config.size || 8;
+  const [activeTab, setActiveTab] = useState('moi');
+
   const { data, isLoading } = useQuery({
     queryKey: ['news-featured', size],
     queryFn: () => newsService.getDanhSach({ page: 0, size }),
     staleTime: 5 * 60 * 1000,
   });
+  const { data: popularData } = useQuery({
+    queryKey: ['news-popular', 5],
+    queryFn: () => newsService.getDanhSach({ page: 0, size: 5, sort: 'luotXem,desc' }),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const featured = data?.content || [];
+  const popularPosts = popularData?.content || [];
+  const sidebarPosts = activeTab === 'moi' ? featured.slice(1, 5) : (popularPosts.length ? popularPosts : featured.slice(1, 5));
 
   return (
-    <section className="mb-8">
-      <SectionHeader title="Tin nổi bật" />
+    <section className="mb-6">
       {isLoading ? (
-        <div className="animate-pulse grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 bg-gray-200 rounded-2xl h-72 sm:h-80 md:h-96" />
+        <div className="animate-pulse grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 space-y-3">
+            <div className="h-6 bg-gray-200 rounded w-3/4" />
+            <div className="h-4 bg-gray-100 rounded w-full" />
+            <div className="bg-gray-200 aspect-[16/10]" />
+          </div>
           <div className="flex flex-col gap-3">
-            {[...Array(3)].map((_, i) => (
+            {[...Array(4)].map((_, i) => (
               <div key={i} className="flex gap-3">
-                <div className="w-16 h-12 bg-gray-200 rounded-xl flex-shrink-0" />
+                <div className="w-20 h-14 bg-gray-200 flex-shrink-0" />
                 <div className="flex-1 space-y-2">
                   <div className="h-3.5 bg-gray-200 rounded w-full" />
                   <div className="h-3 bg-gray-100 rounded w-1/2" />
@@ -219,46 +233,66 @@ export const FeaturedGridBlock = ({ config = {} }) => {
           </div>
         </div>
       ) : featured.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left 2/3: big featured card */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Left 2/3: editorial featured */}
           <div className="lg:col-span-2">
             <PostCardFeatured post={featured[0]} />
           </div>
 
-          {/* Right 1/3: compact horizontal list */}
-          <div className="flex flex-col justify-between">
-            {featured.slice(1, 4).map((post, idx) => (
-              <Link
-                key={post.id}
-                to={`/${post.fullUrlPath}`}
-                className={`flex gap-3 py-2.5 group hover:bg-gray-50 rounded-xl px-2 transition-colors ${
-                  idx < featured.slice(1, 4).length - 1 ? 'border-b border-gray-100' : ''
+          {/* Right 1/3: tab sidebar */}
+          <div className="flex flex-col">
+            {/* Tabs */}
+            <div className="flex border-b-2 border-gray-200 mb-3">
+              <button
+                onClick={() => setActiveTab('moi')}
+                className={`px-4 py-2 text-sm font-bold border-b-2 -mb-0.5 transition-colors ${
+                  activeTab === 'moi'
+                    ? 'border-red-600 text-red-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <div className="relative w-16 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                  {post.anhDaiDien ? (
-                    <img
-                      src={post.anhDaiDien}
-                      alt={post.tieuDe}
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <FallbackThumb />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  {post.chuyenMuc && (
-                    <span className="text-[10px] font-semibold text-primary uppercase tracking-wide block mb-0.5">
-                      {post.chuyenMuc.ten}
-                    </span>
-                  )}
-                  <p className="text-sm font-medium text-gray-800 line-clamp-2 leading-snug group-hover:text-primary transition-colors">
-                    {post.tieuDe}
-                  </p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">{formatDate(post.ngayXuatBan)}</p>
-                </div>
-              </Link>
-            ))}
+                Tin mới
+              </button>
+              <button
+                onClick={() => setActiveTab('nhieu')}
+                className={`px-4 py-2 text-sm font-bold border-b-2 -mb-0.5 transition-colors ${
+                  activeTab === 'nhieu'
+                    ? 'border-red-600 text-red-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Tin xem nhiều
+              </button>
+            </div>
+
+            {/* Article list */}
+            <div className="flex flex-col">
+              {sidebarPosts.map((post) => (
+                <Link
+                  key={post.id}
+                  to={`/${post.fullUrlPath}`}
+                  className="flex gap-3 py-3 group border-b border-gray-100 last:border-0"
+                >
+                  <div className="relative w-20 h-14 flex-shrink-0 overflow-hidden bg-gray-100">
+                    {post.anhDaiDien ? (
+                      <img
+                        src={post.anhDaiDien}
+                        alt={post.tieuDe}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <FallbackThumb />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-800 line-clamp-3 leading-snug group-hover:text-blue-800 transition-colors">
+                      {post.tieuDe}
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-1">{formatDate(post.ngayXuatBan)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -313,13 +347,13 @@ export const CategorySectionBlock = ({ config = {} }) => {
       />
 
       {posts.length >= 3 ? (
-        <>
-          {/* First post: wide horizontal featured */}
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-0 sm:gap-5">
+          {/* Big editorial post left (3/5) */}
           <Link
             to={`/${posts[0].fullUrlPath}`}
-            className="flex flex-col sm:flex-row gap-4 mb-4 pb-4 border-b border-gray-100 group"
+            className="group sm:col-span-3 border-b sm:border-b-0 sm:border-r border-gray-100 pb-4 sm:pb-0 sm:pr-5 mb-4 sm:mb-0"
           >
-            <div className="relative w-full sm:w-48 h-36 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+            <div className="relative w-full aspect-[4/3] overflow-hidden bg-gray-100 mb-2.5">
               {posts[0].anhDaiDien ? (
                 <img
                   src={posts[0].anhDaiDien}
@@ -330,35 +364,49 @@ export const CategorySectionBlock = ({ config = {} }) => {
                 <FallbackThumb />
               )}
             </div>
-            <div className="flex flex-col justify-center min-w-0 flex-1">
-              <h3 className="text-base font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-primary transition-colors mb-1">
-                {posts[0].tieuDe}
-              </h3>
-              {posts[0].tomTat && (
-                <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed mb-2 hidden sm:block">
-                  {posts[0].tomTat}
-                </p>
-              )}
-              <div className="flex items-center gap-3 text-xs text-gray-400">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" />
-                  {formatDate(posts[0].ngayXuatBan)}
-                </span>
-                {posts[0].luotXem != null && (
-                  <span className="flex items-center gap-1">
-                    <Eye className="w-3.5 h-3.5" />
-                    {posts[0].luotXem}
-                  </span>
-                )}
-              </div>
-            </div>
+            <h3 className="text-base font-bold text-gray-900 line-clamp-3 leading-snug group-hover:text-blue-800 transition-colors">
+              {posts[0].tieuDe}
+            </h3>
+            {posts[0].tomTat && (
+              <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed mt-1 hidden sm:block">
+                {posts[0].tomTat}
+              </p>
+            )}
+            <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {formatDate(posts[0].ngayXuatBan)}
+            </p>
           </Link>
 
-          {/* Rest: 3-col grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {posts.slice(1, 4).map((post) => <PostCard key={post.id} post={post} />)}
+          {/* Small posts right (2/5) */}
+          <div className="sm:col-span-2 flex flex-col">
+            {posts.slice(1, 4).map((post) => (
+              <Link
+                key={post.id}
+                to={`/${post.fullUrlPath}`}
+                className="flex gap-2.5 border-b border-gray-100 last:border-0 py-3 group first:pt-0"
+              >
+                <div className="relative w-20 h-14 flex-shrink-0 overflow-hidden bg-gray-100">
+                  {post.anhDaiDien ? (
+                    <img
+                      src={post.anhDaiDien}
+                      alt={post.tieuDe}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <FallbackThumb />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug group-hover:text-blue-800 transition-colors">
+                    {post.tieuDe}
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-1">{formatDate(post.ngayXuatBan)}</p>
+                </div>
+              </Link>
+            ))}
           </div>
-        </>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {posts.map((post) => <PostCard key={post.id} post={post} />)}
@@ -424,7 +472,7 @@ export const BannerBlock = () => {
             {banner.hinhAnh
               ? <img src={banner.hinhAnh} alt={banner.tieuDe} className="w-full object-cover max-h-52" />
               : (
-                <div className="w-full h-28 bg-gradient-to-r from-primary to-enews-600 flex items-center justify-center px-4">
+                <div className="w-full h-28 bg-gradient-to-r from-red-700 to-red-500 flex items-center justify-center px-4">
                   <span className="text-white font-semibold text-lg text-center">{banner.tieuDe}</span>
                 </div>
               )
@@ -467,7 +515,7 @@ export const AdWidgetBlock = () => {
             {banner.hinhAnh
               ? <img src={banner.hinhAnh} alt={banner.tieuDe} className="w-full object-contain" />
               : (
-                <div className="w-full h-32 bg-gradient-to-br from-primary to-enews-600 flex items-center justify-center p-4">
+                <div className="w-full h-32 bg-gradient-to-br from-red-700 to-red-500 flex items-center justify-center p-4">
                   <span className="text-white font-semibold text-sm text-center">{banner.tieuDe}</span>
                 </div>
               )
@@ -497,22 +545,22 @@ export const SidebarFeaturedBlock = ({ config = {} }) => {
   if (!posts.length) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-        <TrendingUp className="w-4 h-4 text-primary flex-shrink-0" />
-        <h3 className="font-bold text-sm text-gray-800">Tin nổi bật</h3>
+    <div className="bg-white border border-gray-100 overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2.5" style={{ backgroundColor: NAV_COLOR }}>
+        <TrendingUp className="w-4 h-4 text-white flex-shrink-0" />
+        <h3 className="font-bold text-sm text-white uppercase tracking-wide">Tin nổi bật</h3>
       </div>
-      <ul className="px-2 py-1">
+      <ul className="divide-y divide-gray-100">
         {posts.map((post, idx) => (
           <li key={post.id}>
             <Link
               to={`/${post.fullUrlPath}`}
-              className="flex gap-3 items-start py-3 border-b border-gray-50 last:border-0 group hover:bg-gray-50 rounded-xl px-2 transition-colors"
+              className="flex gap-3 items-start py-3 px-3 group hover:bg-gray-50 transition-colors"
             >
-              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">
+              <span className="flex-shrink-0 w-5 h-5 text-white text-[10px] font-bold flex items-center justify-center mt-0.5" style={{ backgroundColor: '#1a3868' }}>
                 {idx + 1}
               </span>
-              <div className="relative w-16 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+              <div className="relative w-16 h-12 flex-shrink-0 overflow-hidden bg-gray-100">
                 {post.anhDaiDien ? (
                   <img
                     src={post.anhDaiDien}
@@ -524,7 +572,7 @@ export const SidebarFeaturedBlock = ({ config = {} }) => {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-800 line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+                <p className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug group-hover:text-blue-800 transition-colors">
                   {post.tieuDe}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">{formatDate(post.ngayXuatBan)}</p>
@@ -548,30 +596,30 @@ export const SidebarCategoriesBlock = () => {
   if (!tree.length) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-        <Folder className="w-4 h-4 text-primary flex-shrink-0" />
-        <h3 className="font-bold text-sm text-gray-800">Danh mục</h3>
+    <div className="bg-white border border-gray-100 overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2.5" style={{ backgroundColor: NAV_COLOR }}>
+        <Folder className="w-4 h-4 text-white flex-shrink-0" />
+        <h3 className="font-bold text-sm text-white uppercase tracking-wide">Danh mục</h3>
       </div>
-      <ul className="py-1">
+      <ul className="divide-y divide-gray-100">
         {tree.map((cat) => (
           <li key={cat.id}>
             <Link
               to={`/${cat.fullPathSlug}`}
-              className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors group"
+              className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors group"
             >
-              <span className="text-sm text-gray-700 group-hover:text-primary transition-colors">{cat.ten}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-primary transition-colors flex-shrink-0" />
+              <span className="text-sm text-gray-700 group-hover:text-blue-800 transition-colors font-medium">{cat.ten}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-blue-800 transition-colors flex-shrink-0" />
             </Link>
             {cat.children?.length > 0 && (
-              <ul className="pb-1">
+              <ul className="border-t border-gray-50">
                 {cat.children.map((child) => (
                   <li key={child.id}>
                     <Link
                       to={`/${child.fullPathSlug}`}
-                      className="flex items-center gap-2 pl-8 pr-4 py-1.5 text-xs text-gray-500 hover:bg-gray-50 hover:text-primary transition-colors group"
+                      className="flex items-center gap-2 pl-8 pr-4 py-2 text-xs text-gray-500 hover:bg-gray-50 hover:text-blue-800 transition-colors border-b border-gray-50 last:border-0"
                     >
-                      <span className="w-1 h-1 bg-gray-300 rounded-full flex-shrink-0 group-hover:bg-primary transition-colors" />
+                      <span className="w-1 h-1 bg-gray-300 rounded-full flex-shrink-0" />
                       {child.ten}
                     </Link>
                   </li>
@@ -603,18 +651,19 @@ export const BieuMauBlock = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-100 overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 transition-colors"
+        style={{ backgroundColor: NAV_COLOR }}
       >
         <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-orange-500 flex-shrink-0" />
-          <h3 className="font-bold text-sm text-gray-800">Biểu mẫu</h3>
+          <FileText className="w-4 h-4 text-white flex-shrink-0" />
+          <h3 className="font-bold text-sm text-white uppercase tracking-wide">Biểu mẫu</h3>
         </div>
         {open
-          ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          ? <ChevronUp className="w-4 h-4 text-white/70 flex-shrink-0" />
+          : <ChevronDown className="w-4 h-4 text-white/70 flex-shrink-0" />
         }
       </button>
       {open && (

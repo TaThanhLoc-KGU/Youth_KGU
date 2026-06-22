@@ -35,7 +35,7 @@ public class YouthKGUApplication {
             if (admin == null) {
                 admin = TaiKhoan.builder()
                         .username("admin")
-                        .vaiTro(VaiTroEnum.QUAN_LY)
+                        .vaiTro(VaiTroEnum.ADMIN)
                         .laAdmin(true)
                         .createdAt(LocalDateTime.now())
                         .build();

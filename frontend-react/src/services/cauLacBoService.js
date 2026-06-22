@@ -111,6 +111,11 @@ const cauLacBoService = {
     const res = await api.put(`/api/clb/${enc(maClb)}/phi/${id}/reset`);
     return res.data.data;
   },
+  
+  getMyFees: async () => {
+    const res = await api.get('/api/clb/phi/my-fees');
+    return res.data.data || [];
+  },
 
   // ── Cấu hình CLB ───────────────────────────────────────────
   getCauHinh: async (maClb) => {
@@ -163,6 +168,60 @@ const cauLacBoService = {
     return res.data.data || [];
   },
 
+  // ── Stats nhanh ────────────────────────────────────────────
+  getStats: async (maClb) => {
+    const res = await api.get(`/api/clb/${enc(maClb)}/stats`);
+    return res.data.data || {};
+  },
+
+  // ── Ban Chủ Nhiệm (BCN) ─────────────────────────────────────
+  getBcn: async (maClb, params = {}) => {
+    const res = await api.get(`/api/clb/${enc(maClb)}/bcn`, { params });
+    return res.data.data || [];
+  },
+
+  getBcnNhiemKy: async (maClb) => {
+    const res = await api.get(`/api/clb/${enc(maClb)}/bcn/nhiem-ky`);
+    return res.data.data || [];
+  },
+
+  addBcn: async (maClb, data) => {
+    const res = await api.post(`/api/clb/${enc(maClb)}/bcn`, data);
+    return res.data.data;
+  },
+
+  updateBcn: async (maClb, id, data) => {
+    const res = await api.put(`/api/clb/${enc(maClb)}/bcn/${id}`, data);
+    return res.data.data;
+  },
+
+  thoiChucBcn: async (maClb, id) => {
+    const res = await api.put(`/api/clb/${enc(maClb)}/bcn/${id}/thoi-chuc`);
+    return res.data.data;
+  },
+
+  removeBcn: async (maClb, id) => {
+    const res = await api.delete(`/api/clb/${enc(maClb)}/bcn/${id}`);
+    return res.data;
+  },
+
+  searchNguoiBCN: async (maClb, keyword, loai = 'SV') => {
+    const res = await api.get(`/api/clb/${enc(maClb)}/bcn/search-nguoi`, {
+      params: { keyword, loai },
+    });
+    return res.data?.data || [];
+  },
+
+  importBcnExcel: async (maClb, file, nhiemKy) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('nhiemKy', nhiemKy);
+    const res = await api.post(`/api/clb/${enc(maClb)}/bcn/import`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data?.data || {};
+  },
+
   // ── Export Excel ────────────────────────────────────────────
   exportMembers: async (maClb, maHocKy = null) => {
     const params = maHocKy ? { maHocKy } : {};
@@ -178,6 +237,18 @@ const cauLacBoService = {
     a.download = match ? decodeURIComponent(match[1]) : `thanh-vien-${maClb}.xlsx`;
     a.click();
     window.URL.revokeObjectURL(url);
+  },
+  getPaymentInfo: async (maClb, id) => {
+    const res = await api.get(`/api/clb/${enc(maClb)}/phi/${id}/payment-info`);
+    return res.data.data || {};
+  },
+
+  // ── PayOS ──────────────────────────────────────────────────────
+  createPayOSLink: async (maClb, id, returnUrl, cancelUrl) => {
+    const res = await api.post(`/api/clb/${enc(maClb)}/phi/${id}/payos-link`, null, {
+      params: { returnUrl, cancelUrl }
+    });
+    return res.data.data;
   },
 };
 

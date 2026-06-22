@@ -299,7 +299,20 @@ public class AuthService {
                 builder.maKhoa(gv.getKhoa().getMaKhoa())
                         .tenKhoa(gv.getKhoa().getTenKhoa());
             }
-        } else if (VaiTroEnum.SINH_VIEN.equals(taiKhoan.getVaiTro())) {
+        } else if (taiKhoan.getChuyenVien() != null) {
+            // Chuyên viên: linkedEntityId = maChuyenVien (cũng là maSv trong bảng sinhvien)
+            // Để chuyên viên có thể đăng ký hoạt động như đoàn viên bình thường.
+            ChuyenVien cv = taiKhoan.getChuyenVien();
+            builder.hoTen(cv.getHoTen())
+                    .email(cv.getEmail())
+                    .linkedEntityId(cv.getMaChuyenVien())
+                    .linkedEntityType("CHUYEN_VIEN");
+
+            if (cv.getKhoa() != null) {
+                builder.maKhoa(cv.getKhoa().getMaKhoa())
+                        .tenKhoa(cv.getKhoa().getTenKhoa());
+            }
+        } else if (VaiTroEnum.DOAN_VIEN.equals(taiKhoan.getVaiTro())) {
             // Tài khoản sinh viên chưa được link trực tiếp: username chính là maSv
             String maSv = taiKhoan.getUsername();
             builder.linkedEntityId(maSv).linkedEntityType("SINH_VIEN");

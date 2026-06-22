@@ -1,5 +1,6 @@
 package com.tathanhloc.youthkgu.Service;
 
+import com.tathanhloc.youthkgu.Enum.TrangThaiThamGiaEnum;
 import com.tathanhloc.youthkgu.Model.*;
 import com.tathanhloc.youthkgu.Repository.*;
 import lombok.RequiredArgsConstructor;
@@ -25,167 +26,322 @@ public class ClbExportService {
     private final ThanhVienCLBRepository     tvRepo;
     private final HoatDongRepository         hdRepo;
     private final DangKyHoatDongRepository   dkhdRepo;
+    private final DiemDanhHoatDongRepository ddRepo;
     private final DongPhiCLBRepository       dongPhiRepo;
     private final CauLacBoRepository         clbRepo;
+    private final BanChuNhiemCLBRepository   bcnRepo;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    /**
-     * Xuất danh sách thành viên CLB + dấu tích hoạt động đã tham gia.
-     *
-     * @param maClb   mã CLB
-     * @param maHocKy nếu có → lọc theo học kỳ; null → tất cả
-     * @return bytes của file .xlsx
-     */
+    private static final Map<String, String> CHUC_VU_LABELS = Map.of(
+            "CHU_NHIEM",    "Chủ nhiệm",
+            "PHO_CHU_NHIEM","Phó chủ nhiệm",
+            "BAN_QUAN_LY",  "Ban quản lý",
+            "CO_VAN",       "Cố vấn",
+            "THANH_VIEN",   "Thành viên"
+    );
+
     @Transactional(readOnly = true)
     public byte[] exportMembers(String maClb, String maHocKy) throws IOException {
 
-        // ── 1. Lấy danh sách thành viên ─────────────────────────
-        List<ThanhVienCLB> members = maHocKy != null
+        // ── 1. BCN đương nhiệm ────────────────────────────────────────────────
+        List<BanChuNhiemCLB> bcnList =
+                bcnRepo.findByCauLacBoMaClbAndTrangThaiOrderByChucVuAsc(maClb, "DUONG_NHIEM");
+
+        // maSv của những người trong BCN (SV) → dùng để loại khỏi section 2
+        Set<String> bcnMaSvSet = bcnList.stream()
+                .filter(b -> "SV".equals(b.getLoaiNguoi()) && b.getSinhVien() != null)
+                .map(b -> b.getSinhVien().getMaSv())
+                .collect(Collectors.toSet());
+
+        // ── 2. ThanhVienCLB (thành viên chính thức) ───────────────────────────
+        List<ThanhVienCLB> tvAll = maHocKy != null
                 ? tvRepo.findByCauLacBoMaClbAndHocKyMaHocKyAndIsActiveTrueOrderByChucVuAsc(maClb, maHocKy)
                 : tvRepo.findByCauLacBoMaClbAndIsActiveTrueOrderByChucVuAsc(maClb);
 
-        // ── 2. Lấy danh sách hoạt động của CLB ──────────────────
-        List<HoatDong> hoatDongs = hdRepo.findByCauLacBoMaClbOrderByNgayToChucDesc(maClb);
+        Set<String> tvMaSvSet = tvAll.stream()
+                .map(tv -> tv.getSinhVien().getMaSv())
+                .collect(Collectors.toSet());
 
-        // Sort hoạt động theo ngày tổ chức tăng dần
+        // Section 2 = ThanhVienCLB trừ người đã có trong BCN
+        List<ThanhVienCLB> tvSection = tvAll.stream()
+                .filter(tv -> !bcnMaSvSet.contains(tv.getSinhVien().getMaSv()))
+                .collect(Collectors.toList());
+
+        // ── 3. Hoạt động CLB ──────────────────────────────────────────────────
+        List<HoatDong> hoatDongs = hdRepo.findByCauLacBoMaClbOrderByNgayToChucDesc(maClb);
         hoatDongs.sort(Comparator.comparing(hd ->
                 hd.getNgayToChuc() != null ? hd.getNgayToChuc() : LocalDate.MIN));
 
-        // ── 3. Build index: maSv → set(maHoatDong đã tham gia) ──
-        Set<String> allMaSv = members.stream()
-                .map(tv -> tv.getSinhVien().getMaSv()).collect(Collectors.toSet());
+        // ── 4. Build bảng điểm danh: maSv → Set<maHoatDong> ──────────────────
+        // Nguồn 1: DangKyHoatDong (QR check-in → trangThai = DA_CHECK_IN / DA_CHECK_OUT)
+        // Nguồn 2: DiemDanhHoatDong (điểm danh thủ công → manualCheckInBulk chỉ ghi vào bảng này,
+        //          KHÔNG cập nhật DangKyHoatDong, nên phải đọc trực tiếp)
+        Map<String, Set<String>> svThamGiaMap = new HashMap<>();
 
-        Map<String, Set<String>> svThamGia = new HashMap<>();
-        for (String maSv : allMaSv) {
-            Set<String> set = dkhdRepo.findBySinhVienMaSvAndIsActiveTrue(maSv)
-                    .stream()
-                    .filter(dk -> dk.getTrangThai() != null
-                            && (dk.getTrangThai().contains("CHECK") || "DA_DIEM_DANH".equals(dk.getTrangThai())
-                                || "DA_DANG_KY".equals(dk.getTrangThai())))
-                    .map(dk -> dk.getHoatDong().getMaHoatDong())
-                    .collect(Collectors.toSet());
-            svThamGia.put(maSv, set);
+        for (HoatDong hd : hoatDongs) {
+            String maHd = hd.getMaHoatDong();
+
+            // Nguồn 1: DangKyHoatDong
+            dkhdRepo.findByHoatDongMaHoatDongAndIsActiveNotFalse(maHd).forEach(dk -> {
+                if (dk.getSinhVien() == null) return;
+                String tt = dk.getTrangThai();
+                if (tt != null && (tt.contains("CHECK") || tt.contains("THAM_GIA")
+                        || "DA_DIEM_DANH".equals(tt) || "DA_DANG_KY".equals(tt))) {
+                    svThamGiaMap.computeIfAbsent(dk.getSinhVien().getMaSv(), k -> new HashSet<>()).add(maHd);
+                }
+            });
+
+            // Nguồn 2: DiemDanhHoatDong (bắt điểm danh thủ công)
+            ddRepo.findByHoatDongMaHoatDong(maHd).forEach(dd -> {
+                if (dd.getSinhVien() == null) return;
+                if (dd.getTrangThai() == TrangThaiThamGiaEnum.DA_THAM_GIA) {
+                    svThamGiaMap.computeIfAbsent(dd.getSinhVien().getMaSv(), k -> new HashSet<>()).add(maHd);
+                }
+            });
         }
 
-        // ── 4. Build index: maSv → trạng thái phí ───────────────
+        // ── 5. Phí ────────────────────────────────────────────────────────────
         Map<String, String> svPhi = new HashMap<>();
         if (maHocKy != null) {
             dongPhiRepo.findByCauLacBoMaClbAndHocKyMaHocKy(maClb, maHocKy)
                     .forEach(p -> svPhi.put(p.getSinhVien().getMaSv(), p.getTrangThai()));
         }
 
-        // ── 5. Tạo workbook ──────────────────────────────────────
+        // ── 6. Tên CLB ────────────────────────────────────────────────────────
+        String tenClb = clbRepo.findById(maClb).map(CauLacBo::getTenClb).orElse(maClb);
+
+        // ── 7. Build Excel ────────────────────────────────────────────────────
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("Danh sách thành viên");
 
-            // ── Styles ──────────────────────────────────────────
-            CellStyle headerStyle = createHeaderStyle(wb);
-            CellStyle subHeaderStyle = createSubHeaderStyle(wb);
-            CellStyle dataStyle    = createDataStyle(wb);
-            CellStyle checkStyle   = createCheckStyle(wb);   // ✓
-            CellStyle paidStyle    = createPaidStyle(wb);
+            // Styles
+            CellStyle titleStyle      = createTitleStyle(wb);
+            CellStyle sectionStyle    = createSectionStyle(wb);
+            CellStyle sectionStyle2   = createSectionStyle2(wb);
+            CellStyle headerStyle     = createHeaderStyle(wb);
+            CellStyle dataStyle       = createDataStyle(wb);
+            CellStyle dataAltStyle    = createDataAltStyle(wb);
+            CellStyle checkStyle      = createCheckStyle(wb);
+            CellStyle paidStyle       = createPaidStyle(wb);
+            CellStyle subHeaderStyle  = createSubHeaderStyle(wb);
 
+            int totalCols = 7 + hoatDongs.size();
             int rowIdx = 0;
 
-            // ── Tiêu đề ─────────────────────────────────────────
+            // ── Tiêu đề chính ─────────────────────────────────────
             Row titleRow = sheet.createRow(rowIdx++);
             Cell titleCell = titleRow.createCell(0);
-            String clbName = members.isEmpty() ? maClb
-                    : members.get(0).getCauLacBo().getTenClb();
-            titleCell.setCellValue("DANH SÁCH THÀNH VIÊN – " + clbName.toUpperCase()
+            titleCell.setCellValue("DANH SÁCH THÀNH VIÊN – " + tenClb.toUpperCase()
                     + (maHocKy != null ? " – " + maHocKy : ""));
-            titleCell.setCellStyle(createTitleStyle(wb));
-            int totalCols = 7 + hoatDongs.size();
+            titleCell.setCellStyle(titleStyle);
             sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, totalCols - 1));
-
             rowIdx++; // blank
 
-            // ── Header ──────────────────────────────────────────
-            Row hRow = sheet.createRow(rowIdx++);
-            String[] baseHeaders = {"STT", "MSSV", "Họ và tên", "Lớp", "Chức vụ",
-                    "Ngày tham gia", "Phí (" + (maHocKy != null ? maHocKy : "tất cả") + ")"};
-            for (int i = 0; i < baseHeaders.length; i++) {
-                createCell(hRow, i, baseHeaders[i], headerStyle);
+            // ══════════════════════════════════════════════════════
+            // SECTION 1: BAN CHỦ NHIỆM
+            // ══════════════════════════════════════════════════════
+            Row sec1Row = sheet.createRow(rowIdx++);
+            Cell sec1Cell = sec1Row.createCell(0);
+            sec1Cell.setCellValue("I. BAN CHỦ NHIỆM (" + bcnList.size() + " người)");
+            sec1Cell.setCellStyle(sectionStyle);
+            sheet.addMergedRegion(new CellRangeAddress(rowIdx - 1, rowIdx - 1, 0, totalCols - 1));
+
+            // Header BCN
+            Row hRowBcn = sheet.createRow(rowIdx++);
+            String[] bcnHeaders = {"STT", "Mã số", "Họ và tên", "Đơn vị/Lớp",
+                    "Chức vụ BCN", "Nhiệm kỳ", "Liên hệ"};
+            for (int i = 0; i < bcnHeaders.length; i++) {
+                createCell(hRowBcn, i, bcnHeaders[i], headerStyle);
             }
             for (int i = 0; i < hoatDongs.size(); i++) {
                 HoatDong hd = hoatDongs.get(i);
-                String hdLabel = hd.getTenHoatDong();
-                if (hd.getNgayToChuc() != null) {
-                    hdLabel = hd.getNgayToChuc().format(DATE_FMT) + "\n" + hdLabel;
-                }
-                createCell(hRow, baseHeaders.length + i, hdLabel, subHeaderStyle);
+                String label = (hd.getNgayToChuc() != null ? hd.getNgayToChuc().format(DATE_FMT) + "\n" : "")
+                        + hd.getTenHoatDong();
+                createCell(hRowBcn, bcnHeaders.length + i, label, subHeaderStyle);
             }
-            hRow.setHeight((short) 900); // ~45pt
+            hRowBcn.setHeight((short) 900);
 
-            // ── Data rows ────────────────────────────────────────
+            // Rows BCN
             int stt = 1;
-            Map<String, String> chucVuLabels = Map.of(
-                    "CHU_NHIEM", "Chủ nhiệm", "PHO_CHU_NHIEM", "Phó chủ nhiệm",
-                    "BAN_QUAN_LY", "Ban quản lý", "CO_VAN", "Cố vấn", "THANH_VIEN", "Thành viên"
-            );
-            for (ThanhVienCLB tv : members) {
+            for (BanChuNhiemCLB bcn : bcnList) {
+                CellStyle rowStyle = (stt % 2 == 0) ? dataAltStyle : dataStyle;
+                Row row = sheet.createRow(rowIdx++);
+                createCell(row, 0, String.valueOf(stt++), rowStyle);
+
+                String ma, ten, donVi, lienHe;
+                if ("GV".equals(bcn.getLoaiNguoi()) && bcn.getGiangVien() != null) {
+                    GiangVien gv = bcn.getGiangVien();
+                    ma     = gv.getMaGv();
+                    ten    = gv.getHoTen();
+                    donVi  = gv.getKhoa() != null ? gv.getKhoa().getTenKhoa() : "Giảng viên";
+                    lienHe = bcn.getEmailLienHe() != null ? bcn.getEmailLienHe() : gv.getEmail();
+                } else if ("CV".equals(bcn.getLoaiNguoi()) && bcn.getChuyenVien() != null) {
+                    ChuyenVien cv = bcn.getChuyenVien();
+                    ma     = cv.getMaChuyenVien();
+                    ten    = cv.getHoTen();
+                    donVi  = cv.getChucDanh() != null ? cv.getChucDanh() : "Chuyên viên";
+                    lienHe = bcn.getEmailLienHe() != null ? bcn.getEmailLienHe() : cv.getEmail();
+                } else {
+                    SinhVien sv = bcn.getSinhVien();
+                    ma     = sv != null ? sv.getMaSv() : "";
+                    ten    = sv != null ? sv.getHoTen() : "";
+                    donVi  = sv != null && sv.getLop() != null ? sv.getLop().getTenLop() : "";
+                    lienHe = bcn.getEmailLienHe() != null ? bcn.getEmailLienHe()
+                            : (sv != null ? sv.getEmail() : "");
+                }
+
+                createCell(row, 1, ma,                     rowStyle);
+                createCell(row, 2, ten,                    rowStyle);
+                createCell(row, 3, donVi,                  rowStyle);
+                createCell(row, 4, bcn.getChucVu(),        rowStyle);
+                createCell(row, 5, bcn.getNhiemKy(),       rowStyle);
+                createCell(row, 6, lienHe != null ? lienHe : "", rowStyle);
+
+                // Điểm danh (chỉ áp dụng cho SV)
+                Set<String> attended = "SV".equals(bcn.getLoaiNguoi()) && bcn.getSinhVien() != null
+                        ? svThamGiaMap.getOrDefault(bcn.getSinhVien().getMaSv(), Collections.emptySet())
+                        : Collections.emptySet();
+                for (int i = 0; i < hoatDongs.size(); i++) {
+                    boolean ok = attended.contains(hoatDongs.get(i).getMaHoatDong());
+                    createCell(row, 7 + i, ok ? "✓" : "", ok ? checkStyle : rowStyle);
+                }
+            }
+
+            rowIdx++; // blank giữa 2 section
+
+            // ══════════════════════════════════════════════════════
+            // SECTION 2: THÀNH VIÊN CLB
+            // ══════════════════════════════════════════════════════
+            int section2Total = tvSection.size();
+            Row sec2Row = sheet.createRow(rowIdx++);
+            Cell sec2Cell = sec2Row.createCell(0);
+            sec2Cell.setCellValue("II. THÀNH VIÊN CLB (" + section2Total + " người)");
+            sec2Cell.setCellStyle(sectionStyle2);
+            sheet.addMergedRegion(new CellRangeAddress(rowIdx - 1, rowIdx - 1, 0, totalCols - 1));
+
+            // Header TV
+            Row hRowTv = sheet.createRow(rowIdx++);
+            String[] tvHeaders = {"STT", "MSSV", "Họ và tên", "Lớp", "Chức vụ",
+                    "Ngày tham gia", "Phí (" + (maHocKy != null ? maHocKy : "tất cả") + ")"};
+            for (int i = 0; i < tvHeaders.length; i++) {
+                createCell(hRowTv, i, tvHeaders[i], headerStyle);
+            }
+            for (int i = 0; i < hoatDongs.size(); i++) {
+                HoatDong hd = hoatDongs.get(i);
+                String label = (hd.getNgayToChuc() != null ? hd.getNgayToChuc().format(DATE_FMT) + "\n" : "")
+                        + hd.getTenHoatDong();
+                createCell(hRowTv, tvHeaders.length + i, label, subHeaderStyle);
+            }
+            hRowTv.setHeight((short) 900);
+
+            // Rows ThanhVienCLB
+            stt = 1;
+            for (ThanhVienCLB tv : tvSection) {
+                CellStyle rowStyle = (stt % 2 == 0) ? dataAltStyle : dataStyle;
                 SinhVien sv = tv.getSinhVien();
                 Row row = sheet.createRow(rowIdx++);
 
-                createCell(row, 0, String.valueOf(stt++), dataStyle);
-                createCell(row, 1, sv.getMaSv(), dataStyle);
-                createCell(row, 2, sv.getHoTen(), dataStyle);
-                createCell(row, 3, sv.getLop() != null ? sv.getLop().getTenLop() : "", dataStyle);
-                createCell(row, 4, chucVuLabels.getOrDefault(tv.getChucVu(), tv.getChucVu()), dataStyle);
-                createCell(row, 5, tv.getNgayThamGia() != null ? tv.getNgayThamGia().format(DATE_FMT) : "", dataStyle);
+                createCell(row, 0, String.valueOf(stt++), rowStyle);
+                createCell(row, 1, sv.getMaSv(),                                  rowStyle);
+                createCell(row, 2, sv.getHoTen(),                                 rowStyle);
+                createCell(row, 3, sv.getLop() != null ? sv.getLop().getTenLop() : "", rowStyle);
+                createCell(row, 4, CHUC_VU_LABELS.getOrDefault(tv.getChucVu(), tv.getChucVu()), rowStyle);
+                createCell(row, 5, tv.getNgayThamGia() != null ? tv.getNgayThamGia().format(DATE_FMT) : "", rowStyle);
 
-                // Phí
-                String phiStatus = svPhi.getOrDefault(sv.getMaSv(), maHocKy != null ? "Chưa đóng" : "—");
-                if ("DA_DONG".equals(phiStatus))   phiStatus = "Đã đóng";
-                else if ("MIEN_GIAM".equals(phiStatus)) phiStatus = "Miễn giảm";
-                else if ("CHUA_DONG".equals(phiStatus)) phiStatus = "Chưa đóng";
-                CellStyle phiStyleToUse = "Đã đóng".equals(phiStatus) || "Miễn giảm".equals(phiStatus)
-                        ? paidStyle : dataStyle;
-                createCell(row, 6, phiStatus, phiStyleToUse);
+                String phi = phiLabel(svPhi.getOrDefault(sv.getMaSv(), maHocKy != null ? "CHUA_DONG" : null));
+                boolean paid = "Đã đóng".equals(phi) || "Miễn giảm".equals(phi);
+                createCell(row, 6, phi, paid ? paidStyle : rowStyle);
 
-                // Hoạt động
-                Set<String> attended = svThamGia.getOrDefault(sv.getMaSv(), Collections.emptySet());
+                Set<String> attended = svThamGiaMap.getOrDefault(sv.getMaSv(), Collections.emptySet());
                 for (int i = 0; i < hoatDongs.size(); i++) {
-                    boolean thamGia = attended.contains(hoatDongs.get(i).getMaHoatDong());
-                    createCell(row, 7 + i, thamGia ? "✓" : "", thamGia ? checkStyle : dataStyle);
+                    boolean ok = attended.contains(hoatDongs.get(i).getMaHoatDong());
+                    createCell(row, 7 + i, ok ? "✓" : "", ok ? checkStyle : rowStyle);
                 }
             }
 
-            // ── Auto-size columns (các cột base) ────────────────
-            for (int i = 0; i < 7; i++) sheet.autoSizeColumn(i);
-            // Cột hoạt động: cố định 90px
+            // ── Summary ───────────────────────────────────────────
+            rowIdx++;
+            Row sumRow = sheet.createRow(rowIdx);
+            int grandTotal = bcnList.size() + section2Total;
+            createCell(sumRow, 0,
+                    "Tổng: BCN=" + bcnList.size() + " | Thành viên=" + section2Total + " | Tổng cộng=" + grandTotal,
+                    createBoldStyle(wb));
+            sheet.addMergedRegion(new CellRangeAddress(rowIdx, rowIdx, 0, Math.min(6, totalCols - 1)));
+
+            // ── Column widths ──────────────────────────────────────
+            sheet.setColumnWidth(0, 1800);   // STT
+            sheet.setColumnWidth(1, 3500);   // Mã
+            sheet.setColumnWidth(2, 7000);   // Họ tên
+            sheet.setColumnWidth(3, 4500);   // Lớp/Đơn vị
+            sheet.setColumnWidth(4, 4000);   // Chức vụ
+            sheet.setColumnWidth(5, 3500);   // Ngày/Nhiệm kỳ
+            sheet.setColumnWidth(6, 3500);   // Phí/Liên hệ
             for (int i = 0; i < hoatDongs.size(); i++) {
                 sheet.setColumnWidth(7 + i, 4000);
             }
 
-            // ── Summary row ──────────────────────────────────────
-            rowIdx++; // blank
-            Row sumRow = sheet.createRow(rowIdx);
-            createCell(sumRow, 0, "Tổng cộng: " + members.size() + " thành viên", dataStyle);
-            sheet.addMergedRegion(new CellRangeAddress(rowIdx, rowIdx, 0, 3));
-
-            // ── Write ────────────────────────────────────────────
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             wb.write(out);
             return out.toByteArray();
         }
     }
 
-    // ── Style helpers ────────────────────────────────────────────
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private String phiLabel(String trangThai) {
+        if (trangThai == null) return "—";
+        return switch (trangThai) {
+            case "DA_DONG"   -> "Đã đóng";
+            case "MIEN_GIAM" -> "Miễn giảm";
+            case "CHUA_DONG" -> "Chưa đóng";
+            default          -> trangThai;
+        };
+    }
+
+    // ── Style factories ──────────────────────────────────────────────────────
 
     private CellStyle createTitleStyle(Workbook wb) {
         CellStyle s = wb.createCellStyle();
-        Font f = wb.createFont(); f.setBold(true); f.setFontHeightInPoints((short) 14);
-        s.setFont(f); s.setAlignment(HorizontalAlignment.CENTER);
+        Font f = wb.createFont();
+        f.setBold(true); f.setFontHeightInPoints((short) 14);
+        s.setFont(f);
+        s.setAlignment(HorizontalAlignment.CENTER);
+        return s;
+    }
+
+    private CellStyle createSectionStyle(Workbook wb) {
+        CellStyle s = wb.createCellStyle();
+        Font f = wb.createFont();
+        f.setBold(true); f.setFontHeightInPoints((short) 12);
+        f.setColor(IndexedColors.WHITE.getIndex());
+        s.setFont(f);
+        s.setFillForegroundColor(IndexedColors.VIOLET.getIndex());
+        s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        s.setAlignment(HorizontalAlignment.LEFT);
+        s.setVerticalAlignment(VerticalAlignment.CENTER);
+        return s;
+    }
+
+    private CellStyle createSectionStyle2(Workbook wb) {
+        CellStyle s = wb.createCellStyle();
+        Font f = wb.createFont();
+        f.setBold(true); f.setFontHeightInPoints((short) 12);
+        f.setColor(IndexedColors.WHITE.getIndex());
+        s.setFont(f);
+        s.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        s.setAlignment(HorizontalAlignment.LEFT);
+        s.setVerticalAlignment(VerticalAlignment.CENTER);
         return s;
     }
 
     private CellStyle createHeaderStyle(Workbook wb) {
         CellStyle s = wb.createCellStyle();
-        Font f = wb.createFont(); f.setBold(true); f.setColor(IndexedColors.WHITE.getIndex());
+        Font f = wb.createFont();
+        f.setBold(true); f.setColor(IndexedColors.WHITE.getIndex());
         s.setFont(f);
-        s.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        s.setFillForegroundColor(IndexedColors.DARK_TEAL.getIndex());
         s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         s.setAlignment(HorizontalAlignment.CENTER);
         s.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -195,7 +351,8 @@ public class ClbExportService {
 
     private CellStyle createSubHeaderStyle(Workbook wb) {
         CellStyle s = wb.createCellStyle();
-        Font f = wb.createFont(); f.setBold(true); f.setColor(IndexedColors.WHITE.getIndex());
+        Font f = wb.createFont();
+        f.setBold(true); f.setColor(IndexedColors.WHITE.getIndex());
         s.setFont(f);
         s.setFillForegroundColor(IndexedColors.DARK_TEAL.getIndex());
         s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -214,9 +371,20 @@ public class ClbExportService {
         return s;
     }
 
+    private CellStyle createDataAltStyle(Workbook wb) {
+        CellStyle s = wb.createCellStyle();
+        s.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        s.setAlignment(HorizontalAlignment.LEFT);
+        s.setVerticalAlignment(VerticalAlignment.CENTER);
+        setBorder(s);
+        return s;
+    }
+
     private CellStyle createCheckStyle(Workbook wb) {
         CellStyle s = wb.createCellStyle();
-        Font f = wb.createFont(); f.setColor(IndexedColors.GREEN.getIndex()); f.setBold(true);
+        Font f = wb.createFont();
+        f.setColor(IndexedColors.GREEN.getIndex()); f.setBold(true);
         s.setFont(f);
         s.setAlignment(HorizontalAlignment.CENTER);
         s.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
@@ -227,10 +395,30 @@ public class ClbExportService {
 
     private CellStyle createPaidStyle(Workbook wb) {
         CellStyle s = wb.createCellStyle();
-        Font f = wb.createFont(); f.setColor(IndexedColors.DARK_GREEN.getIndex());
+        Font f = wb.createFont();
+        f.setColor(IndexedColors.DARK_GREEN.getIndex());
         s.setFont(f);
         s.setAlignment(HorizontalAlignment.CENTER);
         setBorder(s);
+        return s;
+    }
+
+    private CellStyle createItalicStyle(Workbook wb) {
+        CellStyle s = wb.createCellStyle();
+        Font f = wb.createFont();
+        f.setItalic(true); f.setColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        s.setFont(f);
+        s.setFillForegroundColor(IndexedColors.LEMON_CHIFFON.getIndex());
+        s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        s.setAlignment(HorizontalAlignment.LEFT);
+        return s;
+    }
+
+    private CellStyle createBoldStyle(Workbook wb) {
+        CellStyle s = wb.createCellStyle();
+        Font f = wb.createFont(); f.setBold(true);
+        s.setFont(f);
+        s.setAlignment(HorizontalAlignment.LEFT);
         return s;
     }
 

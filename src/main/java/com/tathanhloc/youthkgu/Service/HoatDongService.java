@@ -112,16 +112,18 @@ public class HoatDongService {
 
         HoatDong hoatDong = toEntity(dto);
 
-        // ÉP SCOPE CLB: tài khoản CLB → ép capDo=BAN_DOI_CLB và gán cauLacBo
+        // ÉP SCOPE CLB: tài khoản CLB → ép capDo=BAN_DOI_CLB, gán cauLacBo, và bắt buộc đặt trạng thái CHO_DUYET
         String maClb = khoaScopeService.getCurrentMaClb();
         if (maClb != null) {
             hoatDong.setCapDo(CapDoEnum.BAN_DOI_CLB);
+            hoatDong.setTrangThai(TrangThaiHoatDongEnum.CHO_DUYET); // Luôn bắt đầu bằng Chờ phê duyệt
             cauLacBoRepository.findById(maClb).ifPresent(hoatDong::setCauLacBo);
         } else {
-            // ÉP SCOPE KHOA: cán bộ khoa → ép capDo=KHOA và khoa=khoaOfUser
+            // ÉP SCOPE KHOA: cán bộ khoa → ép capDo=KHOA, khoa=khoaOfUser, và bắt buộc đặt trạng thái CHO_DUYET
             String maKhoa = khoaScopeService.getCurrentMaKhoa();
             if (maKhoa != null) {
                 hoatDong.setCapDo(CapDoEnum.KHOA);
+                hoatDong.setTrangThai(TrangThaiHoatDongEnum.CHO_DUYET); // Luôn bắt đầu bằng Chờ phê duyệt
                 khoaRepository.findById(maKhoa).ifPresent(hoatDong::setKhoa);
             }
         }
@@ -183,6 +185,46 @@ public class HoatDongService {
         hoatDongRepository.save(hoatDong);
 
         log.info("Activity soft deleted: {}", maHoatDong);
+    }
+
+    // ========== APPROVAL WORKFLOW ==========
+
+    @Transactional
+    public HoatDongDTO duyetHoatDong(String maHoatDong, TrangThaiHoatDongEnum trangThaiMoi, String nguoiDuyet) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        if (hoatDong.getTrangThai() != TrangThaiHoatDongEnum.CHO_DUYET) {
+            throw new RuntimeException("Hoạt động không ở trạng thái chờ duyệt");
+        }
+
+        hoatDong.setTrangThai(trangThaiMoi);
+        hoatDong.setNguoiDuyet(nguoiDuyet);
+        hoatDong.setNgayDuyet(LocalDateTime.now());
+        hoatDong.setLyDoTuChoi(null);
+        hoatDong = hoatDongRepository.save(hoatDong);
+
+        log.info("Activity approved: {} → {} by {}", maHoatDong, trangThaiMoi, nguoiDuyet);
+        return toDTO(hoatDong);
+    }
+
+    @Transactional
+    public HoatDongDTO tuChoiHoatDong(String maHoatDong, String lyDo, String nguoiDuyet) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        if (hoatDong.getTrangThai() != TrangThaiHoatDongEnum.CHO_DUYET) {
+            throw new RuntimeException("Hoạt động không ở trạng thái chờ duyệt");
+        }
+
+        hoatDong.setTrangThai(TrangThaiHoatDongEnum.DA_HUY);
+        hoatDong.setNguoiDuyet(nguoiDuyet);
+        hoatDong.setNgayDuyet(LocalDateTime.now());
+        hoatDong.setLyDoTuChoi(lyDo);
+        hoatDong = hoatDongRepository.save(hoatDong);
+
+        log.info("Activity rejected: {} by {} reason: {}", maHoatDong, nguoiDuyet, lyDo);
+        return toDTO(hoatDong);
     }
 
     // ========== QUERY OPERATIONS ==========
@@ -575,7 +617,9 @@ public class HoatDongService {
         TrangThaiHoatDongEnum stored = hoatDong.getTrangThai();
 
         // Manual overrides stay unchanged
-        if (stored == TrangThaiHoatDongEnum.DA_HUY || stored == TrangThaiHoatDongEnum.DA_HOAN_THANH) {
+        if (stored == TrangThaiHoatDongEnum.DA_HUY
+                || stored == TrangThaiHoatDongEnum.DA_HOAN_THANH
+                || stored == TrangThaiHoatDongEnum.CHO_DUYET) {
             return stored;
         }
 
@@ -739,7 +783,8 @@ public class HoatDongService {
                 .maTieuChiRenLuyen(entity.getMaTieuChiRenLuyen())
                 .diemToiDaTieuChi(entity.getDiemToiDaTieuChi())
                 .maBchPhuTrach(entity.getNguoiPhuTrach() != null ? entity.getNguoiPhuTrach().getMaBch() : null)
-                .tenNguoiPhuTrach(entity.getNguoiPhuTrach() != null ? entity.getNguoiPhuTrach().getSinhVien().getHoTen() : null)
+                .tenNguoiPhuTrach(entity.getNguoiPhuTrach() != null && entity.getNguoiPhuTrach().getSinhVien() != null
+                        ? entity.getNguoiPhuTrach().getSinhVien().getHoTen() : null)
                 .maKhoa(entity.getKhoa() != null ? entity.getKhoa().getMaKhoa() : null)
                 .tenKhoa(entity.getKhoa() != null ? entity.getKhoa().getTenKhoa() : null)
                 .maNganh(entity.getNganh() != null ? entity.getNganh().getMaNganh() : null)
@@ -758,6 +803,9 @@ public class HoatDongService {
                 .isActive(entity.getIsActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .nguoiDuyet(entity.getNguoiDuyet())
+                .ngayDuyet(entity.getNgayDuyet())
+                .lyDoTuChoi(entity.getLyDoTuChoi())
                 .build();
     }
 
@@ -790,7 +838,7 @@ public class HoatDongService {
                 .maDanhMucRenLuyen(dto.getMaDanhMucRenLuyen())
                 .maTieuChiRenLuyen(dto.getMaTieuChiRenLuyen())
                 .diemToiDaTieuChi(dto.getMaTieuChiRenLuyen() != null
-                        ? criteriaService.getDiemToiDa(dto.getMaTieuChiRenLuyen())
+                        ? (Integer) criteriaService.getDiemToiDa(dto.getMaTieuChiRenLuyen())
                         : dto.getDiemToiDaTieuChi())
                 .trangThai(dto.getTrangThai() != null ? dto.getTrangThai() : TrangThaiHoatDongEnum.SAP_DIEN_RA)
                 .yeuCauDiemDanh(dto.getYeuCauDiemDanh() != null ? dto.getYeuCauDiemDanh() : true)
@@ -852,6 +900,7 @@ public class HoatDongService {
         if (dto.getThoiGianToiThieu() != null) entity.setThoiGianToiThieu(dto.getThoiGianToiThieu());
         if (dto.getChoPhepCheckInSom() != null) entity.setChoPhepCheckInSom(dto.getChoPhepCheckInSom());
         if (dto.getYeuCauCheckOut() != null) entity.setYeuCauCheckOut(dto.getYeuCauCheckOut());
+        if (dto.getCheDoDiemDanh() != null) entity.setCheDoDiemDanh(dto.getCheDoDiemDanh());
         if (dto.getViDo() != null) entity.setViDo(dto.getViDo());
         if (dto.getKinhDo() != null) entity.setKinhDo(dto.getKinhDo());
         if (dto.getKhoangCachToiDa() != null) entity.setKhoangCachToiDa(dto.getKhoangCachToiDa());
@@ -902,7 +951,13 @@ public class HoatDongService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> getCurrentAcademicInfo() {
-        Map<String, Object> info = AcademicCalendarUtil.getCurrentAcademicInfo();
+        Map<String, Object> info;
+        try {
+            info = AcademicCalendarUtil.getCurrentAcademicInfo();
+        } catch (Exception e) {
+            log.warn("AcademicCalendarUtil.getCurrentAcademicInfo() failed: {}", e.getMessage());
+            info = new HashMap<>();
+        }
 
         // Bổ sung danh sách các năm học có trong CSDL
         List<Map<String, String>> namHocList = namHocRepository.findByIsActiveTrue()

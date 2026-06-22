@@ -1,24 +1,5 @@
 import { AlertTriangle, Trash2, Loader2 } from 'lucide-react';
 
-/**
- * ConfirmDialog — dùng thay window.confirm() cho thao tác xóa/nguy hiểm.
- *
- * Usage:
- *   const [confirmState, setConfirmState] = useState(null);
- *
- *   // Trigger:
- *   setConfirmState({ id: row.id, name: row.name });
- *
- *   // In JSX:
- *   <ConfirmDialog
- *     isOpen={!!confirmState}
- *     onClose={() => setConfirmState(null)}
- *     onConfirm={() => { deleteMutation.mutate(confirmState.id); setConfirmState(null); }}
- *     title="Xóa sinh viên"
- *     description={`Bạn có chắc chắn muốn xóa "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
- *     isLoading={deleteMutation.isPending}
- *   />
- */
 const ConfirmDialog = ({
   isOpen,
   onClose,
@@ -27,7 +8,7 @@ const ConfirmDialog = ({
   description,
   confirmLabel = 'Xóa',
   cancelLabel = 'Hủy',
-  variant = 'danger',   // 'danger' | 'warning'
+  variant = 'danger',
   isLoading = false,
 }) => {
   if (!isOpen) return null;
@@ -36,40 +17,48 @@ const ConfirmDialog = ({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
       onClick={(e) => { if (e.target === e.currentTarget && !isLoading) onClose(); }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-slide-up">
+      <div
+        className="bg-white rounded-2xl w-full max-w-sm animate-slide-up"
+        style={{ boxShadow: '0 20px 60px -10px rgba(15,23,42,0.25), 0 0 0 1px rgba(15,23,42,0.06)' }}
+      >
         <div className="p-5">
           {/* Icon */}
-          <div className={`w-11 h-11 rounded-full flex items-center justify-center mb-4 ${
-            isDanger ? 'bg-red-50' : 'bg-amber-50'
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ring-1 ${
+            isDanger
+              ? 'bg-red-50 text-red-600 ring-red-100'
+              : 'bg-amber-50 text-amber-600 ring-amber-100'
           }`}>
             {isDanger
-              ? <Trash2 className="w-5 h-5 text-red-600" />
-              : <AlertTriangle className="w-5 h-5 text-amber-600" />
+              ? <Trash2 className="w-4.5 h-4.5" />
+              : <AlertTriangle className="w-4.5 h-4.5" />
             }
           </div>
 
-          {/* Text */}
-          <h3 className="text-base font-semibold text-gray-900 mb-1.5">{title}</h3>
-          {description && <p className="text-sm text-gray-500 leading-relaxed">{description}</p>}
+          <h3 className="text-[15px] font-semibold text-slate-900 mb-1.5">{title}</h3>
+          {description && (
+            <p className="text-sm text-slate-500 leading-relaxed">{description}</p>
+          )}
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2.5 px-5 pb-5">
+        <div className="flex gap-2 px-5 pb-5">
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="flex-1 h-9 px-4 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-all disabled:opacity-50 active:scale-[0.97]"
           >
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-60 ${
-              isDanger ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-500 hover:bg-amber-600'
+            className={`flex-1 h-9 flex items-center justify-center gap-1.5 px-4 text-sm font-medium text-white rounded-lg transition-all shadow-sm disabled:opacity-60 active:scale-[0.97] ${
+              isDanger
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-amber-500 hover:bg-amber-600'
             }`}
           >
             {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

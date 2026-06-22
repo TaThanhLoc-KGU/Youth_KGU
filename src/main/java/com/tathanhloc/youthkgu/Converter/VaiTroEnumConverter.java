@@ -5,8 +5,9 @@ import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
 /**
- * Converter để xử lý các giá trị enum VaiTro cũ (backward compatibility)
- * Mapping các giá trị cũ sang giá trị mới
+ * Converter xử lý backward compatibility với giá trị vai trò cũ trong DB.
+ * DB lưu tên enum (ADMIN, QUAN_LY_KHOA, ...).
+ * Giá trị legacy (QUAN_LY, SINH_VIEN, BCH, ...) được map qua VaiTroEnum.fromValue().
  */
 @Converter(autoApply = true)
 public class VaiTroEnumConverter implements AttributeConverter<VaiTroEnum, String> {

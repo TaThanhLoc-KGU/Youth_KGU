@@ -51,7 +51,7 @@ const SkeletonBox = ({ className }) => (
 const TrainingPoints = () => {
   const { user } = useAuthStore();
   // maSv: ưu tiên linkedEntityId, fallback sang username (vì username = maSv với tài khoản sinh viên)
-  const maSv = user?.linkedEntityId || (user?.vaiTro === 'SINH_VIEN' ? user?.username : null);
+  const maSv = user?.linkedEntityId || (user?.vaiTro === 'DOAN_VIEN' ? user?.username : null);
 
   // Student's registrations (contains daDiemDanh info)
   const { data: registrations = [], isLoading: loadingRegs } = useQuery({

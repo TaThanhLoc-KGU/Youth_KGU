@@ -94,7 +94,7 @@ public class NganhController {
      * Tạo ngành mới
      */
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NGANH')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NGANH')")
     public ResponseEntity<NganhDTO> create(@RequestBody NganhDTO dto) {
         log.info("Tạo ngành mới: {}", dto);
         NganhDTO created = nganhService.create(dto);
@@ -105,7 +105,7 @@ public class NganhController {
      * Cập nhật ngành
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NGANH')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NGANH')")
     public ResponseEntity<NganhDTO> update(@PathVariable String id, @RequestBody NganhDTO dto) {
         log.info("Cập nhật ngành với ID {}: {}", id, dto);
         return ResponseEntity.ok(nganhService.update(id, dto));
@@ -115,7 +115,7 @@ public class NganhController {
      * Xóa mềm ngành (soft delete)
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NGANH')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NGANH')")
     public ResponseEntity<Void> softDelete(@PathVariable String id) {
         log.info("Xóa mềm ngành với ID: {}", id);
         nganhService.softDelete(id);
@@ -126,7 +126,7 @@ public class NganhController {
      * Khôi phục ngành đã xóa mềm
      */
     @PutMapping("/{id}/restore")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NGANH')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NGANH')")
     public ResponseEntity<Void> restore(@PathVariable String id) {
         log.info("Khôi phục ngành với ID: {}", id);
         nganhService.restore(id);
@@ -137,7 +137,7 @@ public class NganhController {
      * Xóa vĩnh viễn ngành (hard delete)
      */
     @DeleteMapping("/{id}/permanent")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_NGANH')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_NGANH')")
     public ResponseEntity<Void> hardDelete(@PathVariable String id) {
         log.info("Xóa vĩnh viễn ngành với ID: {}", id);
         nganhService.hardDelete(id);

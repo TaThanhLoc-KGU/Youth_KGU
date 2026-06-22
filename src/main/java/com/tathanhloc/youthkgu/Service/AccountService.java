@@ -15,6 +15,7 @@ import com.tathanhloc.youthkgu.Repository.GiangVienRepository;
 import com.tathanhloc.youthkgu.Repository.ChuyenVienRepository;
 import com.tathanhloc.youthkgu.Repository.KhoaRepository;
 import com.tathanhloc.youthkgu.Repository.CauLacBoRepository;
+import com.tathanhloc.youthkgu.Repository.LopRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,7 @@ public class AccountService {
     private final ChuyenVienRepository chuyenVienRepository;
     private final KhoaRepository khoaRepository;
     private final CauLacBoRepository cauLacBoRepository;
+    private final LopRepository lopRepository;
     private final SystemLogService systemLogService;
     private final HttpServletRequest request;
 
@@ -87,9 +89,10 @@ public class AccountService {
             throw new IllegalArgumentException("Username đã tồn tại");
         }
 
-        // Kiểm tra email đã tồn tại
-        if (taiKhoanRepository.existsByEmail(request.getEmail())) {
-            log.error("Email đã tồn tại: {}", request.getEmail());
+        // Kiểm tra email đã tồn tại (chỉ khi có nhập email)
+        String emailRegister = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (!emailRegister.isEmpty() && taiKhoanRepository.existsByEmail(emailRegister)) {
+            log.error("Email đã tồn tại: {}", emailRegister);
             throw new IllegalArgumentException("Email đã tồn tại");
         }
 
@@ -99,13 +102,13 @@ public class AccountService {
         // Tạo tài khoản mới
         TaiKhoan taiKhoan = TaiKhoan.builder()
                 .username(request.getUsername())
-                .email(request.getEmail())
+                .email(emailRegister.isEmpty() ? null : emailRegister)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .hoTen(request.getHoTen())
                 .soDienThoai(request.getSoDienThoai())
                 .ngaySinh(request.getNgaySinh())
                 .gioiTinh(request.getGioiTinh())
-                .vaiTro(VaiTroEnum.SINH_VIEN) // Default role changed to SINH_VIEN
+                .vaiTro(VaiTroEnum.DOAN_VIEN) // Default role cho đăng ký tự
                 .trangThaiPheDuyet("CHO_PHE_DUYET") // Pending approval
                 .isActive(true)
                 .createdAt(LocalDateTime.now())
@@ -388,16 +391,17 @@ public class AccountService {
             throw new IllegalArgumentException("Tên đăng nhập đã tồn tại");
         }
 
-        // Kiểm tra email đã tồn tại
-        if (taiKhoanRepository.existsByEmail(request.getEmail())) {
-            log.error("Email đã tồn tại: {}", request.getEmail());
+        // Kiểm tra email đã tồn tại (chỉ khi có nhập email)
+        String emailCreate = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (!emailCreate.isEmpty() && taiKhoanRepository.existsByEmail(emailCreate)) {
+            log.error("Email đã tồn tại: {}", emailCreate);
             throw new IllegalArgumentException("Email đã tồn tại");
         }
 
         // Tạo tài khoản mới
         TaiKhoan newAccount = TaiKhoan.builder()
                 .username(request.getUsername())
-                .email(request.getEmail())
+                .email(emailCreate.isEmpty() ? null : emailCreate)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .hoTen(request.getHoTen())
                 .soDienThoai(request.getSoDienThoai())
@@ -417,6 +421,10 @@ public class AccountService {
 
         if (request.getMaClb() != null && !request.getMaClb().isEmpty()) {
             cauLacBoRepository.findById(request.getMaClb()).ifPresent(newAccount::setClb);
+        }
+
+        if (request.getMaLop() != null && !request.getMaLop().isEmpty()) {
+            lopRepository.findById(request.getMaLop()).ifPresent(newAccount::setLop);
         }
 
         if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().isEmpty()) {
@@ -439,9 +447,8 @@ public class AccountService {
         TaiKhoan saved = taiKhoanRepository.save(newAccount);
         log.info("Tạo tài khoản thành công: {}", saved.getUsername());
 
-        // Gán quyền nếu là QUAN_LY thường (không phải admin)
-        if (saved.getVaiTro() == VaiTroEnum.QUAN_LY
-                && !Boolean.TRUE.equals(request.getLaAdmin())
+        // Gán quyền tùy chỉnh (override role defaults) nếu có
+        if (saved.getVaiTro() != VaiTroEnum.ADMIN
                 && request.getPermissionIds() != null
                 && !request.getPermissionIds().isEmpty()) {
             permissionService.setAccountPermissions(saved.getId(), request.getPermissionIds(), null);
@@ -478,6 +485,7 @@ public class AccountService {
             log.warn("Cannot initialize banChuyenMon for account {}", taiKhoan.getId());
         }
 
+        VaiTroEnum vaiTro = taiKhoan.getVaiTro();
         return AccountDTO.builder()
                 .id(taiKhoan.getId())
                 .username(taiKhoan.getUsername())
@@ -487,7 +495,8 @@ public class AccountService {
                 .ngaySinh(taiKhoan.getNgaySinh())
                 .gioiTinh(taiKhoan.getGioiTinh())
                 .avatar(taiKhoan.getAvatar())
-                .vaiTro(taiKhoan.getVaiTro())
+                .vaiTro(vaiTro)
+                .tenVaiTro(vaiTro != null ? vaiTro.getLabel() : null)
                 .banChuyenMon(ban != null ? ban.getMaBan() : null)
                 .tenBanChuyenMon(ban != null ? ban.getTenBan() : null)
                 .trangThaiPheDuyet(taiKhoan.getTrangThaiPheDuyet())
@@ -501,6 +510,10 @@ public class AccountService {
                 .tenKhoa(taiKhoan.getKhoa() != null ? taiKhoan.getKhoa().getTenKhoa() : null)
                 .maClb(taiKhoan.getClb() != null ? taiKhoan.getClb().getMaClb() : null)
                 .tenClb(taiKhoan.getClb() != null ? taiKhoan.getClb().getTenClb() : null)
+                .maLop(taiKhoan.getLop() != null ? taiKhoan.getLop().getMaLop() : null)
+                .tenLop(taiKhoan.getLop() != null ? taiKhoan.getLop().getTenLop() : null)
+                .maSv(taiKhoan.getSinhVien() != null ? taiKhoan.getSinhVien().getMaSv() : null)
+                .maGv(taiKhoan.getGiangVien() != null ? taiKhoan.getGiangVien().getMaGv() : null)
                 .build();
     }
 
@@ -564,8 +577,13 @@ public class AccountService {
         if (request.getMaClb() != null && !request.getMaClb().isEmpty()) {
             account.setClb(cauLacBoRepository.findById(request.getMaClb()).orElse(null));
         } else {
-            // empty string hoặc null → không giới hạn CLB
             account.setClb(null);
+        }
+
+        if (request.getMaLop() != null && !request.getMaLop().isEmpty()) {
+            account.setLop(lopRepository.findById(request.getMaLop()).orElse(null));
+        } else {
+            account.setLop(null);
         }
 
         account.setUpdatedAt(LocalDateTime.now());

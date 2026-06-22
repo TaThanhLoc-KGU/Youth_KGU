@@ -34,6 +34,7 @@ public class CauLacBoService {
     private final HoatDongRepository hoatDongRepository;
     private final TaiKhoanRepository taiKhoanRepository;
     private final ClbCauHinhRepository clbCauHinhRepository;
+    private final DongPhiCLBRepository dongPhiCLBRepository;
 
     // ══════════════════════════════════════════════════════════════
     // TƯ CÁCH THÀNH VIÊN (dành cho sinh viên xem CLB của mình)
@@ -291,6 +292,67 @@ public class CauLacBoService {
         return toThanhVienDTO(saved);
     }
 
+    /** Tìm kiếm sinh viên để thêm vào CLB (loại trừ đã là thành viên active của CLB). */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> searchSinhVienToAdd(String maClb, String keyword) {
+        String kw = keyword == null ? "" : keyword.trim();
+        Set<String> existing = thanhVienCLBRepository
+                .findByCauLacBoMaClbAndIsActiveTrueOrderByChucVuAsc(maClb)
+                .stream().map(tv -> tv.getSinhVien().getMaSv()).collect(Collectors.toSet());
+
+        return sinhVienRepository.searchByKeyword(kw).stream()
+                .filter(sv -> !existing.contains(sv.getMaSv()))
+                .limit(20)
+                .map(sv -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("maSv",  sv.getMaSv());
+                    m.put("hoTen", sv.getHoTen() != null ? sv.getHoTen() : "");
+                    m.put("lop",   sv.getLop() != null ? sv.getLop().getTenLop() : "");
+                    m.put("email", sv.getEmail() != null ? sv.getEmail() : "");
+                    return m;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /** Thêm nhiều thành viên vào CLB cùng lúc. Bỏ qua những maSv đã tồn tại thay vì throw. */
+    @Transactional
+    public Map<String, Object> bulkAddThanhVien(String maClb, List<String> maSvList,
+                                                String chucVu, String maHocKy) {
+        CauLacBo clb = cauLacBoRepository.findById(maClb)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CLB: " + maClb));
+        HocKy hocKy = (maHocKy != null && !maHocKy.isBlank())
+                ? hocKyRepository.findById(maHocKy).orElse(null) : null;
+
+        int success = 0, skip = 0;
+        List<String> errors = new ArrayList<>();
+
+        for (String maSv : maSvList) {
+            try {
+                SinhVien sv = sinhVienRepository.findById(maSv).orElse(null);
+                if (sv == null) { errors.add(maSv + ": không tìm thấy sinh viên"); continue; }
+
+                boolean trung = hocKy != null
+                        ? thanhVienCLBRepository.findByCauLacBoMaClbAndSinhVienMaSvAndHocKyMaHocKy(maClb, maSv, maHocKy).isPresent()
+                        : thanhVienCLBRepository.findByCauLacBoMaClbAndSinhVienMaSvAndHocKyIsNull(maClb, maSv).isPresent();
+                if (trung) { skip++; continue; }
+
+                ThanhVienCLB tv = ThanhVienCLB.builder()
+                        .cauLacBo(clb).sinhVien(sv).hocKy(hocKy)
+                        .chucVu(chucVu != null ? chucVu : "THANH_VIEN")
+                        .ngayThamGia(LocalDate.now())
+                        .isActive(true).build();
+                thanhVienCLBRepository.save(tv);
+                success++;
+            } catch (Exception e) {
+                errors.add(maSv + ": " + e.getMessage());
+            }
+        }
+        log.info("Bulk add CLB {}: success={} skip={} error={}", maClb, success, skip, errors.size());
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("success", success); res.put("skip", skip); res.put("errors", errors);
+        return res;
+    }
+
     @Transactional
     public ThanhVienCLBDTO updateThanhVien(Long id, ThanhVienCLBDTO req) {
         ThanhVienCLB tv = thanhVienCLBRepository.findById(id)
@@ -318,10 +380,28 @@ public class CauLacBoService {
             throw new IllegalStateException("Danh sách thành viên CLB học kỳ này đã bị khóa, không thể xóa thành viên");
         }
 
-        tv.setIsActive(false);
-        tv.setNgayRoiClb(tv.getNgayRoiClb() != null ? tv.getNgayRoiClb() : LocalDate.now());
-        thanhVienCLBRepository.save(tv);
-        log.info("Xóa thành viên {} khỏi CLB {}", tv.getSinhVien().getMaSv(), tv.getCauLacBo().getMaClb());
+        String maClb = tv.getCauLacBo().getMaClb();
+        String maSv  = tv.getSinhVien().getMaSv();
+
+        // 1. Xóa các khoản phí CHƯA ĐÓNG của sinh viên này tại CLB này
+        dongPhiCLBRepository.deleteByCauLacBoMaClbAndSinhVienMaSvAndTrangThai(maClb, maSv, "CHUA_DONG");
+        
+        // 2. Với các khoản ĐÃ ĐÓNG: Giữ lại bản ghi lịch sử nhưng gỡ liên kết maSv (hoặc cứ để đó nếu muốn giữ history)
+        // Tuy nhiên, yêu cầu của user là "người bị xóa vẫn hiển thị đã tham gia" -> có thể do lịch sử phí vẫn còn liên kết.
+        // Ta sẽ ẩn các bản ghi phí đã đóng của họ khỏi view "My Membership" bằng cách kiểm tra isActive của ThanhVienCLB
+        // Nhưng vì ta thực hiện HARD DELETE ThanhVienCLB, ta cần xử lý các bản ghi phí.
+        // Cách an toàn: Chuyển các phí đã đóng sang trạng thái không còn liên kết MSSV này để họ không thấy CLB đó nữa.
+        List<DongPhiCLB> phiDaDong = dongPhiCLBRepository.findBySinhVienMaSvOrderByCreatedAtDesc(maSv)
+                .stream().filter(p -> p.getCauLacBo().getMaClb().equals(maClb)).collect(Collectors.toList());
+        for (DongPhiCLB p : phiDaDong) {
+            p.setSinhVien(null); // Detach student from paid fee record of this club
+            dongPhiCLBRepository.save(p);
+        }
+
+        // 3. HARD DELETE thành viên
+        thanhVienCLBRepository.delete(tv);
+        
+        log.info("Đã xóa vĩnh viễn thành viên {} khỏi CLB {}", maSv, maClb);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -370,7 +450,15 @@ public class CauLacBoService {
                    .donViPhi(cauHinh.getDonViPhi())
                    .soHoatDongToiThieu(cauHinh.getSoHoatDongToiThieu())
                    .choPhepDangKyTuDo(cauHinh.getChoPhepDangKyTuDo())
-                   .moTaYeuCau(cauHinh.getMoTaYeuCau());
+                   .moTaYeuCau(cauHinh.getMoTaYeuCau())
+                   .bankAccountNo(cauHinh.getBankAccountNo())
+                   .bankName(cauHinh.getBankName())
+                   .accountName(cauHinh.getAccountName())
+                   .maXacThucCk(cauHinh.getMaXacThucCk())
+                   .webhookProvider(cauHinh.getWebhookProvider())
+                   .payosClientId(cauHinh.getPayosClientId())
+                   .payosApiKey(cauHinh.getPayosApiKey())
+                   .payosChecksumKey(cauHinh.getPayosChecksumKey());
         }
 
         return builder.build();
@@ -412,6 +500,42 @@ public class CauLacBoService {
                 .trangThai(hd.getTrangThai())
                 .diemRenLuyen(hd.getDiemRenLuyen())
                 .build();
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // THỐNG KÊ NHANH (Dashboard CLB)
+    // ══════════════════════════════════════════════════════════════
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getStats(String maClb) {
+        long tongThanhVien = thanhVienCLBRepository.countByCauLacBoMaClbAndIsActiveTrue(maClb);
+
+        List<com.tathanhloc.youthkgu.Model.HoatDong> hoatDongs =
+                hoatDongRepository.findByCauLacBoMaClbOrderByNgayToChucDesc(maClb);
+
+        long tongHoatDong = hoatDongs.size();
+        long hoatDongHoanThanh = hoatDongs.stream()
+                .filter(hd -> hd.getTrangThai() == com.tathanhloc.youthkgu.Enum.TrangThaiHoatDongEnum.DA_HOAN_THANH
+                        || hd.getTrangThai() == com.tathanhloc.youthkgu.Enum.TrangThaiHoatDongEnum.DA_KET_THUC)
+                .count();
+        long hoatDongChoDuyet = hoatDongs.stream()
+                .filter(hd -> hd.getTrangThai() == com.tathanhloc.youthkgu.Enum.TrangThaiHoatDongEnum.CHO_DUYET)
+                .count();
+
+        // Tổng điểm rèn luyện (theo khung điểm của các hoạt động đã hoàn thành)
+        int tongDiemRenLuyen = hoatDongs.stream()
+                .filter(hd -> hd.getTrangThai() == com.tathanhloc.youthkgu.Enum.TrangThaiHoatDongEnum.DA_HOAN_THANH
+                        || hd.getTrangThai() == com.tathanhloc.youthkgu.Enum.TrangThaiHoatDongEnum.DA_KET_THUC)
+                .mapToInt(hd -> hd.getDiemRenLuyen() != null ? hd.getDiemRenLuyen() : 0)
+                .sum();
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("tongThanhVien", tongThanhVien);
+        stats.put("tongHoatDong", tongHoatDong);
+        stats.put("hoatDongHoanThanh", hoatDongHoanThanh);
+        stats.put("hoatDongChoDuyet", hoatDongChoDuyet);
+        stats.put("tongDiemRenLuyen", tongDiemRenLuyen);
+        return stats;
     }
 
     private String mapChucVuLabel(String chucVu) {

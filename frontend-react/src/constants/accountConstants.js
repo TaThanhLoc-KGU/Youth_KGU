@@ -43,17 +43,23 @@ export const ROLE_GIANGVIEN = 'GIANG_VIEN';
 export const ROLE_SINHVIEN = 'SINH_VIEN';
 
 export const ROLE_LABELS = {
-  SINH_VIEN: 'Sinh viên',
-  QUAN_LY: 'Quản lý',
-  // Legacy — giữ tương thích ngược
+  // Vai trò mới (6 cấp + cộng tác viên điểm danh)
   ADMIN: 'Quản trị viên',
-  BCH: 'Quản lý',
-  GIANG_VIEN: 'Quản lý',
-  CHUYEN_VIEN: 'Quản lý',
-  MANAGER: 'Quản lý',
-  STAFF: 'Quản lý',
-  GIANGVIEN: 'Quản lý',
-  SINHVIEN: 'Sinh viên',
+  QUAN_LY_KHOA: 'Bí thư Đoàn khoa',
+  PHO_QUAN_LY_KHOA: 'Phó bí thư / UV BCH khoa',
+  QUAN_LY_CHI_DOAN: 'Bí thư chi đoàn',
+  PHO_CHI_DOAN: 'Phó bí thư / UV chi đoàn',
+  DOAN_VIEN: 'Đoàn viên',
+  DIEM_DANH_VIEN: 'Cộng tác viên điểm danh',
+  QUAN_LY_CLB: 'Chủ nhiệm CLB/Đội/Nhóm',
+  // Legacy — tương thích ngược
+  SINH_VIEN: 'Đoàn viên',
+  QUAN_LY: 'Bí thư Đoàn khoa',
+  BCH: 'Bí thư Đoàn khoa',
+  GIANG_VIEN: 'Bí thư Đoàn khoa',
+  CHUYEN_VIEN: 'Bí thư Đoàn khoa',
+  MANAGER: 'Bí thư Đoàn khoa',
+  STAFF: 'Bí thư Đoàn khoa',
 };
 
 // ========== BAN CHUYÊN MÔN (Departments) ==========
@@ -129,14 +135,14 @@ export const GENDER_LABELS = {
 
 // ========== VALIDATION PATTERNS ==========
 
-export const EMAIL_PATTERN = /^[A-Za-z0-9+_.-]+@vnkgu\.edu\.vn$/i;
+export const EMAIL_PATTERN = /^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/i;
 export const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,50}$/;
 export const PHONE_PATTERN = /^(\+84|0)[0-9]{9,10}$/;
 
 // ========== MESSAGES ==========
 
 export const ERROR_MESSAGES = {
-  EMAIL_INVALID: 'Email không hợp lệ. Vui lòng sử dụng email @vnkgu.edu.vn',
+  EMAIL_INVALID: 'Định dạng email không hợp lệ',
   EMAIL_REQUIRED: 'Email không được để trống',
   USERNAME_INVALID: 'Tên đăng nhập phải chứa 3-50 ký tự (chữ, số, dấu gạch dưới)',
   USERNAME_REQUIRED: 'Tên đăng nhập không được để trống',
@@ -171,9 +177,24 @@ export const ACCOUNT_API = {
 
 // ========== ROLE OPTIONS FOR DROPDOWNS ==========
 
+/** Các role có scope khoa (bắt buộc chọn khoa) */
+export const ROLES_REQUIRE_KHOA = ['QUAN_LY_KHOA', 'PHO_QUAN_LY_KHOA'];
+/** Các role có scope chi đoàn (bắt buộc chọn lớp) */
+export const ROLES_REQUIRE_CHI_DOAN = ['QUAN_LY_CHI_DOAN', 'PHO_CHI_DOAN'];
+/** Các role có scope CLB */
+export const ROLES_REQUIRE_CLB = ['QUAN_LY_CLB'];
+/** Các role là cán bộ quản lý */
+export const ROLES_QUAN_LY = ['ADMIN', 'QUAN_LY_KHOA', 'PHO_QUAN_LY_KHOA', 'QUAN_LY_CHI_DOAN', 'PHO_CHI_DOAN', 'QUAN_LY_CLB'];
+
 export const ROLE_OPTIONS = [
-  { value: 'SINH_VIEN', label: 'Sinh viên' },
-  { value: 'QUAN_LY',   label: 'Quản lý' },
+  { value: 'ADMIN',             label: 'Quản trị viên (Đoàn trường)', group: 'cap_truong' },
+  { value: 'QUAN_LY_KHOA',      label: 'Bí thư Đoàn khoa',           group: 'cap_khoa' },
+  { value: 'PHO_QUAN_LY_KHOA',  label: 'Phó bí thư / UV BCH khoa',   group: 'cap_khoa' },
+  { value: 'QUAN_LY_CHI_DOAN',  label: 'Bí thư chi đoàn',            group: 'cap_chi_doan' },
+  { value: 'PHO_CHI_DOAN',      label: 'Phó bí thư / UV chi đoàn',   group: 'cap_chi_doan' },
+  { value: 'DOAN_VIEN',         label: 'Đoàn viên',                   group: 'doan_vien' },
+  { value: 'DIEM_DANH_VIEN',    label: 'Cộng tác viên điểm danh',    group: 'diem_danh' },
+  { value: 'QUAN_LY_CLB',      label: 'Chủ nhiệm CLB/Đội/Nhóm',     group: 'clb' },
 ];
 
 // ========== DEPARTMENT OPTIONS FOR DROPDOWNS ==========

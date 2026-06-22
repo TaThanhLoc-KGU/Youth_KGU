@@ -9,9 +9,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * DTO để trả về thông tin tài khoản người dùng
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,46 +16,45 @@ import java.time.LocalDateTime;
 public class AccountDTO {
 
     private Long id;
-
     private String username;
-
     private String email;
-
     private String hoTen;
-
     private String soDienThoai;
-
     private LocalDate ngaySinh;
-
-    private String gioiTinh; // NAM, NU, KHAC
-
-    private String avatar; // Base64 encoded image
+    private String gioiTinh;
+    private String avatar;
 
     private VaiTroEnum vaiTro;
+    /** Tên hiển thị vai trò tiếng Việt */
+    private String tenVaiTro;
 
-    private String banChuyenMon; // Mã ban (String) thay vì Enum
+    private String banChuyenMon;
+    private String tenBanChuyenMon;
 
-    private String tenBanChuyenMon; // Tên ban để hiển thị
-
-    private String trangThaiPheDuyet; // CHO_PHE_DUYET, DA_PHE_DUYET, TU_CHOI
-
+    private String trangThaiPheDuyet;
     private LocalDateTime ngayPheDuyet;
-
     private String ghiChu;
-
     private Boolean isActive;
-
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
 
-    /** true = QUAN_LY có toàn quyền (admin bypass) */
-    private Boolean laAdmin;
-
+    /** Scope cấp khoa */
     private String maKhoa;
     private String tenKhoa;
 
-    /** CLB scope — null = không giới hạn, non-null = chỉ quản lý CLB này */
+    /** Scope cấp CLB */
     private String maClb;
     private String tenClb;
+
+    /** Scope cấp chi đoàn (Lop) */
+    private String maLop;
+    private String tenLop;
+
+    /** Mã sinh viên liên kết (nếu có) */
+    private String maSv;
+    /** Mã giảng viên liên kết (nếu có) */
+    private String maGv;
+
+    @Deprecated
+    private Boolean laAdmin;
 }

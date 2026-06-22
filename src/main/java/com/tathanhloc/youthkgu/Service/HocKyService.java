@@ -25,23 +25,28 @@ public class HocKyService {
     private final HocKyRepository hocKyRepository;
     private final HocKyNamHocRepository hocKyNamHocRepository;
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<HocKyDTO> getAll() {
         try {
-            return hocKyRepository.findAll().stream()
+            // Lấy toàn bộ danh sách vào memory trước khi stream để giữ session
+            List<HocKy> all = hocKyRepository.findAll();
+            return all.stream()
                     .filter(hk -> hk.getIsActive() != null && hk.getIsActive())
                     .map(this::toDTO)
-                    .toList();
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("Error in getAll(): ", e);
             throw new RuntimeException("Không thể lấy danh sách học kỳ: " + e.getMessage());
         }
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<HocKyDTO> getAllIncludeInactive() {
         try {
-            return hocKyRepository.findAll().stream()
+            List<HocKy> all = hocKyRepository.findAll();
+            return all.stream()
                     .map(this::toDTO)
-                    .toList();
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("Error in getAllIncludeInactive(): ", e);
             throw new RuntimeException("Không thể lấy danh sách học kỳ: " + e.getMessage());
@@ -257,6 +262,17 @@ public class HocKyService {
                 }
             }
 
+            // Get academic year info
+            String maNamHoc = null;
+            String tenNamHoc = null;
+            if (entity.getHocKyNamHocs() != null && !entity.getHocKyNamHocs().isEmpty()) {
+                HocKyNamHoc hknh = entity.getHocKyNamHocs().get(0);
+                if (hknh.getNamHoc() != null) {
+                    maNamHoc = hknh.getNamHoc().getMaNamHoc();
+                    tenNamHoc = hknh.getNamHoc().getTenNamHoc();
+                }
+            }
+
             return HocKyDTO.builder()
                     .maHocKy(entity.getMaHocKy())
                     .tenHocKy(entity.getTenHocKy())
@@ -268,6 +284,8 @@ public class HocKyService {
                     .isClbLocked(entity.getIsClbLocked())
                     .clbLockedAt(entity.getClbLockedAt())
                     .clbLockedBy(entity.getClbLockedBy())
+                    .maNamHoc(maNamHoc)
+                    .tenNamHoc(tenNamHoc)
                     .trangThai(trangThai)
                     .soNgayConLai(soNgayConLai)
                     .tongSoNgay(tongSoNgay)

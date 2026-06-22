@@ -25,11 +25,12 @@ const RenLuyenSelector = ({
   const [diem, setDiem] = useState(diemRenLuyen ?? '');
   const [selectedChiTiet, setSelectedChiTiet] = useState('');
 
-  // Sync khi initialData thay đổi (trường hợp edit)
+  // Sync khi initialData thay đổi (trường hợp edit hoặc reset từ cha)
+  // Chỉ sync khi giá trị props thực sự khác với state nội bộ để tránh loop
   useEffect(() => {
-    setSelectedDanhMuc(maDanhMuc || '');
-    setSelectedTieuChi(maTieuChi || '');
-    setDiem(diemRenLuyen ?? '');
+    if (maDanhMuc !== selectedDanhMuc) setSelectedDanhMuc(maDanhMuc || '');
+    if (maTieuChi !== selectedTieuChi) setSelectedTieuChi(maTieuChi || '');
+    if (diemRenLuyen !== diem) setDiem(diemRenLuyen ?? '');
   }, [maDanhMuc, maTieuChi, diemRenLuyen]);
 
   const danhMucObj = findDanhMuc(selectedDanhMuc);

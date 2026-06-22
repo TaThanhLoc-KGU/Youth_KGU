@@ -16,13 +16,15 @@ const useAuthStore = create(
       user: null,
       isAuthenticated: false,
       isLoading: false,
-      permissions: [],   // Array of permission names (from quyenTongHop)
-      laAdmin: false,    // true = QUAN_LY có toàn quyền
-      maKhoa: null,      // null = Đoàn trường (không giới hạn), non-null = chỉ khoa này
-      tenKhoa: null,     // Tên khoa hiển thị (VD: "Khoa Công nghệ Thông tin")
-      maClb: null,       // null = không giới hạn, non-null = chỉ quản lý CLB này
-      tenClb: null,      // Tên CLB hiển thị (VD: "CLB Lập trình")
-      loginTime: null,   // Timestamp lúc đăng nhập (ms) — dùng cho session timeout
+      isHydrating: true,   // true cho đến khi checkAuth() được gọi lần đầu
+      permissions: [],
+      laAdmin: false,
+      maKhoa: null,
+      tenKhoa: null,
+      maClb: null,
+      tenClb: null,
+      loginTime: null,
+      tokenExpiry: null,   // ms timestamp khi accessToken hết hạn
 
       // Login
       login: async (credentials) => {
@@ -54,10 +56,14 @@ const useAuthStore = create(
             console.warn('Không thể tải quyền:', e);
           }
 
+          const accessToken  = localStorage.getItem('accessToken');
+          const tokenExpiry  = authService.getTokenExpiry(accessToken);
+
           set({
             user: data.user,
             isAuthenticated: true,
             isLoading: false,
+            isHydrating: false,
             permissions,
             laAdmin,
             maKhoa,
@@ -65,6 +71,7 @@ const useAuthStore = create(
             maClb,
             tenClb,
             loginTime: Date.now(),
+            tokenExpiry,
           });
 
           return { ...data, laAdmin };
@@ -87,6 +94,7 @@ const useAuthStore = create(
         set({
           user: null,
           isAuthenticated: false,
+          isHydrating: false,
           permissions: [],
           laAdmin: false,
           maKhoa: null,
@@ -94,10 +102,12 @@ const useAuthStore = create(
           maClb: null,
           tenClb: null,
           loginTime: null,
+          tokenExpiry: null,
         });
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
+        localStorage.removeItem('lastActiveTime');
         localStorage.removeItem('notification-history');
       },
 
@@ -136,10 +146,38 @@ const useAuthStore = create(
       },
 
       checkAuth: () => {
-        const isAuth = authService.isAuthenticated();
-        const storedUser = authService.getStoredUser();
-        set({ isAuthenticated: isAuth, user: storedUser });
-        return isAuth;
+        const accessToken  = localStorage.getItem('accessToken');
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        // Không có token → đăng xuất sạch
+        if (!accessToken) {
+          get().reset();
+          set({ isHydrating: false });
+          return false;
+        }
+
+        const accessExpired  = authService.isTokenExpired(accessToken);
+        const refreshExpired = !refreshToken || authService.isTokenExpired(refreshToken);
+
+        // Cả hai đều hết hạn → session vô hiệu
+        if (accessExpired && refreshExpired) {
+          get().reset();
+          set({ isHydrating: false });
+          return false;
+        }
+
+        // Còn hợp lệ (hoặc có thể refresh) → tin vào persisted state
+        const storedUser  = authService.getStoredUser();
+        const tokenExpiry = authService.getTokenExpiry(accessToken);
+
+        if (!storedUser) {
+          get().reset();
+          set({ isHydrating: false });
+          return false;
+        }
+
+        set({ isAuthenticated: true, user: storedUser, tokenExpiry, isHydrating: false });
+        return true;
       },
 
       getUserRole: () => {
@@ -157,12 +195,20 @@ const useAuthStore = create(
         return roles.includes(user?.vaiTro);
       },
 
+      // true nếu user có role quản lý (không phải đoàn viên thường)
+      isManager: () => {
+        const { user } = get();
+        const MANAGER_ROLES = ['ADMIN', 'QUAN_LY_KHOA', 'PHO_QUAN_LY_KHOA', 'QUAN_LY_CHI_DOAN', 'PHO_CHI_DOAN'];
+        return MANAGER_ROLES.includes(user?.vaiTro);
+      },
+
       // Kiểm tra quyền
-      // Ưu tiên: laAdmin=true → always-granted → DB permissions
+      // Ưu tiên: ADMIN role hoặc laAdmin=true → bypass toàn bộ → always-granted → DB permissions
       hasPermission: (permission) => {
         const { permissions, user, laAdmin } = get();
         if (!user) return false;
-        if (laAdmin) return true;
+        // ADMIN role hoặc laAdmin flag → toàn quyền (double-check: phòng lag khi laAdmin chưa kịp load)
+        if (laAdmin || user.vaiTro === 'ADMIN') return true;
         if (ALWAYS_GRANTED_PERMISSIONS.has(permission)) return true;
         return Array.isArray(permissions) && permissions.includes(permission);
       },
@@ -170,7 +216,7 @@ const useAuthStore = create(
       hasAnyPermission: (perms) => {
         const { permissions, user, laAdmin } = get();
         if (!user) return false;
-        if (laAdmin) return true;
+        if (laAdmin || user.vaiTro === 'ADMIN') return true;
         return Array.isArray(permissions) && perms.some(
           (p) => ALWAYS_GRANTED_PERMISSIONS.has(p) || permissions.includes(p)
         );
@@ -214,6 +260,8 @@ const useAuthStore = create(
         maClb: state.maClb,
         tenClb: state.tenClb,
         loginTime: state.loginTime,
+        tokenExpiry: state.tokenExpiry,
+        // isHydrating KHÔNG persist — luôn bắt đầu là true khi reload
       }),
     }
   )

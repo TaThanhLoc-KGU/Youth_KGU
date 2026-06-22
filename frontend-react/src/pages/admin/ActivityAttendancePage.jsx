@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import jsQR from 'jsqr';
 import XuatDanhSachModal from '../../components/activity/XuatDanhSachModal';
+import DynamicQRDisplay from '../../components/admin/DiemDanh/DynamicQRDisplay';
 import {
   ArrowLeft,
   Search,
@@ -30,6 +31,8 @@ import {
   MapPin,
   Home,
   FileCheck,
+  Smartphone,
+  X,
 } from 'lucide-react';
 import api from '../../services/api';
 import activityService from '../../services/activityService';
@@ -416,73 +419,66 @@ const LocationCell = memo(({ lat, lng }) => {
   );
 });
 
-// ─── Thêm SV theo MSSV (admin) ───────────────────────────────────────────────
+// ─── Thêm SV theo MSSV (admin) — multi-select ────────────────────────────────
 function ThemSVTheoMSSVPanel({ maHoatDong, onSuccess }) {
-  const [open, setOpen]         = useState(false);
-  const [keyword, setKeyword]   = useState('');
+  const [open, setOpen]               = useState(false);
+  const [keyword, setKeyword]         = useState('');
   const [debouncedKw, setDebouncedKw] = useState('');
-  const [selected, setSelected] = useState(null); // SinhVienDTO đã chọn
-  const [ghiChu, setGhiChu]     = useState('');
+  const [selectedList, setSelectedList] = useState([]); // multi-select
+  const [ghiChu, setGhiChu]           = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef(null);
 
-  // Debounce keyword 300ms
   useEffect(() => {
     const t = setTimeout(() => setDebouncedKw(keyword.trim()), 300);
     return () => clearTimeout(t);
   }, [keyword]);
 
-  // Đóng dropdown khi click ra ngoài
   useEffect(() => {
     const handler = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setShowDropdown(false);
-      }
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setShowDropdown(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Search sinh viên
   const { data: results = [], isFetching: searching } = useQuery({
     queryKey: ['sv-search-them', debouncedKw],
     queryFn: () =>
       api.get('/api/sinhvien', { params: { search: debouncedKw, size: 10, isActive: true } })
         .then(r => r.data.content || []),
-    enabled: debouncedKw.length >= 2 && !selected,
+    enabled: debouncedKw.length >= 2,
     staleTime: 30_000,
   });
 
-  // Show dropdown khi có kết quả
   useEffect(() => {
-    if (results.length > 0 && debouncedKw.length >= 2 && !selected) {
-      setShowDropdown(true);
-    }
-  }, [results, debouncedKw, selected]);
+    if (results.length > 0 && debouncedKw.length >= 2) setShowDropdown(true);
+  }, [results, debouncedKw]);
 
   const mutation = useMutation({
-    mutationFn: () => diemDanhService.themThuCongTheoMSSV(maHoatDong, selected.maSv, ghiChu.trim()),
-    onSuccess: (data) => {
-      toast.success(`Đã thêm ${data?.hoTenSinhVien || selected.hoTen} vào danh sách tham gia`);
-      setSelected(null); setKeyword(''); setGhiChu(''); setShowDropdown(false);
+    mutationFn: () => Promise.allSettled(
+      selectedList.map(sv => diemDanhService.themThuCongTheoMSSV(maHoatDong, sv.maSv, ghiChu.trim()))
+    ),
+    onSuccess: (settled) => {
+      const ok   = settled.filter(r => r.status === 'fulfilled').length;
+      const fail = settled.filter(r => r.status === 'rejected').length;
+      if (ok > 0) toast.success(`Đã thêm ${ok} sinh viên vào danh sách tham gia`);
+      if (fail > 0) toast.error(`${fail} sinh viên không thêm được (đã điểm danh hoặc lỗi)`);
+      setSelectedList([]); setKeyword(''); setGhiChu(''); setShowDropdown(false);
       onSuccess?.();
     },
-    onError: (err) => {
-      toast.error(err?.response?.data?.message || 'Có lỗi xảy ra');
-    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Có lỗi xảy ra'),
   });
 
   const handleSelect = (sv) => {
-    setSelected(sv);
-    setKeyword(sv.hoTen);
-    setShowDropdown(false);
-  };
-
-  const handleClear = () => {
-    setSelected(null);
+    if (!selectedList.find(s => s.maSv === sv.maSv)) {
+      setSelectedList(prev => [...prev, sv]);
+    }
     setKeyword('');
     setShowDropdown(false);
   };
+
+  const handleRemove = (maSv) => setSelectedList(prev => prev.filter(s => s.maSv !== maSv));
 
   if (!open) {
     return (
@@ -497,13 +493,17 @@ function ThemSVTheoMSSVPanel({ maHoatDong, onSuccess }) {
 
   return (
     <div className="bg-white rounded-xl border border-violet-200 shadow-sm overflow-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-violet-50 border-b border-violet-100">
         <div className="flex items-center gap-2">
           <UserCheck className="w-4 h-4 text-violet-600" />
           <span className="font-semibold text-violet-800 text-sm">Thêm sinh viên thủ công</span>
+          {selectedList.length > 0 && (
+            <span className="px-2 py-0.5 bg-violet-600 text-white rounded-full text-xs font-bold">
+              {selectedList.length}
+            </span>
+          )}
         </div>
-        <button onClick={() => { setOpen(false); handleClear(); setGhiChu(''); }}
+        <button onClick={() => { setOpen(false); setSelectedList([]); setKeyword(''); setGhiChu(''); }}
           className="p-1 rounded-lg text-violet-400 hover:text-violet-700 hover:bg-violet-100">
           <XCircle className="w-4 h-4" />
         </button>
@@ -513,66 +513,67 @@ function ThemSVTheoMSSVPanel({ maHoatDong, onSuccess }) {
         {/* Search box */}
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">
-            Tìm sinh viên <span className="text-red-500">*</span>
-            <span className="text-gray-400 font-normal ml-1">(tìm theo họ tên hoặc MSSV)</span>
+            Tìm sinh viên
+            <span className="text-gray-400 font-normal ml-1">(tìm theo họ tên hoặc MSSV, có thể chọn nhiều)</span>
           </label>
           <div className="relative" ref={wrapperRef}>
-            <div className={`flex items-center gap-2 border rounded-lg px-3 py-2 ${
-              selected ? 'border-violet-400 bg-violet-50' : 'border-gray-300'
-            } focus-within:ring-2 focus-within:ring-violet-400`}>
+            <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-violet-400">
               <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <input
                 type="text"
                 value={keyword}
-                onChange={e => { setKeyword(e.target.value); if (selected) setSelected(null); }}
-                onFocus={() => { if (results.length > 0 && !selected) setShowDropdown(true); }}
+                onChange={e => setKeyword(e.target.value)}
+                onFocus={() => { if (results.length > 0) setShowDropdown(true); }}
                 placeholder="Nhập họ tên hoặc MSSV..."
                 className="flex-1 text-sm bg-transparent outline-none"
               />
               {searching && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400 flex-shrink-0" />}
-              {(keyword || selected) && (
-                <button type="button" onClick={handleClear}
+              {keyword && (
+                <button type="button" onClick={() => { setKeyword(''); setShowDropdown(false); }}
                   className="text-gray-400 hover:text-gray-600 flex-shrink-0">
                   <XCircle className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            {/* Dropdown kết quả */}
             {showDropdown && results.length > 0 && (
               <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                 <div className="px-3 py-1.5 bg-gray-50 border-b text-xs text-gray-500">
-                  {results.length} kết quả
+                  {results.length} kết quả — click để chọn
                 </div>
                 <ul className="max-h-56 overflow-y-auto divide-y divide-gray-50">
-                  {results.map(sv => (
-                    <li key={sv.maSv}>
-                      <button
-                        type="button"
-                        onMouseDown={e => { e.preventDefault(); handleSelect(sv); }}
-                        className="w-full text-left px-3 py-2.5 hover:bg-violet-50 transition-colors flex items-center gap-3"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-bold text-violet-600">
-                            {sv.hoTen?.charAt(0)?.toUpperCase() || '?'}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{sv.hoTen}</p>
-                          <p className="text-xs text-gray-500">
-                            <span className="font-mono">{sv.maSv}</span>
-                            {sv.maLop && <span className="ml-2 text-blue-500">{sv.maLop}</span>}
-                            {sv.tenKhoa && <span className="ml-2 text-gray-400 truncate">{sv.tenKhoa}</span>}
-                          </p>
-                        </div>
-                      </button>
-                    </li>
-                  ))}
+                  {results.map(sv => {
+                    const already = selectedList.some(s => s.maSv === sv.maSv);
+                    return (
+                      <li key={sv.maSv}>
+                        <button
+                          type="button"
+                          onMouseDown={e => { e.preventDefault(); if (!already) handleSelect(sv); }}
+                          className={`w-full text-left px-3 py-2.5 transition-colors flex items-center gap-3 ${already ? 'bg-violet-50 cursor-default' : 'hover:bg-violet-50'}`}
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${already ? 'bg-violet-300' : 'bg-violet-100'}`}>
+                            {already
+                              ? <CheckCircle className="w-4 h-4 text-violet-700" />
+                              : <span className="text-xs font-bold text-violet-600">{sv.hoTen?.charAt(0)?.toUpperCase() || '?'}</span>
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium truncate ${already ? 'text-violet-700' : 'text-gray-900'}`}>{sv.hoTen}</p>
+                            <p className="text-xs text-gray-500">
+                              <span className="font-mono">{sv.maSv}</span>
+                              {sv.maLop && <span className="ml-2 text-blue-500">{sv.maLop}</span>}
+                              {sv.tenKhoa && <span className="ml-2 text-gray-400">{sv.tenKhoa}</span>}
+                            </p>
+                          </div>
+                          {already && <span className="text-xs text-violet-500 flex-shrink-0">Đã chọn</span>}
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
 
-            {/* Không tìm thấy */}
             {showDropdown && results.length === 0 && debouncedKw.length >= 2 && !searching && (
               <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 text-sm text-gray-500 text-center">
                 Không tìm thấy sinh viên nào
@@ -581,22 +582,30 @@ function ThemSVTheoMSSVPanel({ maHoatDong, onSuccess }) {
           </div>
         </div>
 
-        {/* Sinh viên đã chọn — hiển thị card */}
-        {selected && (
-          <div className="flex items-center gap-3 px-3 py-2.5 bg-violet-50 border border-violet-200 rounded-lg">
-            <div className="w-8 h-8 rounded-full bg-violet-200 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-bold text-violet-700">
-                {selected.hoTen?.charAt(0)?.toUpperCase()}
-              </span>
+        {/* Danh sách đã chọn */}
+        {selectedList.length > 0 && (
+          <div className="border border-violet-100 rounded-lg overflow-hidden">
+            <div className="px-3 py-2 bg-violet-50 border-b border-violet-100 flex items-center justify-between">
+              <span className="text-xs font-semibold text-violet-700">Đã chọn ({selectedList.length} sinh viên)</span>
+              <button onClick={() => setSelectedList([])} className="text-xs text-violet-500 hover:text-violet-700">Xóa tất cả</button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-violet-900 truncate">{selected.hoTen}</p>
-              <p className="text-xs text-violet-600">
-                <span className="font-mono">{selected.maSv}</span>
-                {selected.maLop && <span className="ml-2">{selected.maLop}</span>}
-              </p>
-            </div>
-            <CheckCircle className="w-4 h-4 text-violet-500 flex-shrink-0" />
+            <ul className="max-h-36 overflow-y-auto divide-y divide-gray-50">
+              {selectedList.map(sv => (
+                <li key={sv.maSv} className="flex items-center gap-3 px-3 py-2">
+                  <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-violet-600">{sv.hoTen?.charAt(0)?.toUpperCase()}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{sv.hoTen}</p>
+                    <p className="text-xs text-gray-500 font-mono">{sv.maSv}{sv.maLop && ` · ${sv.maLop}`}</p>
+                  </div>
+                  <button onClick={() => handleRemove(sv.maSv)}
+                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0 transition-colors">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -614,11 +623,11 @@ function ThemSVTheoMSSVPanel({ maHoatDong, onSuccess }) {
           </div>
           <button
             onClick={() => mutation.mutate()}
-            disabled={!selected || mutation.isPending}
+            disabled={selectedList.length === 0 || mutation.isPending}
             className="px-5 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 flex-shrink-0"
           >
             {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
-            {mutation.isPending ? 'Đang thêm...' : 'Thêm & Điểm danh'}
+            {mutation.isPending ? 'Đang thêm...' : selectedList.length > 0 ? `Thêm ${selectedList.length} sinh viên` : 'Thêm & Điểm danh'}
           </button>
         </div>
 
@@ -756,6 +765,14 @@ export default function ActivityAttendancePage() {
   const windowOpen = useMemo(() => isAttendanceWindowOpen(activity), [activity]);
   const windowMsg = useMemo(() => getWindowMessage(activity), [activity]);
   const checkoutWindowOpen = useMemo(() => isCheckoutWindowOpen(activity), [activity]);
+
+  // Derived: QR mode context — used to show/hide buttons
+  const cheDo       = activity?.cheDoDiemDanh || 'CHECKIN_CHECKOUT';
+  const hasCheckin  = cheDo !== 'CHECKOUT_ONLY' && cheDo !== 'AUTO_FULL';
+  const hasCheckout = cheDo === 'CHECKIN_CHECKOUT' || cheDo === 'CHECKOUT_ONLY';
+  const usesQR      = cheDo !== 'AUTO_FULL';
+  // QR tự phục vụ có thể hiển thị trong cả cửa sổ check-in lẫn check-out
+  const qrDisplayEnabled = usesQR && (windowOpen || checkoutWindowOpen);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const isActivityEnded = ['DA_HOAN_THANH', 'DA_KET_THUC', 'DA_HUY'].includes(activity?.trangThai);
@@ -959,6 +976,21 @@ export default function ActivityAttendancePage() {
               <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                 {activity.loaiHoatDong}
               </span>
+              {(() => {
+                const modeMap = {
+                  CHECKIN_CHECKOUT: { label: 'Check-in & Check-out', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+                  CHECKIN_ONLY:     { label: 'Chỉ Check-in',         cls: 'bg-green-50 text-green-700 border-green-200' },
+                  CHECKOUT_ONLY:    { label: 'Chỉ Check-out',        cls: 'bg-orange-50 text-orange-700 border-orange-200' },
+                  AUTO_FULL:        { label: 'Tự động hoàn toàn',    cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+                };
+                const m = modeMap[cheDo] || modeMap.CHECKIN_CHECKOUT;
+                return (
+                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${m.cls}`}>
+                    <QrCode className="w-3 h-3" />
+                    {m.label}
+                  </span>
+                );
+              })()}
             </div>
           </div>
 
@@ -1081,66 +1113,95 @@ export default function ActivityAttendancePage() {
         )}
       </div>
 
-      {/* Checkout window indicator */}
-      {checkoutWindowOpen && (
+      {/* Checkout window indicator — chỉ hiện khi mode hỗ trợ checkout */}
+      {checkoutWindowOpen && hasCheckout && (
         <div className="flex items-center gap-2 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl text-orange-700 text-sm font-medium">
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          <span>Cửa sổ checkout đang mở — Sinh viên có thể quét QR để check-out!</span>
+          <span>Cửa sổ check-out đang mở — Sinh viên có thể quét QR tự phục vụ để check-out!</span>
         </div>
       )}
 
       {/* ── Action Buttons ── */}
-      {!isActivityEnded && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* QR Scan Button (Check-in) */}
-        <div>
-          <button
-            onClick={() => handleSwitchMode('QR')}
-            disabled={!windowOpen}
-            className={`w-full py-4 px-5 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all border-2 ${
-              mode === 'QR'
-                ? 'bg-indigo-700 border-indigo-700 text-white shadow-lg'
-                : windowOpen
-                ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 shadow-md'
-                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {mode === 'QR' ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
-            {mode === 'QR' ? 'Đang quét QR (Check-in) — Nhấn để dừng' : 'Quét QR Check-in/Check-out'}
-            {mode === 'QR' && qrScanCount > 0 && (
-              <span className="ml-1 bg-white text-indigo-700 rounded-full text-xs font-bold px-2 py-0.5">
-                {qrScanCount}
-              </span>
+      {!isActivityEnded && (
+        <div className={`grid grid-cols-1 gap-4 ${
+          usesQR && hasCheckin ? 'md:grid-cols-3' : usesQR ? 'md:grid-cols-2' : 'md:grid-cols-1'
+        }`}>
+          {/* Trình chiếu QR Tự phục vụ — ẩn khi AUTO_FULL */}
+          {usesQR && (
+            <div>
+              <button
+                onClick={() => handleSwitchMode('DYNAMIC_QR')}
+                disabled={!qrDisplayEnabled}
+                className={`w-full py-4 px-5 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all border-2 ${
+                  mode === 'DYNAMIC_QR'
+                    ? 'bg-blue-700 border-blue-700 text-white shadow-lg'
+                    : qrDisplayEnabled
+                    ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700 shadow-md'
+                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <Smartphone className="w-5 h-5" />
+                {mode === 'DYNAMIC_QR' ? 'Đang chiếu QR — Nhấn để đóng' : 'Trình chiếu QR Tự phục vụ'}
+              </button>
+              {!qrDisplayEnabled && windowMsg && (
+                <p className="text-xs text-gray-400 mt-1 text-center">{windowMsg}</p>
+              )}
+            </div>
+          )}
+
+          {/* Quét QR Check-in (Admin) — chỉ hiện khi có check-in và dùng QR */}
+          {usesQR && hasCheckin && (
+            <div>
+              <button
+                onClick={() => handleSwitchMode('QR')}
+                disabled={!windowOpen}
+                className={`w-full py-4 px-5 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all border-2 ${
+                  mode === 'QR'
+                    ? 'bg-indigo-700 border-indigo-700 text-white shadow-lg'
+                    : windowOpen
+                    ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 shadow-md'
+                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {mode === 'QR' ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
+                {mode === 'QR' ? 'Đang quét QR Check-in — Nhấn để dừng' : 'Quét QR Check-in (Admin)'}
+                {mode === 'QR' && qrScanCount > 0 && (
+                  <span className="ml-1 bg-white text-indigo-700 rounded-full text-xs font-bold px-2 py-0.5">
+                    {qrScanCount}
+                  </span>
+                )}
+              </button>
+              {!windowOpen && windowMsg && (
+                <p className="text-xs text-gray-400 mt-1 text-center">{windowMsg}</p>
+              )}
+            </div>
+          )}
+
+          {/* Điểm danh thủ công — luôn hiển thị */}
+          <div>
+            <button
+              onClick={() => handleSwitchMode('MANUAL')}
+              disabled={!windowOpen}
+              className={`w-full py-4 px-5 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all border-2 ${
+                mode === 'MANUAL'
+                  ? 'bg-emerald-700 border-emerald-700 text-white shadow-lg'
+                  : windowOpen
+                  ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-md'
+                  : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <UserCheck className="w-5 h-5" />
+              {mode === 'MANUAL' ? 'Đang điểm danh thủ công — Nhấn để đóng' : 'Điểm danh thủ công'}
+            </button>
+            {!windowOpen && windowMsg && (
+              <p className="text-xs text-gray-400 mt-1 text-center">{windowMsg}</p>
             )}
-          </button>
-          {!windowOpen && windowMsg && (
-            <p className="text-xs text-gray-400 mt-1 text-center">{windowMsg}</p>
-          )}
+          </div>
         </div>
+      )}
 
-        {/* Manual Attendance Button */}
-        <div>
-          <button
-            onClick={() => handleSwitchMode('MANUAL')}
-            disabled={!windowOpen}
-            className={`w-full py-4 px-5 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all border-2 ${
-              mode === 'MANUAL'
-                ? 'bg-emerald-700 border-emerald-700 text-white shadow-lg'
-                : windowOpen
-                ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-md'
-                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            <UserCheck className="w-5 h-5" />
-            {mode === 'MANUAL' ? 'Đang điểm danh thủ công — Nhấn để đóng' : 'Điểm danh thủ công'}
-          </button>
-          {!windowOpen && windowMsg && (
-            <p className="text-xs text-gray-400 mt-1 text-center">{windowMsg}</p>
-          )}
-        </div>
-      </div>}
-
-      {/* ── Checkout Buttons (visible when checkout window is open) ── */}
-      {checkoutWindowOpen && (
+      {/* ── Checkout Buttons (chỉ hiện khi mode có checkout VÀ cửa sổ checkout đang mở) ── */}
+      {checkoutWindowOpen && hasCheckout && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* QR Checkout Button */}
           <button
@@ -1272,6 +1333,15 @@ export default function ActivityAttendancePage() {
             </>
           )}
         </div>
+      )}
+
+      {/* ── Dynamic QR Presentation Modal ── */}
+      {mode === 'DYNAMIC_QR' && (
+        <DynamicQRDisplay
+          maHoatDong={id}
+          tenHoatDong={activity.tenHoatDong}
+          onClose={() => setMode('VIEW')}
+        />
       )}
 
       {/* ── Manual Attendance Panel ── */}

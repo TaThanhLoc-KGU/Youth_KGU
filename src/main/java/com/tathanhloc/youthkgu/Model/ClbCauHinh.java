@@ -70,6 +70,16 @@ public class ClbCauHinh {
     @Builder.Default
     private String webhookProvider = "CASSO";
 
+    // ── PayOS ────────────────────────────────────────────────────────
+    @Column(name = "payos_client_id", length = 100)
+    private String payosClientId;
+
+    @Column(name = "payos_api_key", length = 100)
+    private String payosApiKey;
+
+    @Column(name = "payos_checksum_key", length = 100)
+    private String payosChecksumKey;
+
     // ── Mô tả yêu cầu ─────────────────────────────────────────
     @Column(name = "mo_ta_yeu_cau", columnDefinition = "TEXT")
     private String moTaYeuCau;

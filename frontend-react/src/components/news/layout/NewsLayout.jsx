@@ -8,14 +8,14 @@ const NewsLayout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <NewsHeader
         onMenuToggle={() => setMobileMenuOpen(v => !v)}
         menuOpen={mobileMenuOpen}
         onMenuClose={() => setMobileMenuOpen(false)}
       />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-5">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 min-w-0">
             <Outlet />

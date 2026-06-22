@@ -44,6 +44,10 @@ public class DongPhiCLB {
     @Column(name = "ghi_chu", length = 500)
     private String ghiChu;
 
+    /** Mã tham chiếu CK: PHI{maSv} — sinh viên ghi vào nội dung CK để hệ thống tự khớp */
+    @Column(name = "ma_reference", length = 50, unique = true)
+    private String maReference;
+
     // ── Webhook / tự động ──────────────────────────────────────────
     @Column(name = "transaction_id", length = 150, unique = true)
     private String transactionId;
@@ -54,9 +58,16 @@ public class DongPhiCLB {
     @Column(name = "so_tien_ck")
     private BigDecimal soTienCk;
 
-    /** MANUAL | CASSO | SEPAY */
+    /** MANUAL | CASSO | SEPAY | PAYOS */
     @Column(name = "nguon", length = 30)
     private String nguon = "MANUAL";
+
+    // ── PayOS ──────────────────────────────────────────────────────
+    @Column(name = "payos_order_code", unique = true)
+    private Long payosOrderCode;
+
+    @Column(name = "payos_payment_url", length = 500)
+    private String payosPaymentUrl;
 
     // ── Audit ──────────────────────────────────────────────────────
     @Column(name = "created_at", updatable = false)

@@ -11,10 +11,15 @@ public interface LopRepository extends JpaRepository<Lop, String> {
     List<Lop> findByKhoaHocMaKhoahoc(String maKhoahoc);
     Collection<Object> findByMaLop(String maLop);
 
-    // Thêm các method cho soft delete
+    // Soft delete
     List<Lop> findByIsActiveTrue();
     List<Lop> findByIsActiveFalse();
     long countByIsActiveTrue();
     long countByIsActiveFalse();
 
+    // Loc theo loai: LOP hoac CHI_DOAN
+    List<Lop> findByLoaiAndIsActiveTrue(String loai);
+    List<Lop> findByLoai(String loai);
+    long countByLoaiAndIsActiveTrue(String loai);
+    List<Lop> findByMaKhoa_MaKhoaAndLoai(String maKhoa, String loai);
 }

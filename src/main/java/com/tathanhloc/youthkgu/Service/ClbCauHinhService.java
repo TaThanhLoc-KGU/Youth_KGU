@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class ClbCauHinhService {
 
+    // ── REPOSITORY ──────────────────────────────────────────────
     private final ClbCauHinhRepository repo;
     private final CauLacBoRepository clbRepo;
 
@@ -38,9 +39,13 @@ public class ClbCauHinhService {
         CauLacBo clb = clbRepo.findById(maClb)
                 .orElseThrow(() -> new ResourceNotFoundException("CLB không tồn tại: " + maClb));
 
-        ClbCauHinh cfg = repo.findById(maClb).orElse(
-                ClbCauHinh.builder().maClb(maClb).cauLacBo(clb).build()
-        );
+        ClbCauHinh cfg = repo.findById(maClb).orElseGet(() -> {
+            log.info("Tạo mới cấu hình cho CLB {}", maClb);
+            ClbCauHinh newCfg = new ClbCauHinh();
+            newCfg.setCauLacBo(clb);
+            // maClb sẽ được Hibernate tự động đồng bộ từ clb qua @MapsId
+            return newCfg;
+        });
 
         cfg.setCocheThanHVien(dto.getCocheThanHVien() != null ? dto.getCocheThanHVien() : "TU_DO");
         cfg.setSoHoatDongToiThieu(dto.getSoHoatDongToiThieu());
@@ -55,9 +60,14 @@ public class ClbCauHinhService {
         cfg.setMaXacThucCk(dto.getMaXacThucCk());
         cfg.setWebhookSecret(dto.getWebhookSecret());
         cfg.setWebhookProvider(dto.getWebhookProvider() != null ? dto.getWebhookProvider() : "CASSO");
+        cfg.setPayosClientId(dto.getPayosClientId());
+        cfg.setPayosApiKey(dto.getPayosApiKey());
+        cfg.setPayosChecksumKey(dto.getPayosChecksumKey());
         cfg.setMoTaYeuCau(dto.getMoTaYeuCau());
         cfg.setUpdatedBy(updatedBy);
 
+        // repo.save(cfg) sẽ gọi persist nếu là mới (vì ID ban đầu null) hoặc merge nếu đã có.
+        // Tuy nhiên với @MapsId, Hibernate sẽ xử lý việc gán ID từ clb.
         ClbCauHinh saved = repo.save(cfg);
         log.info("Đã lưu cấu hình CLB {} bởi {}", maClb, updatedBy);
         return toDTO(saved);
@@ -81,6 +91,9 @@ public class ClbCauHinhService {
                 .maXacThucCk(c.getMaXacThucCk())
                 .webhookSecret(c.getWebhookSecret())
                 .webhookProvider(c.getWebhookProvider())
+                .payosClientId(c.getPayosClientId())
+                .payosApiKey(c.getPayosApiKey())
+                .payosChecksumKey(c.getPayosChecksumKey())
                 .moTaYeuCau(c.getMoTaYeuCau())
                 .build();
     }

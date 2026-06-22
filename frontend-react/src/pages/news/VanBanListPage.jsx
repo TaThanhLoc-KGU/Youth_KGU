@@ -79,12 +79,19 @@ const VanBanListPage = () => {
             className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors">
             <ChevronLeft className="w-4 h-4" />
           </button>
-          {[...Array(Math.min(totalPages, 7))].map((_, i) => (
-            <button key={i} onClick={() => setPage(i)}
-              className={`w-9 h-9 rounded-xl text-sm font-medium transition-colors ${
-                i === page ? 'bg-enews-600 text-white' : 'border border-gray-200 hover:bg-gray-50 text-gray-700'
-              }`}>{i + 1}</button>
-          ))}
+          {(() => {
+            const w = Math.min(totalPages, 7);
+            const start = Math.max(0, Math.min(page - 3, totalPages - w));
+            return Array.from({ length: w }, (_, i) => {
+              const p = start + i;
+              return (
+                <button key={p} onClick={() => setPage(p)}
+                  className={`w-9 h-9 rounded-xl text-sm font-medium transition-colors ${
+                    p === page ? 'bg-enews-600 text-white' : 'border border-gray-200 hover:bg-gray-50 text-gray-700'
+                  }`}>{p + 1}</button>
+              );
+            });
+          })()}
           <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
             className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors">
             <ChevronRight className="w-4 h-4" />

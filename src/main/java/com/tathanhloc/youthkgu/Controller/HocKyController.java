@@ -56,7 +56,7 @@ public class HocKyController {
      * Tạo học kỳ mới
      */
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HOC_KY')")
     public ResponseEntity<HocKyDTO> create(@Valid @RequestBody HocKyDTO dto) {
         log.info("Tạo học kỳ mới: {}", dto.getMaHocKy());
         try {
@@ -72,7 +72,7 @@ public class HocKyController {
      * Cập nhật học kỳ
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HOC_KY')")
     public ResponseEntity<HocKyDTO> update(@PathVariable String id, @Valid @RequestBody HocKyDTO dto) {
         log.info("Cập nhật học kỳ với ID {}: {}", id, dto.getMaHocKy());
         try {
@@ -87,7 +87,7 @@ public class HocKyController {
      * Xóa mềm học kỳ (soft delete)
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HOC_KY')")
     public ResponseEntity<Void> softDelete(@PathVariable String id) {
         log.info("Xóa mềm học kỳ với ID: {}", id);
         hocKyService.softDelete(id);
@@ -98,7 +98,7 @@ public class HocKyController {
      * Khôi phục học kỳ đã xóa mềm
      */
     @PutMapping("/{id}/restore")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HOC_KY')")
     public ResponseEntity<HocKyDTO> restore(@PathVariable String id) {
         log.info("Khôi phục học kỳ với ID: {}", id);
         return ResponseEntity.ok(hocKyService.restore(id));
@@ -152,7 +152,7 @@ public class HocKyController {
      * Đặt học kỳ làm hiện tại
      */
     @PutMapping("/{id}/set-current")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HOC_KY')")
     public ResponseEntity<HocKyDTO> setAsCurrent(@PathVariable String id) {
         log.info("Đặt học kỳ {} làm hiện tại", id);
         return ResponseEntity.ok(hocKyService.setAsCurrent(id));
@@ -188,7 +188,7 @@ public class HocKyController {
      * Xóa vĩnh viễn học kỳ (hard delete)
      */
     @DeleteMapping("/{id}/permanent")
-    @PreAuthorize("hasPermission(null, 'QUAN_LY_HOC_KY')")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HOC_KY')")
     public ResponseEntity<Void> hardDelete(@PathVariable String id) {
         log.info("Xóa vĩnh viễn học kỳ với ID: {}", id);
         hocKyService.hardDelete(id);

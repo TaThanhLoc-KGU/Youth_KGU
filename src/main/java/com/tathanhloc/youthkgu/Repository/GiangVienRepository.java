@@ -14,6 +14,12 @@ public interface GiangVienRepository extends JpaRepository<GiangVien, String> {
     List<GiangVien> findByMaGv(String maGv);
     List<GiangVien> findByIsActiveTrue();
 
+    @Query("SELECT g FROM GiangVien g WHERE g.isActive = true AND " +
+           "(LOWER(g.hoTen) LIKE LOWER(CONCAT('%',:kw,'%')) OR " +
+           "LOWER(g.maGv) LIKE LOWER(CONCAT('%',:kw,'%')) OR " +
+           "LOWER(g.email) LIKE LOWER(CONCAT('%',:kw,'%')))")
+    List<GiangVien> searchByKeyword(@Param("kw") String keyword);
+
     /**
      * Tìm tất cả giảng viên đã nghỉ việc (soft deleted)
      */

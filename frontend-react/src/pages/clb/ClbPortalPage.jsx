@@ -2,18 +2,106 @@
  * ClbPortalPage — Trang quản lý CLB dành cho Chủ nhiệm CLB
  * Accessible to: anyone with QUAN_LY_CLB or QUAN_LY_THANH_VIEN_CLB permission
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Activity, Lock, Unlock, UserPlus, UserMinus, Upload,
          ChevronLeft, Search, BookOpen, Edit2, Save, X,
          Banknote, CheckCircle2, AlertCircle, RefreshCw,
          Settings, ClipboardList, Download, CheckSquare, XSquare,
-         Clock, BadgeCheck } from 'lucide-react';
+         Clock, BadgeCheck, Award, Star, Phone, Mail,
+         TrendingUp, BarChart2, ShieldCheck, Calendar, Zap, LayoutGrid,
+         QrCode, Copy, PlusCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import cauLacBoService from '../../services/cauLacBoService';
+import { API_BASE_URL } from '../../services/api';
 import api from '../../services/api';
 import useAuthStore from '../../stores/authStore';
-import { PERMISSIONS } from '../../utils/constants';
+import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
+
+// ── ManualPayModal ─────────────────────────────────────────────────────────────
+const ManualPayModal = ({ fee, onClose, onPayOS }) => {
+  const hasQr = !!fee.qrUrl;
+  const copy = (text) => { navigator.clipboard.writeText(text); toast.success('Đã sao chép'); };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-300">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="p-5 border-b flex items-center justify-between bg-gray-50/50">
+          <h3 className="font-bold text-gray-800 flex items-center gap-2">
+            <QrCode className="w-5 h-5 text-indigo-600" /> Chi tiết thanh toán
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="text-center">
+            <p className="font-semibold text-gray-800">{fee.tenSv}</p>
+            <p className="text-xs text-gray-500">MSSV: {fee.maSv}</p>
+          </div>
+
+          {/* Nút PayOS — chỉ hiện nếu CLB đã cấu hình */}
+          {fee.hasPayOS && (
+            <>
+              <button
+                onClick={onPayOS}
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 shadow-xl shadow-indigo-200 flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
+              >
+                <div className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 fill-current text-yellow-300" />
+                  <span>THANH TOÁN QUA PAYOS</span>
+                </div>
+                <span className="text-[10px] font-medium opacity-80">Hỗ trợ: App Ngân hàng, Ví MoMo, Thẻ ATM nội địa</span>
+              </button>
+              <div className="relative flex items-center">
+                <div className="flex-grow border-t border-gray-200" />
+                <span className="flex-shrink mx-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest">Hoặc chuyển khoản thủ công</span>
+                <div className="flex-grow border-t border-gray-200" />
+              </div>
+            </>
+          )}
+
+          {hasQr ? (
+            <>
+              <div className="bg-white p-2 border-2 border-dashed border-indigo-100 rounded-2xl flex justify-center">
+                <img src={fee.qrUrl} alt="QR thanh toán" className="w-48 h-48 object-contain" />
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border cursor-pointer" onClick={() => copy(fee.soTien)}>
+                  <div>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-0.5">Số tiền</p>
+                    <p className="font-black text-indigo-600">{Number(fee.soTien).toLocaleString('vi-VN')}đ</p>
+                  </div>
+                  <Copy className="w-4 h-4 text-gray-400" />
+                </div>
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border cursor-pointer" onClick={() => copy(fee.accountNumber)}>
+                  <div>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-0.5">Số tài khoản ({fee.bankCode})</p>
+                    <p className="font-bold text-gray-800">{fee.accountNumber}</p>
+                    <p className="text-[10px] text-gray-500">{fee.accountHolder}</p>
+                  </div>
+                  <Copy className="w-4 h-4 text-gray-400" />
+                </div>
+                <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-xl border border-indigo-100 cursor-pointer" onClick={() => copy(fee.noiDungCk)}>
+                  <div>
+                    <p className="text-[9px] font-bold text-indigo-400 uppercase mb-0.5">Nội dung chuyển khoản</p>
+                    <p className="font-bold text-indigo-700">{fee.noiDungCk}</p>
+                  </div>
+                  <Copy className="w-4 h-4 text-indigo-400" />
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-center text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-100">
+              CLB chưa cấu hình tài khoản ngân hàng để hiện mã QR.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const chucVuLabels = {
@@ -31,7 +119,7 @@ function AddMemberModal({ maClb, onClose }) {
 
   const { data: hocKyList = [] } = useQuery({
     queryKey: ['hocky-active'],
-    queryFn: () => api.get('/api/hocky').then(r => r.data.data || []),
+    queryFn: () => api.get('/api/hocky').then(r => Array.isArray(r.data) ? r.data : (r.data?.data || [])),
   });
 
   const addMutation = useMutation({
@@ -200,13 +288,14 @@ function ImportExcelModal({ maClb, onClose }) {
 
   const { data: hocKyList = [] } = useQuery({
     queryKey: ['hocky-active'],
-    queryFn: () => api.get('/api/hocky').then(r => r.data.data || []),
+    queryFn: () => api.get('/api/hocky').then(r => Array.isArray(r.data) ? r.data : (r.data?.data || [])),
   });
 
   // ── Tải file mẫu ──────────────────────────────────────────────
   const downloadTemplate = async () => {
     try {
-      const XLSX = (await import('xlsx')).default;
+      const xlsxModule = await import('xlsx');
+      const XLSX = xlsxModule.default || xlsxModule;
       const data = [
         ['MSSV', 'Họ và Tên', 'Lớp'],
         ['2100001', 'Nguyễn Văn An', 'DHCTK17A'],
@@ -233,7 +322,8 @@ function ImportExcelModal({ maClb, onClose }) {
     if (!file) return;
     setLoading(true);
     try {
-      const XLSX = (await import('xlsx')).default;
+      const xlsxModule = await import('xlsx');
+      const XLSX = xlsxModule.default || xlsxModule;
       const ab = await file.arrayBuffer();
       const wb = XLSX.read(ab);
       const ws = wb.Sheets[wb.SheetNames[0]];
@@ -558,7 +648,7 @@ function ClbMemberManage({ clb }) {
 
   const { data: hocKyList = [] } = useQuery({
     queryKey: ['hocky-active'],
-    queryFn: () => api.get('/api/hocky').then(r => r.data.data || []),
+    queryFn: () => api.get('/api/hocky').then(r => Array.isArray(r.data) ? r.data : (r.data?.data || [])),
   });
 
   const selectedHocKy = hocKyList.find(hk => hk.maHocKy === maHocKy);
@@ -729,60 +819,102 @@ function ClbMemberManage({ clb }) {
 function ClbDongPhi({ clb }) {
   const queryClient = useQueryClient();
   const [maHocKy, setMaHocKy] = useState('');
-  const [soTienMoi, setSoTienMoi] = useState('30000');
   const [filterStatus, setFilterStatus] = useState('');
+  const [previewFee, setPreviewFee] = useState(null);
+  const [loadingPayInfo, setLoadingPayInfo] = useState(null);
 
   const { data: hocKyList = [] } = useQuery({
-    queryKey: ['hocky-active'],
-    queryFn: () => api.get('/api/hocky').then(r => r.data.data || []),
+    queryKey: ['hocky-all'],
+    queryFn: () => api.get('/api/hocky').then(r => Array.isArray(r.data) ? r.data : (r.data?.data || [])),
   });
+
+  const { data: cauHinh } = useQuery({
+    queryKey: ['clb-cauhinh', clb.maClb],
+    queryFn: () => cauLacBoService.getCauHinh(clb.maClb),
+  });
+
+  // Tự động chọn học kỳ hiện tại
+  useEffect(() => {
+    if (hocKyList.length > 0 && !maHocKy) {
+      const current = hocKyList.find(hk => hk.isCurrent);
+      if (current) setMaHocKy(current.maHocKy);
+    }
+  }, [hocKyList, maHocKy]);
 
   const { data: phiList = [], isLoading, refetch } = useQuery({
     queryKey: ['clb-phi', clb.maClb, maHocKy],
     queryFn: () => cauLacBoService.getPhi(clb.maClb, maHocKy || null),
+    enabled: !!clb.maClb,
   });
 
   const { data: stats = {} } = useQuery({
     queryKey: ['clb-phi-stats', clb.maClb, maHocKy],
     queryFn: () => cauLacBoService.getPhiStats(clb.maClb, maHocKy || null),
+    enabled: !!clb.maClb,
+  });
+
+  const payMutation = useMutation({
+    mutationFn: ({ maClb, id }) => {
+      const returnUrl = window.location.href + '&payment=success';
+      const cancelUrl = window.location.href + '&payment=cancel';
+      return cauLacBoService.createPayOSLink(maClb, id, returnUrl, cancelUrl);
+    },
+    onSuccess: (data) => { if (data.checkoutUrl) window.open(data.checkoutUrl, '_blank'); },
+    onError: e => toast.error(e.response?.data?.message || 'Lỗi tạo link'),
   });
 
   const generateMutation = useMutation({
-    mutationFn: () => cauLacBoService.generatePhi(clb.maClb, maHocKy, Number(soTienMoi)),
-    onSuccess: (r) => {
-      toast.success(r.message || 'Đã tạo bản ghi phí');
+    mutationFn: () => {
+      if (!maHocKy) throw new Error('Vui lòng chọn học kỳ');
+      const soTien = cauHinh?.soTienPhiKy ?? 50000;
+      return cauLacBoService.generatePhi(clb.maClb, maHocKy, Number(soTien));
+    },
+    onSuccess: (res) => {
+      toast.success(res.message || 'Đã sinh phí thành công');
       queryClient.invalidateQueries(['clb-phi', clb.maClb]);
       queryClient.invalidateQueries(['clb-phi-stats', clb.maClb]);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Lỗi tạo phí'),
+    onError: e => toast.error(e.response?.data?.message || 'Lỗi khi sinh phí'),
   });
 
   const markDaDongMutation = useMutation({
     mutationFn: ({ id, hinhThuc }) => cauLacBoService.markDaDong(clb.maClb, id, hinhThuc),
     onSuccess: () => {
+      toast.success('Đã cập nhật trạng thái');
       queryClient.invalidateQueries(['clb-phi', clb.maClb]);
       queryClient.invalidateQueries(['clb-phi-stats', clb.maClb]);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Lỗi cập nhật'),
   });
 
   const mienGiamMutation = useMutation({
     mutationFn: (id) => cauLacBoService.markMienGiam(clb.maClb, id),
     onSuccess: () => {
+      toast.success('Đã cập nhật miễn giảm');
       queryClient.invalidateQueries(['clb-phi', clb.maClb]);
       queryClient.invalidateQueries(['clb-phi-stats', clb.maClb]);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Lỗi cập nhật'),
   });
 
   const resetMutation = useMutation({
-    mutationFn: (id) => cauLacBoService.resetChuaDong(clb.maClb, id),
+    mutationFn: (id) => cauLacBoService.resetPhi(clb.maClb, id),
     onSuccess: () => {
+      toast.success('Đã đặt lại trạng thái');
       queryClient.invalidateQueries(['clb-phi', clb.maClb]);
       queryClient.invalidateQueries(['clb-phi-stats', clb.maClb]);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Lỗi cập nhật'),
   });
+
+  const openPaymentModal = async (p) => {
+    setLoadingPayInfo(p.id);
+    try {
+      const info = await cauLacBoService.getPaymentInfo(clb.maClb, p.id);
+      setPreviewFee({ ...info, id: p.id, tenClb: clb.tenClb, maClb: clb.maClb });
+    } catch {
+      toast.error('Không lấy được thông tin thanh toán');
+    } finally {
+      setLoadingPayInfo(null);
+    }
+  };
 
   const STATUS = {
     CHUA_DONG: { label: 'Chưa đóng', cls: 'bg-red-100 text-red-700' },
@@ -796,154 +928,203 @@ function ClbDongPhi({ clb }) {
     : phiList;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-sm">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Tổng',       val: stats.total   ?? 0, color: 'text-gray-700 bg-gray-50' },
-          { label: 'Đã đóng',   val: stats.daDong   ?? 0, color: 'text-green-700 bg-green-50' },
-          { label: 'Miễn giảm', val: stats.mienGiam ?? 0, color: 'text-blue-700 bg-blue-50' },
-          { label: 'Chưa đóng', val: stats.chuaDong ?? 0, color: 'text-red-700 bg-red-50' },
-        ].map(s => (
-          <div key={s.label} className={`rounded-xl p-3 border ${s.color}`}>
-            <p className="text-xl font-bold">{s.val}</p>
-            <p className="text-xs">{s.label}</p>
+          { label: 'Tổng bản ghi', value: stats.total, color: 'bg-gray-50 text-gray-600' },
+          { label: 'Đã đóng', value: stats.daDong, color: 'bg-green-50 text-green-600' },
+          { label: 'Miễn giảm', value: stats.mienGiam, color: 'bg-blue-50 text-blue-600' },
+          { label: 'Chưa đóng', value: stats.chuaDong, color: 'bg-red-50 text-red-600' },
+        ].map((s, i) => (
+          <div key={i} className={`p-4 rounded-2xl border border-white shadow-sm ${s.color}`}>
+            <p className="text-[10px] font-black uppercase opacity-70 mb-1">{s.label}</p>
+            <p className="text-xl font-black">{s.value ?? 0}</p>
           </div>
         ))}
       </div>
 
-      {/* Thông báo webhook */}
-      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
-        <Banknote className="w-5 h-5 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="font-semibold">Tự động qua Casso / SePay</p>
-          <p className="text-xs mt-0.5">
-            Webhook: <code className="bg-amber-100 px-1 rounded">POST /api/clb/webhook/casso</code> hoặc <code className="bg-amber-100 px-1 rounded">/webhook/sepay</code>.
-            Sinh viên chuyển khoản ghi nội dung: <strong>PHICLB {clb.maClb} [MSSV]</strong> — hệ thống tự đánh dấu đã đóng.
-          </p>
+      {/* Bộ lọc & Action */}
+      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border shadow-sm items-end">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+          <div>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Chọn Học kỳ</label>
+            <select value={maHocKy} onChange={e => setMaHocKy(e.target.value)}
+              className="w-full border rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 bg-gray-50/50">
+              <option value="">— Tất cả học kỳ —</option>
+              {hocKyList.map(hk => {
+                const yearPrefix = hk.tenNamHoc?.toLowerCase().startsWith('năm học') ? '-' : '- Năm học';
+                return (
+                  <option key={hk.maHocKy} value={hk.maHocKy}>
+                    Học kỳ {hk.tenHocKy} {hk.tenNamHoc ? `${yearPrefix} ${hk.tenNamHoc}` : ''} {hk.isCurrent ? '(Hiện tại)' : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Lọc trạng thái</label>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+              className="w-full border rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 bg-gray-50/50">
+              <option value="">Tất cả trạng thái</option>
+              {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+        </div>
+        
+        <div className="flex gap-2 w-full md:w-auto">
+          {maHocKy && (
+            <button
+              onClick={() => {
+                const soTien = cauHinh?.soTienPhiKy ?? 50000;
+                if (confirm(`Sinh phí ${Number(soTien).toLocaleString('vi-VN')}đ cho tất cả thành viên trong học kỳ này?`))
+                  generateMutation.mutate();
+              }}
+              disabled={generateMutation.isPending}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 shadow-md shadow-indigo-200 disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              Sinh phí kỳ ({Number(cauHinh?.soTienPhiKy ?? 50000).toLocaleString('vi-VN')}đ)
+            </button>
+          )}
+          <button onClick={() => refetch()} className="p-2.5 border rounded-xl hover:bg-gray-50 text-gray-400 transition-colors">
+            <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-wrap gap-3 items-end">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Học kỳ</label>
-          <select value={maHocKy} onChange={e => setMaHocKy(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm">
-            <option value="">Tất cả</option>
-            {hocKyList.map(hk => <option key={hk.maHocKy} value={hk.maHocKy}>{hk.tenHocKy}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Lọc trạng thái</label>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm">
-            <option value="">Tất cả</option>
-            {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
-        </div>
-        {maHocKy && (
-          <div className="flex items-end gap-2">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Mức phí (đ)</label>
-              <input type="number" value={soTienMoi} onChange={e => setSoTienMoi(e.target.value)}
-                className="border rounded-lg px-3 py-2 text-sm w-28" step="1000" min="0" />
+      {/* Thông báo Webhook */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {cauHinh?.bankAccountNo && (
+          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800 shadow-sm">
+            <Banknote className="w-6 h-6 flex-shrink-0 text-amber-600" />
+            <div className="text-[10px] leading-relaxed">
+              <p className="font-black uppercase tracking-widest mb-1">Tự động qua Ngân hàng</p>
+              <p>Sinh viên chuyển khoản ghi: <strong className="text-amber-900 font-black">PHICLB {clb.maClb} [MSSV]</strong>.</p>
+              <p className="mt-1 opacity-70">Hệ thống tự động duyệt qua {cauHinh.webhookProvider || 'Casso/SePay'} nếu nội dung khớp.</p>
             </div>
-            <button onClick={() => generateMutation.mutate()}
-              disabled={generateMutation.isPending}
-              className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-              Sinh phí kỳ
-            </button>
           </div>
         )}
-        <button onClick={() => refetch()} className="p-2 hover:bg-gray-100 rounded-lg" title="Làm mới">
-          <RefreshCw className="w-4 h-4 text-gray-500" />
-        </button>
+        
+        {cauHinh?.payosClientId && (
+          <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-indigo-800 shadow-sm">
+            <Zap className="w-6 h-6 flex-shrink-0 text-indigo-600" />
+            <div className="text-[10px] leading-relaxed">
+              <p className="font-black uppercase tracking-widest mb-1">Cổng thanh toán PayOS</p>
+              <p>Hỗ trợ QR Code động & Thẻ. Duyệt <strong className="italic font-black">tức thì 100%</strong> ngay sau khi thanh toán thành công.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bảng */}
       {isLoading ? (
-        <div className="text-center py-10 text-gray-400">Đang tải…</div>
+        <div className="text-center py-20">
+           <RefreshCw className="w-10 h-10 animate-spin mx-auto text-indigo-200" />
+           <p className="text-sm text-gray-400 mt-4 font-medium">Đang tải danh sách lệ phí...</p>
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">
-          <Banknote className="w-10 h-10 mx-auto mb-2 opacity-30" />
-          <p>Chưa có dữ liệu phí{maHocKy ? ' học kỳ này' : ''}.</p>
-          {maHocKy && <p className="text-xs mt-1">Bấm "Sinh phí kỳ" để tạo bản ghi cho tất cả thành viên.</p>}
+        <div className="text-center py-20 bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-100">
+          <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+             <Banknote className="w-10 h-10 text-gray-200" />
+          </div>
+          <p className="font-bold text-gray-400">Chưa có dữ liệu phí cho tiêu chí này</p>
+          {maHocKy && <p className="text-xs text-gray-400 mt-1">Bấm "Sinh phí kỳ" để bắt đầu thu phí học kỳ này.</p>}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-              <tr>
-                <th className="px-4 py-3 text-left">Sinh viên</th>
-                <th className="px-4 py-3 text-left">Lớp</th>
-                <th className="px-4 py-3 text-right">Số tiền</th>
-                <th className="px-4 py-3 text-center">Trạng thái</th>
-                <th className="px-4 py-3 text-left">Ngày đóng</th>
-                <th className="px-4 py-3 text-left">Nguồn</th>
-                <th className="px-4 py-3 text-center">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filtered.map(p => {
-                const st = STATUS[p.trangThai] || { label: p.trangThai, cls: 'bg-gray-100 text-gray-600' };
-                return (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{p.hoTen}</p>
-                      <p className="text-xs text-gray-400 font-mono">{p.maSv}</p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{p.tenLop || '—'}</td>
-                    <td className="px-4 py-3 text-right font-mono text-sm">
-                      {(p.soTienCk ?? p.soTien)?.toLocaleString('vi-VN')}đ
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${st.cls}`}>
-                        {st.label}
-                      </span>
-                      {p.nguon === 'CASSO' && <span className="ml-1 text-[10px] text-purple-600 font-bold">AUTO</span>}
-                      {p.nguon === 'SEPAY' && <span className="ml-1 text-[10px] text-purple-600 font-bold">AUTO</span>}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{p.ngayDong || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-gray-400">
-                      {p.nguon === 'CASSO' ? '🏦 Casso' : p.nguon === 'SEPAY' ? '🏦 SePay' : p.hinhThuc || '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        {p.trangThai === 'CHUA_DONG' && (
-                          <>
-                            <button onClick={() => markDaDongMutation.mutate({ id: p.id, hinhThuc: 'TIEN_MAT' })}
-                              className="p-1.5 hover:bg-green-50 rounded text-green-600" title="Đánh dấu đã đóng (tiền mặt)">
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => markDaDongMutation.mutate({ id: p.id, hinhThuc: 'CHUYEN_KHOAN' })}
-                              className="p-1.5 hover:bg-blue-50 rounded text-blue-600" title="Đánh dấu đã đóng (CK)">
-                              <Banknote className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => mienGiamMutation.mutate(p.id)}
-                              className="p-1.5 hover:bg-indigo-50 rounded text-indigo-500" title="Miễn giảm">
-                              <AlertCircle className="w-4 h-4" />
-                            </button>
-                          </>
+        <div className="bg-white rounded-[2rem] border shadow-xl shadow-gray-100/50 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50/50 text-gray-400 uppercase text-[10px] font-black tracking-[0.15em] border-b">
+                <tr>
+                  <th className="px-6 py-5 text-left">Thành viên</th>
+                  <th className="px-4 py-5 text-left">Học kỳ</th>
+                  <th className="px-4 py-5 text-right">Số tiền</th>
+                  <th className="px-4 py-5 text-center">Trạng thái</th>
+                  <th className="px-4 py-5 text-left">Ghi chú / Nguồn</th>
+                  <th className="px-6 py-5 text-center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map(p => {
+                  const s = STATUS[p.trangThai] || { label: p.trangThai, cls: 'bg-gray-100 text-gray-600' };
+                  return (
+                    <tr key={p.id} className="hover:bg-indigo-50/30 transition-colors group">
+                      <td className="px-6 py-4">
+                        <p className="font-black text-gray-800 group-hover:text-indigo-600 transition-colors">{p.hoTen}</p>
+                        <p className="text-[10px] text-gray-400 font-mono tracking-tighter">{p.maSv} · {p.tenLop || '—'}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                         <p className="text-xs font-bold text-gray-500">{p.tenHocKy || '—'}</p>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <p className="font-black text-gray-900">{Number(p.soTien).toLocaleString('vi-VN')}đ</p>
+                        {p.soTienCk && p.soTienCk !== p.soTien && (
+                           <p className="text-[10px] text-green-600 font-bold">Thực nhận: {Number(p.soTienCk).toLocaleString()}đ</p>
                         )}
-                        {(p.trangThai === 'DA_DONG' || p.trangThai === 'MIEN_GIAM') && (
-                          <button onClick={() => {
-                            if (confirm('Đặt lại thành chưa đóng?')) resetMutation.mutate(p.id);
-                          }} className="p-1.5 hover:bg-gray-100 rounded text-gray-400" title="Đặt lại">
-                            <RefreshCw className="w-3.5 h-3.5" />
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${s.cls}`}>
+                          {s.label}
+                        </span>
+                        {p.ngayDong && <p className="text-[9px] text-gray-400 mt-1 font-medium">{p.ngayDong}</p>}
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="text-[10px] text-gray-500 max-w-[150px] truncate" title={p.ghiChu}>{p.ghiChu || '—'}</p>
+                        {p.nguon && <p className="text-[9px] text-indigo-500 font-black mt-1 uppercase italic">via {p.nguon}</p>}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button onClick={() => openPaymentModal(p)}
+                            disabled={loadingPayInfo === p.id}
+                            className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm shadow-indigo-100" title="Xem mã QR">
+                            {loadingPayInfo === p.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p className="text-xs text-gray-400 px-4 py-2">
-            {filtered.length} bản ghi — Đã thu: <strong>{(stats.tongThu ?? 0).toLocaleString('vi-VN')}đ</strong>
-          </p>
+                          
+                          {p.trangThai === 'CHUA_DONG' && (
+                            <>
+                              <button onClick={() => markDaDongMutation.mutate({ id: p.id, hinhThuc: 'TIEN_MAT' })}
+                                className="p-2.5 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all shadow-sm shadow-green-100" title="Đã đóng (Tiền mặt)">
+                                <CheckCircle2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => mienGiamMutation.mutate(p.id)}
+                                className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm shadow-blue-100" title="Miễn giảm">
+                                <BadgeCheck className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                          {(p.trangThai === 'DA_DONG' || p.trangThai === 'MIEN_GIAM') && (
+                            <button onClick={() => {
+                              if (confirm('Đặt lại thành chưa đóng?')) resetMutation.mutate(p.id);
+                            }} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all" title="Đặt lại">
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="bg-gray-50/50 px-6 py-4 border-t flex justify-between items-center">
+             <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+               {filtered.length} bản ghi
+             </p>
+             <p className="text-xs font-black text-gray-700">
+               TỔNG THU THỰC TẾ: <span className="text-green-600 text-lg ml-2">{(stats.tongThu ?? 0).toLocaleString('vi-VN')}đ</span>
+             </p>
+          </div>
         </div>
+      )}
+
+      {previewFee && (
+        <ManualPayModal 
+          fee={previewFee} 
+          onClose={() => setPreviewFee(null)}
+          onPayOS={() => payMutation.mutate({ maClb: clb.maClb, id: previewFee.id })}
+        />
       )}
     </div>
   );
@@ -951,10 +1132,10 @@ function ClbDongPhi({ clb }) {
 
 // ── ClbCauHinhTab ────────────────────────────────────────────────────────────
 const CO_CHE_OPTIONS = [
-  { value: 'TU_DO',             label: 'Tự do',                   desc: 'Chỉ cần BCN thêm tên vào là thành viên, không yêu cầu gì thêm' },
-  { value: 'YEU_CAU_DONG_PHI',  label: 'Yêu cầu đóng phí',        desc: 'Thành viên phải đóng phí theo chu kỳ' },
-  { value: 'YEU_CAU_HOAT_DONG', label: 'Yêu cầu tham gia HĐ',     desc: 'Thành viên phải đạt số hoạt động tối thiểu' },
-  { value: 'YEU_CAU_CA_HAI',    label: 'Yêu cầu phí + hoạt động', desc: 'Phải đóng phí VÀ đạt số hoạt động tối thiểu' },
+  { value: 'TU_DO',             label: 'Tự do',               desc: 'Chỉ cần BCN thêm tên vào là thành viên, không yêu cầu gì thêm' },
+  { value: 'YEU_CAU_HOAT_DONG', label: 'Yêu cầu tham gia HĐ', desc: 'Thành viên phải đạt số hoạt động tối thiểu' },
+  // { value: 'YEU_CAU_DONG_PHI',  label: 'Yêu cầu đóng phí' },        // TẠM ẨN
+  // { value: 'YEU_CAU_CA_HAI',    label: 'Yêu cầu phí + hoạt động' }, // TẠM ẨN
 ];
 
 function ClbCauHinhTab({ clb }) {
@@ -1029,8 +1210,8 @@ function ClbCauHinhTab({ clb }) {
         )}
       </section>
 
-      {/* ── Phí ── */}
-      <section className="border-t pt-5">
+      {/* ── Phí + Thanh toán — TẠM ẨN ── */}
+      {false && <section className="border-t pt-5">
         <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
           <Banknote className="w-4 h-4 text-green-500" /> Cấu hình phí thành viên
         </h4>
@@ -1053,47 +1234,130 @@ function ClbCauHinhTab({ clb }) {
           </div>
         </div>
 
-        {/* Ngân hàng */}
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Số TK ngân hàng</label>
-            <input value={current.bankAccountNo ?? ''}
-              onChange={e => set('bankAccountNo', e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              placeholder="0123456789" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Ngân hàng</label>
-            <input value={current.bankName ?? ''}
-              onChange={e => set('bankName', e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              placeholder="MB Bank, VCB, TCB..." />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Tên chủ TK</label>
-            <input value={current.accountName ?? ''}
-              onChange={e => set('accountName', e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Prefix nội dung CK</label>
-            <input value={current.maXacThucCk ?? ''}
-              onChange={e => set('maXacThucCk', e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              placeholder={`PHICLB ${clb.maClb}`} />
-          </div>
+      {/* ── Cấu hình thanh toán ── */}
+      <section className="border-t pt-5">
+        <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+          <Banknote className="w-4 h-4 text-green-500" /> Cấu hình thanh toán phí
+        </h4>
+        
+        {/* Tab Selector */}
+        <div className="flex p-1 bg-gray-100 rounded-xl mb-4 w-fit">
+          <button
+            type="button"
+            onClick={() => set('activePaymentTab', 'BANK')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              (current.activePaymentTab || 'BANK') === 'BANK' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Chuyển khoản (Casso/SePay)
+          </button>
+          <button
+            type="button"
+            onClick={() => set('activePaymentTab', 'PAYOS')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              (current.activePaymentTab || 'BANK') === 'PAYOS' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Cổng PayOS
+          </button>
         </div>
 
-        <div className="mt-3">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Webhook provider</label>
-          <select value={current.webhookProvider ?? 'CASSO'}
-            onChange={e => set('webhookProvider', e.target.value)}
-            className="w-48 border rounded-lg px-3 py-2 text-sm">
-            <option value="CASSO">Casso</option>
-            <option value="SEPAY">SePay</option>
-          </select>
+        <div className="p-4 border border-gray-100 rounded-2xl bg-gray-50/50">
+          {(current.activePaymentTab || 'BANK') === 'BANK' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Số tài khoản</label>
+                  <input value={current.bankAccountNo ?? ''}
+                    onChange={e => set('bankAccountNo', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 bg-white"
+                    placeholder="0123456789" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Ngân hàng</label>
+                  <input value={current.bankName ?? ''}
+                    onChange={e => set('bankName', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 bg-white"
+                    placeholder="MB Bank, VCB..." />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Tên chủ tài khoản</label>
+                  <input value={current.accountName ?? ''}
+                    onChange={e => set('accountName', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Prefix nội dung CK</label>
+                  <input value={current.maXacThucCk ?? ''}
+                    onChange={e => set('maXacThucCk', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 bg-white font-bold text-blue-700"
+                    placeholder={`PHICLB ${clb.maClb}`} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Webhook Provider</label>
+                <select value={current.webhookProvider ?? 'CASSO'}
+                  onChange={e => set('webhookProvider', e.target.value)}
+                  className="w-48 border rounded-lg px-3 py-2 text-sm bg-white">
+                  <option value="CASSO">Casso.vn</option>
+                  <option value="SEPAY">SePay.vn</option>
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-indigo-600 mb-2">
+                <Zap className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase">PayOS API Credentials</span>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Client ID</label>
+                <input value={current.payosClientId ?? ''}
+                  onChange={e => set('payosClientId', e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 bg-white"
+                  placeholder="4489522b-..." />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">API Key</label>
+                  <input type="password" value={current.payosApiKey ?? ''}
+                    onChange={e => set('payosApiKey', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 bg-white"
+                    placeholder="••••••••" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Checksum Key</label>
+                  <input type="password" value={current.payosChecksumKey ?? ''}
+                    onChange={e => set('payosChecksumKey', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 bg-white"
+                    placeholder="••••••••" />
+                </div>
+              </div>
+              <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                <p className="text-[10px] font-bold text-indigo-900 mb-2 flex items-center gap-1.5 uppercase">
+                  <LayoutGrid className="w-3.5 h-3.5" /> Webhook URL
+                </p>
+                <div className="flex gap-2">
+                  <code className="flex-1 bg-white px-2 py-1.5 rounded border text-[10px] break-all font-mono text-indigo-600">
+                    {window.location.origin}/api/clb/webhook/payos/{clb.maClb}
+                  </code>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/clb/webhook/payos/${clb.maClb}`);
+                      toast.info('Đã copy Webhook URL');
+                    }}
+                    className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-700"
+                  >
+                    COPY
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
+      </section>}
 
       {/* ── Đăng ký tự do ── */}
       <section className="border-t pt-5">
@@ -1309,17 +1573,465 @@ function ClbDangKyTab({ clb }) {
   );
 }
 
+// ── AddBcnModal ──────────────────────────────────────────────────────────────
+const CHUC_VU_BCN_OPTIONS = [
+  'Chủ nhiệm', 'Phó chủ nhiệm', 'Ủy viên', 'Kế toán', 'Thủ quỹ', 'Trưởng ban', 'Phó ban',
+];
+const LOAI_NGUOI_OPTIONS = [
+  { value: 'SV', label: 'Sinh viên' },
+  { value: 'GV', label: 'Giảng viên' },
+  { value: 'CV', label: 'Chuyên viên' },
+];
+
+function AddBcnModal({ maClb, nhiemKy, onClose }) {
+  const queryClient = useQueryClient();
+  const [loai, setLoai] = useState('SV');
+  const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [selected, setSelected] = useState(null); // { ma, ten, donVi, email }
+  const [form, setForm] = useState({
+    chucVu: 'Chủ nhiệm', nhiemKy: nhiemKy || '',
+    emailLienHe: '', sdt: '', ngayBoNhiem: '', ghiChu: '',
+  });
+  const searchTimer = useRef(null);
+
+  useEffect(() => {
+    setSelected(null);
+    setSearch('');
+    setSearchResults([]);
+  }, [loai]);
+
+  useEffect(() => {
+    clearTimeout(searchTimer.current);
+    if (!search.trim() || search.trim().length < 2) { setSearchResults([]); return; }
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const data = await cauLacBoService.searchNguoiBCN(maClb, search.trim(), loai);
+        setSearchResults(data);
+      } catch { setSearchResults([]); }
+      finally { setSearching(false); }
+    }, 350);
+  }, [search, loai, maClb]);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const mutation = useMutation({
+    mutationFn: (data) => cauLacBoService.addBcn(maClb, data),
+    onSuccess: () => {
+      toast.success('Thêm BCN thành công');
+      queryClient.invalidateQueries(['clb-bcn', maClb]);
+      queryClient.invalidateQueries(['clb-bcn-nhiemky', maClb]);
+      onClose();
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Lỗi thêm BCN'),
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!selected) return toast.warn('Vui lòng chọn người từ kết quả tìm kiếm');
+    if (!form.nhiemKy.trim()) return toast.warn('Vui lòng nhập nhiệm kỳ');
+    const payload = {
+      loaiNguoi: loai,
+      chucVu: form.chucVu,
+      nhiemKy: form.nhiemKy,
+      emailLienHe: form.emailLienHe || selected.email || null,
+      sdt: form.sdt || null,
+      ngayBoNhiem: form.ngayBoNhiem || null,
+      ghiChu: form.ghiChu || null,
+    };
+    if (loai === 'GV') payload.maGv = selected.ma;
+    else if (loai === 'CV') payload.maCv = selected.ma;
+    else payload.maSv = selected.ma;
+    mutation.mutate(payload);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Award className="w-5 h-5 text-purple-500" /> Thêm nhân sự BCN
+          </h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
+          {/* Loại người */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Loại nhân sự *</label>
+            <div className="flex rounded-lg border overflow-hidden text-sm">
+              {LOAI_NGUOI_OPTIONS.map(o => (
+                <button key={o.value} type="button" onClick={() => setLoai(o.value)}
+                  className={`flex-1 py-2 font-medium transition-colors ${
+                    loai === o.value ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'
+                  }`}>{o.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tìm kiếm */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tìm {LOAI_NGUOI_OPTIONS.find(o => o.value === loai)?.label} *
+            </label>
+            <input value={search} onChange={e => { setSearch(e.target.value); setSelected(null); }}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500"
+              placeholder="Nhập tên hoặc mã để tìm kiếm..." />
+            {(searching || searchResults.length > 0) && (
+              <div className="absolute z-20 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                {searching && <p className="px-3 py-2 text-sm text-gray-400">Đang tìm…</p>}
+                {!searching && searchResults.map(r => (
+                  <button key={r.ma} type="button" onClick={() => { setSelected(r); setSearch(r.ten); setSearchResults([]); }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 border-b last:border-0">
+                    <span className="font-medium">{r.ten}</span>
+                    <span className="text-gray-400 ml-2 font-mono text-xs">{r.ma}</span>
+                    {r.donVi && <span className="text-gray-400 ml-2 text-xs">· {r.donVi}</span>}
+                  </button>
+                ))}
+                {!searching && searchResults.length === 0 && search.length >= 2 && (
+                  <p className="px-3 py-2 text-sm text-gray-400">Không tìm thấy kết quả</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Người đã chọn */}
+          {selected && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg text-sm">
+              <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
+                {selected.ten?.charAt(0) || '?'}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium text-gray-900 truncate">{selected.ten}</p>
+                <p className="text-xs text-gray-500">{selected.ma} · {selected.donVi}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chức vụ *</label>
+              <select value={form.chucVu} onChange={e => set('chucVu', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500">
+                {CHUC_VU_BCN_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nhiệm kỳ *</label>
+              <input value={form.nhiemKy} onChange={e => set('nhiemKy', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500"
+                placeholder="VD: 2024-2025" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email liên hệ</label>
+              <input type="email" value={form.emailLienHe} onChange={e => set('emailLienHe', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm" placeholder={selected?.email || 'email@example.com'} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+              <input value={form.sdt} onChange={e => set('sdt', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="0912 345 678" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ngày bổ nhiệm</label>
+            <input type="date" value={form.ngayBoNhiem} onChange={e => set('ngayBoNhiem', e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+            <textarea value={form.ghiChu} onChange={e => set('ghiChu', e.target.value)}
+              rows={2} className="w-full border rounded-lg px-3 py-2 text-sm resize-none"
+              placeholder="Thông tin thêm về nhân sự..." />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50">Hủy</button>
+            <button type="submit" disabled={mutation.isPending || !selected}
+              className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
+              {mutation.isPending ? 'Đang lưu…' : 'Thêm BCN'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── ClbBcnTab ────────────────────────────────────────────────────────────────
+const TRANG_THAI_BCN = {
+  DUONG_NHIEM: { label: 'Đương nhiệm', cls: 'bg-green-100 text-green-700' },
+  THOI_CHUC:   { label: 'Thôi chức',   cls: 'bg-gray-100 text-gray-500' },
+};
+
+function ClbBcnTab({ clb }) {
+  const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
+  const canManage = hasPermission(PERMISSIONS.QUAN_LY_CLB) || hasPermission(PERMISSIONS.QUAN_LY_THANH_VIEN_CLB);
+
+  const [nhiemKy, setNhiemKy] = useState('');
+  const [filterTT, setFilterTT] = useState('DUONG_NHIEM');
+  const [showAdd, setShowAdd] = useState(false);
+  const importRef = useRef(null);
+
+  const { data: nhiemKyList = [] } = useQuery({
+    queryKey: ['clb-bcn-nhiemky', clb.maClb],
+    queryFn: () => cauLacBoService.getBcnNhiemKy(clb.maClb),
+  });
+
+  const { data: bcnList = [], isLoading } = useQuery({
+    queryKey: ['clb-bcn', clb.maClb, nhiemKy, filterTT],
+    queryFn: () => cauLacBoService.getBcn(clb.maClb, {
+      nhiemKy: nhiemKy || undefined,
+      trangThai: filterTT || undefined,
+    }),
+  });
+
+  const thoiChucMutation = useMutation({
+    mutationFn: (id) => cauLacBoService.thoiChucBcn(clb.maClb, id),
+    onSuccess: () => {
+      toast.success('Đã đánh dấu thôi chức');
+      queryClient.invalidateQueries(['clb-bcn', clb.maClb]);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Lỗi'),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (id) => cauLacBoService.removeBcn(clb.maClb, id),
+    onSuccess: () => {
+      toast.success('Đã xóa khỏi BCN');
+      queryClient.invalidateQueries(['clb-bcn', clb.maClb]);
+      queryClient.invalidateQueries(['clb-bcn-nhiemky', clb.maClb]);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Lỗi'),
+  });
+
+  const importMutation = useMutation({
+    mutationFn: ({ file, nk }) => cauLacBoService.importBcnExcel(clb.maClb, file, nk || new Date().getFullYear().toString()),
+    onSuccess: (res) => {
+      toast.success(`Import xong: ${res.success ?? 0} thành công${res.fail ? `, ${res.fail} lỗi` : ''}`);
+      if (res.errors?.length) {
+        res.errors.slice(0, 3).forEach(e => toast.warning(e, { autoClose: 6000 }));
+      }
+      queryClient.invalidateQueries(['clb-bcn', clb.maClb]);
+      queryClient.invalidateQueries(['clb-bcn-nhiemky', clb.maClb]);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Import thất bại'),
+  });
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const nk = nhiemKy || prompt('Nhập nhiệm kỳ (vd: 2024-2025):') || '';
+    importMutation.mutate({ file, nk });
+    e.target.value = '';
+  };
+
+  const chucVuOrder = ['Chủ nhiệm', 'Phó chủ nhiệm', 'Ủy viên'];
+  const sorted = [...bcnList].sort((a, b) => {
+    const ia = chucVuOrder.indexOf(a.chucVu);
+    const ib = chucVuOrder.indexOf(b.chucVu);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex gap-2 flex-wrap">
+          <select value={nhiemKy} onChange={e => setNhiemKy(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500">
+            <option value="">Tất cả nhiệm kỳ</option>
+            {nhiemKyList.map(nk => <option key={nk} value={nk}>{nk}</option>)}
+          </select>
+          <div className="flex rounded-lg border overflow-hidden text-sm">
+            {[
+              { key: 'DUONG_NHIEM', label: 'Đương nhiệm' },
+              { key: 'THOI_CHUC',   label: 'Thôi chức' },
+              { key: '',            label: 'Tất cả' },
+            ].map(t => (
+              <button key={t.key} onClick={() => setFilterTT(t.key)}
+                className={`px-3 py-1.5 font-medium transition-colors ${
+                  filterTT === t.key ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'
+                }`}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+        {canManage && (
+          <div className="flex gap-2">
+            <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
+            <button onClick={() => importRef.current?.click()}
+              disabled={importMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 border border-purple-300 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-50 disabled:opacity-50">
+              <Upload className="w-4 h-4" />
+              {importMutation.isPending ? 'Đang import…' : 'Import Excel'}
+            </button>
+            <button onClick={() => setShowAdd(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
+              <UserPlus className="w-4 h-4" /> Thêm nhân sự BCN
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* BCN Cards */}
+      {isLoading ? (
+        <div className="text-center py-8 text-gray-400">Đang tải…</div>
+      ) : sorted.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">
+          <Award className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>Chưa có nhân sự BCN</p>
+          <p className="text-xs mt-1">Thêm thành viên Ban Chủ Nhiệm để quản lý lãnh đạo CLB theo nhiệm kỳ</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sorted.map(b => {
+            const tt = TRANG_THAI_BCN[b.trangThai] || { label: b.trangThai, cls: 'bg-gray-100 text-gray-600' };
+            const isLeader = b.chucVu === 'Chủ nhiệm';
+            return (
+              <div key={b.id} className={`border rounded-xl p-4 relative ${
+                isLeader ? 'border-purple-200 bg-purple-50/30' : 'bg-white'
+              } ${b.trangThai === 'THOI_CHUC' ? 'opacity-60' : ''}`}>
+                {isLeader && (
+                  <Star className="absolute top-3 right-3 w-4 h-4 text-purple-400 fill-purple-200" />
+                )}
+                <div className="flex items-start gap-3">
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold text-white flex-shrink-0 ${
+                    isLeader ? 'bg-purple-500' : b.loaiNguoi === 'GV' ? 'bg-teal-500' : b.loaiNguoi === 'CV' ? 'bg-orange-500' : 'bg-blue-500'
+                  }`}>
+                    {(b.tenNguoi || b.tenSv)?.charAt(0) || '?'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-semibold text-gray-900 truncate">{b.tenNguoi || b.tenSv}</p>
+                      {b.loaiNguoi && b.loaiNguoi !== 'SV' && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          b.loaiNguoi === 'GV' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700'
+                        }`}>{b.loaiNguoi}</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 font-mono">{b.maGv || b.maCv || b.maSv}</p>
+                    {(b.donVi || b.lop) && <p className="text-xs text-gray-400">{b.donVi || b.lop}</p>}
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                      isLeader ? 'bg-purple-100 text-purple-700' : 'bg-blue-50 text-blue-600'
+                    }`}>{b.chucVu}</span>
+                    <span className={`inline-flex px-2 py-0.5 rounded text-xs ${tt.cls}`}>{tt.label}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <Calendar className="w-3 h-3" /> Nhiệm kỳ: <strong>{b.nhiemKy}</strong>
+                  </p>
+                  {b.emailLienHe && (
+                    <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
+                      <Mail className="w-3 h-3 flex-shrink-0" /> {b.emailLienHe}
+                    </p>
+                  )}
+                  {b.sdt && (
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <Phone className="w-3 h-3" /> {b.sdt}
+                    </p>
+                  )}
+                </div>
+
+                {canManage && b.trangThai === 'DUONG_NHIEM' && (
+                  <div className="flex gap-2 mt-3 pt-3 border-t">
+                    <button onClick={() => {
+                      if (confirm(`Đánh dấu ${b.tenNguoi || b.tenSv} thôi chức?`)) thoiChucMutation.mutate(b.id);
+                    }} className="flex-1 py-1.5 text-xs border rounded-lg text-gray-600 hover:bg-gray-50">
+                      Thôi chức
+                    </button>
+                    <button onClick={() => {
+                      if (confirm(`Xóa ${b.tenNguoi || b.tenSv} khỏi danh sách BCN?`)) removeMutation.mutate(b.id);
+                    }} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {nhiemKyList.length > 0 && (
+        <p className="text-xs text-gray-400">
+          Lịch sử nhiệm kỳ: {nhiemKyList.join(' · ')}
+        </p>
+      )}
+
+      {showAdd && (
+        <AddBcnModal
+          maClb={clb.maClb}
+          nhiemKy={nhiemKy}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── ClbStatsCards ────────────────────────────────────────────────────────────
+function ClbStatsCards({ maClb }) {
+  const { data: stats = {} } = useQuery({
+    queryKey: ['clb-stats', maClb],
+    queryFn: () => cauLacBoService.getStats(maClb),
+    refetchInterval: 60000,
+  });
+
+  const cards = [
+    { label: 'Thành viên', value: stats.tongThanhVien ?? '—', icon: Users, color: 'text-blue-600 bg-blue-50', border: 'border-blue-100' },
+    { label: 'Hoạt động',  value: stats.tongHoatDong ?? '—',  icon: Activity, color: 'text-green-600 bg-green-50', border: 'border-green-100' },
+    { label: 'Đã hoàn thành', value: stats.hoatDongHoanThanh ?? '—', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50', border: 'border-emerald-100' },
+    { label: 'Chờ duyệt',  value: stats.hoatDongChoDuyet ?? '—', icon: Clock, color: 'text-orange-600 bg-orange-50', border: 'border-orange-100' },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      {cards.map(c => (
+        <div key={c.label} className={`border ${c.border} rounded-xl p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-lg ${c.color} flex items-center justify-center flex-shrink-0`}>
+            <c.icon className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900 leading-none">{c.value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{c.label}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── ClbDetail ────────────────────────────────────────────────────────────────
 function ClbDetail({ clb, onBack }) {
   const [tab, setTab] = useState('members');
   const [exporting, setExporting] = useState(false);
 
-  // Badge số đơn chờ duyệt
+  // Badge số đơn chờ duyệt thành viên
   const { data: pendingCount = 0 } = useQuery({
     queryKey: ['clb-dangky-count', clb.maClb],
     queryFn: () => cauLacBoService.countCHO_DUYET(clb.maClb),
     refetchInterval: 30000,
   });
+
+  // Badge số hoạt động chờ duyệt
+  const { data: statsData = {} } = useQuery({
+    queryKey: ['clb-stats', clb.maClb],
+    queryFn: () => cauLacBoService.getStats(clb.maClb),
+    refetchInterval: 60000,
+  });
+  const pendingActivities = statsData.hoatDongChoDuyet ?? 0;
 
   const handleExport = async () => {
     setExporting(true);
@@ -1341,7 +2053,7 @@ function ClbDetail({ clb, onBack }) {
         </button>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
+      <div className="bg-white rounded-xl shadow-sm border p-6 mb-4">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -1352,29 +2064,27 @@ function ClbDetail({ clb, onBack }) {
             {clb.linhVuc && <p className="text-sm text-gray-500 mt-0.5">Lĩnh vực: {clb.linhVuc}</p>}
             {clb.moTa && <p className="text-sm text-gray-600 mt-2">{clb.moTa}</p>}
           </div>
-          <div className="flex items-start gap-3">
-            <button onClick={handleExport} disabled={exporting}
-              className="flex items-center gap-2 px-3 py-1.5 border border-green-300 text-green-700 rounded-lg text-xs font-medium hover:bg-green-50 disabled:opacity-50">
-              <Download className="w-3.5 h-3.5" />
-              {exporting ? 'Đang xuất…' : 'Xuất Excel'}
-            </button>
-            <div className="text-right text-sm text-gray-500">
-              <div className="text-2xl font-bold text-blue-600">{clb.soThanhVien}</div>
-              <div>thành viên</div>
-            </div>
-          </div>
+          <button onClick={handleExport} disabled={exporting}
+            className="flex items-center gap-2 px-3 py-1.5 border border-green-300 text-green-700 rounded-lg text-xs font-medium hover:bg-green-50 disabled:opacity-50">
+            <Download className="w-3.5 h-3.5" />
+            {exporting ? 'Đang xuất…' : 'Xuất Excel'}
+          </button>
         </div>
       </div>
+
+      {/* Stats Cards */}
+      <ClbStatsCards maClb={clb.maClb} />
 
       {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="flex border-b overflow-x-auto">
           {[
-            { key: 'members',    label: 'Thành viên',  icon: Users },
-            { key: 'activities', label: 'Hoạt động',   icon: Activity },
-            { key: 'phi',        label: 'Đóng phí',    icon: Banknote },
-            { key: 'dangky',     label: 'Đơn đăng ký', icon: ClipboardList, badge: pendingCount },
-            { key: 'cauhinh',    label: 'Cấu hình',    icon: Settings },
+            { key: 'members',    label: 'Thành viên',    icon: Users },
+            { key: 'bcn',        label: 'Ban Chủ Nhiệm', icon: Award },
+            { key: 'activities', label: 'Hoạt động',     icon: Activity, badge: pendingActivities },
+            // { key: 'phi',        label: 'Đóng phí',      icon: Banknote }, // TẠM ẨN
+            { key: 'dangky',     label: 'Đơn đăng ký',   icon: ClipboardList, badge: pendingCount },
+            { key: 'cauhinh',    label: 'Cấu hình',      icon: Settings },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`relative flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -1393,8 +2103,9 @@ function ClbDetail({ clb, onBack }) {
         </div>
         <div className="p-6">
           {tab === 'members'    && <ClbMemberManage clb={clb} />}
+          {tab === 'bcn'        && <ClbBcnTab clb={clb} />}
           {tab === 'activities' && <ClbActivities clb={clb} />}
-          {tab === 'phi'        && <ClbDongPhi clb={clb} />}
+          {/* tab phi tạm ẩn */}
           {tab === 'dangky'     && <ClbDangKyTab clb={clb} />}
           {tab === 'cauhinh'    && <ClbCauHinhTab clb={clb} />}
         </div>
@@ -1411,6 +2122,7 @@ function ClbActivities({ clb }) {
   });
 
   const trangThaiColors = {
+    CHO_DUYET: 'bg-orange-100 text-orange-700 border border-orange-300',
     SAP_DIEN_RA: 'bg-blue-100 text-blue-700',
     DANG_MO_DANG_KY: 'bg-green-100 text-green-700',
     DANG_DIEN_RA: 'bg-yellow-100 text-yellow-700',
@@ -1419,28 +2131,46 @@ function ClbActivities({ clb }) {
     DA_HUY: 'bg-red-100 text-red-700',
   };
   const trangThaiLabels = {
+    CHO_DUYET: '⏳ Chờ duyệt',
     SAP_DIEN_RA: 'Sắp diễn ra', DANG_MO_DANG_KY: 'Mở đăng ký',
     DANG_DIEN_RA: 'Đang diễn ra', DA_KET_THUC: 'Đã kết thúc',
     DA_HOAN_THANH: 'Đã hoàn thành', DA_HUY: 'Đã hủy',
   };
+
+  const pendingApproval = activities.filter(a => a.trangThai === 'CHO_DUYET');
 
   if (isLoading) return <div className="text-center py-8 text-gray-400">Đang tải…</div>;
   if (activities.length === 0) return (
     <div className="text-center py-12 text-gray-400">
       <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
       <p>CLB chưa có hoạt động nào</p>
+      <p className="text-xs mt-1">Tạo hoạt động mới và hệ thống sẽ gửi chờ Đoàn trường phê duyệt</p>
     </div>
   );
 
   return (
     <div className="space-y-3">
+      {pendingApproval.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm text-orange-800 flex items-start gap-2">
+          <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold">Có {pendingApproval.length} hoạt động đang chờ Đoàn trường phê duyệt</p>
+            <p className="text-xs mt-0.5">Hoạt động do CLB tạo sẽ ở trạng thái "Chờ duyệt" cho đến khi Admin/BCH xét duyệt</p>
+          </div>
+        </div>
+      )}
       {activities.map(a => (
-        <div key={a.maHoatDong} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+        <div key={a.maHoatDong} className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 ${
+          a.trangThai === 'CHO_DUYET' ? 'bg-orange-50/30' : ''
+        }`}>
           <div>
             <p className="font-medium text-gray-900">{a.tenHoatDong}</p>
             <p className="text-xs text-gray-500 mt-0.5">
               {a.ngayToChuc} {a.diaDiem ? `· ${a.diaDiem}` : ''} {a.diemRenLuyen ? `· ${a.diemRenLuyen} điểm` : ''}
             </p>
+            {a.trangThai === 'DA_HUY' && a.lyDoTuChoi && (
+              <p className="text-xs text-red-500 mt-0.5">Lý do từ chối: {a.lyDoTuChoi}</p>
+            )}
           </div>
           <span className={`text-xs px-2 py-1 rounded font-medium ${trangThaiColors[a.trangThai] || 'bg-gray-100 text-gray-600'}`}>
             {trangThaiLabels[a.trangThai] || a.trangThai}

@@ -10,7 +10,7 @@ import {
 const NEWS_URL = import.meta.env.VITE_NEWS_URL || 'https://tuoitre.vnkgu.edu.vn';
 import { useQueryClient } from '@tanstack/react-query';
 import useAuthStore from '../../stores/authStore';
-import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
+import { ROUTES, ROLES, PERMISSIONS, MANAGER_ROLES } from '../../utils/constants';
 
 const ADMIN_SECTION_PERMS = [
   PERMISSIONS.XEM_SINH_VIEN, PERMISSIONS.XEM_GIANG_VIEN, PERMISSIONS.XEM_CHUYEN_VIEN,
@@ -22,9 +22,9 @@ const ADMIN_SECTION_PERMS = [
 
 const canAccessFromPath = (from, vaiTro, laBCHFlag, hasAdminPerm) => {
   if (!from || from === ROUTES.LOGIN || from === '/') return false;
-  if (from.startsWith('/admin'))   return vaiTro === ROLES.ADMIN || hasAdminPerm;
-  if (from.startsWith('/bch'))     return laBCHFlag;
-  if (from.startsWith('/student')) return vaiTro === ROLES.SINHVIEN;
+  if (from.startsWith('/admin'))   return MANAGER_ROLES.includes(vaiTro) && (vaiTro === 'ADMIN' || hasAdminPerm);
+  if (from.startsWith('/bch'))     return laBCHFlag || MANAGER_ROLES.includes(vaiTro);
+  if (from.startsWith('/student')) return vaiTro === 'DOAN_VIEN';
   return true;
 };
 
@@ -106,11 +106,9 @@ const Login = () => {
       navigate(from, { replace: true });
       return;
     }
-    if (authUser.vaiTro === ROLES.ADMIN || hasAdminPerm) {
+    if (MANAGER_ROLES.includes(authUser.vaiTro)) {
       navigate(ROUTES.ADMIN_DASHBOARD, { replace: true });
-    } else if (laBCH) {
-      navigate(ROUTES.BCH_DASHBOARD, { replace: true });
-    } else if (authUser.vaiTro === ROLES.SINHVIEN) {
+    } else if (authUser.vaiTro === 'DOAN_VIEN') {
       navigate(ROUTES.STUDENT_DASHBOARD, { replace: true });
     } else {
       navigate(ROUTES.PROFILE, { replace: true });
@@ -144,11 +142,9 @@ const Login = () => {
         navigate(from, { replace: true });
         return;
       }
-      if (vaiTro === ROLES.ADMIN || hasAdminPerm) {
+      if (MANAGER_ROLES.includes(vaiTro)) {
         navigate(ROUTES.ADMIN_DASHBOARD);
-      } else if (laBCH) {
-        navigate(ROUTES.BCH_DASHBOARD);
-      } else if (vaiTro === ROLES.SINHVIEN) {
+      } else if (vaiTro === 'DOAN_VIEN') {
         navigate(ROUTES.STUDENT_DASHBOARD);
       } else {
         navigate(ROUTES.PROFILE);

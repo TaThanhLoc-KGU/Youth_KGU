@@ -102,4 +102,11 @@ public interface TinTucRepository extends JpaRepository<TinTuc, Long> {
     Page<TinTuc> findPublishedByKhoa(@Param("maKhoa") String maKhoa,
                                       @Param("trangThai") com.tathanhloc.youthkgu.Enum.TrangThaiTinTuc trangThai,
                                       Pageable pageable);
+
+    // Public: lọc tin đã published theo đơn vị đăng (Tên CLB)
+    @Query("SELECT t FROM TinTuc t WHERE t.donViDang = :donViDang " +
+           "AND t.trangThai = :trangThai AND t.isDeleted = false ORDER BY t.createdAt DESC")
+    Page<TinTuc> findPublishedByDonViDang(@Param("donViDang") String donViDang,
+                                      @Param("trangThai") com.tathanhloc.youthkgu.Enum.TrangThaiTinTuc trangThai,
+                                      Pageable pageable);
 }
