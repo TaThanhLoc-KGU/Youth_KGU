@@ -8,7 +8,9 @@ import MainLayout from './components/layout/MainLayout';
 import StudentLayout from './components/layout/StudentLayout';
 import Loading from './components/common/Loading';
 import Login from './pages/auth/Login';
+import ChangePasswordPage from './pages/auth/ChangePasswordPage';
 import RegisterPage from './pages/RegisterPage';
+import MustChangePasswordGuard from './components/common/MustChangePasswordGuard';
 import ProfilePage from './pages/ProfilePage';
 import AccountManagementPage from './pages/admin/AccountManagementPage';
 import DashboardStatisticsPage from './pages/admin/DashboardStatisticsPage';
@@ -32,6 +34,7 @@ import StudentRegisterActivities from './pages/student/RegisterActivities';
 import StudentMyActivities from './pages/student/MyActivities';
 import StudentTrainingPoints from './pages/student/TrainingPoints';
 import StudentProfile from './pages/student/Profile';
+import StudentContests from './pages/student/Contests';
 import Activities from './pages/admin/Activities';
 import HoatDongEditorPage from './pages/HoatDong/HoatDongEditorPage';
 import ActivityAttendancePage from './pages/admin/ActivityAttendancePage';
@@ -75,21 +78,26 @@ import BieuMauManagePage    from './pages/admin/BieuMauManagePage';
 import CuocThiManagePage    from './pages/admin/CuocThiManagePage';
 import BinhChonListPage     from './pages/news/BinhChonListPage';
 import BinhChonDetailPage   from './pages/news/BinhChonDetailPage';
+import ThiSinhDetailPage    from './pages/news/ThiSinhDetailPage';
 // Ký số
 import ChuKyManagePage      from './pages/admin/ChuKyManagePage';
 import ConDauManagePage     from './pages/admin/ConDauManagePage';
 import KySoLichSuPage       from './pages/admin/KySoLichSuPage';
 // Email config
 import EmailConfigPage      from './pages/admin/EmailConfigPage';
+import ZaloDebugPage        from './pages/admin/ZaloDebugPage';
 // Ban hành public
 import BanHanhPublicPage    from './pages/public/BanHanhPublicPage';
+import DanhSachBanHanhListPage from './pages/news/DanhSachBanHanhListPage';
 // Ban hành admin
 import AdminBanHanhPage     from './pages/admin/AdminBanHanhPage';
+import VanPhongPage         from './pages/admin/VanPhongPage';
 import NamHocPage           from './pages/admin/NamHocPage';
 import CauLacBoPage        from './pages/admin/CauLacBoPage';
 import ClbPortalPage       from './pages/clb/ClbPortalPage';
 import ClbRegistrationPage from './pages/student/ClbRegistrationPage';
 import SelfAttendanceScanner from './components/student/SelfAttendanceScanner';
+import ChungNhanPage       from './pages/admin/ChungNhanPage';
 
 import useAuthStore from './stores/authStore';
 import useSessionTimeout from './hooks/useSessionTimeout';
@@ -192,6 +200,15 @@ function App() {
         {/* Public Routes */}
         <Route path={ROUTES.LOGIN} element={<Login />} />
         <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+        {/* Đổi mật khẩu bắt buộc — chỉ cần đăng nhập, không cần role, bỏ qua guard MK */}
+        <Route
+          path={ROUTES.CHANGE_PASSWORD}
+          element={
+            <ProtectedRoute skipPasswordCheck>
+              <ChangePasswordPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Profile — mọi user đã đăng nhập, KHÔNG kiểm tra role hay permission (VẤN ĐỀ 3)
             Đây là quyền cứng không thể bị thu hồi */}
@@ -343,7 +360,7 @@ function App() {
               <AttendanceReport />
             </PermissionGate>
           } />
-          <Route path="certificates" element={<ComingSoon title="Quản lý Chứng nhận" />} />
+          <Route path="certificates" element={<ChungNhanPage />} />
           <Route path="accounts" element={
             <PermissionGate permission={PERMISSIONS.XEM_TAI_KHOAN}>
               <AccountManagementPage />
@@ -413,7 +430,7 @@ function App() {
             </PermissionGate>
           } />
           <Route path="chu-ky" element={
-            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+            <PermissionGate permission={PERMISSIONS.KY_SO_PDF}>
               <ChuKyManagePage />
             </PermissionGate>
           } />
@@ -427,11 +444,13 @@ function App() {
               <KySoLichSuPage />
             </PermissionGate>
           } />
+          <Route path="zalo-debug" element={<ZaloDebugPage />} />
           <Route path="cau-hinh-email" element={
             <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
               <EmailConfigPage />
             </PermissionGate>
           } />
+          <Route path="van-phong" element={<VanPhongPage />} />
         </Route>
 
         {/* Student Routes - chỉ DOAN_VIEN */}
@@ -454,8 +473,8 @@ function App() {
           <Route path="registrations" element={<ComingSoon title="Đăng ký của tôi" />} />
           <Route path="certificates" element={<ComingSoon title="Chứng nhận" />} />
           <Route path="self-scan" element={<SelfAttendanceScanner />} />
-          {/* VẤN ĐỀ 4: /student/profile redirect về dashboard thay vì /profile */}
-          <Route path="profile" element={<Navigate to={ROUTES.STUDENT_DASHBOARD} replace />} />
+          <Route path="contests" element={<StudentContests />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
 
         {/* BCH Routes — chỉ management roles có thể vào (PHO_CHI_DOAN trở lên) */}
@@ -515,8 +534,7 @@ function App() {
               <PermissionMatrixPage />
             </PermissionGate>
           } />
-          {/* Redirect profile về dashboard cho BCH */}
-          <Route path="profile" element={<Navigate to={ROUTES.BCH_DASHBOARD} replace />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
 
         {/* Unauthorized / Forbidden */}
@@ -533,8 +551,10 @@ function App() {
           <Route path="van-ban" element={<VanBanListPage />} />
           <Route path="bieu-mau" element={<BieuMauListPage />} />
           <Route path="hoat-dong" element={<HoatDongPublicPage />} />
+          <Route path="danh-sach-ban-hanh" element={<DanhSachBanHanhListPage />} />
           <Route path="binh-chon" element={<BinhChonListPage />} />
           <Route path="binh-chon/:slug" element={<BinhChonDetailPage />} />
+          <Route path="binh-chon/:slug/thi-sinh/:thiSinhId" element={<ThiSinhDetailPage />} />
           {/* Catch-all cho các URL động của tin tức (slug chuyên mục/bài viết) */}
           <Route path="*" element={<NewsResolver />} />
         </Route>

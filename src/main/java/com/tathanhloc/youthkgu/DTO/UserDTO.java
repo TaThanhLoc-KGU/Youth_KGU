@@ -34,4 +34,7 @@ public class UserDTO {
     // Thông tin bổ sung cho giảng viên
     private String maKhoa;
     private String tenKhoa;
+
+    // Cờ bảo mật
+    private Boolean mustChangePassword; // true = buộc đổi mật khẩu ngay
 }

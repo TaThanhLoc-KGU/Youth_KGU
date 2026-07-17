@@ -19,6 +19,9 @@ public class DanhSachBanHanh {
     @Column(name = "ten_hoat_dong")
     private String tenHoatDong;
 
+    @Column(name = "ma_khoa")
+    private String maKhoa;
+
     @Column(name = "loai_ky")
     private String loaiKy;
 
@@ -54,4 +57,15 @@ public class DanhSachBanHanh {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    /** HIEU_LUC = còn hiệu lực, DA_HUY = đã bị hủy (soft-delete) */
+    @Column(name = "trang_thai", nullable = false)
+    @Builder.Default
+    private String trangThai = "HIEU_LUC";
+
+    @Column(name = "ngay_huy")
+    private LocalDateTime ngayHuy;
+
+    @Column(name = "nguoi_huy")
+    private String nguoiHuy;
 }

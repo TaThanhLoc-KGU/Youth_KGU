@@ -16,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 
+import org.springframework.web.multipart.MultipartFile;
 import java.util.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -281,6 +282,41 @@ public class DiemDanhHoatDongController {
         log.info("POST /api/diem-danh/them-thu-cong: HĐ={} SV={} bởi {}", maHoatDong, maSv, nguoi);
         DiemDanhHoatDongDTO dto = diemDanhService.themThuCongTheoMSSV(maHoatDong, maSv, ghiChu, nguoi);
         return ResponseEntity.ok(ApiResponse.success("Đã thêm sinh viên vào danh sách", dto));
+    }
+
+    // ========== HOẠT ĐỘNG KHÔNG ĐĂNG KÝ ==========
+
+    @PostMapping("/khong-dang-ky/{maHoatDong}/them-thu-cong")
+    @Operation(summary = "Thêm sinh viên thủ công vào hoạt động không đăng ký")
+    @PreAuthorize("hasPermission(null, 'DIEM_DANH') or hasPermission(null, 'QUAN_LY_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> themThuCong(
+            @PathVariable String maHoatDong,
+            @RequestBody List<String> maSvList) throws IOException {
+        log.info("POST /api/diem-danh/khong-dang-ky/{}/them-thu-cong - {} SV", maHoatDong, maSvList.size());
+        Map<String, Object> result = diemDanhService.themThuCongKhongDangKy(maHoatDong, maSvList);
+        return ResponseEntity.ok(ApiResponse.success("Thêm thành công", result));
+    }
+
+    @PostMapping(value = "/khong-dang-ky/{maHoatDong}/import-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Import danh sách sinh viên từ Excel (hoạt động không đăng ký)")
+    @PreAuthorize("hasPermission(null, 'DIEM_DANH') or hasPermission(null, 'QUAN_LY_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> importExcel(
+            @PathVariable String maHoatDong,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        log.info("POST /api/diem-danh/khong-dang-ky/{}/import-excel - file: {}", maHoatDong, file.getOriginalFilename());
+        Map<String, Object> result = diemDanhService.importExcelKhongDangKy(maHoatDong, file);
+        return ResponseEntity.ok(ApiResponse.success("Import thành công", result));
+    }
+
+    @DeleteMapping("/khong-dang-ky/{maHoatDong}/xoa/{maSv}")
+    @Operation(summary = "Xóa sinh viên khỏi danh sách tham gia (hoạt động không đăng ký)")
+    @PreAuthorize("hasPermission(null, 'DIEM_DANH') or hasPermission(null, 'QUAN_LY_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<Void>> xoaKhoiDanhSach(
+            @PathVariable String maHoatDong,
+            @PathVariable String maSv) {
+        log.info("DELETE /api/diem-danh/khong-dang-ky/{}/xoa/{}", maHoatDong, maSv);
+        diemDanhService.xoaKhoiDanhSachKhongDangKy(maHoatDong, maSv);
+        return ResponseEntity.ok(ApiResponse.success("Đã xóa", null));
     }
 
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)

@@ -144,10 +144,10 @@ function ClbFormModal({ initial, onClose, onSave }) {
                      value={form.ngayThanhLap} onChange={e => set('ngayThanhLap', e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">MSSV Trưởng CLB</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Trưởng CLB (MSSV / Mã GV)</label>
               <input className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                      value={form.truongClbMaSv} onChange={e => set('truongClbMaSv', e.target.value)}
-                     placeholder="MSSV..." />
+                     placeholder="Nhập MSSV hoặc mã giảng viên..." />
             </div>
           </div>
 

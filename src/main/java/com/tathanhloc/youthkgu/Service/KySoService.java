@@ -45,6 +45,7 @@ import java.nio.file.*;
 import java.security.*;
 import java.security.cert.X509Certificate;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.List;
 
@@ -74,34 +75,55 @@ public class KySoService {
     // ─── PDF layout constants ─────────────────────────────────────────────
     static final float PAGE_W  = PDRectangle.A4.getWidth();   // 595.28 pt
     static final float PAGE_H  = PDRectangle.A4.getHeight();  // 841.89 pt
-    // Lề chuẩn hành chính VN: trái 3cm, còn lại 2cm (1cm = 28.35pt)
-    static final float MARGIN_L = 85f;   // 3cm
-    static final float MARGIN_R = 57f;   // 2cm
-    static final float MARGIN_T = 57f;   // 2cm
-    static final float MARGIN_B = 57f;   // 2cm
-    // Bảng: tổng độ rộng = 595.28 - 85 - 57 = 453pt
-    static final float[] COL_WIDTHS   = {25f, 145f, 68f, 80f, 135f};
-    static final String[] COL_HEADERS = {"STT", "Họ Và Tên", "Lớp", "Mssv", "Khoa"};
-    static final float ROW_H          = 17f;
-    static final float HEADER_ROW_H   = 20f;
-    // Chiều cao khối chữ ký (text label + khoảng trống ký + tên): dùng để tính pagination
-    static final float SIG_BLOCK_H    = 125f;
+    static final float MARGIN_L = 85f;
+    static final float MARGIN_R = 57f;
+    static final float MARGIN_T = 57f;
+    static final float MARGIN_B = 57f;
+    static final float ROW_H         = 22f;
+    static final float HEADER_ROW_H  = 22f;
+    static final float SIG_BLOCK_H   = 130f;
+
+    /** Cấu hình một cột trong bảng. */
+    public record ColConfig(String key, String header, float widthPt, boolean visible) {}
+
+    /** Zone chỉnh sửa được trực tiếp trên preview (toạ độ PDF từ dưới lên). */
+    public record EditZone(
+            String type,        // "title" | "date" | "row"
+            int    pageIndex,
+            float  x, float y,  // bottom-left (PDF coords, Y from bottom)
+            float  w, float h,
+            int    rowIndex     // -1 for non-row zones
+    ) {}
+
+    /** Cấu hình cột mặc định: STT, Họ và Tên, Lớp, MSSV, Tên Khoa. */
+    public static final List<ColConfig> DEFAULT_COL_CONFIG = List.of(
+            new ColConfig("stt",     "STT",       26f,  true),
+            new ColConfig("hoTen",   "Họ và Tên", 148f, true),
+            new ColConfig("maLop",   "Lớp",        62f, true),
+            new ColConfig("maSv",    "MSSV",       75f, true),
+            new ColConfig("tenKhoa", "Tên Khoa",  142f, true)
+    );
 
     // ═══════════════════════════════════════════════════════════════════════
     // PUBLIC CRUD — Chữ ký
     // ═══════════════════════════════════════════════════════════════════════
 
-    public List<ChuKyDTO> getAllChuKy() {
-        return chuKyRepository.findAll().stream().map(this::toChuKyDTO).toList();
+    /** Lấy chữ ký của một user (chỉ chữ ký cá nhân của họ). */
+    public List<ChuKyDTO> getAllChuKy(String ownerUsername) {
+        return chuKyRepository.findByOwnerUsernameOrderByCreatedAtDesc(ownerUsername)
+                .stream().map(this::toChuKyDTO).toList();
     }
 
-    public ChuKyDTO uploadChuKy(MultipartFile file, String tenNguoiKy, String chucVu, boolean laMacDinh) {
+    /** Upload chữ ký mới — gán owner là user hiện tại. */
+    public ChuKyDTO uploadChuKy(MultipartFile file, String tenNguoiKy, String chucVu,
+                                boolean laMacDinh, String ownerUsername) {
         validateImageFile(file);
-        if (laMacDinh) clearDefaultChuKy();
+        if (laMacDinh) clearDefaultChuKyForOwner(ownerUsername);
         String duongDan = saveImage(file, "chu-ky");
         return toChuKyDTO(chuKyRepository.save(
                 ChuKy.builder().tenNguoiKy(tenNguoiKy).chucVu(chucVu)
-                        .duongDan(duongDan).laMacDinh(laMacDinh).build()));
+                        .duongDan(duongDan).laMacDinh(laMacDinh)
+                        .ownerUsername(ownerUsername).build()));
     }
 
     public void deleteChuKy(Long id) {
@@ -138,28 +160,59 @@ public class KySoService {
     // PREVIEW — Sinh trang ảnh xem trước (không có chữ ký)
     // ═══════════════════════════════════════════════════════════════════════
 
-    /** Kết quả preview: danh sách trang dưới dạng base64 PNG + kích thước trang. */
+    /** Kết quả preview: danh sách trang dưới dạng base64 PNG + kích thước trang + edit zones. */
     public record PreviewResult(
             List<String> pages,
             float pageWidthPt, float pageHeightPt,
             int totalStudents,
-            float sigBlockTopY,   // Y (pt từ trên) nơi khối chữ ký bắt đầu (trang cuối)
-            float leftColCX,      // tâm X cột trái (pt)
-            float rightColCX      // tâm X cột phải (pt)
+            float sigBlockTopY,
+            float leftColCX,
+            float rightColCX,
+            List<EditZone> editZones,    // zones cho click-to-edit trên preview
+            List<ColConfig> colConfig    // config cột đã dùng để generate
     ) {}
 
     @Transactional(readOnly = true)
     public PreviewResult generatePreview(String maHoatDong) throws IOException {
-        return generatePreview(maHoatDong, null, null, null);
+        return generatePreview(maHoatDong, null, null, null, null);
     }
 
     public PreviewResult generatePreview(String maHoatDong,
                                          List<OverrideRow> overrideRows,
                                          String overrideTieuDe,
                                          String overrideNgayStr) throws IOException {
+        return generatePreview(maHoatDong, overrideRows, overrideTieuDe, overrideNgayStr, null);
+    }
+
+    public PreviewResult generatePreview(String maHoatDong,
+                                         List<OverrideRow> overrideRows,
+                                         String overrideTieuDe,
+                                         String overrideNgayStr,
+                                         List<ColConfig> colConfig) throws IOException {
+        return generatePreview(maHoatDong, overrideRows, overrideTieuDe, overrideNgayStr, colConfig, null, null);
+    }
+
+    public PreviewResult generatePreview(String maHoatDong,
+                                         List<OverrideRow> overrideRows,
+                                         String overrideTieuDe,
+                                         String overrideNgayStr,
+                                         List<ColConfig> colConfig,
+                                         String loaiKy,
+                                         String orgLabel) throws IOException {
+        return generatePreview(maHoatDong, overrideRows, overrideTieuDe, overrideNgayStr,
+                colConfig, loaiKy, orgLabel, null);
+    }
+
+    public PreviewResult generatePreview(String maHoatDong,
+                                         List<OverrideRow> overrideRows,
+                                         String overrideTieuDe,
+                                         String overrideNgayStr,
+                                         List<ColConfig> colConfig,
+                                         String loaiKy,
+                                         String orgLabel,
+                                         FormatConfig formatConfig) throws IOException {
         HoatDong hd = loadHoatDong(maHoatDong);
 
-        // Nếu có overrideRows thì dùng, nếu không dùng từ DB
         List<DiemDanhHoatDongDTO> ds;
         if (overrideRows != null && !overrideRows.isEmpty()) {
             ds = overrideRows.stream().map(r -> DiemDanhHoatDongDTO.builder()
@@ -169,12 +222,12 @@ public class KySoService {
             ds = loadDanhSach(maHoatDong);
         }
 
-        // Tiêu đề và ngày override nếu có
         String tieuDe  = (overrideTieuDe  != null && !overrideTieuDe.isBlank())  ? overrideTieuDe  : null;
         String ngayStr = (overrideNgayStr != null && !overrideNgayStr.isBlank()) ? overrideNgayStr : null;
+        String resolvedLoaiKy = (loaiKy != null && !loaiKy.isBlank()) ? loaiKy : "BÍ THƯ";
 
-        // Dùng placeholder text cho chữ ký (preview chưa ký thật)
-        DraftResult draft = buildDraftPDF(hd, ds, "BÍ THƯ", "", "", "", null, tieuDe, ngayStr);
+        List<ColConfig> resolvedCols = colConfig != null ? colConfig : DEFAULT_COL_CONFIG;
+        DraftResult draft = buildDraftPDF(hd, ds, resolvedLoaiKy, "", "", "", null, tieuDe, ngayStr, resolvedCols, orgLabel, formatConfig);
 
         List<String> pages = new ArrayList<>();
         try (PDDocument doc = Loader.loadPDF(draft.pdf())) {
@@ -188,7 +241,8 @@ public class KySoService {
             }
         }
         return new PreviewResult(pages, PAGE_W, PAGE_H, ds.size(),
-                draft.sigBlockTopY(), draft.leftCX(), draft.rightCX());
+                draft.sigBlockTopY(), draft.leftCX(), draft.rightCX(),
+                draft.editZones(), resolvedCols);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -209,32 +263,49 @@ public class KySoService {
     public record OverrideRow(String hoTen, String maLop, String maSv, String tenKhoa) {}
 
     /** Toàn bộ tham số yêu cầu xuất PDF. */
+    /**
+     * Cấu hình thể thức tài liệu (font, lề) — tất cả nullable = dùng mặc định.
+     * marginTopCm / marginBottomCm / marginLeftCm / marginRightCm: lề tính bằng cm.
+     * bodyFontSizePt: cỡ chữ nội dung (mặc định 10).
+     * rowHeightPt: chiều cao dòng bảng (mặc định 22).
+     * fontName: "times" | "arial" | "calibri" — nếu null dùng Times New Roman.
+     */
+    public record FormatConfig(
+            Float marginTopCm,    Float marginBottomCm,
+            Float marginLeftCm,   Float marginRightCm,
+            Float bodyFontSizePt,
+            Float rowHeightPt,
+            String fontName
+    ) {
+        static final float CM_TO_PT = 28.346f;
+        float leftPt()   { return marginLeftCm   != null ? marginLeftCm   * CM_TO_PT : MARGIN_L; }
+        float rightPt()  { return marginRightCm  != null ? marginRightCm  * CM_TO_PT : MARGIN_R; }
+        float topPt()    { return marginTopCm    != null ? marginTopCm    * CM_TO_PT : MARGIN_T; }
+        float bottomPt() { return marginBottomCm != null ? marginBottomCm * CM_TO_PT : MARGIN_B; }
+        float bodyFs()   { return bodyFontSizePt != null ? bodyFontSizePt : 10f; }
+        float rowH()     { return rowHeightPt    != null ? rowHeightPt    : ROW_H;   }
+    }
+
     public record XuatPDFRequest(
-            String maHoatDong,
-            String loaiKy,
-            Long   chuKyBiThuId,
-            String tenNguoiKy,
-            Long   chuKyNguoiLapId,
-            String tenNguoiLap,
-            String chucVuNguoiLap,
+            String maHoatDong, String loaiKy,
+            Long   chuKyBiThuId, String tenNguoiKy,
+            Long   chuKyNguoiLapId, String tenNguoiLap, String chucVuNguoiLap,
             Long   conDauId,
-            // Vị trí kéo thả (null = dùng vị trí mặc định)
-            ElementPos posBiThu,
-            ElementPos posNguoiLap,
-            ElementPos posConDau,
-            // Danh sách SV tuỳ chỉnh (null = lấy toàn bộ checked-in)
+            ElementPos posBiThu, ElementPos posNguoiLap, ElementPos posConDau,
             List<String> customMaSvList,
-            // Override nội dung text trực tiếp (admin sửa trên giao diện)
-            List<OverrideRow> overrideRows,   // null = dùng DB
-            String overrideTieuDe,            // null = dùng tên hoạt động
-            String overrideNgayStr,           // null = dùng ngày tổ chức
-            // Audit
+            List<OverrideRow> overrideRows,
+            String overrideTieuDe,
+            String overrideNgayStr,
             String nguoiThucHien,
-            String ipAddress
+            String ipAddress,
+            List<ColConfig> colConfig,   // null = DEFAULT_COL_CONFIG
+            String orgLabel,             // null = "TM. BAN THƯỜNG VỤ ĐOÀN TRƯỜNG"
+            FormatConfig formatConfig    // null = dùng mặc định
     ) {}
 
-    /** Kết quả buildDraftPDF: PDF bytes + Y-coordinate cuối bảng trên trang cuối */
-    private record DraftResult(byte[] pdf, float sigBlockTopY, float leftCX, float rightCX) {}
+    /** Kết quả buildDraftPDF: PDF bytes + metadata vị trí + edit zones. */
+    private record DraftResult(byte[] pdf, float sigBlockTopY, float leftCX, float rightCX,
+                                List<EditZone> editZones) {}
 
     @Transactional
     public byte[] xuatDanhSachPDF(XuatPDFRequest req) throws IOException {
@@ -249,7 +320,8 @@ public class KySoService {
         // Bước 1: Sinh PDF nháp — dùng override nếu admin đã chỉnh sửa nội dung
         DraftResult draft = buildDraftPDF(hd, ds,
                 req.loaiKy(), req.tenNguoiKy(), req.tenNguoiLap(), req.chucVuNguoiLap(),
-                req.overrideRows(), req.overrideTieuDe(), req.overrideNgayStr());
+                req.overrideRows(), req.overrideTieuDe(), req.overrideNgayStr(), req.colConfig(), req.orgLabel(),
+                req.formatConfig());
 
         // Bước 2: Áp ảnh chữ ký / con dấu vào trang cuối
         byte[] withImages = applySignatureImages(draft, req, imgBiThu, imgNguoiLap, imgConDau);
@@ -302,7 +374,8 @@ public class KySoService {
         // Bước 1: Sinh PDF — dùng override nếu admin đã chỉnh sửa nội dung
         DraftResult draft = buildDraftPDF(hd, ds,
                 req.loaiKy(), req.tenNguoiKy(), req.tenNguoiLap(), req.chucVuNguoiLap(),
-                req.overrideRows(), req.overrideTieuDe(), req.overrideNgayStr());
+                req.overrideRows(), req.overrideTieuDe(), req.overrideNgayStr(), req.colConfig(), req.orgLabel(),
+                req.formatConfig());
 
         // Bước 2: Áp ảnh chữ ký
         byte[] withImages = applySignatureImages(draft, req, imgBiThu, imgNguoiLap, imgConDau);
@@ -328,6 +401,7 @@ public class KySoService {
         DanhSachBanHanh entity = DanhSachBanHanh.builder()
                 .maHoatDong(req.maHoatDong())
                 .tenHoatDong(hd.getTenHoatDong())
+                .maKhoa(hd.getKhoa() != null ? hd.getKhoa().getMaKhoa() : null)
                 .loaiKy(req.loaiKy())
                 .tenNguoiKy(req.tenNguoiKy())
                 .tenNguoiLap(req.tenNguoiLap())
@@ -385,7 +459,7 @@ public class KySoService {
      * Lấy bản ban hành mới nhất của một hoạt động.
      */
     public java.util.Optional<DanhSachBanHanh> getLatestBanHanh(String maHoatDong) {
-        return banHanhRepository.findTopByMaHoatDongOrderByCreatedAtDesc(maHoatDong);
+        return banHanhRepository.findTopByMaHoatDongAndTrangThaiOrderByCreatedAtDesc(maHoatDong, "HIEU_LUC");
     }
 
     /**
@@ -393,35 +467,488 @@ public class KySoService {
      */
     @Transactional
     public void huyBanHanh(Long id) {
+        huyBanHanh(id, null);
+    }
+
+    @Transactional
+    public void huyBanHanh(Long id, String nguoiThucHien) {
         DanhSachBanHanh entity = banHanhRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bản ban hành id=" + id));
 
-        // Xóa file vật lý
+        // Soft-delete: đánh dấu DA_HUY, giữ nguyên file vật lý
+        entity.setTrangThai("DA_HUY");
+        entity.setNgayHuy(java.time.LocalDateTime.now());
+        entity.setNguoiHuy(nguoiThucHien);
+        banHanhRepository.save(entity);
+        log.info("Đã hủy ban hành (soft-delete) id={}, file={}", id, entity.getTenFile());
+    }
+
+    /** Xóa hẳn bản ban hành đã hủy (xóa cả file vật lý). Chỉ dùng khi ban quản trị cần dọn dẹp. */
+    @Transactional
+    public void xoaHanBanHanh(Long id) {
+        DanhSachBanHanh entity = banHanhRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản ban hành id=" + id));
+
         if (entity.getDuongDanFile() != null) {
             try {
-                Path filePath = Paths.get(entity.getDuongDanFile());
-                Files.deleteIfExists(filePath);
-                log.info("Đã xóa file ban hành: {}", filePath);
+                Files.deleteIfExists(Paths.get(entity.getDuongDanFile()));
             } catch (IOException e) {
-                log.warn("Không thể xóa file ban hành {}: {}", entity.getDuongDanFile(), e.getMessage());
+                log.warn("Không thể xóa file vật lý {}: {}", entity.getDuongDanFile(), e.getMessage());
             }
         }
-
         banHanhRepository.deleteById(id);
-        log.info("Đã hủy ban hành id={}, file={}", id, entity.getTenFile());
+        log.info("Đã xóa hoàn toàn ban hành id={}", id);
     }
 
     /**
      * Lấy tất cả bản ban hành có phân trang và tìm kiếm.
+     * @param includeRevoked nếu true thì bao gồm cả bản đã hủy (DA_HUY)
      */
-    public org.springframework.data.domain.Page<DanhSachBanHanh> getAllBanHanh(int page, int size, String search) {
+    public org.springframework.data.domain.Page<DanhSachBanHanh> getAllBanHanh(
+            int page, int size, String search, boolean includeRevoked) {
         org.springframework.data.domain.PageRequest pr = org.springframework.data.domain.PageRequest.of(
                 page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
         if (search != null && !search.isBlank()) {
-            return banHanhRepository.findByTenHoatDongContainingIgnoreCaseOrMaHoatDongContainingIgnoreCase(
-                    search, search, pr);
+            return includeRevoked
+                ? banHanhRepository.findByTenHoatDongContainingIgnoreCaseOrMaHoatDongContainingIgnoreCase(search, search, pr)
+                : banHanhRepository.findByTrangThaiAndTenHoatDongContainingIgnoreCaseOrTrangThaiAndMaHoatDongContainingIgnoreCase(
+                        "HIEU_LUC", search, "HIEU_LUC", search, pr);
         }
-        return banHanhRepository.findAll(pr);
+        return includeRevoked
+            ? banHanhRepository.findAll(pr)
+            : banHanhRepository.findByTrangThai("HIEU_LUC", pr);
+    }
+
+    public org.springframework.data.domain.Page<DanhSachBanHanh> getAllBanHanh(int page, int size, String search) {
+        return getAllBanHanh(page, size, search, false);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // BAN HÀNH DANH SÁCH THÀNH VIÊN CLB
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** Cột mặc định cho danh sách thành viên CLB. */
+    public static final List<ColConfig> DEFAULT_CLB_COL_CONFIG = List.of(
+            new ColConfig("stt",    "STT",       26f,  true),
+            new ColConfig("hoTen",  "Họ và Tên", 148f, true),
+            new ColConfig("maLop",  "Lớp",        58f, true),
+            new ColConfig("maSv",   "MSSV",       75f, true),
+            new ColConfig("chucVu", "Chức vụ",    88f, true)
+    );
+
+    /** Một dòng thành viên CLB (sinh viên). */
+    public record ClbMemberRow(String hoTen, String maLop, String maSv, String chucVu, String tenKhoa) {}
+
+    /** Một dòng thành viên Ban chủ nhiệm (SV/GV/CV). */
+    public record ClbBcnRow(String hoTen, String donVi, String chucVu, String loaiNguoi) {}
+
+    /** Toàn bộ tham số yêu cầu ban hành danh sách thành viên CLB. */
+    public record ClbBanHanhRequest(
+            String maClb, String tenClb,
+            String coQuanChuQuan,   // VD: "Hội sinh viên Trường ĐH Kiên Giang / CLB X"
+            String tenChuNhiem,     // Tên chủ nhiệm (người ký)
+            Long   chuKyChuNhiemId, // ID ảnh chữ ký chủ nhiệm
+            Long   conDauId,
+            ElementPos posChuNhiem,
+            ElementPos posConDau,
+            List<ClbBcnRow>    bcnMembers,  // Thành viên Ban chủ nhiệm
+            List<ClbMemberRow> members,     // Thành viên (sinh viên)
+            String overrideTieuDe,
+            String overrideNgayStr,
+            List<ColConfig> colConfig,
+            FormatConfig formatConfig,
+            String nguoiThucHien,
+            String ipAddress
+    ) {}
+
+    /** Xem trước PDF danh sách thành viên CLB (không ký, trả về ảnh PNG base64). */
+    public PreviewResult generatePreviewClb(ClbBanHanhRequest req) throws IOException {
+        DraftResult draft = buildDraftPDFForClb(req);
+        List<String> pages = new ArrayList<>();
+        try (PDDocument doc = Loader.loadPDF(draft.pdf())) {
+            PDFRenderer renderer = new PDFRenderer(doc);
+            for (int i = 0; i < doc.getNumberOfPages(); i++) {
+                BufferedImage img = renderer.renderImageWithDPI(i, 96, ImageType.RGB);
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(img, "png", baos);
+                pages.add("data:image/png;base64," +
+                        Base64.getEncoder().encodeToString(baos.toByteArray()));
+            }
+        }
+        int bcnCount = req.bcnMembers() != null ? req.bcnMembers().size() : 0;
+        int memCount = req.members()    != null ? req.members().size()    : 0;
+        return new PreviewResult(pages, PAGE_W, PAGE_H, bcnCount + memCount,
+                draft.sigBlockTopY(), draft.leftCX(), draft.rightCX(),
+                draft.editZones(),
+                req.colConfig() != null ? req.colConfig() : DEFAULT_CLB_COL_CONFIG);
+    }
+
+    /** Ban hành chính thức danh sách thành viên CLB: tạo PDF ký số + lưu file + ghi DB. */
+    @Transactional
+    public DanhSachBanHanh banHanhDanhSachClb(ClbBanHanhRequest req) throws IOException {
+        DraftResult draft = buildDraftPDFForClb(req);
+
+        byte[] imgChuNhiem = loadOptionalImage(req.chuKyChuNhiemId(), chuKyRepository);
+        byte[] imgConDau   = req.conDauId() != null ? loadImageFromConDau(req.conDauId()) : null;
+
+        byte[] withImages = applyClbSignatureImages(draft, req, imgChuNhiem, imgConDau);
+        byte[] pdfBytes;
+        try {
+            pdfBytes = signWithCertificate(withImages, req.tenChuNhiem());
+        } catch (Exception e) {
+            log.warn("Không thể ký số CLB, dùng PDF thường: {}", e.getMessage());
+            pdfBytes = withImages;
+        }
+
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String tenFile = "clb_thanh_vien_" + req.maClb() + "_" + timestamp + ".pdf";
+        Path banHanhDir = Paths.get(uploadBasePath, "ban-hanh");
+        Files.createDirectories(banHanhDir);
+        Path filePath = banHanhDir.resolve(tenFile);
+        Files.write(filePath, pdfBytes);
+
+        int bcnCount = req.bcnMembers() != null ? req.bcnMembers().size() : 0;
+        int memCount = req.members()    != null ? req.members().size()    : 0;
+        DanhSachBanHanh entity = DanhSachBanHanh.builder()
+                .maHoatDong("CLB_" + req.maClb())
+                .tenHoatDong(req.tenClb())
+                .loaiKy("CHỦ NHIỆM")
+                .tenNguoiKy(req.tenChuNhiem())
+                .tenNguoiLap(req.nguoiThucHien())
+                .chucVuNguoiLap("Chủ nhiệm CLB")
+                .coConDau(req.conDauId() != null)
+                .tongSv(bcnCount + memCount)
+                .tenFile(tenFile)
+                .duongDanFile(filePath.toString())
+                .nguoiBanHanh(req.nguoiThucHien())
+                .ipAddress(req.ipAddress())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        entity = banHanhRepository.save(entity);
+        log.info("Ban hành danh sách thành viên CLB {} — file: {}", req.maClb(), tenFile);
+        return entity;
+    }
+
+    /** Sinh PDF nháp danh sách thành viên CLB (2 phần: BCN + Thành viên). */
+    private DraftResult buildDraftPDFForClb(ClbBanHanhRequest req) throws IOException {
+        FormatConfig f = (req.formatConfig() != null) ? req.formatConfig()
+                : new FormatConfig(null, null, null, null, null, null, null);
+        float mL = f.leftPt(), mR = f.rightPt(), mT = f.topPt(), mB = f.bottomPt();
+        float rH = f.rowH();
+
+        // Cột BCN (cố định): STT | Họ và Tên | Đơn vị | Chức vụ
+        float[] bcnWidths  = {26f, 148f, 120f, 88f};
+        String[] bcnHdrs   = {"STT", "Họ và Tên", "Đơn vị", "Chức vụ"};
+
+        // Cột Thành viên (cấu hình được)
+        List<ColConfig> activeCols = (req.colConfig() != null ? req.colConfig() : DEFAULT_CLB_COL_CONFIG)
+                .stream().filter(ColConfig::visible).toList();
+        float[] colWidths = new float[activeCols.size()];
+        for (int i = 0; i < activeCols.size(); i++) colWidths[i] = activeCols.get(i).widthPt();
+        String[] colHeaders = activeCols.stream().map(ColConfig::header).toArray(String[]::new);
+        float tableW = 0; for (float w : colWidths) tableW += w;
+
+        List<ClbBcnRow>    bcnMembers = req.bcnMembers() != null ? req.bcnMembers() : List.of();
+        List<ClbMemberRow> members    = req.members()    != null ? req.members()    : List.of();
+        List<EditZone> editZones = new ArrayList<>();
+
+        String tieuDe = (req.overrideTieuDe() != null && !req.overrideTieuDe().isBlank())
+                ? req.overrideTieuDe()
+                : "DANH SÁCH THÀNH VIÊN\n" + (req.tenClb() != null ? req.tenClb().toUpperCase() : "");
+        LocalDate today = LocalDate.now();
+        String ngayStr = (req.overrideNgayStr() != null && !req.overrideNgayStr().isBlank())
+                ? req.overrideNgayStr()
+                : String.format("An Giang, ngày %02d tháng %02d năm %d",
+                        today.getDayOfMonth(), today.getMonthValue(), today.getYear());
+
+        float midX    = PAGE_W / 2f;
+        float rightCX = midX + (PAGE_W - mR - midX) / 2f;
+        float leftCX  = mL + (midX - mL) / 2f;
+        float minY    = mB + SIG_BLOCK_H + rH + 10f;
+        float sigBlockTopY = 0f;
+
+        PDDocument doc = new PDDocument();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PDFont fontReg  = loadFont(doc, false, f.fontName());
+        PDFont fontBold = loadFont(doc, true,  f.fontName());
+
+        // ── Trang đầu ─────────────────────────────────────────────────────────
+        PDPage page = new PDPage(PDRectangle.A4);
+        doc.addPage(page);
+        PDPageContentStream cs = new PDPageContentStream(doc, page);
+        float y = PAGE_H - mT;
+
+        float yBefore = y;
+        y = drawClbHeader(cs, fontReg, fontBold, y, ngayStr, req.coQuanChuQuan(), mL, mR);
+        editZones.add(new EditZone("date", 0, midX, yBefore - 60f, PAGE_W - midX - mR, 14f, -1));
+        y -= 8f;
+
+        float yBeforeTitle = y;
+        y = drawTitle(cs, fontBold, tieuDe, y);
+        editZones.add(new EditZone("title", 0, mL, y + 4f, PAGE_W - mL - mR, yBeforeTitle - y, -1));
+        y -= 8f;
+
+        int currentPage = 0;
+
+        // ── Phần I: Thành viên Ban chủ nhiệm ──────────────────────────────────
+        if (!bcnMembers.isEmpty()) {
+            cs.setFont(fontBold, 10f);
+            drawText(cs, "I. THÀNH VIÊN BAN CHỦ NHIỆM", mL, y - 12f);
+            y -= 18f;
+
+            // Kiểm tra còn chỗ cho header + 1 dòng không
+            if (y - HEADER_ROW_H - rH < minY) {
+                cs.close();
+                PDPage np = new PDPage(PDRectangle.A4); doc.addPage(np);
+                cs = new PDPageContentStream(doc, np); currentPage++; y = PAGE_H - mT;
+            }
+            y = drawTableHeader(cs, fontBold, y, bcnWidths, bcnHdrs, mL);
+            for (int i = 0; i < bcnMembers.size(); i++) {
+                if (y - rH < minY) {
+                    cs.close();
+                    PDPage np = new PDPage(PDRectangle.A4); doc.addPage(np);
+                    cs = new PDPageContentStream(doc, np); currentPage++; y = PAGE_H - mT;
+                    y = drawTableHeader(cs, fontBold, y, bcnWidths, bcnHdrs, mL);
+                }
+                ClbBcnRow row = bcnMembers.get(i);
+                boolean even = (i % 2 == 0);
+                float x = mL;
+                int stt = i + 1;
+                String[] vals = {String.valueOf(stt), row.hoTen() != null ? row.hoTen() : "",
+                        row.donVi() != null ? row.donVi() : "", row.chucVu() != null ? row.chucVu() : ""};
+                for (int c2 = 0; c2 < bcnWidths.length; c2++) {
+                    drawCell(cs, x, y - rH, bcnWidths[c2], rH, false, even);
+                    cs.setFont(fontReg, 9.5f);
+                    boolean center = c2 == 0;
+                    String cell = truncate(vals[c2], fontReg, 9.5f, bcnWidths[c2] - 5f);
+                    float tw = strWidth(fontReg, 9.5f, cell);
+                    float textX = center ? x + (bcnWidths[c2] - tw) / 2f : x + 4f;
+                    drawText(cs, cell, textX, y - 14f);
+                    x += bcnWidths[c2];
+                }
+                y -= rH;
+            }
+            y -= 10f;
+        }
+
+        // ── Phần II: Thành viên ────────────────────────────────────────────────
+        String sectionLabel = bcnMembers.isEmpty() ? "THÀNH VIÊN" : "II. THÀNH VIÊN";
+        if (y - 18f - HEADER_ROW_H - rH < minY) {
+            cs.close();
+            PDPage np = new PDPage(PDRectangle.A4); doc.addPage(np);
+            cs = new PDPageContentStream(doc, np); currentPage++; y = PAGE_H - mT;
+        }
+        cs.setFont(fontBold, 10f);
+        drawText(cs, sectionLabel, mL, y - 12f);
+        y -= 18f;
+
+        if (y - HEADER_ROW_H - rH < minY) {
+            cs.close();
+            PDPage np = new PDPage(PDRectangle.A4); doc.addPage(np);
+            cs = new PDPageContentStream(doc, np); currentPage++; y = PAGE_H - mT;
+        }
+        y = drawTableHeader(cs, fontBold, y, colWidths, colHeaders, mL);
+
+        for (int i = 0; i < members.size(); i++) {
+            if (y - rH < minY) {
+                cs.close();
+                PDPage np = new PDPage(PDRectangle.A4); doc.addPage(np);
+                cs = new PDPageContentStream(doc, np); currentPage++; y = PAGE_H - mT;
+                y = drawTableHeader(cs, fontBold, y, colWidths, colHeaders, mL);
+            }
+            ClbMemberRow row = members.get(i);
+            boolean even = (i % 2 == 0);
+            float x = mL;
+            int stt = i + 1;
+            editZones.add(new EditZone("row", currentPage, mL, y - rH, tableW, rH, i));
+            for (int c2 = 0; c2 < activeCols.size(); c2++) {
+                ColConfig col = activeCols.get(c2);
+                drawCell(cs, x, y - rH, colWidths[c2], rH, false, even);
+                cs.setFont(fontReg, 9.5f);
+                boolean center = "stt".equals(col.key()) || "maSv".equals(col.key());
+                String val = getClbCellValue(row, col.key(), stt);
+                String cell = truncate(val, fontReg, 9.5f, colWidths[c2] - 5f);
+                float tw = strWidth(fontReg, 9.5f, cell);
+                float textX = center ? x + (colWidths[c2] - tw) / 2f : x + 4f;
+                drawText(cs, cell, textX, y - 14f);
+                x += colWidths[c2];
+            }
+            y -= rH;
+        }
+
+        // ── Tổng cộng + Ký ────────────────────────────────────────────────────
+        y = drawTotalRow(cs, fontBold, fontReg, y, members.size(), colWidths, tableW, mL, rH);
+        y -= 14f;
+        sigBlockTopY = PAGE_H - y;
+        drawClbSignBlock(cs, fontBold, fontReg, y, req.tenChuNhiem(), req.tenClb(), rightCX);
+
+        cs.close();
+        doc.save(out);
+        doc.close();
+
+        return new DraftResult(out.toByteArray(), sigBlockTopY, leftCX, rightCX, editZones);
+    }
+
+    /** Header hành chính cho CLB: trái = cơ quan chủ quản, phải = CHXHCNVN + ngày. */
+    private float drawClbHeader(PDPageContentStream cs, PDFont fontReg, PDFont fontBold,
+                                 float y, String ngayStr, String coQuanChuQuan,
+                                 float mL, float mR) throws IOException {
+        float startY = y;
+        float midX   = PAGE_W / 2f;
+        float leftCX = mL + (midX - mL) / 2f;
+        float rightCX = midX + (PAGE_W - mR - midX) / 2f;
+
+        // ── CỘT TRÁI: cơ quan chủ quản ─────────────────────────────────
+        cs.setFont(fontBold, 10f);
+        String[] orgParts = coQuanChuQuan != null
+                ? coQuanChuQuan.split("/", 2)
+                : new String[]{"CLB", ""};
+        String org1 = orgParts[0].trim().toUpperCase();
+        String org2 = orgParts.length > 1 ? orgParts[1].trim().toUpperCase() : "";
+
+        float tw = strWidth(fontBold, 10f, org1);
+        drawText(cs, org1, leftCX - tw / 2f, y);
+        y -= 14f;
+        if (!org2.isBlank()) {
+            tw = strWidth(fontBold, 10f, org2);
+            drawText(cs, org2, leftCX - tw / 2f, y);
+            y -= 14f;
+        }
+        tw = strWidth(fontBold, 10f, "***");
+        drawText(cs, "***", leftCX - tw / 2f, y);
+
+        // Ngày ngang hàng với dấu ***
+        cs.setFont(fontReg, 10f);
+        float tw2 = strWidth(fontReg, 10f, ngayStr);
+        drawText(cs, ngayStr, rightCX - tw2 / 2f, y);
+        y -= 10f;
+
+        return y;
+    }
+
+    /** Khối chữ ký CLB: chỉ một cột bên phải (Chủ nhiệm). */
+    private void drawClbSignBlock(PDPageContentStream cs, PDFont fontBold, PDFont fontReg,
+                                   float y, String tenChuNhiem, String tenClb, float rightCX) throws IOException {
+        cs.setFont(fontBold, 10f);
+        String label = "CHỦ NHIỆM";
+        if (tenClb != null && !tenClb.isBlank()) {
+            label += " " + tenClb.toUpperCase();
+        }
+        // Nếu label quá dài (>150pt), tách dòng
+        float maxW = 180f;
+        if (strWidth(fontBold, 10f, label) > maxW) {
+            String[] parts = label.split(" ", 3);
+            // Vẽ "CHỦ NHIỆM" dòng đầu, tên CLB dòng hai
+            float tw = strWidth(fontBold, 10f, "CHỦ NHIỆM");
+            drawText(cs, "CHỦ NHIỆM", rightCX - tw / 2f, y);
+            y -= 14f;
+            String clbLine = tenClb.toUpperCase();
+            tw = strWidth(fontBold, 10f, clbLine);
+            drawText(cs, clbLine, rightCX - tw / 2f, y);
+            y -= 60f; // space for signature image
+        } else {
+            float tw = strWidth(fontBold, 10f, label);
+            drawText(cs, label, rightCX - tw / 2f, y);
+            y -= 60f; // space for signature image
+        }
+        cs.setFont(fontBold, 10f);
+        if (tenChuNhiem != null && !tenChuNhiem.isBlank()) {
+            float tw = strWidth(fontBold, 10f, tenChuNhiem);
+            drawText(cs, tenChuNhiem, rightCX - tw / 2f, y);
+        }
+    }
+
+    /** Vẽ các dòng thành viên CLB (có cột chức vụ). */
+    private float drawTableRowsClb(PDPageContentStream cs, PDFont font,
+                                    List<ClbMemberRow> rows, float y, int startIdx,
+                                    List<ColConfig> activeCols, float[] colWidths,
+                                    List<EditZone> editZones, int pageIdx,
+                                    float startX, float rowH) throws IOException {
+        int stt = startIdx + 1;
+        for (ClbMemberRow row : rows) {
+            float x = startX;
+            boolean even = (stt % 2 == 0);
+            editZones.add(new EditZone("row", pageIdx, startX, y - rowH,
+                    computeTableWidth(colWidths), rowH, stt - 1));
+            for (int i = 0; i < activeCols.size(); i++) {
+                ColConfig col = activeCols.get(i);
+                float w = colWidths[i];
+                drawCell(cs, x, y - rowH, w, rowH, false, even);
+                String val = getClbCellValue(row, col.key(), stt);
+                cs.setFont(font, 9.5f);
+                boolean center = "stt".equals(col.key()) || "maSv".equals(col.key());
+                String cell = truncate(val, font, 9.5f, w - 5f);
+                float tw  = strWidth(font, 9.5f, cell);
+                float textX = center ? x + (w - tw) / 2f : x + 4f;
+                drawText(cs, cell, textX, y - 14f);
+                x += w;
+            }
+            stt++;
+            y -= rowH;
+        }
+        return y;
+    }
+
+    private String getClbCellValue(ClbMemberRow row, String key, int stt) {
+        return switch (key) {
+            case "stt"    -> String.valueOf(stt);
+            case "hoTen"  -> row.hoTen()  != null ? row.hoTen()  : "";
+            case "maLop"  -> row.maLop()  != null ? row.maLop()  : "";
+            case "maSv"   -> row.maSv()   != null ? row.maSv()   : "";
+            case "chucVu" -> row.chucVu() != null ? formatChucVuClb(row.chucVu()) : "";
+            case "tenKhoa"-> row.tenKhoa()!= null ? normalizeKhoa(row.tenKhoa()) : "";
+            default -> "";
+        };
+    }
+
+    private String formatChucVuClb(String chucVu) {
+        return switch (chucVu) {
+            case "CHU_NHIEM"     -> "Chủ nhiệm";
+            case "PHO_CHU_NHIEM" -> "P. Chủ nhiệm";
+            case "BAN_QUAN_LY"   -> "Ban quản lý";
+            case "CO_VAN"        -> "Cố vấn";
+            case "THANH_VIEN"    -> "Thành viên";
+            default -> chucVu;
+        };
+    }
+
+    /** Áp ảnh chữ ký chủ nhiệm và con dấu vào trang cuối PDF CLB. */
+    private byte[] applyClbSignatureImages(DraftResult draft, ClbBanHanhRequest req,
+                                            byte[] imgChuNhiem, byte[] imgConDau) throws IOException {
+        try (PDDocument doc = Loader.loadPDF(draft.pdf());
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            int lastIdx = doc.getNumberOfPages() - 1;
+            PDPage lastPage = doc.getPage(lastIdx);
+            float sigW = 90f, sigH = 52f, stW = 95f, stH = 60f;
+
+            float sigTextTopPdfY = PAGE_H - draft.sigBlockTopY();
+            float defaultImgY    = sigTextTopPdfY - 14f - 4f - sigH;
+            float rightCX = draft.rightCX();
+            float leftCX  = draft.leftCX();
+
+            try (PDPageContentStream cs = new PDPageContentStream(doc, lastPage,
+                    PDPageContentStream.AppendMode.APPEND, true, true)) {
+
+                // Chữ ký chủ nhiệm (bên phải)
+                if (imgChuNhiem != null) {
+                    PDImageXObject sig = PDImageXObject.createFromByteArray(doc, imgChuNhiem, "chuky");
+                    float nX = resolveX(req.posChuNhiem(), rightCX - sigW / 2f);
+                    float nY = resolveY(req.posChuNhiem(), defaultImgY, sigH);
+                    cs.drawImage(sig, nX, nY, sigW, sigH);
+                }
+                // Con dấu (bên trái, chồng lên nhau)
+                if (imgConDau != null) {
+                    PDImageXObject stamp = PDImageXObject.createFromByteArray(doc, imgConDau, "condau");
+                    float dX = resolveX(req.posConDau(), leftCX - stW / 2f);
+                    float dY = resolveY(req.posConDau(), defaultImgY - 4f, stH);
+                    cs.drawImage(stamp, dX, dY, stW, stH);
+                }
+            }
+            doc.save(out);
+            return out.toByteArray();
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -454,7 +981,7 @@ public class KySoService {
                                        String loaiKy, String tenNguoiKy,
                                        String tenNguoiLap, String chucVuNguoiLap) throws IOException {
         return buildDraftPDF(hd, ds, loaiKy, tenNguoiKy, tenNguoiLap, chucVuNguoiLap,
-                null, null, null);
+                null, null, null, null, null);
     }
 
     private DraftResult buildDraftPDF(HoatDong hd, List<DiemDanhHoatDongDTO> ds,
@@ -462,13 +989,68 @@ public class KySoService {
                                        String tenNguoiLap, String chucVuNguoiLap,
                                        List<OverrideRow> overrideRows,
                                        String overrideTieuDe, String overrideNgayStr) throws IOException {
+        return buildDraftPDF(hd, ds, loaiKy, tenNguoiKy, tenNguoiLap, chucVuNguoiLap,
+                overrideRows, overrideTieuDe, overrideNgayStr, null, null);
+    }
+
+    private DraftResult buildDraftPDF(HoatDong hd, List<DiemDanhHoatDongDTO> ds,
+                                       String loaiKy, String tenNguoiKy,
+                                       String tenNguoiLap, String chucVuNguoiLap,
+                                       List<OverrideRow> overrideRows,
+                                       String overrideTieuDe, String overrideNgayStr,
+                                       List<ColConfig> colConfig) throws IOException {
+        return buildDraftPDF(hd, ds, loaiKy, tenNguoiKy, tenNguoiLap, chucVuNguoiLap,
+                overrideRows, overrideTieuDe, overrideNgayStr, colConfig, null, null);
+    }
+
+    private DraftResult buildDraftPDF(HoatDong hd, List<DiemDanhHoatDongDTO> ds,
+                                       String loaiKy, String tenNguoiKy,
+                                       String tenNguoiLap, String chucVuNguoiLap,
+                                       List<OverrideRow> overrideRows,
+                                       String overrideTieuDe, String overrideNgayStr,
+                                       List<ColConfig> colConfig,
+                                       String orgLabel) throws IOException {
+        return buildDraftPDF(hd, ds, loaiKy, tenNguoiKy, tenNguoiLap, chucVuNguoiLap,
+                overrideRows, overrideTieuDe, overrideNgayStr, colConfig, orgLabel, null);
+    }
+
+    private DraftResult buildDraftPDF(HoatDong hd, List<DiemDanhHoatDongDTO> ds,
+                                       String loaiKy, String tenNguoiKy,
+                                       String tenNguoiLap, String chucVuNguoiLap,
+                                       List<OverrideRow> overrideRows,
+                                       String overrideTieuDe, String overrideNgayStr,
+                                       List<ColConfig> colConfig,
+                                       String orgLabel,
+                                       FormatConfig fmt) throws IOException {
+        // ── Resolve FormatConfig (dùng giá trị mặc định nếu null) ────────────
+        FormatConfig f = (fmt != null) ? fmt : new FormatConfig(null,null,null,null,null,null,null);
+        float mL   = f.leftPt();
+        float mR   = f.rightPt();
+        float mT   = f.topPt();
+        float mB   = f.bottomPt();
+        float rH   = f.rowH();
+        float bFs  = f.bodyFs();
+
+        // ── Resolve column config ──────────────────────────────────────────────
+        List<ColConfig> activeCols = (colConfig != null ? colConfig : DEFAULT_COL_CONFIG)
+                .stream().filter(ColConfig::visible).toList();
+        float[] colWidths = new float[activeCols.size()];
+        String[] colHeaders = new String[activeCols.size()];
+        for (int i = 0; i < activeCols.size(); i++) {
+            colWidths[i] = activeCols.get(i).widthPt();
+            colHeaders[i] = activeCols.get(i).header();
+        }
+        float tableW = 0;
+        for (float w : colWidths) tableW += w;
+
+        List<EditZone> editZones = new ArrayList<>();
+
         try (PDDocument doc = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            PDFont fontReg  = loadFont(doc, false);
-            PDFont fontBold = loadFont(doc, true);
+            PDFont fontReg  = loadFont(doc, false, f.fontName());
+            PDFont fontBold = loadFont(doc, true,  f.fontName());
 
-            // Tiêu đề và ngày: ưu tiên override từ giao diện, fallback về DB
             String tieuDe  = (overrideTieuDe  != null && !overrideTieuDe.isBlank())
                     ? overrideTieuDe  : buildTieuDe(hd);
             LocalDate ngayKy = hd.getNgayToChuc() != null ? hd.getNgayToChuc() : LocalDate.now();
@@ -477,66 +1059,71 @@ public class KySoService {
                     : String.format("An Giang, ngày %02d tháng %02d năm %d",
                             ngayKy.getDayOfMonth(), ngayKy.getMonthValue(), ngayKy.getYear());
 
-            // Tâm X của 2 cột (dùng cho căn giữa text khối ký)
             float midX    = PAGE_W / 2f;
-            float leftCX  = MARGIN_L + (midX - MARGIN_L) / 2f;
-            float rightCX = midX + (PAGE_W - MARGIN_R - midX) / 2f;
+            float leftCX  = mL + (midX - mL) / 2f;
+            float rightCX = midX + (PAGE_W - mR - midX) / 2f;
 
-            // Tính phân trang — trừ chiều cao khối ký khỏi trang cuối
-            // (dự phòng: luôn trừ SIG_BLOCK_H để đảm bảo có chỗ ký trên mọi trang cuối)
-            float headerH   = 75f;   // header 2 cột
+            // Phân trang
+            float headerH   = 75f;
             float titleH    = tieuDe.contains("\n") ? 48f : 28f;
-            float availFirst = PAGE_H - MARGIN_T - headerH - titleH - HEADER_ROW_H - SIG_BLOCK_H - MARGIN_B;
-            float availOther = PAGE_H - MARGIN_T - HEADER_ROW_H - SIG_BLOCK_H - MARGIN_B;
+            float availFirst = PAGE_H - mT - headerH - titleH - HEADER_ROW_H
+                               - SIG_BLOCK_H - rH - mB;
+            float availOther = PAGE_H - mT - HEADER_ROW_H
+                               - SIG_BLOCK_H - rH - mB;
 
-            int rowsFirst = Math.max(1, (int)(availFirst / ROW_H));
-            int rowsOther = Math.max(1, (int)(availOther / ROW_H));
+            int rowsFirst = Math.max(1, (int)(availFirst / rH));
+            int rowsOther = Math.max(1, (int)(availOther / rH));
 
-            // Nếu admin đã chỉnh sửa nội dung trực tiếp → dùng override rows thay vì DB
             List<DiemDanhHoatDongDTO> rows = (overrideRows != null && !overrideRows.isEmpty())
                     ? overrideRows.stream().map(r -> DiemDanhHoatDongDTO.builder()
-                            .hoTenSinhVien(r.hoTen())
-                            .maLop(r.maLop())
-                            .maSv(r.maSv())
-                            .tenKhoa(r.tenKhoa())
-                            .build()).collect(java.util.stream.Collectors.toList())
+                            .hoTenSinhVien(r.hoTen()).maLop(r.maLop())
+                            .maSv(r.maSv()).tenKhoa(r.tenKhoa()).build()
+                    ).collect(java.util.stream.Collectors.toList())
                     : ds;
 
             List<List<DiemDanhHoatDongDTO>> pages = paginate(rows, rowsFirst, rowsOther);
             int total = pages.size();
-
-            float sigBlockTopY = 0f; // Y tính từ trên xuống (px ~= pt ở 96 DPI)
+            float sigBlockTopY = 0f;
 
             for (int p = 0; p < total; p++) {
                 PDPage page = new PDPage(PDRectangle.A4);
                 doc.addPage(page);
                 try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
-                    float y = PAGE_H - MARGIN_T;
+                    float y = PAGE_H - mT;
 
                     if (p == 0) {
-                        y = drawHeader(cs, fontReg, fontBold, y, ngayStr);
+                        float yBeforeHeader = y;
+                        String tenKhoa = (hd.getKhoa() != null) ? hd.getKhoa().getTenKhoa() : null;
+                        y = drawHeader(cs, fontReg, fontBold, y, ngayStr, tenKhoa, mL, mR);
+                        // Date zone: trong header tại startY - 30f, baseline ~10pt
+                        editZones.add(new EditZone("date", 0, midX, yBeforeHeader - 44f, PAGE_W - midX - mR, 14f, -1));
                         y -= 8f;
+
+                        float yBeforeTitle = y;
                         y = drawTitle(cs, fontBold, tieuDe, y);
+                        // Title zone: từ yBeforeTitle xuống y (y là bottom sau drawTitle)
+                        editZones.add(new EditZone("title", 0, mL, y + 4f, PAGE_W - mL - mR, yBeforeTitle - y, -1));
                         y -= 8f;
                     }
 
-                    y = drawTableHeader(cs, fontBold, y);
-                    y = drawTableRowsFull(cs, fontReg, pages.get(p), y, countOffset(pages, p));
+                    y = drawTableHeader(cs, fontBold, y, colWidths, colHeaders, mL);
+                    y = drawTableRowsFull(cs, fontReg, pages.get(p), y,
+                            countOffset(pages, p), activeCols, colWidths, editZones, p, mL, rH);
 
-                    // Vẽ khối chữ ký text ngay sau bảng (chỉ trên trang CUỐI)
                     if (p == total - 1) {
-                        y -= 15f; // khoảng cách sau bảng
-                        // sigBlockTopY tính từ trên xuống (PDF Y từ dưới → convert)
+                        y = drawTotalRow(cs, fontBold, fontReg, y, rows.size(), colWidths, tableW, mL, rH);
+                        y -= 14f;
                         sigBlockTopY = PAGE_H - y;
                         drawSignBlockText(cs, fontBold, fontReg, y, loaiKy,
                                 tenNguoiKy, tenNguoiLap, chucVuNguoiLap,
-                                leftCX, rightCX);
+                                leftCX, rightCX, orgLabel);
                     }
+                    // Không vẽ số trang
                 }
             }
 
             doc.save(out);
-            return new DraftResult(out.toByteArray(), sigBlockTopY, leftCX, rightCX);
+            return new DraftResult(out.toByteArray(), sigBlockTopY, leftCX, rightCX, editZones);
         }
     }
 
@@ -552,12 +1139,15 @@ public class KySoService {
                                     float y,
                                     String loaiKy, String tenNguoiKy,
                                     String tenNguoiLap, String chucVuNguoiLap,
-                                    float leftCX, float rightCX) throws IOException {
+                                    float leftCX, float rightCX,
+                                    String orgLabel) throws IOException {
         float tw;
         cs.setFont(fontBold, 10f);
 
         // Dòng 1: tiêu đề cột
-        String lbl1 = "TM. BAN THƯỜNG VỤ ĐOÀN TRƯỜNG";
+        String lbl1 = (orgLabel != null && !orgLabel.isBlank())
+                ? orgLabel.toUpperCase()
+                : "TM. BAN THƯỜNG VỤ ĐOÀN TRƯỜNG";
         String lbl2 = "NGƯỜI LẬP DANH SÁCH";
         tw = strWidth(fontBold, 10f, lbl1);
         drawText(cs, lbl1, leftCX - tw / 2f, y);
@@ -621,7 +1211,8 @@ public class KySoService {
             // Vị trí mặc định dựa vào sigBlockTopY của draft (Y từ trên → PDF Y từ dưới)
             // sigBlockTopY là Y tính từ TRÊN xuống (px ≈ pt), convert sang PDF coords (từ dưới)
             float sigTextTopPdfY = PAGE_H - draft.sigBlockTopY(); // y PDF của dòng tiêu đề khối ký
-            float defaultImgY    = sigTextTopPdfY - 14f - 14f - sigH; // sau 2 dòng text (tiêu đề + role)
+            // role line = sigTextTopPdfY - 14; ảnh nằm 4pt dưới role, drawImage y = bottom edge
+            float defaultImgY    = sigTextTopPdfY - 14f - 4f - sigH;
 
             float leftCX  = draft.leftCX();
             float rightCX = draft.rightCX();
@@ -810,17 +1401,24 @@ public class KySoService {
      * PHẢI (căn giữa): ĐOÀN TNCS HỒ CHÍ MINH (gạch chân) + ngày tháng năm
      */
     private float drawHeader(PDPageContentStream cs, PDFont fontReg, PDFont fontBold,
-                             float y, String ngayStr) throws IOException {
+                             float y, String ngayStr, String tenKhoa,
+                             float mL, float mR) throws IOException {
         float startY = y;
         float midX   = PAGE_W / 2f;
 
-        // ── CỘT TRÁI (MARGIN_L .. midX) ──────────────────────────────────
-        float leftColW  = midX - MARGIN_L;
-        float leftColCX = MARGIN_L + leftColW / 2f;
+        // ── CỘT TRÁI (mL .. midX) ────────────────────────────────────────
+        float leftColW  = midX - mL;
+        float leftColCX = mL + leftColW / 2f;
 
         cs.setFont(fontBold, 10f);
-        String org1 = "TỈNH ĐOÀN AN GIANG";
-        String org2 = "ĐOÀN TRƯỜNG ĐẠI HỌC KIÊN GIANG";
+        String org1, org2;
+        if (tenKhoa != null && !tenKhoa.isBlank()) {
+            org1 = "ĐOÀN TRƯỜNG ĐẠI HỌC KIÊN GIANG";
+            org2 = "ĐOÀN KHOA " + tenKhoa.toUpperCase();
+        } else {
+            org1 = "TỈNH ĐOÀN AN GIANG";
+            org2 = "ĐOÀN TRƯỜNG ĐẠI HỌC KIÊN GIANG";
+        }
         String sep  = "***";
 
         float tw;
@@ -831,8 +1429,8 @@ public class KySoService {
         tw = strWidth(fontBold, 10f, sep);
         drawText(cs, sep, leftColCX - tw / 2f, y);          y -= 10f;
 
-        // ── CỘT PHẢI (midX .. PAGE_W-MARGIN_R) ───────────────────────────
-        float rightColW  = PAGE_W - MARGIN_R - midX;
+        // ── CỘT PHẢI (midX .. PAGE_W-mR) ────────────────────────────────
+        float rightColW  = PAGE_W - mR - midX;
         float rightColCX = midX + rightColW / 2f;
 
         cs.setFont(fontBold, 11f);
@@ -883,51 +1481,166 @@ public class KySoService {
         return dashY - 8f;
     }
 
-    private float drawTableHeader(PDPageContentStream cs, PDFont fontBold, float y) throws IOException {
-        float x = MARGIN_L;
-        cs.setFont(fontBold, 9f);
-        for (int i = 0; i < COL_WIDTHS.length; i++) {
-            float w = COL_WIDTHS[i];
+    private float drawTableHeader(PDPageContentStream cs, PDFont fontBold, float y,
+                                   float[] colWidths, String[] colHeaders, float startX) throws IOException {
+        float x = startX;
+        cs.setFont(fontBold, 9.5f);
+        for (int i = 0; i < colWidths.length; i++) {
+            float w = colWidths[i];
             drawCell(cs, x, y - HEADER_ROW_H, w, HEADER_ROW_H, true);
-            float tw = strWidth(fontBold, 9f, COL_HEADERS[i]);
-            drawText(cs, COL_HEADERS[i], x + (w - tw) / 2f, y - 13f);
+            float tw = strWidth(fontBold, 9.5f, colHeaders[i]);
+            drawText(cs, colHeaders[i], x + (w - tw) / 2f, y - 15f);
             x += w;
         }
         return y - HEADER_ROW_H;
     }
 
     private float drawTableRowsFull(PDPageContentStream cs, PDFont font,
-                                     List<DiemDanhHoatDongDTO> rows, float y, int startIdx) throws IOException {
-        cs.setFont(font, 9f);
+                                     List<DiemDanhHoatDongDTO> rows, float y, int startIdx,
+                                     List<ColConfig> activeCols, float[] colWidths,
+                                     List<EditZone> editZones, int pageIdx,
+                                     float startX, float rowH) throws IOException {
         int stt = startIdx + 1;
+        int globalRowIdx = startIdx;
         for (DiemDanhHoatDongDTO row : rows) {
-            float x = MARGIN_L;
-            String[] cells = {
-                    String.valueOf(stt++),
-                    row.getHoTenSinhVien() != null ? row.getHoTenSinhVien() : "",
-                    row.getMaLop()         != null ? row.getMaLop()         : "",
-                    row.getMaSv()          != null ? row.getMaSv()          : "",
-                    row.getTenKhoa()       != null ? row.getTenKhoa()       : ""
-            };
-            for (int i = 0; i < COL_WIDTHS.length; i++) {
-                float w = COL_WIDTHS[i];
-                drawCell(cs, x, y - ROW_H, w, ROW_H, false);
-                String cell = truncate(cells[i], font, 9f, w - 4f);
-                float tw    = strWidth(font, 9f, cell);
-                float textX = (i == 0 || i == 3) ? x + (w - tw) / 2f : x + 3f;
-                drawText(cs, cell, textX, y - 11f);
+            float x = startX;
+            boolean even = (stt % 2 == 0);
+            // Row edit zone (Y từ dưới lên: bottom = y - rowH, height = rowH)
+            editZones.add(new EditZone("row", pageIdx, startX, y - rowH,
+                    computeTableWidth(colWidths), rowH, globalRowIdx));
+
+            for (int i = 0; i < activeCols.size(); i++) {
+                ColConfig col = activeCols.get(i);
+                float w = colWidths[i];
+                drawCell(cs, x, y - rowH, w, rowH, false, even);
+
+                String cellVal = getCellValue(row, col.key(), stt);
+                boolean isKhoa = "tenKhoa".equals(col.key());
+                boolean center = "stt".equals(col.key()) || "maSv".equals(col.key());
+
+                if (isKhoa) {
+                    cs.setFont(font, 8.5f);
+                    drawWrappedCellText(cs, font, cellVal, x, y, w - 5f);
+                    cs.setFont(font, 9.5f);
+                } else {
+                    cs.setFont(font, 9.5f);
+                    String cell = truncate(cellVal, font, 9.5f, w - 5f);
+                    float tw    = strWidth(font, 9.5f, cell);
+                    float textX = center ? x + (w - tw) / 2f : x + 4f;
+                    drawText(cs, cell, textX, y - 14f);
+                }
                 x += w;
             }
-            y -= ROW_H;
+            stt++;
+            globalRowIdx++;
+            y -= rowH;
         }
         return y;
     }
 
-    private void drawCell(PDPageContentStream cs, float x, float y, float w, float h, boolean header) throws IOException {
-        cs.setLineWidth(0.5f);
+    private float computeTableWidth(float[] colWidths) {
+        float total = 0;
+        for (float w : colWidths) total += w;
+        return total;
+    }
+
+    /** Giá trị ô theo key cột, tự động strip prefix "Khoa " cho tenKhoa. */
+    private String getCellValue(DiemDanhHoatDongDTO row, String key, int stt) {
+        return switch (key) {
+            case "stt"     -> String.valueOf(stt);
+            case "hoTen"   -> row.getHoTenSinhVien() != null ? row.getHoTenSinhVien() : "";
+            case "maLop"   -> row.getMaLop()         != null ? row.getMaLop()         : "";
+            case "maSv"    -> row.getMaSv()           != null ? row.getMaSv()          : "";
+            case "tenKhoa" -> normalizeKhoa(row.getTenKhoa());
+            default        -> "";
+        };
+    }
+
+    private String normalizeKhoa(String tenKhoa) {
+        if (tenKhoa == null || tenKhoa.isBlank()) return "";
+        String t = tenKhoa.trim();
+        if (t.length() > 5 && t.substring(0, 5).equalsIgnoreCase("Khoa ")) return t.substring(5);
+        return t;
+    }
+
+    /**
+     * Vẽ text trong ô có thể xuống dòng (2 dòng) khi quá dài.
+     * Y là vị trí TRÊN của ô (hệ toạ độ PDF từ dưới lên).
+     */
+    private void drawWrappedCellText(PDPageContentStream cs, PDFont font,
+                                      String text, float x, float y, float maxW) throws IOException {
+        if (text == null || text.isBlank()) return;
+        final float fontSize = 8.5f;
+
+        // Thử vừa 1 dòng
+        if (strWidth(font, fontSize, text) <= maxW) {
+            drawText(cs, text, x + 4f, y - 14f);
+            return;
+        }
+
+        // Tách từ, tìm điểm gãy dòng
+        String[] words = text.split("\\s+");
+        StringBuilder line1 = new StringBuilder();
+        int splitIdx = words.length;
+        for (int i = 0; i < words.length; i++) {
+            String candidate = (line1.length() > 0 ? line1 + " " : "") + words[i];
+            if (strWidth(font, fontSize, candidate) > maxW) {
+                splitIdx = i;
+                break;
+            }
+            if (line1.length() > 0) line1.append(" ");
+            line1.append(words[i]);
+        }
+
+        String l1 = line1.toString();
+        // Nối phần còn lại thành dòng 2, rồi cắt nếu vẫn quá dài
+        StringBuilder sb2 = new StringBuilder();
+        for (int i = splitIdx; i < words.length; i++) {
+            if (sb2.length() > 0) sb2.append(" ");
+            sb2.append(words[i]);
+        }
+        String l2 = truncate(sb2.toString(), font, fontSize, maxW);
+
+        // Dòng 1 cách trên 7pt, dòng 2 cách dưới 6pt (trong row 22pt)
+        drawText(cs, l1, x + 4f, y - 8f);
+        if (!l2.isBlank()) {
+            drawText(cs, l2, x + 4f, y - 18f);
+        }
+    }
+
+    /** Dòng "Tổng cộng" sau bảng (trang cuối). */
+    private float drawTotalRow(PDPageContentStream cs, PDFont fontBold, PDFont fontReg,
+                                float y, int total, float[] colWidths, float tableW,
+                                float startX, float rowH) throws IOException {
+        float x = startX;
+
+        cs.setNonStrokingColor(0.90f, 0.95f, 1.0f);
+        cs.addRect(x, y - rowH, tableW, rowH);
+        cs.fill();
+        cs.setNonStrokingColor(0f, 0f, 0f);
+
+        cs.setLineWidth(0.6f);
+        cs.addRect(x, y - rowH, tableW, rowH);
+        cs.stroke();
+
+        cs.setFont(fontBold, 9.5f);
+        String label = "Tổng cộng: " + total + " sinh viên";
+        float tw = strWidth(fontBold, 9.5f, label);
+        drawText(cs, label, x + (tableW - tw) / 2f, y - 14f);
+
+        return y - rowH;
+    }
+
+    private void drawCell(PDPageContentStream cs, float x, float y, float w, float h,
+                           boolean header, boolean even) throws IOException {
+        cs.setLineWidth(0.4f);
         if (header) {
-            // Header: nền xám nhạt
-            cs.setNonStrokingColor(0.88f, 0.88f, 0.88f);
+            cs.setNonStrokingColor(0.85f, 0.85f, 0.85f);
+            cs.addRect(x, y, w, h);
+            cs.fill();
+            cs.setNonStrokingColor(0f, 0f, 0f);
+        } else if (even) {
+            cs.setNonStrokingColor(0.97f, 0.97f, 0.97f);
             cs.addRect(x, y, w, h);
             cs.fill();
             cs.setNonStrokingColor(0f, 0f, 0f);
@@ -936,35 +1649,70 @@ public class KySoService {
         cs.stroke();
     }
 
+    // Overload tương thích ngược (header không cần even)
+    private void drawCell(PDPageContentStream cs, float x, float y, float w, float h, boolean header) throws IOException {
+        drawCell(cs, x, y, w, h, header, false);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
-    // FONT — Times New Roman ưu tiên, fallback hệ thống
+    // FONT — Times New Roman ưu tiên, fallback classpath, fallback hệ thống
     // ═══════════════════════════════════════════════════════════════════════
 
-    private PDFont loadFont(PDDocument doc, boolean bold) throws IOException {
-        String[][] paths = bold
-                ? new String[][]{
-                    {"C:/Windows/Fonts/timesbd.ttf"},          // Windows TNR Bold
-                    {"C:/Windows/Fonts/times.ttf"},             // Windows TNR Regular (fallback)
-                    {"/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman_Bold.ttf"},
-                    {"/usr/share/fonts/truetype/freefont/FreeSerifBold.ttf"},
-                    {"/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"}
-                }
-                : new String[][]{
-                    {"C:/Windows/Fonts/times.ttf"},
-                    {"/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf"},
-                    {"/usr/share/fonts/truetype/freefont/FreeSerif.ttf"},
-                    {"/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"}
-                };
+    private PDFont loadFont(PDDocument doc, boolean bold, String fontName) throws IOException {
+        // Chọn bộ font theo fontName ("arial", "calibri", hoặc mặc định Times New Roman)
+        String fn = (fontName != null) ? fontName.toLowerCase().trim() : "times";
 
-        for (String[] group : paths) {
-            for (String path : group) {
-                File f = new File(path);
-                if (f.exists()) {
+        String windir = System.getenv("WINDIR");
+        if (windir == null) windir = "C:/Windows";
+        String winFontDir = windir.replace('\\', '/') + "/Fonts/";
+
+        String[] fsPaths;
+        String classpathFont;
+        if ("arial".equals(fn)) {
+            classpathFont = bold ? "/fonts/arialbd.ttf" : "/fonts/arial.ttf";
+            fsPaths = bold
+                    ? new String[]{ winFontDir + "arialbd.ttf", winFontDir + "arial.ttf",
+                                    "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf" }
+                    : new String[]{ winFontDir + "arial.ttf",
+                                    "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf" };
+        } else if ("calibri".equals(fn)) {
+            classpathFont = bold ? "/fonts/calibrib.ttf" : "/fonts/calibri.ttf";
+            fsPaths = bold
+                    ? new String[]{ winFontDir + "calibrib.ttf" }
+                    : new String[]{ winFontDir + "calibri.ttf" };
+        } else {
+            // default: Times New Roman
+            classpathFont = bold ? "/fonts/timesbd.ttf" : "/fonts/times.ttf";
+            fsPaths = bold
+                    ? new String[]{ winFontDir + "timesbd.ttf", winFontDir + "times.ttf",
+                                    "/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman_Bold.ttf",
+                                    "/usr/share/fonts/truetype/freefont/FreeSerifBold.ttf" }
+                    : new String[]{ winFontDir + "times.ttf",
+                                    "/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf",
+                                    "/usr/share/fonts/truetype/freefont/FreeSerif.ttf" };
+        }
+
+        // 1. Thử classpath resource (bundled trong JAR)
+        try (java.io.InputStream is = getClass().getResourceAsStream(classpathFont)) {
+            if (is != null) {
+                return PDType0Font.load(doc, is, true);
+            }
+        } catch (IOException e) {
+            log.warn("Không tải được font classpath {}: {}", classpathFont, e.getMessage());
+        }
+
+        for (String path : fsPaths) {
+            File f = new File(path);
+            if (f.exists() && f.canRead()) {
+                try {
                     return PDType0Font.load(doc, f);
+                } catch (IOException e) {
+                    log.warn("Không tải được font {}: {}", path, e.getMessage());
                 }
             }
         }
-        log.warn("Không tìm thấy Times New Roman, dùng Times-Roman (built-in)");
+
+        log.warn("Không tìm thấy font Unicode, dùng Times-Roman (built-in, không hỗ trợ tiếng Việt)");
         return bold
                 ? new PDType1Font(FontName.TIMES_BOLD)
                 : new PDType1Font(FontName.TIMES_ROMAN);
@@ -1107,6 +1855,14 @@ public class KySoService {
         });
     }
 
+    private void clearDefaultChuKyForOwner(String ownerUsername) {
+        chuKyRepository.findByOwnerUsernameOrderByCreatedAtDesc(ownerUsername).forEach(ck -> {
+            if (Boolean.TRUE.equals(ck.getLaMacDinh())) {
+                ck.setLaMacDinh(false); chuKyRepository.save(ck);
+            }
+        });
+    }
+
     private void clearDefaultConDau() {
         conDauRepository.findAll().forEach(cd -> {
             if (Boolean.TRUE.equals(cd.getLaMacDinh())) {
@@ -1120,7 +1876,8 @@ public class KySoService {
     private ChuKyDTO toChuKyDTO(ChuKy ck) {
         return ChuKyDTO.builder().id(ck.getId()).tenNguoiKy(ck.getTenNguoiKy())
                 .chucVu(ck.getChucVu()).duongDan(ck.getDuongDan())
-                .laMacDinh(ck.getLaMacDinh()).createdAt(ck.getCreatedAt()).build();
+                .laMacDinh(ck.getLaMacDinh()).ownerUsername(ck.getOwnerUsername())
+                .createdAt(ck.getCreatedAt()).build();
     }
 
     private ConDauDTO toConDauDTO(ConDau cd) {

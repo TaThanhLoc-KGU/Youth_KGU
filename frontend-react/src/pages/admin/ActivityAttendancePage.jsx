@@ -33,11 +33,16 @@ import {
   FileCheck,
   Smartphone,
   X,
+  FileUp,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import api from '../../services/api';
 import activityService from '../../services/activityService';
 import diemDanhService from '../../services/diemDanhService';
+import useAuthStore from '../../stores/authStore';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 
 // ─── Geolocation helper ──────────────────────────────────────────────────────
 function getBrowserLocation() {
@@ -645,6 +650,8 @@ export default function ActivityAttendancePage() {
   const id = searchParams.get('ma'); // dùng query param để tránh lỗi slash trong maHoatDong
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { maKhoa } = useAuthStore();
+  const isKhoaScoped = !!maKhoa;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
@@ -856,6 +863,55 @@ export default function ActivityAttendancePage() {
     manualCheckInMutation.mutate({ maSvList: [...selectedSvs], ghiChu: manualNote || 'Điểm danh thủ công' });
   };
 
+  const handleKdkThemThuCong = async () => {
+    if (!kdkMaSv.trim()) return;
+    try {
+      const result = await diemDanhService.themThuCongKhongDangKy(id, [kdkMaSv.trim()]);
+      if (result.added > 0) {
+        toast.success(`Đã thêm sinh viên ${kdkMaSv.trim()}`);
+        setKdkMaSv('');
+        queryClient.invalidateQueries({ queryKey: ['attendance-status', id] });
+      } else if (result.skipped > 0) {
+        toast.info('Sinh viên này đã có trong danh sách');
+        setKdkMaSv('');
+      } else if (result.errors?.length > 0) {
+        toast.error(result.errors[0]);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message);
+    }
+  };
+
+  const handleKdkImportExcel = async () => {
+    if (!kdkFile) return;
+    try {
+      const result = await diemDanhService.importExcelKhongDangKy(id, kdkFile);
+      toast.success(`Import thành công: ${result.added || 0} thêm, ${result.skipped || 0} bỏ qua`);
+      if (result.errors?.length > 0) {
+        result.errors.forEach(e => toast.warn(e));
+      }
+      setKdkFile(null);
+      if (kdkFileRef.current) kdkFileRef.current.value = '';
+      queryClient.invalidateQueries({ queryKey: ['attendance-status', id] });
+    } catch (err) {
+      toast.error('Import thất bại: ' + (err?.response?.data?.message || err.message));
+    }
+  };
+
+  const handleKdkDownloadTemplate = () => {
+    const headers = ['Mã sinh viên (bắt buộc)', 'Họ và Tên (tùy chọn — để xác nhận)'];
+    const samples = [
+      ['SV2021001', 'Nguyễn Văn A'],
+      ['SV2021002', 'Trần Thị B'],
+      ['SV2022003', ''],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...samples]);
+    ws['!cols'] = [{ wch: 28 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'DanhSachThamGia');
+    XLSX.writeFile(wb, 'MauNhapDanhSachThamGia.xlsx');
+  };
+
   const handleSwitchMode = (newMode) => {
     if (newMode === mode) { setMode('VIEW'); return; }
     setMode(newMode);
@@ -908,6 +964,11 @@ export default function ActivityAttendancePage() {
 
   const [showXuatModal,    setShowXuatModal]    = useState(false);
   const [showBanHanhModal, setShowBanHanhModal] = useState(false);
+
+  // Hoạt động không đăng ký
+  const [kdkMaSv, setKdkMaSv] = useState('');
+  const [kdkFile, setKdkFile] = useState(null);
+  const kdkFileRef = useRef(null);
 
   const handleExportExcel = async () => {
     try {
@@ -963,6 +1024,11 @@ export default function ActivityAttendancePage() {
                 );
               })()}
             </div>
+            {activity.isKhongDangKy && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 rounded-full text-xs font-semibold mb-1">
+                <UserCheck className="w-3 h-3" /> Không đăng ký (kêu gọi offline)
+              </span>
+            )}
             <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
@@ -1022,24 +1088,34 @@ export default function ActivityAttendancePage() {
               <Download className="w-5 h-5 mb-1" />
               <span className="text-[10px] font-bold uppercase">Xuất Excel</span>
             </button>
-            <button
-              onClick={() => setShowXuatModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors"
-              title="Xuất danh sách PDF có ký số"
-            >
-              <Download className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-bold uppercase">Xuất PDF</span>
-            </button>
-            {(['DA_HOAN_THANH', 'DA_KET_THUC'].includes(activity?.trangThai)) && (
-              <button
-                onClick={() => setShowBanHanhModal(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors"
-                title="Ban hành danh sách chính thức có ký số"
-              >
-                <FileCheck className="w-5 h-5 mb-1" />
-                <span className="text-[10px] font-bold uppercase">Ban Hành</span>
-              </button>
-            )}
+            {(() => {
+              const canKySo = !isKhoaScoped || (activity?.maKhoa && activity.maKhoa === maKhoa);
+              const kySoTitle = !canKySo ? 'Đoàn khoa không có quyền ký số hoạt động của đoàn trường' : 'Xuất danh sách PDF có ký số';
+              return (
+                <>
+                  <button
+                    onClick={() => canKySo && setShowXuatModal(true)}
+                    disabled={!canKySo}
+                    className={`rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors ${canKySo ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                    title={kySoTitle}
+                  >
+                    <Download className="w-5 h-5 mb-1" />
+                    <span className="text-[10px] font-bold uppercase">Xuất PDF</span>
+                  </button>
+                  {(['DA_HOAN_THANH', 'DA_KET_THUC'].includes(activity?.trangThai)) && (
+                    <button
+                      onClick={() => canKySo && setShowBanHanhModal(true)}
+                      disabled={!canKySo}
+                      className={`rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors ${canKySo ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                      title={canKySo ? 'Ban hành danh sách chính thức có ký số' : kySoTitle}
+                    >
+                      <FileCheck className="w-5 h-5 mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Ban Hành</span>
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -1121,8 +1197,64 @@ export default function ActivityAttendancePage() {
         </div>
       )}
 
+      {/* ── Hoạt động không đăng ký — Panel nhập danh sách ── */}
+      {activity.isKhongDangKy && !isActivityEnded && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-4">
+          <div className="flex items-center gap-2 text-amber-700 font-semibold text-sm">
+            <UserCheck className="w-4 h-4" />
+            Hoạt động không đăng ký — Nhập danh sách tham gia
+          </div>
+
+          {/* Manual add */}
+          <div className="flex gap-2">
+            <input
+              value={kdkMaSv}
+              onChange={e => setKdkMaSv(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleKdkThemThuCong(); }}
+              placeholder="Nhập mã sinh viên..."
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+            <button
+              onClick={handleKdkThemThuCong}
+              disabled={!kdkMaSv.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
+            >
+              <Plus className="w-4 h-4" /> Thêm
+            </button>
+          </div>
+
+          {/* Excel import */}
+          <div className="flex flex-wrap items-center gap-3">
+            <input ref={kdkFileRef} type="file" accept=".xlsx,.xls" className="hidden"
+              onChange={e => setKdkFile(e.target.files?.[0] || null)} />
+            <button
+              onClick={() => kdkFileRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-2 border border-amber-400 text-amber-700 rounded-lg text-sm hover:bg-amber-100"
+            >
+              <FileUp className="w-4 h-4" />
+              {kdkFile ? kdkFile.name : 'Chọn file Excel'}
+            </button>
+            {kdkFile && (
+              <button
+                onClick={handleKdkImportExcel}
+                className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+              >
+                Import
+              </button>
+            )}
+            <button
+              onClick={handleKdkDownloadTemplate}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs hover:bg-gray-50"
+            >
+              <Download className="w-3.5 h-3.5" /> Tải file mẫu
+            </button>
+            <span className="text-xs text-amber-600">Cột A: Mã SV (bắt buộc), Cột B: Họ tên (tùy chọn)</span>
+          </div>
+        </div>
+      )}
+
       {/* ── Action Buttons ── */}
-      {!isActivityEnded && (
+      {!isActivityEnded && !activity.isKhongDangKy && (
         <div className={`grid grid-cols-1 gap-4 ${
           usesQR && hasCheckin ? 'md:grid-cols-3' : usesQR ? 'md:grid-cols-2' : 'md:grid-cols-1'
         }`}>
@@ -1600,6 +1732,28 @@ export default function ActivityAttendancePage() {
                     <td className="px-4 py-3 text-xs text-gray-400 max-w-[150px] truncate hidden lg:table-cell" title={item.ghiChu}>
                       {item.ghiChu || <span className="text-gray-200">—</span>}
                     </td>
+
+                    {/* Xóa — chỉ hiện cho hoạt động không đăng ký */}
+                    {activity.isKhongDangKy && (
+                      <td className="px-2 py-3 text-center">
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm(`Xóa ${item.hoTen} (${item.maSv}) khỏi danh sách?`)) return;
+                            try {
+                              await diemDanhService.xoaKhoiDanhSachKhongDangKy(id, item.maSv);
+                              toast.success('Đã xóa');
+                              queryClient.invalidateQueries({ queryKey: ['attendance-status', id] });
+                            } catch (err) {
+                              toast.error(err?.response?.data?.message || err.message);
+                            }
+                          }}
+                          className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                          title="Xóa khỏi danh sách"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                   );
                 })

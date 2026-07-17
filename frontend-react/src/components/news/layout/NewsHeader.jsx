@@ -16,20 +16,37 @@ const MobileNavList = ({ navItems, onClose }) => {
     <nav>
       <div className="px-4 pt-2 pb-3 flex flex-col gap-2 border-b border-gray-100">
         {navItems.filter(i => i.highlight).map(item => (
-          <Link
-            key={item.label}
-            to={item.path}
-            onClick={onClose}
-            className="flex items-center justify-center gap-2 py-3 text-sm font-bold text-red-800 bg-yellow-400 hover:bg-yellow-300 active:bg-yellow-500 rounded-xl transition-colors shadow-sm"
-          >
-            <Zap className="w-4 h-4" />
-            {item.label}
-          </Link>
+          <div key={item.label}>
+            <Link
+              to={item.path}
+              onClick={onClose}
+              className="flex items-center justify-center gap-2 py-3 text-sm font-bold text-red-800 bg-yellow-400 hover:bg-yellow-300 active:bg-yellow-500 rounded-xl transition-colors shadow-sm"
+            >
+              <Zap className="w-4 h-4" />
+              {item.label}
+            </Link>
+            {item.links?.length > 0 && (
+              <ul className="mt-1 flex flex-col gap-1 pl-2">
+                {item.links.map(link => (
+                  <li key={link.path}>
+                    <Link
+                      to={link.path}
+                      onClick={onClose}
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-amber-900 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition-colors"
+                    >
+                      <ChevronRight className="w-3 h-3 opacity-60 shrink-0" />
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         ))}
       </div>
       <ul className="py-1 pb-8">
         {navItems.filter(i => !i.highlight).map((item) => {
-          const hasChildren = item.cats?.length > 0;
+          const hasChildren = item.cats?.length > 0 || item.links?.length > 0;
           const isOpen = expanded[item.label];
           return (
             <li key={item.label} className="border-b border-gray-100 last:border-0">
@@ -58,7 +75,19 @@ const MobileNavList = ({ navItems, onClose }) => {
               </div>
               {hasChildren && isOpen && (
                 <ul className="bg-gray-50">
-                  {item.cats.map((cat) => (
+                  {item.links?.map((link) => (
+                    <li key={link.path}>
+                      <Link
+                        to={link.path}
+                        className="flex items-center pl-10 pr-5 py-3 text-sm text-blue-700 font-medium hover:bg-gray-100 hover:text-blue-900 active:bg-gray-200 transition-colors border-t border-gray-100"
+                        onClick={onClose}
+                      >
+                        <ChevronRight className="w-3 h-3 mr-2 opacity-40 shrink-0" />
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                  {item.cats?.map((cat) => (
                     <li key={cat.id}>
                       <Link
                         to={`/${cat.fullPathSlug}`}
@@ -138,7 +167,13 @@ const NewsHeader = ({ onMenuToggle, menuOpen, onMenuClose }) => {
     ...(chungCats.length ? [{ label: 'Tin chung', path: chungCats[0] ? `/${chungCats[0].fullPathSlug}` : null, cats: flattenChildren(chungCats) }] : []),
     { label: 'Văn bản',   path: '/van-ban',   cats: [] },
     { label: 'Biểu mẫu',  path: '/bieu-mau',  cats: [] },
-    { label: 'Hoạt động', path: '/hoat-dong', cats: [], highlight: true },
+    {
+      label: 'Hoạt động', path: '/hoat-dong', cats: [], highlight: true,
+      links: [
+        { label: 'Tất cả hoạt động',         path: '/hoat-dong' },
+        { label: 'Danh sách đã ban hành',     path: '/danh-sach-ban-hanh' },
+      ],
+    },
     { label: 'Bình chọn', path: '/binh-chon', cats: [], highlight: true },
   ];
 
@@ -214,12 +249,11 @@ const NewsHeader = ({ onMenuToggle, menuOpen, onMenuClose }) => {
                 Trang thông tin điện tử
               </p>
               <Link to="/news">
-                <h1 className="font-black text-2xl xl:text-3xl uppercase tracking-wide leading-tight" style={{ color: '#cc0000' }}>
-                  Đoàn Thanh niên – Hội Sinh viên
+                <h1
+                    className="font-black [-webkit-text-stroke:1.5px_#005391] text-2xl xl:text-3xl uppercase tracking-wide leading-tight"
+                    style={{ color: '#005391' }}>
+                  Đoàn Thanh niên – Hội Sinh viên Trường Đại học Kiên Giang
                 </h1>
-                <p className="text-blue-700 font-semibold text-base tracking-wide">
-                  Trường Đại học Kiên Giang
-                </p>
               </Link>
             </div>
           </div>
@@ -277,7 +311,7 @@ const NewsHeader = ({ onMenuToggle, menuOpen, onMenuClose }) => {
               <li
                 key={item.label}
                 className="relative h-full flex items-center"
-                onMouseEnter={() => item.cats?.length && setOpenMenu(item.label)}
+                onMouseEnter={() => (item.cats?.length || item.links?.length) && setOpenMenu(item.label)}
                 onMouseLeave={() => setOpenMenu(null)}
               >
                 {item.highlight ? (
@@ -313,9 +347,22 @@ const NewsHeader = ({ onMenuToggle, menuOpen, onMenuClose }) => {
                 )}
 
                 {/* Dropdown */}
-                {item.cats?.length > 0 && openMenu === item.label && (
-                  <div className="absolute top-full left-0 bg-white shadow-xl border border-gray-100 py-1 min-w-[210px] z-50">
-                    {item.cats.map((cat) => (
+                {(item.cats?.length > 0 || item.links?.length > 0) && openMenu === item.label && (
+                  <div className="absolute top-full left-0 bg-white shadow-xl border border-gray-100 py-1 min-w-[220px] z-50">
+                    {/* Hardcoded links (e.g. Hoạt động sub-items) */}
+                    {item.links?.map((link) => (
+                      <Link
+                        key={link.path}
+                        to={link.path}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-800 transition-colors border-b border-gray-50 last:border-0 font-medium"
+                        onClick={() => setOpenMenu(null)}
+                      >
+                        <ChevronRight className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                        {link.label}
+                      </Link>
+                    ))}
+                    {/* CMS category links */}
+                    {item.cats?.map((cat) => (
                       <div key={cat.id} className="group/sub relative">
                         <Link
                           to={`/${cat.fullPathSlug}`}

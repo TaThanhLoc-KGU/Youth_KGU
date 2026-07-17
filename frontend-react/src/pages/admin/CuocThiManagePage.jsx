@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, Play, StopCircle, Award, Users, BarChart2, Loader2, X, ExternalLink, Download, List, CheckSquare, ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
+import { Plus, Edit2, Trash2, Play, StopCircle, Award, Users, BarChart2, Loader2, X, ExternalLink, Download, List, CheckSquare, ChevronLeft, ChevronRight, Trophy, Camera, Check, AlertCircle } from 'lucide-react';
 import cuocThiService from '../../services/cuocThiService';
 import activityService from '../../services/activityService';
 import SearchableSelect from '../../components/common/SearchableSelect';
+import ImageUploadField from '../../components/common/ImageUploadField';
 
 // Các options tĩnh dạng { value, label } cho react-select
 const LOAI_OPTIONS = [
   { value: 'CUOC_THI_HAT', label: 'Cuộc thi hát' },
   { value: 'ANH_DEP',      label: 'Ảnh đẹp' },
+  { value: 'ANH_VIDEO',    label: '📷 Ảnh / Video (Sinh viên tự nộp)' },
   { value: 'Y_TUONG',      label: 'Ý tưởng sáng tạo' },
   { value: 'TRANG_PHUC',   label: 'Trang phục' },
   { value: 'BAI_VIET',     label: 'Bài viết' },
+  { value: 'NHAT_KY',      label: '📔 Nhật ký (đi học, tình nguyện...)' },
   { value: 'TONG_HOP',     label: 'Tổng hợp' },
 ];
 const HIEN_THI_OPTIONS = [
@@ -63,6 +66,7 @@ const CuocThiModal = ({ isOpen, onClose, editItem, onSave }) => {
     hienThiKetQua: 'REALTIME', dieuKienVote: 'DANG_NHAP',
     quyTacVote: 'MOT_LAN', soLuotToiDa: 3,
     thoiGianMoVote: '', thoiGianDongVote: '',
+    choPhepNopBai: false, hanNop: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -178,11 +182,41 @@ const CuocThiModal = ({ isOpen, onClose, editItem, onSave }) => {
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">Link ảnh bìa</label>
-            <input value={form.anhBia || ''} onChange={e => setForm({...form, anhBia: e.target.value})}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="https://..." />
+          <ImageUploadField
+            label="Ảnh bìa cuộc thi"
+            value={form.anhBia || ''}
+            onChange={url => setForm({...form, anhBia: url})}
+            aspectRatio={16/9}
+            cropTitle="Cắt ảnh bìa (16:9)"
+            previewClass="h-40 w-full object-cover"
+          />
+
+          {/* Nộp bài */}
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!form.choPhepNopBai}
+                onChange={e => setForm({...form, choPhepNopBai: e.target.checked, hanNop: e.target.checked ? form.hanNop : ''})}
+                className="w-4 h-4 accent-orange-500"
+              />
+              <span className="text-sm font-medium text-orange-800">
+                📷 Cho phép sinh viên tự đăng ký nộp bài (ảnh/video)
+              </span>
+            </label>
+            {form.choPhepNopBai && (
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Hạn nộp bài (để trống = không giới hạn)</label>
+                <input
+                  type="datetime-local"
+                  value={form.hanNop ? form.hanNop.slice(0, 16) : ''}
+                  onChange={e => setForm({...form, hanNop: e.target.value})}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+              </div>
+            )}
           </div>
+
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Hủy</button>
             <button type="submit" disabled={saving} className="px-6 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 disabled:opacity-50 flex items-center gap-2">
@@ -197,14 +231,33 @@ const CuocThiModal = ({ isOpen, onClose, editItem, onSave }) => {
 };
 
 // === ThiSinh Manager ===
+const TRANG_THAI_DUYET_LABEL = {
+  DA_DUYET:  { label: 'Đã duyệt',   cls: 'bg-green-100 text-green-700' },
+  CHO_DUYET: { label: 'Chờ duyệt',  cls: 'bg-amber-100 text-amber-700' },
+  TU_CHOI:   { label: 'Từ chối',    cls: 'bg-red-100 text-red-600' },
+};
+
+const LOAI_NOI_BAI_LABEL = {
+  ANH_DON:   '🖼 Ảnh đơn',
+  NHOM_ANH:  '🖼🖼 Nhóm ảnh',
+  VIDEO:     '🎥 Video',
+};
+
 const ThiSinhManager = ({ cuocThi, onClose }) => {
   const queryClient = useQueryClient();
+  const [tab, setTab] = useState('danh-sach');
   const [form, setForm] = useState({ ten: '', moTa: '', anhDaiDien: '', urlMedia: '' });
   const [saving, setSaving] = useState(false);
 
   const { data: detail } = useQuery({
     queryKey: ['cuoc-thi-admin', cuocThi.id],
     queryFn: () => cuocThiService.admin.getById(cuocThi.id),
+  });
+
+  const { data: choDuyetList = [], refetch: refetchChoDuyet } = useQuery({
+    queryKey: ['cuoc-thi-cho-duyet', cuocThi.id],
+    queryFn: () => cuocThiService.admin.getDanhSachChoDuyet(cuocThi.id),
+    enabled: tab === 'cho-duyet',
   });
 
   const thiSinhs = detail?.danhSachThiSinh || [];
@@ -228,14 +281,44 @@ const ThiSinhManager = ({ cuocThi, onClose }) => {
     queryClient.invalidateQueries(['cuoc-thi-admin', cuocThi.id]);
   };
 
+  const handleDuyet = async (tsId) => {
+    await cuocThiService.admin.duyetThiSinh(cuocThi.id, tsId);
+    queryClient.invalidateQueries(['cuoc-thi-admin', cuocThi.id]);
+    refetchChoDuyet();
+  };
+
+  const handleTuChoi = async (tsId) => {
+    if (!window.confirm('Từ chối bài nộp này?')) return;
+    await cuocThiService.admin.tuChoiThiSinh(cuocThi.id, tsId);
+    refetchChoDuyet();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
           <h2 className="text-xl font-bold">Quản lý thí sinh — {cuocThi.tieuDe}</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
-        <div className="p-6">
+
+        {/* Tabs */}
+        <div className="flex border-b px-6 flex-shrink-0">
+          {[
+            { key: 'danh-sach', label: 'Danh sách thi sinh' },
+            { key: 'cho-duyet', label: `Xét duyệt bài nộp${choDuyetList.length ? ` (${choDuyetList.length})` : ''}` },
+          ].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                tab === t.key ? 'border-yellow-500 text-yellow-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+
+        {tab === 'danh-sach' && (<>
           {/* Add form */}
           <form onSubmit={handleAdd} className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
             <h3 className="font-medium text-gray-700">Thêm thí sinh mới</h3>
@@ -243,11 +326,17 @@ const ThiSinhManager = ({ cuocThi, onClose }) => {
               className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Tên thí sinh *" />
             <input value={form.moTa || ''} onChange={e => setForm({...form, moTa: e.target.value})}
               className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Mô tả" />
-            <div className="grid grid-cols-2 gap-3">
-              <input value={form.anhDaiDien || ''} onChange={e => setForm({...form, anhDaiDien: e.target.value})}
-                className="border rounded-lg px-3 py-2 text-sm" placeholder="Link ảnh đại diện" />
+            <div className="space-y-2">
+              <ImageUploadField
+                label="Ảnh đại diện thí sinh"
+                value={form.anhDaiDien || ''}
+                onChange={url => setForm({...form, anhDaiDien: url})}
+                aspectRatio={1}
+                cropTitle="Cắt ảnh đại diện (1:1)"
+                previewClass="h-24 w-full object-cover"
+              />
               <input value={form.urlMedia || ''} onChange={e => setForm({...form, urlMedia: e.target.value})}
-                className="border rounded-lg px-3 py-2 text-sm" placeholder="Link video/nội dung" />
+                className="border rounded-lg px-3 py-2 text-sm w-full" placeholder="Link video/nội dung (tuỳ chọn)" />
             </div>
             <button type="submit" disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 disabled:opacity-50">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
@@ -285,6 +374,65 @@ const ThiSinhManager = ({ cuocThi, onClose }) => {
               </div>
             ))}
           </div>
+        </>)}
+
+        {tab === 'cho-duyet' && (
+          <div className="space-y-3">
+            {choDuyetList.length === 0 && (
+              <div className="text-center py-10 text-gray-400">
+                <Camera className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Không có bài nộp nào đang chờ duyệt</p>
+              </div>
+            )}
+            {choDuyetList.map((ts) => {
+              const loaiLabel = LOAI_NOI_BAI_LABEL[ts.loaiNopBai] || ts.loaiNopBai;
+              let dsAnh = [];
+              try { dsAnh = ts.dsHinhAnh ? JSON.parse(ts.dsHinhAnh) : []; } catch {}
+              return (
+                <div key={ts.id} className="border rounded-xl p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    {ts.anhDaiDien
+                      ? <img src={ts.anhDaiDien} alt={ts.ten} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                      : <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"><Camera className="w-6 h-6 text-gray-400" /></div>}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900">{ts.ten}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Chờ duyệt</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">{loaiLabel}</span>
+                      </div>
+                      {ts.maSv && <p className="text-xs text-gray-500 mt-0.5">MSSV: {ts.maSv}</p>}
+                      {ts.moTa && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{ts.moTa}</p>}
+                      {ts.urlMedia && (
+                        <a href={ts.urlMedia} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1">
+                          <ExternalLink className="w-3 h-3" /> Xem media
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  {dsAnh.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {dsAnh.slice(0, 5).map((url, i) => (
+                        <img key={i} src={url} alt="" className="w-16 h-16 rounded-lg object-cover border" />
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => handleDuyet(ts.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700">
+                      <Check className="w-3.5 h-3.5" /> Duyệt
+                    </button>
+                    <button onClick={() => handleTuChoi(ts.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100">
+                      <AlertCircle className="w-3.5 h-3.5" /> Từ chối
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         </div>
       </div>
     </div>

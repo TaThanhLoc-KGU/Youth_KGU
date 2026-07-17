@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import sliderService from '../../services/sliderService';
 import ImagePickerModal from '../../components/common/ImagePickerModal';
+import ImageUploadField from '../../components/common/ImageUploadField';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 // ─── Form modal ───────────────────────────────────────────────────────────────
@@ -21,7 +22,6 @@ const EMPTY = { tieuDe: '', moTa: '', hinhAnh: '', duongDan: '', isActive: true 
 
 const SliderForm = ({ initial = EMPTY, onSave, onCancel, loading }) => {
   const [form, setForm] = useState(initial);
-  const [showPicker, setShowPicker] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const check = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.checked }));
 
@@ -53,36 +53,15 @@ const SliderForm = ({ initial = EMPTY, onSave, onCancel, loading }) => {
         />
       </div>
 
-      {/* URL ảnh */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-          <Image className="w-3.5 h-3.5" /> Hình ảnh
-        </label>
-        <div className="flex gap-2">
-          <input
-            value={form.hinhAnh} onChange={set('hinhAnh')}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
-            placeholder="https://example.com/image.jpg hoặc /uploads/..."
-          />
-          <button
-            type="button"
-            onClick={() => setShowPicker(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-blue-400 hover:text-blue-600 transition-colors whitespace-nowrap flex-shrink-0"
-          >
-            <FolderOpen className="w-4 h-4" /> Chọn ảnh
-          </button>
-        </div>
-        {form.hinhAnh && (
-          <div className="mt-2 rounded-lg overflow-hidden border border-gray-200" style={{ height: 120 }}>
-            <img src={form.hinhAnh} alt="preview" className="w-full h-full object-cover" onError={(e) => (e.target.style.display = 'none')} />
-          </div>
-        )}
-      </div>
-
-      <ImagePickerModal
-        isOpen={showPicker}
-        onClose={() => setShowPicker(false)}
-        onSelect={(url) => setForm((f) => ({ ...f, hinhAnh: url }))}
+      {/* Ảnh slider */}
+      <ImageUploadField
+        label="Hình ảnh slider"
+        value={form.hinhAnh}
+        onChange={(url) => setForm((f) => ({ ...f, hinhAnh: url }))}
+        aspectRatio={16 / 9}
+        cropTitle="Cắt ảnh slider (16:9)"
+        previewClass="h-36 w-full object-cover"
+        required
       />
 
       {/* Đường dẫn */}

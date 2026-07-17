@@ -69,6 +69,13 @@ public class CuocThi {
     private LocalDateTime thoiGianDongVote;
 
     @Builder.Default
+    @Column(name = "cho_phep_nop_bai")
+    private Boolean choPhepNopBai = false;
+
+    @Column(name = "han_nop")
+    private LocalDateTime hanNop;
+
+    @Builder.Default
     @Column(name = "is_active")
     private Boolean isActive = true;
 

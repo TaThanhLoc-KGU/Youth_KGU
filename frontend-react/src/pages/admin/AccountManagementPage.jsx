@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import PermissionAssignModal from '../../components/admin/PermissionAssignModal';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -198,9 +198,16 @@ export default function AccountManagementPage() {
 
   // list state
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [page, setPage] = useState(0);
+
+  // debounce search input to avoid firing on every keystroke; reset page when search changes
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(0); }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
 
   // modal/action state
   const [editModal, setEditModal] = useState(null);
@@ -227,10 +234,33 @@ export default function AccountManagementPage() {
   const [khoaResults, setKhoaResults]         = useState(null);
 
   // ── queries ──────────────────────────────────────────────────────────────────
-  const { data: allAccounts = [], isLoading: loadingAll, refetch } = useQuery({
+
+  // Resolve isActive filter: 'active'→true, 'inactive'→false, else undefined
+  const isActiveFilter = filterStatus === 'active' ? true : filterStatus === 'inactive' ? false : undefined;
+
+  // Server-side paged query for the list tab — DB-level filter, never loads all accounts into RAM
+  const { data: pagedResult, isLoading: loadingAll, refetch } = useQuery({
+    queryKey: ['accounts-paged', page, debouncedSearch, filterRole, filterStatus],
+    queryFn: () => accountService.getAccountsPaged({
+      page,
+      size: PAGE_SIZE,
+      keyword: debouncedSearch || undefined,
+      vaiTro: filterRole || undefined,
+      isActive: isActiveFilter,
+    }),
+    staleTime: 30_000,
+  });
+
+  const pageData    = pagedResult?.content    || [];
+  const totalPages  = pagedResult?.totalPages  || 0;
+  const totalElems  = pagedResult?.totalElements || 0;
+
+  // allAccounts is loaded ONLY for the Đoàn khoa tab (needs to check existing QUAN_LY_KHOA per khoa)
+  const { data: allAccounts = [] } = useQuery({
     queryKey: ['accounts-all'],
     queryFn: accountService.getAllAccounts,
-    staleTime: 60_000,
+    staleTime: 120_000,
+    enabled: tab === 'khoa',
   });
 
   const { data: pendingList = [], isLoading: loadingPending } = useQuery({
@@ -271,6 +301,7 @@ export default function AccountManagementPage() {
 
   // ── mutations ────────────────────────────────────────────────────────────────
   const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['accounts-paged'] });
     qc.invalidateQueries({ queryKey: ['accounts-all'] });
     qc.invalidateQueries({ queryKey: ['accounts-pending'] });
   };
@@ -450,32 +481,48 @@ export default function AccountManagementPage() {
     else showToast('error', `Hoàn tất: ${done - errors.length}/${done} thành công`);
   };
 
-  // ── list filter ──────────────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    return allAccounts.filter(acc => {
-      const q = removeVietnameseTones(search);
-      const matchSearch = !search
-        || removeVietnameseTones(acc.hoTen || '').includes(q)
-        || (acc.username || '').toLowerCase().includes(q)
-        || (acc.email || '').toLowerCase().includes(q);
-      const matchRole = !filterRole || acc.vaiTro === filterRole;
-      const matchStatus = !filterStatus
-        || (filterStatus === 'active' && acc.isActive && acc.trangThai !== 'CHO_PHE_DUYET')
-        || (filterStatus === 'inactive' && !acc.isActive)
-        || acc.trangThai === filterStatus;
-      return matchSearch && matchRole && matchStatus;
-    });
-  }, [allAccounts, search, filterRole, filterStatus]);
+  // ── export excel (current page only) ─────────────────────────────────────────
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    if (!pageData.length) return;
+    setExporting(true);
+    try {
+      const rows = pageData.map((acc, i) => ({
+        'STT':           page * PAGE_SIZE + i + 1,
+        'Họ và tên':     acc.hoTen || '',
+        'Tên đăng nhập': acc.username || '',
+        'Email':         acc.email || '',
+        'Vai trò':       ROLE_LABELS[acc.vaiTro] || acc.vaiTro || '',
+        'Khoa':          acc.tenKhoa || '',
+        'Lớp / Chi đoàn':acc.tenLop || '',
+        'Trạng thái':    acc.trangThai === 'CHO_PHE_DUYET' ? 'Chờ phê duyệt' : (acc.isActive ? 'Hoạt động' : 'Tạm khóa'),
+        'Ngày tạo':      acc.createdAt ? new Date(acc.createdAt).toLocaleDateString('vi-VN') : '',
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 20 }, { wch: 32 }, { wch: 18 }, { wch: 18 }, { wch: 20 }, { wch: 16 }, { wch: 14 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Tài khoản');
+      const label = [
+        search && `tìm_${search}`,
+        filterRole && filterRole,
+        filterStatus && filterStatus,
+      ].filter(Boolean).join('_') || 'tat_ca';
+      XLSX.writeFile(wb, `tai_khoan_${label}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showToast('success', `Đã xuất ${pageData.length} tài khoản (trang hiện tại)`);
+    } catch (e) {
+      showToast('error', 'Xuất file thất bại');
+    } finally {
+      setExporting(false);
+    }
+  };
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const pageData = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
+  // Stats are derived from the paged query's metadata + pending list
   const stats = useMemo(() => ({
-    total:   allAccounts.length,
-    active:  allAccounts.filter(a => a.isActive && a.trangThai !== 'CHO_PHE_DUYET').length,
-    pending: allAccounts.filter(a => a.trangThai === 'CHO_PHE_DUYET').length,
-    admins:  allAccounts.filter(a => ['ADMIN','QUAN_LY_KHOA','PHO_QUAN_LY_KHOA'].includes(a.vaiTro)).length,
-  }), [allAccounts]);
+    total:   totalElems,
+    active:  0,   // shown in pending tab; no separate count endpoint yet
+    pending: pendingList.length,
+    admins:  0,
+  }), [totalElems, pendingList]);
 
   // ── render ───────────────────────────────────────────────────────────────────
   return (
@@ -498,10 +545,10 @@ export default function AccountManagementPage() {
         {/* stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Tổng tài khoản',  value: stats.total,   icon: Users,       bg: 'bg-blue-50',    text: 'text-blue-600' },
-            { label: 'Đang hoạt động',  value: stats.active,  icon: UserCheck,   bg: 'bg-emerald-50', text: 'text-emerald-600' },
-            { label: 'Chờ phê duyệt',   value: stats.pending, icon: Clock,       bg: 'bg-amber-50',   text: 'text-amber-600' },
-            { label: 'Cán bộ quản lý',  value: stats.admins,  icon: Crown,       bg: 'bg-purple-50',  text: 'text-purple-600' },
+            { label: 'Tổng tài khoản',   value: stats.total,           icon: Users,     bg: 'bg-blue-50',    text: 'text-blue-600' },
+            { label: 'Kết quả tìm kiếm', value: totalElems,            icon: Search,    bg: 'bg-emerald-50', text: 'text-emerald-600' },
+            { label: 'Chờ phê duyệt',    value: stats.pending,         icon: Clock,     bg: 'bg-amber-50',   text: 'text-amber-600' },
+            { label: 'Trang hiện tại',   value: `${page + 1}/${totalPages || 1}`, icon: ChevronRight, bg: 'bg-purple-50', text: 'text-purple-600' },
           ].map(({ label, value, icon: Icon, bg, text }) => (
             <div key={label} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3 shadow-sm">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
@@ -558,6 +605,11 @@ export default function AccountManagementPage() {
                   </select>
                   <button onClick={() => refetch()} className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
                     <RefreshCw size={14} /> Làm mới
+                  </button>
+                  <button onClick={handleExport} disabled={exporting || !pageData.length}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-40 whitespace-nowrap">
+                    <Download size={14} />
+                    {exporting ? 'Đang xuất…' : `Xuất trang này (${pageData.length})`}
                   </button>
                 </div>
 
@@ -618,7 +670,7 @@ export default function AccountManagementPage() {
 
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between mt-4 text-xs text-gray-500">
-                        <span>Hiển thị {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} / {filtered.length}</span>
+                        <span>Hiển thị {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalElems)} / {totalElems}</span>
                         <div className="flex items-center gap-1">
                           <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40"><ChevronLeft size={14} /></button>
                           {(() => {

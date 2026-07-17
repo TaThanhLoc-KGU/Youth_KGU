@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
-import { Plus, Edit, Trash2, Eye, RefreshCw, Settings, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, RefreshCw, Settings, Search, FileUp } from 'lucide-react';
 import bchService from '../../services/bchService';
 import chucVuService from '../../services/chucVuService';
 import Table from '../../components/common/Table';
@@ -18,6 +18,7 @@ import BCHCreateForm from '../../components/admin/BCHCreateForm';
 import BCHEditForm from '../../components/admin/BCHEditForm';
 import BCHDetailView from '../../components/admin/BCHDetailView';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import BCHImportExcelModal from '../../components/admin/BCHImportExcelModal';
 
 const BCH = () => {
   const queryClient = useQueryClient();
@@ -36,6 +37,7 @@ const BCH = () => {
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [isChucVuModalOpen, setIsChucVuModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedBCH, setSelectedBCH] = useState(null);
 
   // Fetch BCH list — chỉ khi có quyền xem BCH
@@ -279,11 +281,22 @@ const BCH = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quản lý Ban Chấp hành</h1>
           <p className="text-gray-600 mt-1">Quản lý thành viên Ban Chấp hành Đoàn - Hội</p>
         </div>
-        {canAdd && (
-          <Button icon={Plus} onClick={handleCreate}>
-            <span className="hidden sm:inline">Thêm BCH mới</span>
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {canAdd && (
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 border border-green-500 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50"
+            >
+              <FileUp className="w-4 h-4" />
+              <span className="hidden sm:inline">Nhập Excel</span>
+            </button>
+          )}
+          {canAdd && (
+            <Button icon={Plus} onClick={handleCreate}>
+              <span className="hidden sm:inline">Thêm BCH mới</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -450,6 +463,16 @@ const BCH = () => {
         title="Xóa BCH"
         description={`Bạn có chắc muốn xóa "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
         isLoading={deleteMutation.isPending}
+      />
+
+      <BCHImportExcelModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImported={() => {
+          queryClient.invalidateQueries(['bch']);
+          queryClient.invalidateQueries(['bch-statistics']);
+          toast.success('Import BCH thành công!');
+        }}
       />
     </div>
   );

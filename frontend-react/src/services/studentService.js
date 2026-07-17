@@ -173,9 +173,33 @@ const studentService = {
     const formData = new FormData();
     formData.append('file', file);
     const response = await api.post('/api/sinhvien/import-excel/confirm', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Download template tốt nghiệp
+  downloadTotNghiepTemplate: async () => {
+    const response = await api.get('/api/sinhvien/template-tot-nghiep', { responseType: 'blob' });
+    return response.data;
+  },
+
+  // Preview danh sách tốt nghiệp từ Excel
+  previewBulkDeactivate: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/sinhvien/bulk-deactivate/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Xác nhận vô hiệu hóa hàng loạt
+  confirmBulkDeactivate: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/sinhvien/bulk-deactivate/confirm', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },

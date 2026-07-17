@@ -278,7 +278,25 @@ const accountService = {
   },
 
   /**
-   * Lấy danh sách tất cả tài khoản
+   * Lấy danh sách tài khoản có phân trang + filter DB-level.
+   * @param {object} params - { page, size, keyword, vaiTro, isActive, sortBy, direction }
+   * @returns {Promise<Page<AccountDTO>>} - Spring Page object: { content, totalElements, totalPages, ... }
+   */
+  getAccountsPaged: async ({ page = 0, size = 20, keyword, vaiTro, isActive, sortBy = 'createdAt', direction = 'desc' } = {}) => {
+    try {
+      const params = { page, size, sortBy, direction };
+      if (keyword && keyword.trim()) params.keyword = keyword.trim();
+      if (vaiTro) params.vaiTro = vaiTro;
+      if (isActive !== undefined && isActive !== null && isActive !== '') params.isActive = isActive;
+      const response = await api.get('/api/accounts/paged', { params });
+      return response.data.data;
+    } catch (error) {
+      throw error.response?.data?.message || 'Lỗi lấy danh sách tài khoản';
+    }
+  },
+
+  /**
+   * Lấy danh sách tất cả tài khoản (giữ lại cho export/stats)
    * @returns {Promise}
    */
   getAllAccounts: async () => {

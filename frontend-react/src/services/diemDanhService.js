@@ -125,6 +125,28 @@ const diemDanhService = {
     const response = await api.post('/api/diem-danh/them-thu-cong', { maHoatDong, maSv, ghiChu });
     return response.data.data;
   },
+
+  // Hoạt động không đăng ký — thêm thủ công (list maSv)
+  themThuCongKhongDangKy: async (maHoatDong, maSvList) => {
+    const response = await api.post(`/api/diem-danh/khong-dang-ky/${maHoatDong}/them-thu-cong`, maSvList);
+    return response.data?.data || {};
+  },
+
+  // Hoạt động không đăng ký — import Excel
+  importExcelKhongDangKy: async (maHoatDong, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/api/diem-danh/khong-dang-ky/${maHoatDong}/import-excel`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data?.data || {};
+  },
+
+  // Hoạt động không đăng ký — xóa sinh viên
+  xoaKhoiDanhSachKhongDangKy: async (maHoatDong, maSv) => {
+    const response = await api.delete(`/api/diem-danh/khong-dang-ky/${maHoatDong}/xoa/${maSv}`);
+    return response.data?.data;
+  },
 };
 
 export default diemDanhService;

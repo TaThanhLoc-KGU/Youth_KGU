@@ -9,8 +9,11 @@ const emailConfigService = {
   /** Cập nhật cấu hình email */
   saveCauHinh: (dto) => apiClient.put(BASE, dto).then(r => r.data.data),
 
-  /** Kiểm tra kết nối SMTP */
+  /** Kiểm tra kết nối SMTP (TCP handshake) */
   testConnection: () => apiClient.post(`${BASE}/test`).then(r => r.data),
+
+  /** Gửi email thử nghiệm đến địa chỉ cụ thể */
+  sendTestEmail: (to) => apiClient.post(`${BASE}/send-test`, null, { params: { to } }).then(r => r.data),
 };
 
 export default emailConfigService;

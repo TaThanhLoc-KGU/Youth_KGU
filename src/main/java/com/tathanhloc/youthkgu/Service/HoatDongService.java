@@ -40,6 +40,9 @@ public class HoatDongService {
     private final DiemRenLuyenCriteriaService criteriaService;
     private final NotificationService notificationService;
     private final KhoaScopeService khoaScopeService;
+    private final SinhVienRepository sinhVienRepository;
+    private final EmailService emailService;
+    private final ZaloService zaloService;
 
     // ========== CRUD OPERATIONS ==========
 
@@ -138,6 +141,11 @@ public class HoatDongService {
                     "NEW_ACTIVITY",
                     hoatDong.getMaHoatDong()
             );
+            // Gửi email bất đồng bộ đến tất cả sinh viên đang hoạt động
+            emailService.sendBulkHoatDongNotification(
+                    sinhVienRepository.findByIsActive(true),
+                    hoatDong
+            );
         }
 
         log.info("Activity created successfully: {}", hoatDong.getMaHoatDong());
@@ -225,6 +233,45 @@ public class HoatDongService {
 
         log.info("Activity rejected: {} by {} reason: {}", maHoatDong, nguoiDuyet, lyDo);
         return toDTO(hoatDong);
+    }
+
+    /**
+     * Gửi email thông báo hoạt động đến tất cả sinh viên đang hoạt động (async).
+     */
+    public Map<String, Object> guiEmailThongBao(String maHoatDong) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        List<SinhVien> sinhViens = sinhVienRepository.findByIsActive(true);
+        emailService.sendBulkHoatDongNotification(sinhViens, hoatDong);
+        log.info("Triggered email notification for activity {} to {} students", maHoatDong, sinhViens.size());
+        return Map.of("maHoatDong", maHoatDong, "soSinhVien", sinhViens.size());
+    }
+
+    /**
+     * Gửi thông báo Zalo cho hoạt động đến tất cả sinh viên đã liên kết Zalo.
+     */
+    public Map<String, Object> guiZaloThongBao(String maHoatDong) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        List<SinhVien> sinhViens = sinhVienRepository.findByIsActive(true);
+        long soCoZalo = sinhViens.stream().filter(sv -> sv.getZaloUserId() != null).count();
+        zaloService.sendBulkHoatDongNotification(sinhViens, hoatDong);
+        log.info("Triggered Zalo notification for activity {} to {}/{} students with Zalo",
+                maHoatDong, soCoZalo, sinhViens.size());
+        return Map.of("maHoatDong", maHoatDong, "soSinhVien", sinhViens.size(), "soCoZalo", soCoZalo);
+    }
+
+    /**
+     * Gửi cả email + Zalo cùng lúc.
+     */
+    public Map<String, Object> guiThongBaoDayDu(String maHoatDong) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        List<SinhVien> sinhViens = sinhVienRepository.findByIsActive(true);
+        long soCoZalo = sinhViens.stream().filter(sv -> sv.getZaloUserId() != null).count();
+        emailService.sendBulkHoatDongNotification(sinhViens, hoatDong);
+        zaloService.sendBulkHoatDongNotification(sinhViens, hoatDong);
+        return Map.of("maHoatDong", maHoatDong, "soSinhVien", sinhViens.size(), "soCoZalo", soCoZalo);
     }
 
     // ========== QUERY OPERATIONS ==========
@@ -797,6 +844,7 @@ public class HoatDongService {
                 .trangThai(computeTrangThai(entity))
                 .yeuCauDiemDanh(entity.getYeuCauDiemDanh())
                 .choPhepDangKy(entity.getChoPhepDangKy())
+                .isKhongDangKy(entity.getIsKhongDangKy())
                 .hanDangKy(entity.getHanDangKy())
                 .hinhAnhPoster(entity.getHinhAnhPoster())
                 .ghiChu(entity.getGhiChu())
@@ -843,6 +891,7 @@ public class HoatDongService {
                 .trangThai(dto.getTrangThai() != null ? dto.getTrangThai() : TrangThaiHoatDongEnum.SAP_DIEN_RA)
                 .yeuCauDiemDanh(dto.getYeuCauDiemDanh() != null ? dto.getYeuCauDiemDanh() : true)
                 .choPhepDangKy(dto.getChoPhepDangKy() != null ? dto.getChoPhepDangKy() : true)
+                .isKhongDangKy(dto.getIsKhongDangKy() != null ? dto.getIsKhongDangKy() : false)
                 .hanDangKy(dto.getHanDangKy())
                 .hinhAnhPoster(dto.getHinhAnhPoster())
                 .ghiChu(dto.getGhiChu())
@@ -916,6 +965,7 @@ public class HoatDongService {
         if (dto.getTrangThai() != null) entity.setTrangThai(dto.getTrangThai());
         if (dto.getYeuCauDiemDanh() != null) entity.setYeuCauDiemDanh(dto.getYeuCauDiemDanh());
         if (dto.getChoPhepDangKy() != null) entity.setChoPhepDangKy(dto.getChoPhepDangKy());
+        if (dto.getIsKhongDangKy() != null) entity.setIsKhongDangKy(dto.getIsKhongDangKy());
         if (dto.getHanDangKy() != null) entity.setHanDangKy(dto.getHanDangKy());
         if (dto.getHinhAnhPoster() != null) entity.setHinhAnhPoster(dto.getHinhAnhPoster());
         if (dto.getGhiChu() != null) entity.setGhiChu(dto.getGhiChu());

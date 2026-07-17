@@ -1,17 +1,21 @@
 package com.tathanhloc.youthkgu.Service;
 
+import com.tathanhloc.youthkgu.Model.HoatDong;
+import com.tathanhloc.youthkgu.Model.SinhVien;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * Service để gửi email thông báo.
@@ -23,8 +27,9 @@ import java.time.format.DateTimeFormatter;
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender         mailSender;
-    private final CauHinhEmailService    cauHinhEmailService;
+    private final JavaMailSender              mailSender;
+    private final CauHinhEmailService         cauHinhEmailService;
+    private final DiemRenLuyenCriteriaService criteriaService;
 
     @Value("${app.name:Hệ thống Quản lý Hoạt động Đoàn - Hội}")
     private String appName;
@@ -201,17 +206,15 @@ public class EmailService {
     }
 
     /**
-     * Gửi thông báo hoạt động đến sinh viên (khi hoạt động được tạo/mở đăng ký).
+     * Gửi thông báo hoạt động đến sinh viên.
      */
-    public void sendHoatDongNotification(String email, String hoTen,
-                                          String tenHoatDong, String ngayToChuc,
-                                          String diaDiem, String moTa, String linkXemChiTiet) {
+    public void sendHoatDongNotification(String email, String hoTen, HoatDong hoatDong) {
         if (!cauHinhEmailService.isEmailEnabled()) {
-            log.info("[MOCK] Thông báo hoạt động '{}' → {} ({})", tenHoatDong, hoTen, email);
+            log.info("[MOCK] Thông báo hoạt động '{}' → {} ({})", hoatDong.getTenHoatDong(), hoTen, email);
             return;
         }
-        String subject = "Thông báo hoạt động: " + tenHoatDong;
-        String html = buildHoatDongNotificationTemplate(hoTen, tenHoatDong, ngayToChuc, diaDiem, moTa, linkXemChiTiet);
+        String subject = "📢 Hoạt động mới: " + hoatDong.getTenHoatDong();
+        String html = buildHoatDongNotificationTemplate(hoTen, hoatDong);
         try {
             sendHtmlEmail(email, subject, html);
         } catch (Exception e) {
@@ -410,32 +413,155 @@ public class EmailService {
                 "</html>";
     }
 
-    private String buildHoatDongNotificationTemplate(String hoTen, String tenHoatDong,
-                                                      String ngayToChuc, String diaDiem,
-                                                      String moTa, String link) {
+    private String buildHoatDongNotificationTemplate(String hoTen, HoatDong hd) {
+        // Ngày & giờ
+        String ngay = hd.getNgayToChuc() != null
+                ? hd.getNgayToChuc().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "—";
+        String ngayKetThuc = hd.getNgayKetThuc() != null
+                ? " – " + hd.getNgayKetThuc().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
+        String gio = hd.getGioToChuc() != null
+                ? hd.getGioToChuc().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) : "—";
+        String diaDiem = hd.getDiaDiem() != null && !hd.getDiaDiem().isBlank() ? hd.getDiaDiem() : "—";
+        String moTa    = hd.getMoTa()    != null && !hd.getMoTa().isBlank()    ? hd.getMoTa()    : "—";
+
+        // Điểm rèn luyện
+        String diemRLBlock = "";
+        if (hd.getDiemRenLuyen() != null && hd.getDiemRenLuyen() > 0) {
+            String tenDanhMuc = "";
+            String tenTieuChi = "";
+            if (hd.getMaDanhMucRenLuyen() != null) {
+                tenDanhMuc = criteriaService.findDanhMuc(hd.getMaDanhMucRenLuyen())
+                        .map(dm -> "Mục " + dm.get("id") + " — " + dm.get("danh_muc"))
+                        .orElse("Mục " + hd.getMaDanhMucRenLuyen());
+            }
+            if (hd.getMaTieuChiRenLuyen() != null) {
+                tenTieuChi = criteriaService.findTieuChi(hd.getMaTieuChiRenLuyen())
+                        .map(tc -> "Tiêu chí " + tc.get("id") + ": " + tc.get("noi_dung"))
+                        .orElse("Tiêu chí " + hd.getMaTieuChiRenLuyen());
+            }
+            diemRLBlock = """
+                <tr style="background:#f0fdf4;">
+                  <td style="padding:10px 12px;font-weight:600;color:#166534;white-space:nowrap;">🏆 Điểm rèn luyện</td>
+                  <td style="padding:10px 12px;">
+                    <span style="display:inline-block;background:#16a34a;color:#fff;font-weight:700;font-size:18px;padding:4px 14px;border-radius:20px;margin-right:8px;">+%s điểm</span>
+                    %s
+                    %s
+                  </td>
+                </tr>
+                """.formatted(
+                        hd.getDiemRenLuyen(),
+                        tenDanhMuc.isBlank() ? "" : "<br><span style='font-size:13px;color:#15803d;'>" + tenDanhMuc + "</span>",
+                        tenTieuChi.isBlank() ? "" : "<br><span style='font-size:12px;color:#6b7280;'>" + tenTieuChi + "</span>"
+                );
+        }
+
+        String soLuong = hd.getSoLuongToiDa() != null
+                ? "<tr><td style='padding:10px 12px;font-weight:600;color:#374151;white-space:nowrap;'>👥 Số lượng</td>"
+                  + "<td style='padding:10px 12px;'>" + hd.getSoLuongToiDa() + " sinh viên</td></tr>"
+                : "";
+
         return """
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-              <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:24px;border-radius:8px 8px 0 0;">
-                <h1 style="color:#fff;margin:0;font-size:20px;">Thông báo hoạt động Đoàn - Hội</h1>
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+            <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+            <div style="max-width:620px;margin:32px auto;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+
+              <!-- Header -->
+              <div style="background:linear-gradient(135deg,#1d4ed8 0%%,#2563eb 50%%,#0284c7 100%%);padding:32px 28px 24px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <div style="background:rgba(255,255,255,0.2);border-radius:50%%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:24px;text-align:center;line-height:48px;">📢</div>
+                  <div>
+                    <p style="margin:0;color:rgba(255,255,255,0.8);font-size:13px;letter-spacing:1px;text-transform:uppercase;">Đoàn Trường ĐH Kiên Giang</p>
+                    <h1 style="margin:4px 0 0;color:#fff;font-size:22px;font-weight:700;">Hoạt động mới mở đăng ký!</h1>
+                  </div>
+                </div>
               </div>
-              <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
-                <p>Kính gửi <strong>%s</strong>,</p>
-                <p>Có hoạt động mới dành cho bạn:</p>
-                <table style="width:100%%;border-collapse:collapse;margin:16px 0;">
-                  <tr><td style="padding:8px;background:#f8fafc;font-weight:bold;width:35%%;">Tên hoạt động</td>
-                      <td style="padding:8px;background:#f8fafc;color:#1e40af;font-weight:bold;">%s</td></tr>
-                  <tr><td style="padding:8px;">Ngày tổ chức</td><td style="padding:8px;">%s</td></tr>
-                  <tr><td style="padding:8px;background:#f8fafc;">Địa điểm</td>
-                      <td style="padding:8px;background:#f8fafc;">%s</td></tr>
-                  <tr><td style="padding:8px;">Mô tả</td><td style="padding:8px;">%s</td></tr>
+
+              <!-- Greeting -->
+              <div style="background:#fff;padding:24px 28px 0;">
+                <p style="margin:0 0 4px;color:#374151;font-size:15px;">Kính gửi <strong style="color:#1d4ed8;">%s</strong>,</p>
+                <p style="margin:0;color:#6b7280;font-size:14px;">Có một hoạt động Đoàn - Hội mới dành cho bạn. Hãy đăng ký tham gia ngay!</p>
+              </div>
+
+              <!-- Activity name banner -->
+              <div style="background:#fff;padding:16px 28px 0;">
+                <div style="background:linear-gradient(90deg,#eff6ff,#dbeafe);border-left:4px solid #2563eb;border-radius:0 8px 8px 0;padding:14px 18px;">
+                  <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Tên hoạt động</p>
+                  <p style="margin:6px 0 0;font-size:18px;font-weight:700;color:#1e40af;">%s</p>
+                </div>
+              </div>
+
+              <!-- Details table -->
+              <div style="background:#fff;padding:20px 28px;">
+                <table style="width:100%%;border-collapse:collapse;font-size:14px;">
+                  <tr>
+                    <td style="padding:10px 12px;font-weight:600;color:#374151;white-space:nowrap;width:38%%;">📅 Ngày tổ chức</td>
+                    <td style="padding:10px 12px;color:#111827;"><strong>%s%s</strong></td>
+                  </tr>
+                  <tr style="background:#f9fafb;">
+                    <td style="padding:10px 12px;font-weight:600;color:#374151;white-space:nowrap;">⏰ Giờ bắt đầu</td>
+                    <td style="padding:10px 12px;color:#111827;"><strong>%s</strong></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 12px;font-weight:600;color:#374151;white-space:nowrap;">📍 Địa điểm</td>
+                    <td style="padding:10px 12px;color:#111827;">%s</td>
+                  </tr>
+                  %s
+                  %s
                 </table>
-                %s
-                <p style="color:#6b7280;font-size:12px;margin-top:24px;">Email này được gửi tự động từ hệ thống Đoàn Trường ĐH Kiên Giang.</p>
               </div>
+
+              <!-- Mô tả -->
+              <div style="background:#fff;padding:0 28px 20px;">
+                <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:8px;padding:16px;">
+                  <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">📝 Mô tả hoạt động</p>
+                  <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.7;">%s</p>
+                </div>
+              </div>
+
+              <!-- CTA -->
+              <div style="background:#fff;padding:4px 28px 28px;text-align:center;">
+                <a href="https://tuoitre.vnkgu.edu.vn/login"
+                   style="display:inline-block;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-weight:700;font-size:15px;padding:14px 36px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 12px rgba(37,99,235,0.35);">
+                  🚀 Đăng ký tham gia ngay
+                </a>
+                <p style="margin:12px 0 0;font-size:12px;color:#9ca3af;">Truy cập: tuoitre.vnkgu.edu.vn/login</p>
+              </div>
+
+              <!-- Footer -->
+              <div style="background:#1e293b;padding:20px 28px;text-align:center;">
+                <p style="margin:0;color:#94a3b8;font-size:12px;">Email này được gửi tự động từ hệ thống Đoàn Trường ĐH Kiên Giang.</p>
+                <p style="margin:6px 0 0;color:#64748b;font-size:11px;">Vui lòng không trả lời email này.</p>
+              </div>
+
             </div>
-            """.formatted(hoTen, tenHoatDong, ngayToChuc, diaDiem, moTa,
-                    link != null && !link.isBlank() ?
-                    "<a href='" + link + "' style='display:inline-block;background:#3b82f6;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;'>Xem chi tiết</a>" : "");
+            </body></html>
+            """.formatted(hoTen, hd.getTenHoatDong(), ngay, ngayKetThuc, gio, diaDiem, diemRLBlock, soLuong, moTa);
+    }
+
+    /**
+     * Gửi email thông báo hoạt động mới đến danh sách sinh viên (async, không block thread tạo HĐ).
+     * Trong môi trường test, chỉ gửi đến TEST_EMAIL.
+     */
+    private static final String TEST_EMAIL = "thanhlocta2408@gmail.com";
+
+    @Async
+    public void sendBulkHoatDongNotification(List<SinhVien> sinhViens, HoatDong hoatDong) {
+        if (sinhViens == null || sinhViens.isEmpty()) return;
+        int sent = 0;
+        for (SinhVien sv : sinhViens) {
+            String target = TEST_EMAIL; // TODO: đổi thành sv.getEmail() khi deploy thật
+            if (sv.getEmail() == null || sv.getEmail().isBlank()) continue;
+            try {
+                sendHoatDongNotification(target, sv.getHoTen(), hoatDong);
+                sent++;
+                if (sent >= 1) break; // TODO: bỏ break này khi deploy thật
+            } catch (Exception e) {
+                log.warn("Không gửi được email HĐ cho {}: {}", target, e.getMessage());
+            }
+        }
+        log.info("Đã gửi thông báo hoạt động '{}' đến {}/{} sinh viên", hoatDong.getTenHoatDong(), sent, sinhViens.size());
     }
 
     private String buildDanhSachBanHanhTemplate(String hoTen, String tenHoatDong) {

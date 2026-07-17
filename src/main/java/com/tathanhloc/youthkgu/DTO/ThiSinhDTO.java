@@ -15,4 +15,10 @@ public class ThiSinhDTO {
     private Integer soVote;   // null nếu AN_DEN_CUOI và không phải admin
     private Boolean isActive;
     private String maSv;
+    private String trangThaiDuyet;
+    private String loaiNopBai;
+    private String dsHinhAnh;
+    private String noiDung;   // JSON blocks: [{type,url,caption,content}]
+    private String hoTen;     // tên sinh viên (nếu có)
+    private String createdAt;
 }

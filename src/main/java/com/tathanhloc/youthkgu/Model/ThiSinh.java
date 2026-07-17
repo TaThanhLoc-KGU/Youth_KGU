@@ -41,6 +41,20 @@ public class ThiSinh {
     @Column(name = "ma_sv", length = 20)
     private String maSv;
 
+    @Column(name = "trang_thai_duyet", length = 20)
+    @Builder.Default
+    private String trangThaiDuyet = "DA_DUYET";
+
+    @Column(name = "loai_nop_bai", length = 20)
+    @Builder.Default
+    private String loaiNopBai = "ANH_DON";
+
+    @Column(name = "ds_hinh_anh", columnDefinition = "JSON")
+    private String dsHinhAnh;
+
+    @Column(name = "noi_dung", columnDefinition = "LONGTEXT")
+    private String noiDung;
+
     @Column(name = "so_vote")
     @Builder.Default
     private Integer soVote = 0;

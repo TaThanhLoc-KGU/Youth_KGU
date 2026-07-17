@@ -227,6 +227,22 @@ const bchService = {
       return 0;
     }
   },
+
+  // Import Excel — preview
+  importPreview: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/bch/import-excel/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data?.data || [];
+  },
+
+  // Import Excel — confirm
+  importConfirm: async (rows) => {
+    const response = await api.post('/api/bch/import-excel/confirm', rows);
+    return response.data?.data || {};
+  },
 };
 
 export default bchService;

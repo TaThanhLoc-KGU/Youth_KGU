@@ -25,4 +25,6 @@ public class CuocThiCreateRequest {
     private Integer soLuotToiDa;
     private LocalDateTime thoiGianMoVote;
     private LocalDateTime thoiGianDongVote;
+    private Boolean choPhepNopBai;
+    private LocalDateTime hanNop;
 }

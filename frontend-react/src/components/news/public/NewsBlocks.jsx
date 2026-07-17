@@ -9,13 +9,14 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ChevronRight, ChevronDown, ChevronUp, Search, X, Loader2,
-  TrendingUp, Folder, FileText, Download, Calendar, Eye,
+  TrendingUp, Folder, FileText, Download, Calendar, Eye, Clock, MapPin, Zap,
 } from 'lucide-react';
 import newsService from '../../../services/newsService';
 import sliderService from '../../../services/sliderService';
 import tickerService from '../../../services/tickerService';
 import adBannerService from '../../../services/adBannerService';
 import bieuMauService from '../../../services/bieuMauService';
+import activityService from '../../../services/activityService';
 import { API_BASE_URL } from '../../../services/api';
 import PostCard from './PostCard';
 import PostCardFeatured from './PostCardFeatured';
@@ -688,21 +689,121 @@ export const BieuMauBlock = () => {
   );
 };
 
+// ─── HOAT DONG MO DANG KY BLOCK ──────────────────────────────────────────────
+
+const OpenActivityRow = ({ activity }) => (
+  <Link
+    to="/hoat-dong"
+    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white border border-gray-100 hover:border-amber-300 hover:bg-amber-50 transition-all group"
+  >
+    {/* thanh màu chớp 2 màu */}
+    <div className="w-1.5 self-stretch rounded-full flex-shrink-0 animate-blink2-bar" />
+    <div className="flex-1 min-w-0">
+      <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-amber-800 transition-colors">
+        {activity.tenHoatDong}
+      </p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-0 mt-0.5 text-xs text-gray-500">
+        {activity.ngayToChuc && (
+          <span className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            {formatDate(activity.ngayToChuc)}
+          </span>
+        )}
+        {activity.diaDiem && (
+          <span className="flex items-center gap-1 truncate max-w-[160px]">
+            <MapPin className="w-3 h-3 flex-shrink-0" />
+            {activity.diaDiem}
+          </span>
+        )}
+        {activity.hanDangKy && (
+          <span className="flex items-center gap-1 text-red-500 font-medium">
+            <Clock className="w-3 h-3" />
+            Hạn ĐK: {formatDate(activity.hanDangKy)}
+          </span>
+        )}
+        {activity.diemRenLuyen != null && (
+          <span className="font-semibold text-enews-600">+{activity.diemRenLuyen} RL</span>
+        )}
+      </div>
+    </div>
+    <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-amber-500 flex-shrink-0 transition-colors" />
+  </Link>
+);
+
+export const HoatDongMoDangKyBlock = () => {
+  const { data: activities = [], isLoading } = useQuery({
+    queryKey: ['public-hoat-dong'],
+    queryFn: activityService.getPublic,
+    staleTime: 3 * 60 * 1000,
+  });
+
+  const open = activities
+    .filter(a => a.trangThai === 'DANG_MO_DANG_KY')
+    .sort((a, b) => {
+      // hạn đăng ký gần nhất lên đầu, không có hạn xuống dưới
+      if (a.hanDangKy && b.hanDangKy) return new Date(a.hanDangKy) - new Date(b.hanDangKy);
+      if (a.hanDangKy) return -1;
+      if (b.hanDangKy) return 1;
+      return 0;
+    });
+
+  if (!isLoading && open.length === 0) return null;
+
+  return (
+    <div className="mb-2 rounded-xl overflow-hidden animate-blink2-border">
+      {/* Header chớp 2 màu */}
+      <div className="animate-blink2-bg flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-white flex-shrink-0" />
+          <h2 className="font-bold text-white text-sm sm:text-base uppercase tracking-wide">
+            Hoạt động đang mở đăng ký
+          </h2>
+          {open.length > 0 && (
+            <span className="bg-white/25 text-white text-xs font-bold px-2 py-0.5 rounded-full border border-white/30">
+              {open.length}
+            </span>
+          )}
+        </div>
+        <Link
+          to="/hoat-dong"
+          className="text-white/80 text-xs flex items-center gap-0.5 hover:text-white transition-colors whitespace-nowrap"
+        >
+          Xem tất cả <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+      {/* Danh sách */}
+      <div className="bg-gray-50 p-3 space-y-2">
+        {isLoading ? (
+          [...Array(3)].map((_, i) => (
+            <div key={i} className="h-14 bg-white rounded-lg animate-pulse border border-gray-100" />
+          ))
+        ) : (
+          open.slice(0, 6).map(act => (
+            <OpenActivityRow key={act.maHoatDong} activity={act} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── BLOCK REGISTRY + RENDERER ────────────────────────────────────────────────
 
 export const BLOCK_REGISTRY = {
-  [BLOCK_TYPES.SEARCH_BAR]:       SearchBlock,
-  [BLOCK_TYPES.HERO_SLIDER]:      HeroSliderBlock,
-  [BLOCK_TYPES.NEWS_TICKER]:      NewsTickerBlock,
-  [BLOCK_TYPES.FEATURED_GRID]:    FeaturedGridBlock,
-  [BLOCK_TYPES.ALL_CATEGORIES]:   AllCategoriesBlock,
-  [BLOCK_TYPES.CATEGORY_SECTION]: CategorySectionBlock,
-  [BLOCK_TYPES.LATEST_NEWS]:      LatestNewsBlock,
-  [BLOCK_TYPES.BANNER]:              BannerBlock,
-  [BLOCK_TYPES.AD_WIDGET]:           AdWidgetBlock,
-  [BLOCK_TYPES.SIDEBAR_FEATURED]:    SidebarFeaturedBlock,
-  [BLOCK_TYPES.SIDEBAR_CATEGORIES]:  SidebarCategoriesBlock,
-  [BLOCK_TYPES.BIEU_MAU]:            BieuMauBlock,
+  [BLOCK_TYPES.SEARCH_BAR]:            SearchBlock,
+  [BLOCK_TYPES.HERO_SLIDER]:           HeroSliderBlock,
+  [BLOCK_TYPES.NEWS_TICKER]:           NewsTickerBlock,
+  [BLOCK_TYPES.HOAT_DONG_MO_DANG_KY]: HoatDongMoDangKyBlock,
+  [BLOCK_TYPES.FEATURED_GRID]:         FeaturedGridBlock,
+  [BLOCK_TYPES.ALL_CATEGORIES]:        AllCategoriesBlock,
+  [BLOCK_TYPES.CATEGORY_SECTION]:      CategorySectionBlock,
+  [BLOCK_TYPES.LATEST_NEWS]:           LatestNewsBlock,
+  [BLOCK_TYPES.BANNER]:                BannerBlock,
+  [BLOCK_TYPES.AD_WIDGET]:             AdWidgetBlock,
+  [BLOCK_TYPES.SIDEBAR_FEATURED]:      SidebarFeaturedBlock,
+  [BLOCK_TYPES.SIDEBAR_CATEGORIES]:    SidebarCategoriesBlock,
+  [BLOCK_TYPES.BIEU_MAU]:              BieuMauBlock,
 };
 
 /**

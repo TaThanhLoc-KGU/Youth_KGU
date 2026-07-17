@@ -342,7 +342,7 @@ const ActivityForm = ({
     soLuongToiDa: '',
     diemRenLuyen: '', maDanhMucRenLuyen: '', maTieuChiRenLuyen: '', diemToiDaTieuChi: null,
     maKhoa: '', hanDangKy: '', hinhAnhPoster: '', ghiChu: '',
-    yeuCauDiemDanh: true, choPhepDangKy: true,
+    yeuCauDiemDanh: true, choPhepDangKy: true, isKhongDangKy: false,
     trangThai: isClb ? 'CHO_DUYET' : 'SAP_DIEN_RA',
     soHocKy: '', maNamHoc: '', tenNamHoc: '',
   });
@@ -837,10 +837,17 @@ const ActivityForm = ({
         )}
       </div>
 
-      <Toggle name="choPhepDangKy" checked={!!formData.choPhepDangKy}
-        label="Cho phép sinh viên đăng ký"
-        hint="Tắt để tạm ngưng nhận đăng ký mới"
+      <Toggle name="isKhongDangKy" checked={!!formData.isKhongDangKy}
+        label="Hoạt động không đăng ký (kêu gọi offline)"
+        hint="Danh sách tham gia nhập thủ công hoặc import Excel sau khi tạo hoạt động"
         onToggle={handleToggle} />
+
+      {!formData.isKhongDangKy && (
+        <Toggle name="choPhepDangKy" checked={!!formData.choPhepDangKy}
+          label="Cho phép sinh viên đăng ký"
+          hint="Tắt để tạm ngưng nhận đăng ký mới"
+          onToggle={handleToggle} />
+      )}
 
       <div>
         <div className="flex items-center gap-2 mb-2">

@@ -25,9 +25,8 @@ public class MediaController {
     private final FileStorageService fileStorageService;
 
     /**
-     * Upload một ảnh media.
+     * Upload một ảnh media (admin/BCH).
      * POST /api/admin/media/upload
-     * multipart/form-data, field: file
      */
     @PostMapping("/upload")
     @PreAuthorize("hasAnyRole('ADMIN', 'BCH')")
@@ -37,6 +36,7 @@ public class MediaController {
         String url = fileStorageService.saveMediaImage(file);
         return ResponseEntity.ok(ApiResponse.success("Uploaded", Map.of("url", url)));
     }
+
 
     /**
      * Lấy danh sách ảnh media đã upload.

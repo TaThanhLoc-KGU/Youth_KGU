@@ -53,4 +53,7 @@ public class SinhVien {
     @ManyToOne
     @JoinColumn(name = "ma_lop")
     private Lop lop;
+
+    @Column(name = "zalo_user_id")
+    private String zaloUserId;
 }

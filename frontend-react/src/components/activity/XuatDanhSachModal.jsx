@@ -1,58 +1,196 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../../services/api';
 import {
-  X, ChevronLeft, ChevronRight, Loader2,
-  FileText, FileCheck, Pen, Stamp, Download, Eye,
-  GripHorizontal, AlertCircle, CheckCircle2, Send,
+  X, Loader2, FileText, FileCheck, Pen, Stamp, Download, Eye,
+  GripHorizontal, AlertCircle, CheckCircle2, Send, RefreshCw,
+  Plus, Trash2, RotateCcw, MoveHorizontal, List, Settings,
+  ChevronUp, ChevronDown, Sliders,
 } from 'lucide-react';
 import kySoService from '../../services/kySoService';
 import banHanhService from '../../services/banHanhService';
+import useAuthStore from '../../stores/authStore';
 
 /* ─── helpers ─────────────────────────────────────────────────── */
-/** Chuyển đường dẫn tương đối thành URL ảnh đầy đủ */
 const imgUrl = (duongDan) => duongDan ? `${API_BASE_URL}${duongDan}` : null;
 
-const LOAI_KY = [
-  { value: 'BÍ THƯ',    label: 'Bí Thư' },
-  { value: 'PHÓ BÍ THƯ', label: 'Phó Bí Thư' },
+const LS_POS_KEY = (maHD) => `kyso_positions_${maHD}`;
+const LS_COL_KEY = 'bieuMau_colConfig';
+
+function savePositions(maHD, positions) {
+  try { localStorage.setItem(LS_POS_KEY(maHD), JSON.stringify(positions)); } catch {}
+}
+function loadPositions(maHD) {
+  try { const s = localStorage.getItem(LS_POS_KEY(maHD)); return s ? JSON.parse(s) : null; }
+  catch { return null; }
+}
+function saveColConfig(cfg) {
+  try { localStorage.setItem(LS_COL_KEY, JSON.stringify(cfg)); } catch {}
+}
+function loadColConfig() {
+  try { const s = localStorage.getItem(LS_COL_KEY); return s ? JSON.parse(s) : null; }
+  catch { return null; }
+}
+
+const DEFAULT_COL_CONFIG = [
+  { key: 'stt',     header: 'STT',       widthPt: 26,  visible: true },
+  { key: 'hoTen',   header: 'Họ và Tên', widthPt: 148, visible: true },
+  { key: 'maLop',   header: 'Lớp',       widthPt: 62,  visible: true },
+  { key: 'maSv',    header: 'MSSV',      widthPt: 75,  visible: true },
+  { key: 'tenKhoa', header: 'Tên Khoa',  widthPt: 142, visible: true },
 ];
 
-/* Một ô kéo thả đặt lên ảnh preview — hiện ảnh thực nếu có */
-function DraggableBox({
-  label, color, pos, onMove,
-  containerRef, imgNaturalW, imgNaturalH, imgDisplayW, imgDisplayH,
-  imgSrc,   // URL ảnh chữ ký / con dấu (nếu có)
-}) {
+const WIDTH_PRESETS = { xs: 26, sm: 58, md: 90, lg: 135, xl: 165 };
+
+function ptToPreset(pt) {
+  let best = 'md', bestDiff = Infinity;
+  for (const [k, v] of Object.entries(WIDTH_PRESETS)) {
+    const d = Math.abs(v - pt);
+    if (d < bestDiff) { bestDiff = d; best = k; }
+  }
+  return best;
+}
+
+const LOAI_KY_TRUONG = [
+  { value: 'BÍ THƯ',     label: 'Bí Thư' },
+  { value: 'PHÓ BÍ THƯ', label: 'Phó Bí Thư' },
+];
+const LOAI_KY_KHOA = [
+  { value: 'BÍ THƯ',     label: 'TM. BTV Đoàn Khoa Bí thư' },
+  { value: 'PHÓ BÍ THƯ', label: 'TM. BTV Đoàn Khoa P. Bí thư' },
+];
+
+/* ─── ZoneOverlay ────────────────────────────────────────────── */
+function ZoneOverlay({ zone, naturalW, naturalH, imgW, imgH, onClick }) {
+  if (!imgW || !imgH) return null;
+  const left = zone.x * imgW / naturalW;
+  const top  = (naturalH - zone.y - zone.h) * imgH / naturalH;
+  const w    = zone.w * imgW / naturalW;
+  const h    = zone.h * imgH / naturalH;
+  return (
+    <div
+      onClick={(e) => { e.stopPropagation(); onClick(zone, e); }}
+      className="absolute cursor-pointer rounded transition-all hover:bg-blue-400/20 hover:ring-2 hover:ring-blue-400/60 group"
+      style={{ left, top, width: w, height: h, zIndex: 20 }}
+      title={zone.type === 'title' ? 'Nhấn để sửa tiêu đề' : zone.type === 'date' ? 'Nhấn để sửa ngày' : 'Nhấn để sửa dòng'}
+    >
+      <span className="absolute top-0 right-0 text-[9px] bg-blue-500 text-white px-1 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity leading-tight pointer-events-none">
+        {zone.type === 'title' ? 'Tiêu đề' : zone.type === 'date' ? 'Ngày' : `#${zone.rowIndex + 1}`}
+      </span>
+    </div>
+  );
+}
+
+/* ─── FloatingZoneEditor ────────────────────────────────────── */
+function FloatingZoneEditor({ zone, editRows, editTieuDe, editNgayStr,
+                               vpX, vpY, onUpdateTitle, onUpdateDate, onUpdateRow, onClose }) {
   const ref = useRef(null);
+  const [localVal, setLocalVal] = useState(() => {
+    if (zone.type === 'title') return editTieuDe || '';
+    if (zone.type === 'date')  return editNgayStr || '';
+    return '';
+  });
+  const [rowData, setRowData] = useState(() => {
+    if (zone.type !== 'row') return null;
+    const r = editRows?.[zone.rowIndex];
+    return r ? { hoTen: r.hoTen, maLop: r.maLop, maSv: r.maSv, tenKhoa: r.tenKhoa } : null;
+  });
+  const [pos, setPos] = useState({ left: vpX + 10, top: vpY + 10 });
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const { offsetWidth: w, offsetHeight: h } = ref.current;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    setPos({
+      left: Math.min(vpX + 10, vw - w - 12),
+      top:  Math.min(vpY + 10, vh - h - 12),
+    });
+  }, []); // eslint-disable-line
+
+  useEffect(() => {
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [onClose]);
+
+  const handleSave = () => {
+    if (zone.type === 'title') onUpdateTitle(localVal);
+    else if (zone.type === 'date') onUpdateDate(localVal);
+    else if (zone.type === 'row' && rowData) onUpdateRow(zone.rowIndex, rowData);
+    onClose();
+  };
+
+  return (
+    <div ref={ref} className="fixed z-[200] bg-white border border-blue-300 rounded-xl shadow-2xl p-3 w-72"
+      style={{ left: pos.left, top: pos.top }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-bold text-blue-700">
+          {zone.type === 'title' ? 'Sửa tiêu đề' : zone.type === 'date' ? 'Sửa ngày' : `Sửa dòng #${zone.rowIndex + 1}`}
+        </span>
+        <button onClick={onClose} className="p-0.5 hover:bg-gray-100 rounded">
+          <X className="w-3.5 h-3.5 text-gray-400" />
+        </button>
+      </div>
+
+      {zone.type === 'title' && (
+        <textarea rows={3} value={localVal} onChange={e => setLocalVal(e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+      )}
+      {zone.type === 'date' && (
+        <input type="text" value={localVal} onChange={e => setLocalVal(e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      )}
+      {zone.type === 'row' && rowData && (
+        <div className="space-y-1.5">
+          {[
+            { field: 'hoTen',   label: 'Họ và tên' },
+            { field: 'maLop',   label: 'Lớp' },
+            { field: 'maSv',    label: 'MSSV' },
+            { field: 'tenKhoa', label: 'Khoa' },
+          ].map(({ field, label }) => (
+            <div key={field} className="flex items-center gap-2">
+              <label className="text-[10px] text-gray-500 w-16 shrink-0">{label}</label>
+              <input type="text" value={rowData[field] || ''}
+                onChange={e => setRowData(d => ({ ...d, [field]: e.target.value }))}
+                className="flex-1 border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 mt-2.5">
+        <button onClick={onClose}
+          className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
+          Hủy
+        </button>
+        <button onClick={handleSave}
+          className="px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          Lưu
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── DraggableBox ────────────────────────────────────────────── */
+function DraggableBox({ label, color, pos, onMove, containerRef,
+                        imgNaturalW, imgNaturalH, imgDisplayW, imgDisplayH, imgSrc }) {
+  const ref      = useRef(null);
   const dragging = useRef(false);
   const offset   = useRef({ dx: 0, dy: 0 });
 
-  // pt → display pixels
   const toDisplay = (ptX, ptY) => ({
     x: ptX * imgDisplayW / imgNaturalW,
     y: ptY * imgDisplayH / imgNaturalH,
   });
-
-  // display pixels → pt
   const toNatural = (px, py) => ({
     x: px * imgNaturalW / imgDisplayW,
     y: py * imgNaturalH / imgDisplayH,
   });
 
   const displayPos = toDisplay(pos.x, pos.y);
-  // Kích thước hiển thị tương ứng với kích thước pt của phần tử
-  const displayW = (pos.width  ?? 90) * imgDisplayW / imgNaturalW;
-  const displayH = (pos.height ?? 52) * imgDisplayH / imgNaturalH;
-
-  const onMouseDown = (e) => {
-    e.preventDefault();
-    dragging.current = true;
-    const rect = ref.current.getBoundingClientRect();
-    offset.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  };
+  const displayW   = (pos.width  ?? 90) * imgDisplayW / imgNaturalW;
+  const displayH   = (pos.height ?? 52) * imgDisplayH / imgNaturalH;
 
   const onMouseMove = useCallback((e) => {
     if (!dragging.current || !containerRef.current) return;
@@ -65,8 +203,7 @@ function DraggableBox({
     newY = Math.max(0, Math.min(newY, imgDisplayH - boxH));
     const nat = toNatural(newX, newY);
     onMove({ ...pos, x: nat.x, y: nat.y });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imgDisplayW, imgDisplayH, displayW, displayH, pos]);
+  }, [imgDisplayW, imgDisplayH, displayW, displayH, pos]); // eslint-disable-line
 
   const onMouseUp = useCallback(() => {
     dragging.current = false;
@@ -74,52 +211,80 @@ function DraggableBox({
     window.removeEventListener('mouseup', onMouseUp);
   }, [onMouseMove]);
 
-  const borderColor = { blue: '#3b82f6', green: '#22c55e', orange: '#f97316' }[color] || '#3b82f6';
+  const onMouseDown = (e) => {
+    e.preventDefault();
+    dragging.current = true;
+    const rect = ref.current.getBoundingClientRect();
+    offset.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const borderColor = { blue: '#3b82f6', green: '#22c55e', orange: '#f97316' }[color] ?? '#3b82f6';
 
   return (
-    <div
-      ref={ref}
-      className="absolute cursor-move select-none"
+    <div ref={ref} className="absolute cursor-move select-none"
       style={{
-        left: displayPos.x,
-        top:  displayPos.y,
-        width:  displayW,
-        height: displayH,
-        zIndex: 10,
-        border: `2px dashed ${borderColor}`,
-        borderRadius: 4,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
-        background: imgSrc ? 'transparent' : `${borderColor}18`,
+        left: displayPos.x, top: displayPos.y,
+        width: displayW, height: displayH,
+        zIndex: 10, border: `2px dashed ${borderColor}`, borderRadius: 4,
+        boxShadow: '0 1px 6px rgba(0,0,0,0.18)',
+        background: imgSrc ? 'transparent' : `${borderColor}22`,
       }}
-      onMouseDown={onMouseDown}
-    >
+      onMouseDown={onMouseDown}>
       {imgSrc ? (
-        /* Hiện ảnh thực — người dùng thấy chính xác vị trí chữ ký / con dấu */
-        <img
-          src={imgSrc}
-          alt={label}
-          draggable={false}
-          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-        />
+        <img src={imgSrc} alt={label} draggable={false}
+          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
       ) : (
-        /* Placeholder khi chưa chọn ảnh */
-        <div className="flex items-center justify-center w-full h-full gap-1 text-xs font-medium"
+        <div className="flex flex-col items-center justify-center w-full h-full gap-0.5"
           style={{ color: borderColor }}>
-          <GripHorizontal className="w-3 h-3 flex-shrink-0" />
-          {label}
+          <GripHorizontal className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="text-[10px] font-semibold leading-tight text-center px-1">{label}</span>
         </div>
       )}
     </div>
   );
 }
 
-/* ─── main modal ─────────────────────────────────────────────── */
+/* ─── SigImagePicker ──────────────────────────────────────────── */
+function SigImagePicker({ label, value, onChange, options, color }) {
+  const borderCls = {
+    blue:  'border-blue-200 focus:ring-blue-400',
+    green: 'border-green-200 focus:ring-green-400',
+  }[color] ?? 'border-gray-300 focus:ring-blue-400';
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <select value={value ?? ''} onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
+        className={`w-full border rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 bg-white ${borderCls}`}>
+        <option value="">— Không dùng ảnh —</option>
+        {options.map(ck => (
+          <option key={ck.id} value={ck.id}>
+            {ck.tenNguoiKy}{ck.chucVu ? ` (${ck.chucVu})` : ''}{ck.laMacDinh ? ' ★' : ''}
+          </option>
+        ))}
+      </select>
+      {value && (
+        <img src={imgUrl(options.find(c => c.id === value)?.duongDan)}
+          alt="preview" className="mt-1.5 h-12 object-contain border rounded bg-gray-50" />
+      )}
+    </div>
+  );
+}
+
+/* ─── Main modal ─────────────────────────────────────────────── */
 export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PDF' }) {
   const isBanHanh = mode === 'BAN_HANH';
-  // step: 1=form ký, 2=editor nội dung, 3=preview+drag
-  const [step, setStep] = useState(1);
+  const qc = useQueryClient();
+  const { maKhoa, tenKhoa } = useAuthStore();
+  const isKhoaScoped = !!maKhoa;
+  const orgLabel = isKhoaScoped ? 'TM. BTV ĐOÀN KHOA' : null;
+  const LOAI_KY = isKhoaScoped ? LOAI_KY_KHOA : LOAI_KY_TRUONG;
 
-  /* step 1 form state */
+  /* ── Panel tabs: 'ky' | 'noidung' | 'cauhinh' */
+  const [activeTab, setActiveTab] = useState('ky');
+
+  /* ── Form (ký) */
   const [form, setForm] = useState({
     loaiKy:          'BÍ THƯ',
     chuKyBiThuId:    null,
@@ -130,32 +295,50 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
     conDauId:        null,
   });
 
-  /* step 3 state (preview + drag) */
-  const [currentPage, setCurrentPage] = useState(0);
-  const [positions, setPositions]     = useState(null);
-  const [exporting, setExporting]     = useState(false);
-  const [exportDone, setExportDone]   = useState(false);
-  const [exportError, setExportError] = useState(null);
+  /* ── Nội dung (editor) */
+  const [editRows,      setEditRows]      = useState(null);
+  const [editTieuDe,    setEditTieuDe]    = useState('');
+  const [editNgayStr,   setEditNgayStr]   = useState('');
+  const [contentEdited, setContentEdited] = useState(false);
+
+  /* ── Column config */
+  const [colConfig, setColConfig] = useState(() => loadColConfig() || DEFAULT_COL_CONFIG);
+
+  /* ── Format config (thể thức PDF) */
+  const [formatConfig, setFormatConfig] = useState({
+    marginTopCm:    null, // null = dùng mặc định backend
+    marginBottomCm: null,
+    marginLeftCm:   null,
+    marginRightCm:  null,
+    bodyFontSizePt: null,
+    rowHeightPt:    null,
+    fontName:       null, // null = Times New Roman
+  });
+  const updateFmt = (key, val) => setFormatConfig(prev => ({ ...prev, [key]: val === '' ? null : val }));
+
+  /* ── Zone editor */
+  const [clickedZone,   setClickedZone]   = useState(null);
+  const [zoneEditorPos, setZoneEditorPos] = useState({ x: 0, y: 0 });
+
+  /* ── Preview state */
+  const [positions, setPositions] = useState(null);
+  const [previewKey, setPreviewKey] = useState(0);
+  const [imgSizes, setImgSizes] = useState({});   // pageIdx -> { w, h }
+  const lastPageRef = useRef(null);
+
+  /* ── Export state */
+  const [exporting,     setExporting]     = useState(false);
+  const [exportDone,    setExportDone]    = useState(false);
+  const [exportError,   setExportError]   = useState(null);
   const [banHanhResult, setBanHanhResult] = useState(null);
 
-  /* step 2: editor nội dung trực tiếp */
-  const [editRows, setEditRows]         = useState(null); // null = chưa load
-  const [editTieuDe, setEditTieuDe]     = useState('');
-  const [editNgayStr, setEditNgayStr]   = useState('');
-  const [contentEdited, setContentEdited] = useState(false); // đã chỉnh sửa?
-
-  const imgContainerRef = useRef(null);
-  const [imgSize, setImgSize]         = useState({ w: 0, h: 0 }); // displayed size
-
-  /* queries */
-  const { data: dsChuKy = [] }  = useQuery({ queryKey: ['chu-ky'],  queryFn: kySoService.getAllChuKy });
+  /* ── Queries */
+  const { data: dsChuKy  = [] } = useQuery({ queryKey: ['chu-ky'],  queryFn: kySoService.getAllChuKy });
   const { data: dsConDau = [] } = useQuery({ queryKey: ['con-dau'], queryFn: kySoService.getAllConDau });
   const { data: dsChucVu = [] } = useQuery({
     queryKey: ['chuc-vu'],
     queryFn: () => api.get('/api/chuc-vu').then(r => r.data.data || []),
   });
-
-  // Danh sách sinh viên đã điểm danh — dùng làm dữ liệu gốc cho editor
   const { data: dsSinhVien = [] } = useQuery({
     queryKey: ['ky-so-ds-sv', maHoatDong],
     queryFn: () => api.get(`/api/diem-danh/activity/${encodeURIComponent(maHoatDong)}/checked-in`)
@@ -163,124 +346,135 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
     staleTime: 30_000,
   });
 
-  // Khi dsSinhVien load xong + chưa vào editor lần nào → khởi tạo editRows
+  /* ── Init editRows */
   useEffect(() => {
     if (dsSinhVien.length > 0 && editRows === null) {
       setEditRows(dsSinhVien.map((sv, i) => ({
-        _id:     i,
-        hoTen:   sv.hoTenSinhVien || sv.hoTen || '',
-        maLop:   sv.maLop || sv.lop || '',
-        maSv:    sv.maSv || '',
-        tenKhoa: sv.tenKhoa || '',
+        _id: i, hoTen: sv.hoTenSinhVien || sv.hoTen || '',
+        maLop: sv.maLop || sv.lop || '', maSv: sv.maSv || '', tenKhoa: sv.tenKhoa || '',
       })));
-      // Ngày mặc định
       const today = new Date();
       setEditNgayStr(`An Giang, ngày ${String(today.getDate()).padStart(2,'0')} tháng ${String(today.getMonth()+1).padStart(2,'0')} năm ${today.getFullYear()}`);
     }
   }, [dsSinhVien]); // eslint-disable-line
 
-  // Tính hash nhẹ để làm queryKey — đủ để phân biệt khi content thay đổi
-  const previewCacheKey = contentEdited
-    ? JSON.stringify({ rows: editRows, tieuDe: editTieuDe, ngay: editNgayStr })
-    : 'default';
+  /* ── Persist colConfig */
+  useEffect(() => { saveColConfig(colConfig); }, [colConfig]);
 
-  const {
-    data: preview,
-    isLoading: previewLoading,
-    isError: previewError,
-  } = useQuery({
+  /* ── Preview query — always POST with colConfig */
+  const previewCacheKey = useMemo(() => {
+    const colHash = colConfig.map(c => `${c.key}:${c.visible}:${c.widthPt}:${c.header}`).join('|');
+    const fmtHash = JSON.stringify(formatConfig);
+    return `v2_${previewKey}_${form.loaiKy}_${editTieuDe}_${editNgayStr}_${editRows?.length}_${colHash}_${fmtHash}`;
+  }, [previewKey, form.loaiKy, editTieuDe, editNgayStr, editRows, colConfig, formatConfig]);
+
+  const { data: preview, isLoading: previewLoading, isError: previewError } = useQuery({
     queryKey: ['ky-so-preview', maHoatDong, previewCacheKey],
-    queryFn:  () => {
-      if (contentEdited) {
-        // Gửi override data để preview đúng nội dung đã chỉnh
-        return kySoService.getPreview(maHoatDong, {
-          overrideRows:   editRows?.map(r => ({
-            hoTen:   r.hoTen,
-            maLop:   r.maLop,
-            maSv:    r.maSv,
-            tenKhoa: r.tenKhoa,
-          })) ?? null,
-          overrideTieuDe:  editTieuDe  || null,
-          overrideNgayStr: editNgayStr || null,
-        });
-      }
-      return kySoService.getPreview(maHoatDong);
-    },
-    enabled:  step === 3,
-    staleTime: 60_000,
+    queryFn: () => kySoService.getPreview(maHoatDong, {
+      overrideRows: contentEdited && editRows
+        ? editRows.map(r => ({ hoTen: r.hoTen, maLop: r.maLop, maSv: r.maSv, tenKhoa: r.tenKhoa }))
+        : null,
+      overrideTieuDe:  contentEdited ? editTieuDe  || null : null,
+      overrideNgayStr: contentEdited ? editNgayStr || null : null,
+      loaiKy: form.loaiKy,
+      orgLabel,
+      tenKhoa: isKhoaScoped ? (tenKhoa || null) : null,
+      colConfig,
+      formatConfig,
+    }),
+    staleTime: 0,
   });
 
-  /* Khi preview load xong, đặt vị trí mặc định từ server (sigBlockTopY, leftColCX, rightColCX) */
+  /* ── Init sig positions from preview */
   useEffect(() => {
     if (!preview) return;
-    const { pageWidthPt: pw, sigBlockTopY, leftColCX, rightColCX } = preview;
-
-    // sigBlockTopY, leftColCX, rightColCX là tọa độ PDF (pt, gốc trên-trái).
-    // Ảnh chữ ký nằm sau 2 dòng text (14pt + 14pt = 28pt)
-    const sigImgTopY = sigBlockTopY + 28;
+    const saved = loadPositions(maHoatDong);
+    if (saved) { setPositions(saved); return; }
+    const { sigBlockTopY, leftColCX, rightColCX } = preview;
+    const sigImgTopY = sigBlockTopY + 18;
     const sigW = 90, sigH = 52, stW = 95, stH = 60;
-
     setPositions({
-      biThu:    { x: leftColCX  - sigW / 2, y: sigImgTopY,      width: sigW, height: sigH },
-      nguoiLap: { x: rightColCX - sigW / 2, y: sigImgTopY,      width: sigW, height: sigH },
-      conDau:   { x: leftColCX  - stW / 2 - 5, y: sigImgTopY - 4, width: stW, height: stH },
+      biThu:    { x: leftColCX  - sigW / 2,       y: sigImgTopY,     width: sigW, height: sigH },
+      nguoiLap: { x: rightColCX - sigW / 2,        y: sigImgTopY,     width: sigW, height: sigH },
+      conDau:   { x: leftColCX  - stW / 2 - 5,     y: sigImgTopY - 4, width: stW,  height: stH },
     });
-  }, [preview]);
+  }, [preview]); // eslint-disable-line
 
-  /* Theo dõi kích thước thực của ảnh khi hiển thị */
-  const onImgLoad = (e) => {
-    setImgSize({ w: e.target.offsetWidth, h: e.target.offsetHeight });
+  useEffect(() => {
+    if (positions) savePositions(maHoatDong, positions);
+  }, [positions, maHoatDong]);
+
+  /* ── Track img sizes per page */
+  const onImgLoad = (pageIdx) => (e) => {
+    setImgSizes(prev => ({ ...prev, [pageIdx]: { w: e.target.offsetWidth, h: e.target.offsetHeight } }));
   };
 
-  useEffect(() => {
-    if (!imgContainerRef.current) return;
-    const ro = new ResizeObserver(() => {
-      const el = imgContainerRef.current?.querySelector('img');
-      if (el) setImgSize({ w: el.offsetWidth, h: el.offsetHeight });
+  /* ── Helpers */
+  const setPos = (key) => (p) => setPositions(prev => ({ ...prev, [key]: p }));
+
+  const handleRefreshPreview = () => {
+    qc.removeQueries({ queryKey: ['ky-so-preview', maHoatDong] });
+    setPreviewKey(k => k + 1);
+  };
+
+  const resetPositions = () => {
+    localStorage.removeItem(LS_POS_KEY(maHoatDong));
+    setPositions(null);
+    handleRefreshPreview();
+  };
+
+  /* ── Zone handlers */
+  const handleZoneClick = (zone, e) => {
+    setClickedZone(zone);
+    setZoneEditorPos({ x: e.clientX, y: e.clientY });
+  };
+  const handleZoneUpdateTitle = (val) => { setEditTieuDe(val); setContentEdited(true); };
+  const handleZoneUpdateDate  = (val) => { setEditNgayStr(val); setContentEdited(true); };
+  const handleZoneUpdateRow   = (idx, rowData) => {
+    setEditRows(prev => prev.map((r, i) => i === idx ? { ...r, ...rowData } : r));
+    setContentEdited(true);
+  };
+
+  /* ── ColConfig helpers */
+  const updateColConfig = (idx, patch) =>
+    setColConfig(prev => prev.map((c, i) => i === idx ? { ...c, ...patch } : c));
+
+  const moveColConfig = (idx, dir) => {
+    setColConfig(prev => {
+      const arr = [...prev];
+      const target = idx + dir;
+      if (target < 0 || target >= arr.length) return arr;
+      [arr[idx], arr[target]] = [arr[target], arr[idx]];
+      return arr;
     });
-    ro.observe(imgContainerRef.current);
-    return () => ro.disconnect();
-  }, [step, currentPage]);
+  };
 
-  /* Go to last page when entering step 3 */
-  useEffect(() => {
-    if (step === 3 && preview) {
-      setCurrentPage(preview.pages.length - 1);
-    }
-  }, [step, preview]);
-
+  /* ── Export */
   const handleExport = async () => {
-    setExporting(true);
-    setExportError(null);
-    setBanHanhResult(null);
+    setExporting(true); setExportError(null); setBanHanhResult(null);
     try {
-      // Nếu admin đã chỉnh sửa nội dung → gửi overrideRows + tiêu đề + ngày
-      const overrideRows  = contentEdited && editRows  ? editRows.map(r => ({
-        hoTen:   r.hoTen,
-        maLop:   r.maLop,
-        maSv:    r.maSv,
-        tenKhoa: r.tenKhoa,
-      })) : null;
-      const overrideTieuDe  = contentEdited && editTieuDe  ? editTieuDe  : null;
-      const overrideNgayStr = contentEdited && editNgayStr ? editNgayStr : null;
-
+      const overrideRows    = contentEdited && editRows
+        ? editRows.map(r => ({ hoTen: r.hoTen, maLop: r.maLop, maSv: r.maSv, tenKhoa: r.tenKhoa }))
+        : null;
+      const overrideTieuDe  = contentEdited ? editTieuDe  || null : null;
+      const overrideNgayStr = contentEdited ? editNgayStr || null : null;
       const payload = {
         ...form,
-        posBiThu:       positions?.biThu,
-        posNguoiLap:    positions?.nguoiLap,
-        posConDau:      form.conDauId ? positions?.conDau : null,
-        overrideRows,
-        overrideTieuDe,
-        overrideNgayStr,
+        posBiThu:    positions?.biThu,
+        posNguoiLap: positions?.nguoiLap,
+        posConDau:   form.conDauId ? positions?.conDau : null,
+        overrideRows, overrideTieuDe, overrideNgayStr,
+        colConfig,
+        orgLabel,
+        formatConfig,
+        tenKhoa: isKhoaScoped ? (tenKhoa || null) : null,
       };
-
       if (isBanHanh) {
-        // Ban hành: gọi API lưu file server, trả về metadata
         const result = await banHanhService.banHanh(maHoatDong, payload);
-        setBanHanhResult(result); // { id, downloadUrl, tenFile, ... }
+        setBanHanhResult(result);
         setExportDone(true);
+        qc.invalidateQueries({ queryKey: ['ban-hanh', maHoatDong] });
       } else {
-        // Xuất PDF thường: download về máy
         await kySoService.xuatPDF(maHoatDong, payload);
         setExportDone(true);
       }
@@ -291,614 +485,599 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
     }
   };
 
-  /* natural dimensions of the image = page dimensions in pt (rendered at 96 DPI ≈ 1px/pt) */
-  const naturalW = preview?.pageWidthPt  ?? 595;
-  const naturalH = preview?.pageHeightPt ?? 842;
+  const naturalW  = preview?.pageWidthPt  ?? 595;
+  const naturalH  = preview?.pageHeightPt ?? 842;
+  const canExport = form.tenNguoiKy.trim() && form.tenNguoiLap.trim() && preview && !previewLoading;
 
-  const lastPageIndex = (preview?.pages?.length ?? 1) - 1;
-  const isLastPage    = currentPage === lastPageIndex;
+  const accentGrad = isBanHanh ? 'from-emerald-600 to-emerald-700' : 'from-blue-600 to-blue-700';
+  const accentText = isBanHanh ? 'text-emerald-700' : 'text-blue-700';
 
-  /* ── render ── */
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col overflow-hidden">
-
-        {/* Header */}
-        <div className={`flex items-center justify-between px-6 py-4 border-b text-white rounded-t-2xl bg-gradient-to-r ${
-          isBanHanh ? 'from-emerald-600 to-emerald-700' : 'from-blue-600 to-blue-700'
-        }`}>
-          <div className="flex items-center gap-2">
-            {isBanHanh ? <FileCheck className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
-            <h2 className="font-semibold text-lg">
-              {isBanHanh ? 'Ban hành danh sách chính thức' : 'Xuất danh sách tham gia'}
-            </h2>
-            {preview && (
-              <span className={`text-sm ${isBanHanh ? 'text-emerald-200' : 'text-blue-200'}`}>
-                — {preview.totalStudents} sinh viên
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Steps indicator */}
-            <div className="flex items-center gap-1.5 text-sm">
-              {[
-                { n: 1, label: 'Thông tin ký' },
-                { n: 2, label: 'Chỉnh sửa nội dung' },
-                { n: 3, label: isBanHanh ? 'Xem trước & Ban hành' : 'Xem trước & Ký' },
-              ].map(({ n, label }, i) => (
-                <React.Fragment key={n}>
-                  {i > 0 && <ChevronRight className={`w-3 h-3 flex-shrink-0 ${isBanHanh ? 'text-emerald-300' : 'text-blue-300'}`} />}
-                  <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors text-xs whitespace-nowrap ${
-                    step === n
-                      ? `bg-white ${isBanHanh ? 'text-emerald-700' : 'text-blue-700'} font-semibold`
-                      : isBanHanh ? 'text-emerald-200' : 'text-blue-200'
-                  }`}>
-                    <span className="w-4 h-4 rounded-full border-2 flex items-center justify-center font-bold border-current" style={{fontSize:10}}>{n}</span>
-                    {label}
-                    {n === 2 && contentEdited && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" title="Đã chỉnh sửa" />}
-                  </div>
-                </React.Fragment>
-              ))}
+  /* ─── Tab: Thông tin ký ──────────────────────────────────────── */
+  const renderKyTab = () => (
+    <div className="space-y-4 p-4">
+      <div className="flex gap-2">
+        {LOAI_KY.map(o => (
+          <label key={o.value}
+            className={`flex-1 border-2 rounded-xl p-3 cursor-pointer text-center transition-all text-sm font-semibold ${
+              form.loaiKy === o.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}>
+            <input type="radio" className="sr-only" value={o.value}
+              checked={form.loaiKy === o.value}
+              onChange={() => setForm(f => ({ ...f, loaiKy: o.value }))} />
+            {o.label}
+            <div className="text-xs font-normal text-gray-400 mt-0.5">
+              {isKhoaScoped ? 'Đoàn Khoa' : 'TM. Ban Thường Vụ'}
             </div>
-            <button onClick={onClose} className={`p-1 rounded-lg transition-colors ${isBanHanh ? 'hover:bg-emerald-500' : 'hover:bg-blue-500'}`}>
-              <X className="w-5 h-5" />
+          </label>
+        ))}
+      </div>
+
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-2.5">
+        <h4 className="text-xs font-bold text-blue-700 flex items-center gap-1.5 uppercase tracking-wide">
+          <Pen className="w-3.5 h-3.5" /> {form.loaiKy === 'BÍ THƯ' ? 'Bí Thư' : 'Phó Bí Thư'}
+        </h4>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Họ tên *</label>
+          <input type="text" placeholder="Nguyễn Văn A" value={form.tenNguoiKy}
+            onChange={e => setForm(f => ({ ...f, tenNguoiKy: e.target.value }))}
+            className="w-full border border-blue-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <SigImagePicker label="Chữ ký ảnh" value={form.chuKyBiThuId}
+          onChange={v => setForm(f => ({ ...f, chuKyBiThuId: v }))}
+          options={dsChuKy} color="blue" />
+      </div>
+
+      <div className="bg-green-50 border border-green-100 rounded-xl p-3 space-y-2.5">
+        <h4 className="text-xs font-bold text-green-700 flex items-center gap-1.5 uppercase tracking-wide">
+          <Pen className="w-3.5 h-3.5" /> Người lập danh sách
+        </h4>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Họ tên *</label>
+            <input type="text" placeholder="Trần Thị B" value={form.tenNguoiLap}
+              onChange={e => setForm(f => ({ ...f, tenNguoiLap: e.target.value }))}
+              className="w-full border border-green-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Chức vụ</label>
+            <select value={form.chucVuNguoiLap}
+              onChange={e => setForm(f => ({ ...f, chucVuNguoiLap: e.target.value }))}
+              className="w-full border border-green-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+              <option value="">— Chọn —</option>
+              {dsChucVu.filter(cv => cv.isActive !== false).map(cv => (
+                <option key={cv.maChucVu} value={cv.tenChucVu}>{cv.tenChucVu}</option>
+              ))}
+              {['Thư ký BCH', 'Phó Bí thư', 'Ủy viên BCH'].map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <SigImagePicker label="Chữ ký ảnh" value={form.chuKyNguoiLapId}
+          onChange={v => setForm(f => ({ ...f, chuKyNguoiLapId: v }))}
+          options={dsChuKy} color="green" />
+      </div>
+
+      <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 space-y-2">
+        <h4 className="text-xs font-bold text-orange-700 flex items-center gap-1.5 uppercase tracking-wide">
+          <Stamp className="w-3.5 h-3.5" /> Con dấu (tuỳ chọn)
+        </h4>
+        <select value={form.conDauId ?? ''}
+          onChange={e => setForm(f => ({ ...f, conDauId: e.target.value ? Number(e.target.value) : null }))}
+          className="w-full border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+          <option value="">— Không đóng dấu —</option>
+          {dsConDau.map(cd => (
+            <option key={cd.id} value={cd.id}>{cd.ten}{cd.laMacDinh ? ' ★' : ''}</option>
+          ))}
+        </select>
+        {form.conDauId && (
+          <img src={imgUrl(dsConDau.find(c => c.id === form.conDauId)?.duongDan)}
+            alt="preview" className="h-14 object-contain border rounded bg-gray-50" />
+        )}
+      </div>
+
+      {(!form.tenNguoiKy.trim() || !form.tenNguoiLap.trim()) && (
+        <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          Cần nhập họ tên người ký và người lập để xuất PDF
+        </div>
+      )}
+    </div>
+  );
+
+  /* ─── Tab: Nội dung ──────────────────────────────────────────── */
+  const renderNoiDungTab = () => (
+    <div className="p-4 space-y-4">
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tiêu đề</label>
+          <textarea rows={2} value={editTieuDe}
+            onChange={e => { setEditTieuDe(e.target.value); setContentEdited(true); }}
+            placeholder="DANH SÁCH SINH VIÊN THAM GIA&#10;TÊN HOẠT ĐỘNG"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Ngày ký</label>
+          <input type="text" value={editNgayStr}
+            onChange={e => { setEditNgayStr(e.target.value); setContentEdited(true); }}
+            placeholder="An Giang, ngày 01 tháng 01 năm 2026"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Danh sách — <span className={contentEdited ? 'text-amber-600' : ''}>{editRows?.length ?? 0}</span> SV
+          </span>
+          <div className="flex items-center gap-1.5">
+            {contentEdited && (
+              <button type="button"
+                onClick={() => {
+                  setEditRows(dsSinhVien.map((sv, i) => ({
+                    _id: i, hoTen: sv.hoTenSinhVien || sv.hoTen || '',
+                    maLop: sv.maLop || sv.lop || '', maSv: sv.maSv || '', tenKhoa: sv.tenKhoa || '',
+                  })));
+                  setEditTieuDe(''); setEditNgayStr(''); setContentEdited(false);
+                }}
+                className="flex items-center gap-1 text-xs px-2 py-1 text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 rounded-lg transition-colors">
+                <RotateCcw className="w-3 h-3" /> Khôi phục
+              </button>
+            )}
+            <button type="button"
+              onClick={() => {
+                setEditRows(prev => [...(prev || []), { _id: Date.now(), hoTen: '', maLop: '', maSv: '', tenKhoa: '' }]);
+                setContentEdited(true);
+              }}
+              className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg transition-colors">
+              <Plus className="w-3 h-3" /> Thêm dòng
             </button>
           </div>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto">
-
-          {/* ═══ STEP 1: FORM ═══ */}
-          {step === 1 && (
-            <div className="p-6 space-y-6 max-w-2xl mx-auto">
-
-              {/* Loại ký */}
-              <section>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Loại ký</h3>
-                <div className="flex gap-3">
-                  {LOAI_KY.map(o => (
-                    <label key={o.value}
-                      className={`flex-1 border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                        form.loaiKy === o.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}>
-                      <input type="radio" className="sr-only" value={o.value}
-                        checked={form.loaiKy === o.value}
-                        onChange={() => setForm(f => ({ ...f, loaiKy: o.value }))} />
-                      <div className="text-center">
-                        <div className={`text-sm font-semibold ${
-                          form.loaiKy === o.value ? 'text-blue-700' : 'text-gray-700'
-                        }`}>{o.label}</div>
-                        <div className="text-xs text-gray-400 mt-1">TM. Ban Thường Vụ</div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </section>
-
-              {/* Bên phải: Người ký (Bí thư / Phó bí thư) */}
-              <section className="bg-blue-50 rounded-xl p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-blue-700 flex items-center gap-2">
-                  <Pen className="w-4 h-4" />
-                  {form.loaiKy === 'BÍ THƯ' ? 'Bí Thư' : 'Phó Bí Thư'} (góc phải trang cuối)
-                </h3>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Họ tên *</label>
-                  <input
-                    type="text" placeholder="Nguyễn Văn A"
-                    value={form.tenNguoiKy}
-                    onChange={e => setForm(f => ({ ...f, tenNguoiKy: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Chữ ký hình ảnh (tuỳ chọn)
-                  </label>
-                  <select
-                    value={form.chuKyBiThuId ?? ''}
-                    onChange={e => setForm(f => ({ ...f, chuKyBiThuId: e.target.value ? Number(e.target.value) : null }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                  >
-                    <option value="">— Không dùng chữ ký ảnh —</option>
-                    {dsChuKy.map(ck => (
-                      <option key={ck.id} value={ck.id}>
-                        {ck.tenNguoiKy}{ck.chucVu ? ` (${ck.chucVu})` : ''}{ck.laMacDinh ? ' ★' : ''}
-                      </option>
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="overflow-auto max-h-[38vh]">
+            <table className="text-xs border-collapse w-full min-w-[520px]">
+              <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+                <tr>
+                  <th className="px-1 py-2 text-center text-gray-500 font-semibold w-7">#</th>
+                  <th className="px-2 py-2 text-left text-gray-500 font-semibold min-w-[110px]">Họ và Tên</th>
+                  <th className="px-1 py-2 text-left text-gray-500 font-semibold w-14">Lớp</th>
+                  <th className="px-1 py-2 text-left text-gray-500 font-semibold w-20">MSSV</th>
+                  <th className="px-1 py-2 text-left text-gray-500 font-semibold min-w-[110px]">Khoa</th>
+                  <th className="w-6"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {(editRows || []).map((row, idx) => (
+                  <tr key={row._id} className="hover:bg-blue-50/40 group">
+                    <td className="px-1 py-1 text-center text-gray-400 font-mono text-[11px]">{idx + 1}</td>
+                    {[
+                      { field: 'hoTen',   placeholder: 'Họ tên' },
+                      { field: 'maLop',   placeholder: 'Lớp' },
+                      { field: 'maSv',    placeholder: 'MSSV' },
+                      { field: 'tenKhoa', placeholder: 'Tên khoa' },
+                    ].map(({ field, placeholder }) => (
+                      <td key={field} className="px-1 py-0.5">
+                        <input type="text" value={row[field]} placeholder={placeholder}
+                          onChange={e => {
+                            setEditRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: e.target.value } : r));
+                            setContentEdited(true);
+                          }}
+                          className="w-full px-1.5 py-1 rounded border border-gray-200 focus:border-blue-400 focus:outline-none focus:bg-blue-50/30 text-xs bg-transparent transition-colors" />
+                      </td>
                     ))}
-                  </select>
-                  {form.chuKyBiThuId && (
-                    <img
-                      src={imgUrl(dsChuKy.find(c => c.id === form.chuKyBiThuId)?.duongDan)}
-                      alt="preview chữ ký"
-                      className="mt-2 h-16 object-contain border rounded bg-gray-50"
-                    />
-                  )}
-                </div>
-              </section>
+                    <td className="px-0.5 py-1 text-center">
+                      <button type="button"
+                        onClick={() => { setEditRows(prev => prev.filter((_, i) => i !== idx)); setContentEdited(true); }}
+                        className="p-0.5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-              {/* Bên trái: Người lập danh sách */}
-              <section className="bg-green-50 rounded-xl p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-green-700 flex items-center gap-2">
-                  <Pen className="w-4 h-4" />
-                  Người lập danh sách (góc trái trang cuối)
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Họ tên *</label>
-                    <input
-                      type="text" placeholder="Trần Thị B"
-                      value={form.tenNguoiLap}
-                      onChange={e => setForm(f => ({ ...f, tenNguoiLap: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Chức vụ</label>
-                    <select
-                      value={form.chucVuNguoiLap}
-                      onChange={e => setForm(f => ({ ...f, chucVuNguoiLap: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white"
-                    >
-                      <option value="">— Chọn chức vụ —</option>
-                      {dsChucVu.filter(cv => cv.isActive !== false).map(cv => (
-                        <option key={cv.maChucVu} value={cv.tenChucVu}>{cv.tenChucVu}</option>
-                      ))}
-                      <option value="Thư ký BCH">Thư ký BCH</option>
-                      <option value="Phó Bí thư">Phó Bí thư</option>
-                      <option value="Ủy viên BCH">Ủy viên BCH</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Chữ ký hình ảnh (tuỳ chọn)
-                  </label>
-                  <select
-                    value={form.chuKyNguoiLapId ?? ''}
-                    onChange={e => setForm(f => ({ ...f, chuKyNguoiLapId: e.target.value ? Number(e.target.value) : null }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white"
-                  >
-                    <option value="">— Không dùng chữ ký ảnh —</option>
-                    {dsChuKy.map(ck => (
-                      <option key={ck.id} value={ck.id}>
-                        {ck.tenNguoiKy}{ck.chucVu ? ` (${ck.chucVu})` : ''}{ck.laMacDinh ? ' ★' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {form.chuKyNguoiLapId && (
-                    <img
-                      src={imgUrl(dsChuKy.find(c => c.id === form.chuKyNguoiLapId)?.duongDan)}
-                      alt="preview chữ ký"
-                      className="mt-2 h-16 object-contain border rounded bg-gray-50"
-                    />
-                  )}
-                </div>
-              </section>
+        {contentEdited && (
+          <p className="mt-1.5 text-xs text-amber-600 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" /> Nội dung đã chỉnh sửa — nhấn "Làm mới" để cập nhật preview
+          </p>
+        )}
+      </div>
+    </div>
+  );
 
-              {/* Con dấu */}
-              <section className="bg-orange-50 rounded-xl p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-orange-700 flex items-center gap-2">
-                  <Stamp className="w-4 h-4" />
-                  Con dấu (tuỳ chọn)
-                </h3>
-                <select
-                  value={form.conDauId ?? ''}
-                  onChange={e => setForm(f => ({ ...f, conDauId: e.target.value ? Number(e.target.value) : null }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-                >
-                  <option value="">— Không đóng dấu —</option>
-                  {dsConDau.map(cd => (
-                    <option key={cd.id} value={cd.id}>
-                      {cd.ten}{cd.laMacDinh ? ' ★' : ''}
-                    </option>
-                  ))}
-                </select>
-                {form.conDauId && (
+  /* ─── Tab: Cấu hình cột ──────────────────────────────────────── */
+  const renderCauHinhTab = () => (
+    <div className="p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Cấu hình cột PDF</span>
+        <button type="button" onClick={() => setColConfig(DEFAULT_COL_CONFIG)}
+          className="flex items-center gap-1 text-xs px-2 py-1 text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 rounded-lg transition-colors">
+          <RotateCcw className="w-3 h-3" /> Mặc định
+        </button>
+      </div>
+
+      <p className="text-[11px] text-gray-400">Bật/tắt cột, đổi tiêu đề, điều chỉnh độ rộng và thứ tự. Cài đặt được lưu tự động.</p>
+
+      <div className="space-y-2">
+        {colConfig.map((col, idx) => (
+          <div key={col.key}
+            className={`border rounded-xl p-2.5 transition-colors ${col.visible ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={col.visible}
+                onChange={e => updateColConfig(idx, { visible: e.target.checked })}
+                className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer shrink-0" />
+
+              <input type="text" value={col.header}
+                onChange={e => updateColConfig(idx, { header: e.target.value })}
+                disabled={!col.visible}
+                className="flex-1 border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-transparent disabled:cursor-default min-w-0" />
+
+              <select value={ptToPreset(col.widthPt)}
+                onChange={e => updateColConfig(idx, { widthPt: WIDTH_PRESETS[e.target.value] })}
+                disabled={!col.visible}
+                className="border border-gray-200 rounded px-1 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white disabled:opacity-50 disabled:cursor-default shrink-0">
+                <option value="xs">XS</option>
+                <option value="sm">S</option>
+                <option value="md">M</option>
+                <option value="lg">L</option>
+                <option value="xl">XL</option>
+              </select>
+
+              <div className="flex flex-col gap-0.5 shrink-0">
+                <button type="button" onClick={() => moveColConfig(idx, -1)} disabled={idx === 0}
+                  className="p-0.5 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-default">
+                  <ChevronUp className="w-3 h-3 text-gray-500" />
+                </button>
+                <button type="button" onClick={() => moveColConfig(idx, 1)} disabled={idx === colConfig.length - 1}
+                  className="p-0.5 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-default">
+                  <ChevronDown className="w-3 h-3 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="text-[10px] text-gray-400 font-mono">{col.key}</span>
+              <span className="text-[10px] text-gray-300">·</span>
+              <span className="text-[10px] text-gray-400">{col.widthPt}pt</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="text-[11px] text-gray-400 bg-blue-50 border border-blue-100 rounded-lg p-2">
+        Sau khi cấu hình, nhấn <strong>Làm mới</strong> trên preview để xem thay đổi.
+      </div>
+    </div>
+  );
+
+  /* ─── TAB: THỂ THỨC ──────────────────────────────────────────── */
+  const renderTheThuocTab = () => {
+    const NInput = ({ label, stateKey, unit, min, max, step = 0.5, placeholder }) => (
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-gray-500 w-28 shrink-0">{label}</label>
+        <div className="relative flex-1">
+          <input
+            type="number" min={min} max={max} step={step}
+            value={formatConfig[stateKey] ?? ''}
+            onChange={e => updateFmt(stateKey, e.target.value === '' ? null : parseFloat(e.target.value))}
+            placeholder={placeholder}
+            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs pr-8 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          {unit && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">{unit}</span>}
+        </div>
+      </div>
+    );
+    return (
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Thể thức tài liệu</span>
+          <button type="button"
+            onClick={() => setFormatConfig({ marginTopCm: null, marginBottomCm: null, marginLeftCm: null, marginRightCm: null, bodyFontSizePt: null, rowHeightPt: null, fontName: null })}
+            className="flex items-center gap-1 text-xs px-2 py-1 text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 rounded-lg transition-colors">
+            <RotateCcw className="w-3 h-3" /> Mặc định
+          </button>
+        </div>
+
+        {/* Font */}
+        <div>
+          <p className="text-[11px] font-medium text-gray-600 mb-1.5">Phông chữ</p>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 w-28 shrink-0">Kiểu chữ</label>
+            <select value={formatConfig.fontName ?? ''}
+              onChange={e => updateFmt('fontName', e.target.value || null)}
+              className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+              <option value="">Times New Roman (mặc định)</option>
+              <option value="arial">Arial</option>
+              <option value="calibri">Calibri</option>
+            </select>
+          </div>
+          <div className="mt-2">
+            <NInput label="Cỡ chữ nội dung" stateKey="bodyFontSizePt" unit="pt" min={7} max={14} step={0.5} placeholder="10" />
+          </div>
+          <div className="mt-2">
+            <NInput label="Chiều cao dòng" stateKey="rowHeightPt" unit="pt" min={14} max={36} step={1} placeholder="22" />
+          </div>
+        </div>
+
+        {/* Margins */}
+        <div>
+          <p className="text-[11px] font-medium text-gray-600 mb-1.5">Lề trang (cm) — khổ giấy A4</p>
+          <div className="space-y-2">
+            <NInput label="Lề trên" stateKey="marginTopCm" unit="cm" min={0.5} max={4} step={0.1} placeholder="2.0" />
+            <NInput label="Lề dưới" stateKey="marginBottomCm" unit="cm" min={0.5} max={4} step={0.1} placeholder="2.0" />
+            <NInput label="Lề trái" stateKey="marginLeftCm" unit="cm" min={0.5} max={4} step={0.1} placeholder="2.5" />
+            <NInput label="Lề phải" stateKey="marginRightCm" unit="cm" min={0.5} max={4} step={0.1} placeholder="1.5" />
+          </div>
+        </div>
+
+        <div className="text-[11px] text-gray-400 bg-amber-50 border border-amber-100 rounded-lg p-2">
+          Để trống = dùng giá trị mặc định. Nhấn <strong>Làm mới</strong> để xem trước thay đổi.
+        </div>
+      </div>
+    );
+  };
+
+  /* ─── RIGHT PANEL: all pages stacked ────────────────────────── */
+  const renderPreviewPanel = () => {
+    const lastPageIndex = (preview?.pages?.length ?? 1) - 1;
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        {/* Toolbar */}
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50 flex-shrink-0 flex-wrap">
+          {preview && (
+            <span className="text-xs text-gray-400">
+              {preview.totalStudents} sinh viên · {preview.pages.length} trang
+            </span>
+          )}
+          <button onClick={handleRefreshPreview}
+            className="ml-auto flex items-center gap-1 text-xs px-2.5 py-1 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors text-gray-600">
+            <RefreshCw className={`w-3.5 h-3.5 ${previewLoading ? 'animate-spin' : ''}`} />
+            Làm mới
+          </button>
+          {positions && (
+            <button onClick={resetPositions}
+              className="flex items-center gap-1 text-xs px-2.5 py-1 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors text-gray-600">
+              <MoveHorizontal className="w-3.5 h-3.5" />
+              Đặt lại vị trí
+            </button>
+          )}
+        </div>
+
+        {/* Pages scroll area */}
+        <div className="flex-1 overflow-auto bg-gray-300 flex flex-col items-center gap-6 p-6 min-h-0">
+          {previewLoading && (
+            <div className="flex flex-col items-center gap-3 mt-16 text-gray-500">
+              <Loader2 className="w-8 h-8 animate-spin" />
+              <span className="text-sm">Đang tạo bản xem trước…</span>
+            </div>
+          )}
+          {previewError && (
+            <div className="flex flex-col items-center gap-3 mt-16 text-red-500">
+              <AlertCircle className="w-8 h-8" />
+              <span className="text-sm">Không thể tạo bản xem trước</span>
+              <button onClick={handleRefreshPreview}
+                className="text-xs px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg">
+                Thử lại
+              </button>
+            </div>
+          )}
+          {!previewLoading && !previewError && !preview && (
+            <div className="flex flex-col items-center gap-3 mt-16 text-gray-400">
+              <Eye className="w-12 h-12" />
+              <span className="text-sm">Nhấn "Làm mới" để tạo bản xem trước</span>
+            </div>
+          )}
+
+          {preview && preview.pages.map((pageDataUrl, pageIdx) => {
+            const isLastPage = pageIdx === lastPageIndex;
+            const imgSz = imgSizes[pageIdx] || { w: 0, h: 0 };
+            const pageZones = (preview.editZones || []).filter(z => z.pageIndex === pageIdx);
+
+            return (
+              <div key={pageIdx} className="flex flex-col items-center w-full">
+                {preview.pages.length > 1 && (
+                  <div className="mb-2 text-xs text-gray-500 font-medium bg-white px-3 py-1 rounded-full shadow-sm">
+                    Trang {pageIdx + 1}
+                  </div>
+                )}
+                <div
+                  ref={isLastPage ? lastPageRef : undefined}
+                  className="relative shadow-2xl bg-white"
+                  style={{ display: 'inline-block' }}>
                   <img
-                    src={imgUrl(dsConDau.find(c => c.id === form.conDauId)?.duongDan)}
-                    alt="preview con dấu"
-                    className="mt-2 h-20 object-contain border rounded bg-gray-50"
+                    src={pageDataUrl}
+                    alt={`Trang ${pageIdx + 1}`}
+                    className="block"
+                    style={{ maxWidth: '580px', width: '100%', height: 'auto' }}
+                    onLoad={onImgLoad(pageIdx)}
+                    draggable={false}
                   />
-                )}
-              </section>
 
-              {/* Ghi chú về bước tiếp theo */}
-              <section className="border border-dashed border-gray-200 rounded-xl p-4 bg-gray-50">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <FileCheck className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <span>
-                    Sau bước này bạn có thể <strong>chỉnh sửa trực tiếp nội dung PDF</strong> (tiêu đề, ngày, tên SV, lớp, khoa…)
-                    trước khi xem trước và xuất file.
-                  </span>
-                </div>
-                {dsSinhVien.length > 0 && (
-                  <p className="mt-1.5 text-xs text-blue-600 font-medium">
-                    Danh sách hiện tại: {dsSinhVien.length} sinh viên đã điểm danh
-                  </p>
-                )}
-              </section>
-            </div>
-          )}
+                  {/* Clickable edit zones */}
+                  {imgSz.w > 0 && pageZones.map((zone, zi) => (
+                    <ZoneOverlay key={zi}
+                      zone={zone}
+                      naturalW={naturalW} naturalH={naturalH}
+                      imgW={imgSz.w} imgH={imgSz.h}
+                      onClick={handleZoneClick} />
+                  ))}
 
-          {/* ═══ STEP 2: EDITOR NỘI DUNG TRỰC TIẾP ═══ */}
-          {step === 2 && (
-            <div className="p-5 space-y-4">
-              {/* Ghi chú */}
-              <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
-                <span>Chỉnh sửa trực tiếp nội dung sẽ xuất hiện trong PDF. Click vào ô bất kỳ để sửa. Thay đổi chỉ ảnh hưởng đến file PDF này, không thay đổi dữ liệu trong hệ thống.</span>
-              </div>
-
-              {/* Tiêu đề + Ngày */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Tiêu đề văn bản</label>
-                  <textarea
-                    rows={2}
-                    value={editTieuDe}
-                    onChange={e => { setEditTieuDe(e.target.value); setContentEdited(true); }}
-                    placeholder="DANH SÁCH SINH VIÊN THAM GIA&#10;TÊN HOẠT ĐỘNG"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium text-center focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Dùng Enter để xuống dòng</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ngày ký (góc phải)</label>
-                  <input
-                    type="text"
-                    value={editNgayStr}
-                    onChange={e => { setEditNgayStr(e.target.value); setContentEdited(true); }}
-                    placeholder="An Giang, ngày 01 tháng 01 năm 2026"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  />
-                </div>
-              </div>
-
-              {/* Bảng sinh viên */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Danh sách sinh viên — {editRows?.length ?? 0} dòng
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditRows(prev => [...(prev || []), { _id: Date.now(), hoTen: '', maLop: '', maSv: '', tenKhoa: '' }]);
-                      setContentEdited(true);
-                    }}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-medium transition-colors"
-                  >
-                    + Thêm dòng
-                  </button>
-                </div>
-
-                {/* Table editor */}
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="overflow-y-auto" style={{ maxHeight: '50vh' }}>
-                    <table className="w-full text-sm border-collapse">
-                      <thead className="sticky top-0 z-10">
-                        <tr className="bg-gray-100 border-b-2 border-gray-300">
-                          <th className="px-2 py-2 text-center w-10 text-gray-600 font-semibold text-xs">STT</th>
-                          <th className="px-2 py-2 text-left text-gray-600 font-semibold text-xs">Họ và Tên</th>
-                          <th className="px-2 py-2 text-left text-gray-600 font-semibold text-xs w-28">Lớp</th>
-                          <th className="px-2 py-2 text-left text-gray-600 font-semibold text-xs w-32">MSSV</th>
-                          <th className="px-2 py-2 text-left text-gray-600 font-semibold text-xs">Khoa</th>
-                          <th className="px-2 py-2 w-8"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {(editRows || []).map((row, idx) => (
-                          <tr key={row._id} className="hover:bg-blue-50/40 group">
-                            <td className="px-2 py-1 text-center text-xs text-gray-400 font-mono">{idx + 1}</td>
-                            <td className="px-1 py-1">
-                              <input
-                                type="text"
-                                value={row.hoTen}
-                                onChange={e => {
-                                  setEditRows(prev => prev.map((r, i) => i === idx ? { ...r, hoTen: e.target.value } : r));
-                                  setContentEdited(true);
-                                }}
-                                className="w-full px-2 py-1 border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none rounded text-sm bg-transparent"
-                              />
-                            </td>
-                            <td className="px-1 py-1">
-                              <input
-                                type="text"
-                                value={row.maLop}
-                                onChange={e => {
-                                  setEditRows(prev => prev.map((r, i) => i === idx ? { ...r, maLop: e.target.value } : r));
-                                  setContentEdited(true);
-                                }}
-                                className="w-full px-2 py-1 border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none rounded text-sm bg-transparent"
-                              />
-                            </td>
-                            <td className="px-1 py-1">
-                              <input
-                                type="text"
-                                value={row.maSv}
-                                onChange={e => {
-                                  setEditRows(prev => prev.map((r, i) => i === idx ? { ...r, maSv: e.target.value } : r));
-                                  setContentEdited(true);
-                                }}
-                                className="w-full px-2 py-1 border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none rounded text-sm font-mono bg-transparent"
-                              />
-                            </td>
-                            <td className="px-1 py-1">
-                              <input
-                                type="text"
-                                value={row.tenKhoa}
-                                onChange={e => {
-                                  setEditRows(prev => prev.map((r, i) => i === idx ? { ...r, tenKhoa: e.target.value } : r));
-                                  setContentEdited(true);
-                                }}
-                                className="w-full px-2 py-1 border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none rounded text-sm bg-transparent"
-                              />
-                            </td>
-                            <td className="px-1 py-1 text-center">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditRows(prev => prev.filter((_, i) => i !== idx));
-                                  setContentEdited(true);
-                                }}
-                                className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded"
-                                title="Xóa dòng này"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {contentEdited && (
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> Nội dung đã được chỉnh sửa — PDF sẽ dùng dữ liệu này
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditRows(dsSinhVien.map((sv, i) => ({
-                          _id: i, hoTen: sv.hoTenSinhVien || sv.hoTen || '',
-                          maLop: sv.maLop || sv.lop || '', maSv: sv.maSv || '', tenKhoa: sv.tenKhoa || '',
-                        })));
-                        setEditTieuDe(''); setEditNgayStr(''); setContentEdited(false);
-                      }}
-                      className="text-xs text-gray-400 hover:text-gray-700 underline"
-                    >Khôi phục về dữ liệu gốc</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ═══ STEP 3: PREVIEW + DRAG ═══ */}
-          {step === 3 && (
-            <div className="flex flex-col" style={{ minHeight: 0 }}>
-              {/* toolbar */}
-              <div className="px-4 py-2 border-b bg-gray-50 flex items-center gap-3 text-sm flex-shrink-0">
-                {preview && (
-                  <>
-                    <span className="text-gray-500">{preview.pages.length} trang</span>
-                    <div className="flex items-center gap-1 ml-auto">
-                      <button
-                        onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-                        disabled={currentPage === 0}
-                        className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40"
-                      ><ChevronLeft className="w-4 h-4" /></button>
-                      <span className="px-2 text-gray-700 font-medium">
-                        Trang {currentPage + 1} / {preview.pages.length}
-                      </span>
-                      <button
-                        onClick={() => setCurrentPage(p => Math.min(preview.pages.length - 1, p + 1))}
-                        disabled={currentPage === preview.pages.length - 1}
-                        className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40"
-                      ><ChevronRight className="w-4 h-4" /></button>
-                    </div>
-                    {isLastPage && (
-                      <span className={`ml-2 text-xs px-2 py-0.5 rounded-full font-medium ${
-                        isBanHanh ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {isBanHanh ? 'Trang ban hành — kéo thả để định vị' : 'Trang ký — kéo thả để định vị'}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* page area */}
-              <div className="overflow-auto bg-gray-200 flex items-start justify-center p-6" style={{ maxHeight: '55vh' }}>
-                {previewLoading && (
-                  <div className="flex flex-col items-center gap-3 mt-20 text-gray-500">
-                    <Loader2 className="w-8 h-8 animate-spin" />
-                    <span>Đang tạo bản xem trước…</span>
-                  </div>
-                )}
-                {previewError && (
-                  <div className="flex flex-col items-center gap-3 mt-20 text-red-500">
-                    <AlertCircle className="w-8 h-8" />
-                    <span>Không thể tạo bản xem trước</span>
-                  </div>
-                )}
-                {preview && positions && (
-                  <div
-                    ref={imgContainerRef}
-                    className="relative shadow-2xl bg-white"
-                    style={{ display: 'inline-block' }}
-                  >
-                    <img
-                      src={preview.pages[currentPage]}
-                      alt={`Trang ${currentPage + 1}`}
-                      className="block"
-                      style={{ maxWidth: '680px', width: '100%', height: 'auto' }}
-                      onLoad={onImgLoad}
-                      draggable={false}
-                    />
-
-                    {/* Overlay drag boxes — chỉ hiện ở trang cuối */}
-                    {isLastPage && imgSize.w > 0 && positions && (
-                      <>
+                  {/* Signature/stamp drag boxes — last page only */}
+                  {isLastPage && positions && imgSz.w > 0 && (
+                    <>
+                      <DraggableBox
+                        label={form.loaiKy === 'BÍ THƯ' ? 'Bí Thư' : 'Phó Bí Thư'} color="blue"
+                        pos={positions.biThu} onMove={setPos('biThu')}
+                        containerRef={lastPageRef}
+                        imgNaturalW={naturalW} imgNaturalH={naturalH}
+                        imgDisplayW={imgSz.w} imgDisplayH={imgSz.h}
+                        imgSrc={imgUrl(dsChuKy.find(c => c.id === form.chuKyBiThuId)?.duongDan)} />
+                      <DraggableBox
+                        label="Người lập" color="green"
+                        pos={positions.nguoiLap} onMove={setPos('nguoiLap')}
+                        containerRef={lastPageRef}
+                        imgNaturalW={naturalW} imgNaturalH={naturalH}
+                        imgDisplayW={imgSz.w} imgDisplayH={imgSz.h}
+                        imgSrc={imgUrl(dsChuKy.find(c => c.id === form.chuKyNguoiLapId)?.duongDan)} />
+                      {form.conDauId && (
                         <DraggableBox
-                          label={form.loaiKy === 'BÍ THƯ' ? 'Bí Thư' : 'Phó Bí Thư'}
-                          color="blue"
-                          pos={positions.biThu}
-                          onMove={p => setPositions(prev => ({ ...prev, biThu: p }))}
-                          containerRef={imgContainerRef}
-                          imgNaturalW={naturalW}
-                          imgNaturalH={naturalH}
-                          imgDisplayW={imgSize.w}
-                          imgDisplayH={imgSize.h}
-                          imgSrc={imgUrl(dsChuKy.find(c => c.id === form.chuKyBiThuId)?.duongDan)}
-                        />
-                        <DraggableBox
-                          label="Người lập"
-                          color="green"
-                          pos={positions.nguoiLap}
-                          onMove={p => setPositions(prev => ({ ...prev, nguoiLap: p }))}
-                          containerRef={imgContainerRef}
-                          imgNaturalW={naturalW}
-                          imgNaturalH={naturalH}
-                          imgDisplayW={imgSize.w}
-                          imgDisplayH={imgSize.h}
-                          imgSrc={imgUrl(dsChuKy.find(c => c.id === form.chuKyNguoiLapId)?.duongDan)}
-                        />
-                        {form.conDauId && (
-                          <DraggableBox
-                            label="Con dấu"
-                            color="orange"
-                            pos={positions.conDau}
-                            onMove={p => setPositions(prev => ({ ...prev, conDau: p }))}
-                            containerRef={imgContainerRef}
-                            imgNaturalW={naturalW}
-                            imgNaturalH={naturalH}
-                            imgDisplayW={imgSize.w}
-                            imgDisplayH={imgSize.h}
-                            imgSrc={imgUrl(dsConDau.find(c => c.id === form.conDauId)?.duongDan)}
-                          />
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* hint */}
-              {isLastPage && positions && (
-                <div className="px-4 py-2 bg-blue-50 border-t text-xs text-blue-600 flex items-center gap-2 flex-shrink-0">
-                  <GripHorizontal className="w-4 h-4" />
-                  Kéo các ô màu để điều chỉnh vị trí chữ ký / con dấu. Các trang khác không thay đổi.
-                </div>
-              )}
-
-              {/* export result */}
-              {exportDone && (
-                <div className="px-4 py-3 bg-green-50 border-t border-green-200 flex-shrink-0">
-                  <div className="flex items-center gap-2 text-green-700 text-sm">
-                    <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-                    {isBanHanh
-                      ? 'Ban hành thành công! Danh sách đã được lưu chính thức.'
-                      : 'Xuất PDF thành công! File đã được tải về máy.'
-                    }
-                  </div>
-                  {isBanHanh && banHanhResult && (
-                    <div className="mt-2 flex items-center gap-3 flex-wrap">
-                      <a
-                        href={banHanhResult.downloadUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        Tải PDF về máy
-                      </a>
-                      <span className="text-xs text-green-600">
-                        File: {banHanhResult.tenFile}
-                      </span>
-                    </div>
+                          label="Con dấu" color="orange"
+                          pos={positions.conDau} onMove={setPos('conDau')}
+                          containerRef={lastPageRef}
+                          imgNaturalW={naturalW} imgNaturalH={naturalH}
+                          imgDisplayW={imgSz.w} imgDisplayH={imgSz.h}
+                          imgSrc={imgUrl(dsConDau.find(c => c.id === form.conDauId)?.duongDan)} />
+                      )}
+                    </>
                   )}
                 </div>
-              )}
-              {exportError && (
-                <div className="px-4 py-3 bg-red-50 border-t border-red-200 flex items-center gap-2 text-red-700 text-sm flex-shrink-0">
-                  <AlertCircle className="w-5 h-5" />
-                  {exportError}
-                </div>
-              )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Hint bar */}
+        {preview && positions && !exportDone && (
+          <div className="px-4 py-2 bg-blue-50 border-t text-xs text-blue-600 flex items-center gap-2 flex-shrink-0">
+            <GripHorizontal className="w-4 h-4 flex-shrink-0" />
+            Kéo ô màu để điều chỉnh vị trí chữ ký. Nhấn vào vùng nội dung để sửa trực tiếp trên preview.
+          </div>
+        )}
+
+        {/* Export result */}
+        {exportDone && (
+          <div className="px-4 py-3 bg-green-50 border-t border-green-200 flex-shrink-0">
+            <div className="flex items-center gap-2 text-green-700 text-sm font-medium">
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+              {isBanHanh ? 'Ban hành thành công! Danh sách đã được lưu chính thức.' : 'Xuất PDF thành công!'}
             </div>
-          )}
+            {isBanHanh && banHanhResult && (
+              <div className="mt-2 flex items-center gap-3 flex-wrap">
+                <a href={banHanhResult.downloadUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors">
+                  <Download className="w-3.5 h-3.5" /> Tải PDF về máy
+                </a>
+                <span className="text-xs text-green-600">{banHanhResult.tenFile}</span>
+              </div>
+            )}
+          </div>
+        )}
+        {exportError && (
+          <div className="px-4 py-3 bg-red-50 border-t border-red-200 flex items-center gap-2 text-red-700 text-sm flex-shrink-0">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" /> {exportError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ─── RENDER ─────────────────────────────────────────────────── */
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden"
+        style={{ maxWidth: '1100px', height: '90vh' }}>
+
+        {/* Header */}
+        <div className={`flex items-center justify-between px-6 py-3.5 border-b text-white rounded-t-2xl bg-gradient-to-r ${accentGrad} flex-shrink-0`}>
+          <div className="flex items-center gap-2.5">
+            {isBanHanh ? <FileCheck className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+            <h2 className="font-semibold text-base">
+              {isBanHanh ? 'Ban hành danh sách chính thức' : 'Xuất danh sách tham gia'}
+            </h2>
+            {preview && (
+              <span className="text-sm opacity-80">— {preview.totalStudents} sinh viên</span>
+            )}
+            {contentEdited && (
+              <span className="text-xs bg-amber-400/30 border border-amber-300/50 text-amber-100 px-2 py-0.5 rounded-full">
+                Đã chỉnh sửa
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/20 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+
+          {/* LEFT PANEL */}
+          <div className="w-[22rem] border-r flex flex-col flex-shrink-0 bg-white overflow-hidden">
+            <div className="flex border-b flex-shrink-0">
+              {[
+                { key: 'ky',       icon: Settings,  label: 'Ký' },
+                { key: 'noidung',  icon: List,      label: 'Nội dung' },
+                { key: 'cauhinh',  icon: Sliders,   label: 'Cột' },
+                { key: 'thethuoc', icon: FileText,  label: 'Thể thức' },
+              ].map(({ key, icon: Icon, label }) => (
+                <button key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-medium transition-colors border-b-2 ${
+                    activeTab === key ? `${accentText} border-current` : 'text-gray-400 border-transparent hover:text-gray-600'
+                  }`}>
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{label}</span>
+                  {key === 'noidung' && contentEdited && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {activeTab === 'ky'       && renderKyTab()}
+              {activeTab === 'noidung'  && renderNoiDungTab()}
+              {activeTab === 'cauhinh'  && renderCauHinhTab()}
+              {activeTab === 'thethuoc' && renderTheThuocTab()}
+            </div>
+          </div>
+
+          {/* RIGHT PANEL */}
+          <div className="flex-1 min-w-0 flex flex-col min-h-0">
+            {renderPreviewPanel()}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50 rounded-b-2xl flex-shrink-0">
-          {step === 1 && (
-            <>
-              <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">
-                Huỷ
-              </button>
-              <button
-                onClick={() => setStep(2)}
-                disabled={!form.tenNguoiKy.trim() || !form.tenNguoiLap.trim()}
-                className={`flex items-center gap-2 px-6 py-2 text-white rounded-xl font-medium
-                  disabled:opacity-50 disabled:cursor-not-allowed transition-colors
-                  ${isBanHanh ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-              >
-                Tiếp theo: Chỉnh sửa nội dung
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </>
-          )}
-          {step === 2 && (
-            <>
-              <button
-                onClick={() => setStep(1)}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
-              >
-                <ChevronLeft className="w-4 h-4" /> Quay lại
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                className={`flex items-center gap-2 px-6 py-2 text-white rounded-xl font-medium transition-colors
-                  ${isBanHanh ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-              >
-                <Eye className="w-4 h-4" />
-                Xem trước &amp; Chọn vị trí ký
-              </button>
-            </>
-          )}
-          {step === 3 && (
-            <>
-              <button
-                onClick={() => { setStep(2); setExportDone(false); setExportError(null); }}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Quay lại
-              </button>
-              <button
-                onClick={handleExport}
-                disabled={exporting || previewLoading || !preview}
-                className={`flex items-center gap-2 px-6 py-2 text-white rounded-xl font-medium
-                  disabled:opacity-50 disabled:cursor-not-allowed transition-colors
-                  ${isBanHanh ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'}`}
-              >
-                {exporting
-                  ? <><Loader2 className="w-4 h-4 animate-spin" />{isBanHanh ? 'Đang ban hành…' : 'Đang xuất…'}</>
-                  : isBanHanh
-                    ? <><Send className="w-4 h-4" />Ban hành chính thức</>
-                    : <><Download className="w-4 h-4" />Xuất PDF có ký số</>
-                }
-              </button>
-            </>
-          )}
+        <div className="flex items-center justify-between px-6 py-3 border-t bg-gray-50 rounded-b-2xl flex-shrink-0">
+          <button onClick={onClose}
+            className="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium text-sm transition-colors">
+            Đóng
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={!canExport || exporting}
+            className={`flex items-center gap-2 px-6 py-2.5 text-white rounded-xl font-medium text-sm
+              disabled:opacity-50 disabled:cursor-not-allowed transition-colors
+              ${isBanHanh ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'}`}>
+            {exporting
+              ? <><Loader2 className="w-4 h-4 animate-spin" />{isBanHanh ? 'Đang ban hành…' : 'Đang xuất…'}</>
+              : isBanHanh
+                ? <><Send className="w-4 h-4" /> Ban hành chính thức</>
+                : <><Download className="w-4 h-4" /> Xuất PDF có ký số</>
+            }
+          </button>
         </div>
       </div>
+
+      {/* Floating zone editor */}
+      {clickedZone && (
+        <FloatingZoneEditor
+          zone={clickedZone}
+          editRows={editRows}
+          editTieuDe={editTieuDe}
+          editNgayStr={editNgayStr}
+          vpX={zoneEditorPos.x}
+          vpY={zoneEditorPos.y}
+          onUpdateTitle={handleZoneUpdateTitle}
+          onUpdateDate={handleZoneUpdateDate}
+          onUpdateRow={handleZoneUpdateRow}
+          onClose={() => setClickedZone(null)}
+        />
+      )}
     </div>
   );
 }

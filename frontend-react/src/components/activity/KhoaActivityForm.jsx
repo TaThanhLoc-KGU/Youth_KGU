@@ -179,6 +179,7 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
     maTieuChiRenLuyen: '',
     trangThai: 'CHO_DUYET',
     choPhepDangKy: true,
+    isKhongDangKy: false,
     soHocKy: '',
     maNamHoc: '',
   });
@@ -354,6 +355,13 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
           <p className="text-xs text-gray-400 mt-1">Cần ghim toạ độ GPS để dùng tính năng này</p>
         </div>
       </Card>
+
+      <div className="mt-2">
+        <Toggle name="isKhongDangKy" checked={!!formData.isKhongDangKy}
+          label="Hoạt động không đăng ký (kêu gọi offline)"
+          hint="Danh sách tham gia sẽ nhập thủ công hoặc import Excel sau khi tạo hoạt động"
+          onToggle={handleToggle} />
+      </div>
 
       <Card title="Điểm rèn luyện" icon={Users}>
         <RenLuyenSelector

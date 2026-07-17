@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 /**
  * API ban hành danh sách chính thức.
@@ -62,10 +64,11 @@ public class BanHanhController {
                 body.posNguoiLap() != null ? toElementPos(body.posNguoiLap()) : null,
                 body.posConDau()   != null ? toElementPos(body.posConDau())   : null,
                 body.customMaSvList(),
-                body.overrideRows(),
-                body.overrideTieuDe(),
-                body.overrideNgayStr(),
-                nguoiThucHien, ip
+                body.overrideRows(), body.overrideTieuDe(), body.overrideNgayStr(),
+                nguoiThucHien, ip,
+                body.colConfig(),
+                body.orgLabel(),
+                body.formatConfig()
         );
 
         DanhSachBanHanh entity = kySoService.banHanhDanhSach(req);
@@ -95,11 +98,15 @@ public class BanHanhController {
 
     @GetMapping("/api/public/ban-hanh/{id}/download")
     @Operation(summary = "Tải PDF ban hành (public)")
-    public ResponseEntity<ByteArrayResource> download(@PathVariable Long id) throws IOException {
+    public ResponseEntity<?> download(@PathVariable Long id) throws IOException {
         DanhSachBanHanh entity = banHanhRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bản ban hành"));
+        // Bản đã hủy không cho download
+        if ("DA_HUY".equals(entity.getTrangThai())) {
+            return ResponseEntity.status(410)
+                    .body(ApiResponse.error("Bản ban hành này đã bị hủy và không còn hiệu lực."));
+        }
         byte[] pdfBytes = kySoService.readBanHanhFile(id);
-
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "inline; filename=\"" + entity.getTenFile() + "\"")
@@ -108,7 +115,7 @@ public class BanHanhController {
     }
 
     @GetMapping("/api/public/ban-hanh/all/{maHoatDong}")
-    @Operation(summary = "Tất cả bản ban hành của hoạt động (public)")
+    @Operation(summary = "Tất cả bản ban hành của hoạt động (public, kể cả đã hủy)")
     public ResponseEntity<ApiResponse<List<DanhSachBanHanhDTO>>> getAllPublic(
             @PathVariable String maHoatDong) {
         List<DanhSachBanHanhDTO> list = kySoService.getBanHanhByHoatDong(maHoatDong)
@@ -116,16 +123,38 @@ public class BanHanhController {
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
+    @GetMapping("/api/public/ban-hanh/tat-ca")
+    @Operation(summary = "Tất cả bản ban hành còn hiệu lực (public, phân trang) — dùng cho trang listing eNews")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<DanhSachBanHanhDTO>>> getTatCa(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var result = banHanhRepository.findByTrangThai("HIEU_LUC", pageable).map(this::toDTO);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
     @DeleteMapping("/api/ky-so/ban-hanh/{id}")
-    @Operation(summary = "Hủy ban hành (xóa bản ban hành)")
+    @Operation(summary = "Hủy ban hành (soft-delete, file vẫn còn)")
     @PreAuthorize("hasPermission(null, 'KY_SO_PDF') or hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<ApiResponse<Void>> huyBanHanh(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
-        log.info("DELETE /api/ky-so/ban-hanh/{} by {}", id,
+        String user = userDetails != null ? userDetails.getUsername() : "anonymous";
+        log.info("DELETE (soft) /api/ky-so/ban-hanh/{} by {}", id, user);
+        kySoService.huyBanHanh(id, user);
+        return ResponseEntity.ok(ApiResponse.success("Đã hủy ban hành. File vẫn được lưu trữ.", null));
+    }
+
+    @DeleteMapping("/api/ky-so/ban-hanh/{id}/xoa-han")
+    @Operation(summary = "Xóa hẳn bản ban hành đã hủy (xóa cả file)")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
+    public ResponseEntity<ApiResponse<Void>> xoaHanBanHanh(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        log.info("DELETE (hard) /api/ky-so/ban-hanh/{}/xoa-han by {}", id,
                 userDetails != null ? userDetails.getUsername() : "anonymous");
-        kySoService.huyBanHanh(id);
-        return ResponseEntity.ok(ApiResponse.success("Đã hủy ban hành thành công", null));
+        kySoService.xoaHanBanHanh(id);
+        return ResponseEntity.ok(ApiResponse.success("Đã xóa hoàn toàn bản ban hành.", null));
     }
 
     @GetMapping("/api/ky-so/ban-hanh-all")
@@ -134,9 +163,10 @@ public class BanHanhController {
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<DanhSachBanHanhDTO>>> getAllBanHanh(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "true") boolean includeRevoked) {
         org.springframework.data.domain.Page<DanhSachBanHanhDTO> result =
-                kySoService.getAllBanHanh(page, size, search).map(this::toDTO);
+                kySoService.getAllBanHanh(page, size, search, includeRevoked).map(this::toDTO);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
@@ -144,14 +174,17 @@ public class BanHanhController {
 
     private DanhSachBanHanhDTO toDTO(DanhSachBanHanh e) {
         return new DanhSachBanHanhDTO(
-                e.getId(), e.getMaHoatDong(), e.getTenHoatDong(),
+                e.getId(), e.getMaHoatDong(), e.getTenHoatDong(), e.getMaKhoa(),
                 e.getLoaiKy(), e.getTenNguoiKy(), e.getTenNguoiLap(), e.getChucVuNguoiLap(),
                 Boolean.TRUE.equals(e.getCoConDau()),
                 e.getTongSv() != null ? e.getTongSv() : 0,
                 e.getTenFile(),
                 "/api/public/ban-hanh/" + e.getId() + "/download",
                 e.getNguoiBanHanh(),
-                e.getCreatedAt()
+                e.getCreatedAt(),
+                e.getTrangThai() != null ? e.getTrangThai() : "HIEU_LUC",
+                e.getNgayHuy(),
+                e.getNguoiHuy()
         );
     }
 

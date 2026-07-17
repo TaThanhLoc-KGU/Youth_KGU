@@ -97,6 +97,39 @@ public class CuocThiController {
         return ResponseEntity.ok(ApiResponse.success("Đã xóa thí sinh", null));
     }
 
+    // ─── Sinh viên tự đăng ký nộp bài ──────────────────────────────────────────
+
+    @PostMapping("/{id}/dang-ky-nop-bai")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<ThiSinhDTO>> dangKyNopBai(
+            @PathVariable Long id,
+            @RequestBody ThiSinhDTO dto,
+            Authentication auth) {
+        String username = auth.getName();
+        ThiSinhDTO result = cuocThiService.dangKyNopBai(id, dto, username);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Đăng ký nộp bài thành công", result));
+    }
+
+    @GetMapping("/{id}/cho-duyet")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CUOC_THI') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<ThiSinhDTO>>> getDanhSachChoDuyet(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(cuocThiService.getDanhSachChoDuyet(id)));
+    }
+
+    @PostMapping("/{id}/thi-sinh/{thiSinhId}/duyet")
+    @PreAuthorize("hasPermission(null, 'SUA_CUOC_THI') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ThiSinhDTO>> duyetThiSinh(
+            @PathVariable Long id, @PathVariable Long thiSinhId) {
+        return ResponseEntity.ok(ApiResponse.success("Đã duyệt", cuocThiService.duyetThiSinh(id, thiSinhId)));
+    }
+
+    @PostMapping("/{id}/thi-sinh/{thiSinhId}/tu-choi")
+    @PreAuthorize("hasPermission(null, 'SUA_CUOC_THI') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ThiSinhDTO>> tuChoiThiSinh(
+            @PathVariable Long id, @PathVariable Long thiSinhId) {
+        return ResponseEntity.ok(ApiResponse.success("Đã từ chối", cuocThiService.tuChoiThiSinh(id, thiSinhId)));
+    }
+
     // ─── Actions ──────────────────────────────────────────────────────────────
 
     @PostMapping("/{id}/mo-vote")

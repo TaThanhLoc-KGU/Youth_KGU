@@ -7,11 +7,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import {
   Plus, Pencil, Trash2, Eye, EyeOff, ArrowLeft, Save, X,
-  FileText, Download, Upload, RefreshCw, File,
+  FileText, Download, Upload, RefreshCw, File, PenLine,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import bieuMauService from '../../services/bieuMauService';
 import { API_BASE_URL } from '../../services/api';
+import BieuMauEditor from '../../components/office/BieuMauEditor';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -124,8 +125,11 @@ const BieuMauForm = ({ initial, onSave, onCancel, loading }) => {
 
 // ── Row ───────────────────────────────────────────────────────────────────────
 
-const BieuMauRow = ({ item, onEdit, onDelete, onToggle, toggling }) => {
+const EDITABLE_EXTS = ['docx', 'doc', 'html', 'htm'];
+
+const BieuMauRow = ({ item, onEdit, onDelete, onToggle, onOpenEditor, toggling }) => {
   const color = EXT_COLOR[item.loaiFile?.toLowerCase()] || 'text-gray-500 bg-gray-100';
+  const canEdit = EDITABLE_EXTS.includes(item.loaiFile?.toLowerCase());
   return (
     <div className={`group flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
       item.isActive ? 'border-gray-200 bg-white hover:border-gray-300' : 'border-dashed border-gray-200 bg-gray-50 opacity-60'
@@ -143,29 +147,35 @@ const BieuMauRow = ({ item, onEdit, onDelete, onToggle, toggling }) => {
             </span>
           )}
           {!item.isActive && (
-            <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700">An</span>
+            <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700">Ẩn</span>
           )}
         </div>
         {item.kichThuoc && <p className="text-xs text-gray-400 mt-0.5">{fmtSize(item.kichThuoc)}</p>}
       </div>
 
       <div className="flex items-center gap-1.5 flex-shrink-0">
+        {canEdit && (
+          <button onClick={() => onOpenEditor(item)} title="Mở editor chỉnh sửa nội dung"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors sm:opacity-0 sm:group-hover:opacity-100">
+            <PenLine className="w-3.5 h-3.5" /> Sửa
+          </button>
+        )}
         {item.duongDan && (
           <a href={`${API_BASE_URL}${item.duongDan}`} target="_blank" rel="noreferrer"
-            title="Tai xuong" className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+            title="Tải xuống" className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
             <Download className="w-4 h-4" />
           </a>
         )}
         <button onClick={() => onToggle(item)} disabled={toggling}
-          title={item.isActive ? 'An' : 'Hien'}
+          title={item.isActive ? 'Ẩn' : 'Hiện'}
           className={`p-1.5 rounded-lg transition-colors ${item.isActive ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}>
           {item.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
         </button>
-        <button onClick={() => onEdit(item)} title="Chinh sua"
-          className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
+        <button onClick={() => onEdit(item)} title="Chỉnh sửa thông tin"
+          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
           <Pencil className="w-4 h-4" />
         </button>
-        <button onClick={() => onDelete(item.id)} title="Xoa"
+        <button onClick={() => onDelete(item.id)} title="Xóa"
           className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
           <Trash2 className="w-4 h-4" />
         </button>
@@ -179,8 +189,9 @@ const BieuMauRow = ({ item, onEdit, onDelete, onToggle, toggling }) => {
 const BieuMauManagePage = () => {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing]   = useState(null);
+  const [showForm,     setShowForm]     = useState(false);
+  const [editing,      setEditing]      = useState(null);
+  const [editorItem,   setEditorItem]   = useState(null); // item đang mở trong editor
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['bieu-mau-admin'],
@@ -227,6 +238,17 @@ const BieuMauManagePage = () => {
   };
 
   const closeForm = () => { setShowForm(false); setEditing(null); };
+
+  // Editor full-screen
+  if (editorItem) {
+    return (
+      <BieuMauEditor
+        item={editorItem}
+        onClose={() => setEditorItem(null)}
+        onSaved={() => { invalidate(); setEditorItem(null); }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -284,8 +306,9 @@ const BieuMauManagePage = () => {
                 key={item.id}
                 item={item}
                 onEdit={(i) => { setEditing(i); setShowForm(true); }}
-                onDelete={(id) => { if (window.confirm('Xoa bieu mau nay? File vat ly cung se bi xoa.')) deleteMut.mutate(id); }}
+                onDelete={(id) => { if (window.confirm('Xóa biểu mẫu này? File vật lý cũng sẽ bị xóa.')) deleteMut.mutate(id); }}
                 onToggle={(i) => toggleMut.mutate({ id: i.id, ten: i.ten, thuTu: i.thuTu, isActive: !i.isActive })}
+                onOpenEditor={(i) => setEditorItem(i)}
                 toggling={toggleMut.isPending}
               />
             ))

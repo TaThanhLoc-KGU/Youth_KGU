@@ -115,6 +115,16 @@ const useAuthStore = create(
         set({ user, isAuthenticated: !!user });
       },
 
+      // Xóa cờ mustChangePassword sau khi đổi mật khẩu thành công
+      clearMustChangePassword: () => {
+        const { user } = get();
+        if (!user) return;
+        const updated = { ...user, mustChangePassword: false };
+        set({ user: updated });
+        // Cập nhật cả localStorage để checkAuth() không bị stale
+        localStorage.setItem('user', JSON.stringify(updated));
+      },
+
       refreshUser: async () => {
         try {
           const user = await authService.getCurrentUser();

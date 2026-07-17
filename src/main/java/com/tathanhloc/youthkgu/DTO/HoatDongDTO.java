@@ -80,6 +80,7 @@ public class HoatDongDTO {
     private TrangThaiHoatDongEnum trangThai;
     private Boolean yeuCauDiemDanh;
     private Boolean choPhepDangKy;
+    private Boolean isKhongDangKy;
     private LocalDateTime hanDangKy;
     private String hinhAnhPoster;
     private String ghiChu;

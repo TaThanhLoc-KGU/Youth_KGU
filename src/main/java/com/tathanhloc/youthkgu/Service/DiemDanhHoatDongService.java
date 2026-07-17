@@ -12,6 +12,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -1804,5 +1805,110 @@ public class DiemDanhHoatDongService {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    // ========== HOẠT ĐỘNG KHÔNG ĐĂNG KÝ ==========
+
+    /**
+     * Thêm sinh viên vào danh sách tham gia thủ công (không cần đăng ký trước).
+     * Dùng cho hoạt động có isKhongDangKy=true.
+     */
+    @Transactional
+    public Map<String, Object> themThuCongKhongDangKy(String maHoatDong, List<String> maSvList) {
+        log.info("Thêm thủ công {} SV vào hoạt động không đăng ký: {}", maSvList.size(), maHoatDong);
+
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        if (!Boolean.TRUE.equals(hoatDong.getIsKhongDangKy())) {
+            throw new RuntimeException("Hoạt động này không phải loại không đăng ký");
+        }
+
+        int added = 0, skipped = 0;
+        List<String> errors = new ArrayList<>();
+
+        for (String maSv : maSvList) {
+            if (maSv == null || maSv.isBlank()) continue;
+            try {
+                SinhVien sv = sinhVienRepository.findById(maSv.trim()).orElse(null);
+                if (sv == null) {
+                    errors.add(maSv + ": Không tìm thấy sinh viên");
+                    continue;
+                }
+                if (diemDanhRepository.existsBySinhVienMaSvAndHoatDongMaHoatDong(maSv.trim(), maHoatDong)) {
+                    skipped++;
+                    continue;
+                }
+                String maQR = "KDK-" + maHoatDong + "-" + maSv.trim();
+                DiemDanhHoatDong dd = DiemDanhHoatDong.builder()
+                        .hoatDong(hoatDong)
+                        .sinhVien(sv)
+                        .maQRDaQuet(maQR)
+                        .trangThai(TrangThaiThamGiaEnum.DA_THAM_GIA)
+                        .thoiGianCheckIn(LocalDateTime.now())
+                        .trangThaiCheckIn(TrangThaiCheckInEnum.DUNG_GIO)
+                        .datThoiGianToiThieu(true)
+                        .ghiChu("Thêm thủ công (không đăng ký)")
+                        .build();
+                diemDanhRepository.save(dd);
+                added++;
+            } catch (Exception e) {
+                errors.add(maSv + ": " + e.getMessage());
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("added", added);
+        result.put("skipped", skipped);
+        result.put("errors", errors);
+        return result;
+    }
+
+    /**
+     * Import danh sách sinh viên tham gia từ file Excel (không đăng ký).
+     * Cột A: Mã sinh viên (bắt buộc), Cột B: Họ tên (tùy chọn — để xác nhận)
+     */
+    @Transactional
+    public Map<String, Object> importExcelKhongDangKy(String maHoatDong, org.springframework.web.multipart.MultipartFile file) throws IOException {
+        log.info("Import Excel không đăng ký cho hoạt động: {}", maHoatDong);
+
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+
+        if (!Boolean.TRUE.equals(hoatDong.getIsKhongDangKy())) {
+            throw new RuntimeException("Hoạt động này không phải loại không đăng ký");
+        }
+
+        List<String> maSvList = new ArrayList<>();
+        try (Workbook wb = WorkbookFactory.create(file.getInputStream())) {
+            Sheet sheet = wb.getSheetAt(0);
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+                Cell cell = row.getCell(0);
+                if (cell == null) continue;
+                String val = cell.getCellType() == CellType.NUMERIC
+                        ? String.valueOf((long) cell.getNumericCellValue())
+                        : cell.getStringCellValue().trim();
+                if (!val.isBlank()) maSvList.add(val);
+            }
+        }
+
+        return themThuCongKhongDangKy(maHoatDong, maSvList);
+    }
+
+    /**
+     * Xóa một sinh viên khỏi danh sách tham gia (không đăng ký).
+     */
+    @Transactional
+    public void xoaKhoiDanhSachKhongDangKy(String maHoatDong, String maSv) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        if (!Boolean.TRUE.equals(hoatDong.getIsKhongDangKy())) {
+            throw new RuntimeException("Hoạt động này không phải loại không đăng ký");
+        }
+        DiemDanhHoatDong dd = diemDanhRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản ghi điểm danh"));
+        diemDanhRepository.delete(dd);
     }
 }

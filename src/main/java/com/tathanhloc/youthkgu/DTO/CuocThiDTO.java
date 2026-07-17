@@ -23,6 +23,8 @@ public class CuocThiDTO {
     private LocalDateTime thoiGianMoVote;
     private LocalDateTime thoiGianDongVote;
     private Boolean isActive;
+    private Boolean choPhepNopBai;
+    private LocalDateTime hanNop;
     private String createdBy;
     private LocalDateTime createdAt;
     private List<ThiSinhDTO> danhSachThiSinh;

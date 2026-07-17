@@ -32,12 +32,25 @@ public interface SinhVienRepository extends JpaRepository<SinhVien, String> {
     @Query("SELECT sv.maSv FROM SinhVien sv WHERE sv.isActive = true")
     List<String> findAllMaSv();
 
+    // Chỉ lấy sinh viên đang hoạt động — dùng thay findAll() để tránh load cả bảng
+    List<SinhVien> findByIsActiveTrue();
+
     // Lọc sinh viên theo khoa (qua Lop → Nganh → Khoa)
+    @Query("SELECT sv FROM SinhVien sv WHERE sv.lop.nganh.khoa.maKhoa = :maKhoa AND sv.isActive = true")
+    List<SinhVien> findByLopNganhKhoaMaKhoaAndIsActiveTrue(@Param("maKhoa") String maKhoa);
+
     @Query("SELECT sv FROM SinhVien sv WHERE sv.lop.nganh.khoa.maKhoa = :maKhoa")
     List<SinhVien> findByLopNganhKhoaMaKhoa(@Param("maKhoa") String maKhoa);
 
-    @Query("SELECT sv FROM SinhVien sv WHERE sv.lop.nganh.khoa.maKhoa = :maKhoa AND sv.isActive = true")
-    List<SinhVien> findByLopNganhKhoaMaKhoaAndIsActiveTrue(@Param("maKhoa") String maKhoa);
+    // Thống kê DB-level — tránh findAll() + stream filter
+    @Query("SELECT sv.lop.nganh.khoa.tenKhoa, COUNT(sv) FROM SinhVien sv WHERE sv.isActive = true AND sv.lop IS NOT NULL AND sv.lop.nganh IS NOT NULL AND sv.lop.nganh.khoa IS NOT NULL GROUP BY sv.lop.nganh.khoa.tenKhoa")
+    List<Object[]> countActiveGroupByKhoa();
+
+    @Query("SELECT sv.lop.nganh.tenNganh, COUNT(sv) FROM SinhVien sv WHERE sv.isActive = true AND sv.lop IS NOT NULL AND sv.lop.nganh IS NOT NULL GROUP BY sv.lop.nganh.tenNganh")
+    List<Object[]> countActiveGroupByNganh();
+
+    @Query("SELECT sv.lop.tenLop, COUNT(sv) FROM SinhVien sv WHERE sv.isActive = true AND sv.lop IS NOT NULL GROUP BY sv.lop.tenLop")
+    List<Object[]> countActiveGroupByLop();
 
     /**
      * Lấy maKhoa trực tiếp từ maSv — dùng cho KhoaScopeService khi TaiKhoan.sinhVien chưa được link.
@@ -50,4 +63,7 @@ public interface SinhVienRepository extends JpaRepository<SinhVien, String> {
            "AND sv.lop.nganh.khoa IS NOT NULL")
     Optional<String> findMaKhoaByMaSv(@Param("maSv") String maSv);
 
+    Optional<SinhVien> findByZaloUserId(String zaloUserId);
+
+    long countByZaloUserIdNotNull();
 }

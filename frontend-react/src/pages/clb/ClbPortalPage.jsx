@@ -17,6 +17,7 @@ import { API_BASE_URL } from '../../services/api';
 import api from '../../services/api';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
+import ClbBanHanhModal from '../../components/clb/ClbBanHanhModal';
 
 // ── ManualPayModal ─────────────────────────────────────────────────────────────
 const ManualPayModal = ({ fee, onClose, onPayOS }) => {
@@ -114,7 +115,6 @@ const chucVuOptions = Object.entries(chucVuLabels).map(([v, l]) => ({ value: v, 
 function AddMemberModal({ maClb, onClose }) {
   const queryClient = useQueryClient();
   const [maSv, setMaSv] = useState('');
-  const [chucVu, setChucVu] = useState('THANH_VIEN');
   const [maHocKy, setMaHocKy] = useState('');
 
   const { data: hocKyList = [] } = useQuery({
@@ -135,7 +135,7 @@ function AddMemberModal({ maClb, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!maSv.trim()) return toast.warn('Vui lòng nhập mã sinh viên');
-    addMutation.mutate({ maSv: maSv.trim().toUpperCase(), chucVu, maHocKy: maHocKy || null });
+    addMutation.mutate({ maSv: maSv.trim().toUpperCase(), chucVu: 'THANH_VIEN', maHocKy: maHocKy || null });
   };
 
   return (
@@ -161,13 +161,6 @@ function AddMemberModal({ maClb, onClose }) {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Chức vụ</label>
-            <select value={chucVu} onChange={e => setChucVu(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-              {chucVuOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className="flex-1 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50">Hủy</button>
@@ -185,7 +178,6 @@ function AddMemberModal({ maClb, onClose }) {
 // ── EditMemberModal ──────────────────────────────────────────────────────────
 function EditMemberModal({ member, maClb, onClose }) {
   const queryClient = useQueryClient();
-  const [chucVu, setChucVu] = useState(member.chucVu ?? 'THANH_VIEN');
   const [ngayThamGia, setNgayThamGia] = useState(member.ngayThamGia ?? '');
   const [ngayRoiClb, setNgayRoiClb] = useState(member.ngayRoiClb ?? '');
   const [ghiChu, setGhiChu] = useState(member.ghiChu ?? '');
@@ -202,7 +194,7 @@ function EditMemberModal({ member, maClb, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    updateMutation.mutate({ chucVu, ngayThamGia: ngayThamGia || null, ngayRoiClb: ngayRoiClb || null, ghiChu: ghiChu || null });
+    updateMutation.mutate({ chucVu: 'THANH_VIEN', ngayThamGia: ngayThamGia || null, ngayRoiClb: ngayRoiClb || null, ghiChu: ghiChu || null });
   };
 
   return (
@@ -222,14 +214,6 @@ function EditMemberModal({ member, maClb, onClose }) {
               <p className="font-semibold text-sm">{member.hoTen}</p>
               <p className="text-xs text-gray-500">{member.maSv} · {member.tenLop || '—'}</p>
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Chức vụ</label>
-            <select value={chucVu} onChange={e => setChucVu(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-              {chucVuOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -279,7 +263,6 @@ function ImportExcelModal({ maClb, onClose }) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);          // 1=Upload, 2=Preview, 3=Done
   const [maHocKy, setMaHocKy] = useState('');
-  const [chucVuDefault, setChucVuDefault] = useState('THANH_VIEN');
   const [matchResults, setMatchResults] = useState([]);    // ClbImportMatchDTO[]
   const [selected, setSelected] = useState({});            // rowIndex → bool
   const [loading, setLoading] = useState(false);
@@ -384,7 +367,7 @@ function ImportExcelModal({ maClb, onClose }) {
       try {
         await cauLacBoService.addThanhVien(maClb, {
           maSv: r.maSv,
-          chucVu: chucVuDefault,
+          chucVu: 'THANH_VIEN',
           maHocKy: maHocKy || null,
         });
         ok++;
@@ -461,25 +444,16 @@ function ImportExcelModal({ maClb, onClose }) {
                 </button>
               </div>
 
-              {/* Học kỳ & chức vụ */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Học kỳ áp dụng</label>
-                  <select value={maHocKy} onChange={e => setMaHocKy(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 text-sm">
-                    <option value="">-- Không chọn --</option>
-                    {hocKyList.map(hk => (
-                      <option key={hk.maHocKy} value={hk.maHocKy}>{hk.tenHocKy}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Chức vụ mặc định</label>
-                  <select value={chucVuDefault} onChange={e => setChucVuDefault(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 text-sm">
-                    {chucVuOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
+              {/* Học kỳ */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Học kỳ áp dụng</label>
+                <select value={maHocKy} onChange={e => setMaHocKy(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm">
+                  <option value="">-- Không chọn --</option>
+                  {hocKyList.map(hk => (
+                    <option key={hk.maHocKy} value={hk.maHocKy}>{hk.tenHocKy}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Upload */}
@@ -720,6 +694,17 @@ function ClbMemberManage({ clb }) {
             )}
             {!isLocked && (
               <>
+                <button
+                  onClick={async () => {
+                    try {
+                      await cauLacBoService.exportMembers(clb.maClb, maHocKy || null);
+                    } catch (err) {
+                      toast.error('Xuất Excel thất bại: ' + (err?.response?.data?.message || err.message));
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">
+                  <Download className="w-4 h-4" /> Xuất Excel
+                </button>
                 <button onClick={() => setShowImport(true)}
                   className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
                   <Upload className="w-4 h-4" /> Nhập Excel
@@ -2017,6 +2002,7 @@ function ClbStatsCards({ maClb }) {
 function ClbDetail({ clb, onBack }) {
   const [tab, setTab] = useState('members');
   const [exporting, setExporting] = useState(false);
+  const [showBanHanh, setShowBanHanh] = useState(false);
 
   // Badge số đơn chờ duyệt thành viên
   const { data: pendingCount = 0 } = useQuery({
@@ -2064,11 +2050,17 @@ function ClbDetail({ clb, onBack }) {
             {clb.linhVuc && <p className="text-sm text-gray-500 mt-0.5">Lĩnh vực: {clb.linhVuc}</p>}
             {clb.moTa && <p className="text-sm text-gray-600 mt-2">{clb.moTa}</p>}
           </div>
-          <button onClick={handleExport} disabled={exporting}
-            className="flex items-center gap-2 px-3 py-1.5 border border-green-300 text-green-700 rounded-lg text-xs font-medium hover:bg-green-50 disabled:opacity-50">
-            <Download className="w-3.5 h-3.5" />
-            {exporting ? 'Đang xuất…' : 'Xuất Excel'}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={handleExport} disabled={exporting}
+              className="flex items-center gap-2 px-3 py-1.5 border border-green-300 text-green-700 rounded-lg text-xs font-medium hover:bg-green-50 disabled:opacity-50">
+              <Download className="w-3.5 h-3.5" />
+              {exporting ? 'Đang xuất…' : 'Xuất Excel'}
+            </button>
+            <button onClick={() => setShowBanHanh(true)}
+              className="flex items-center gap-2 px-3 py-1.5 border border-blue-300 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-50">
+              <ShieldCheck className="w-3.5 h-3.5" /> Ban hành DS
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2110,6 +2102,13 @@ function ClbDetail({ clb, onBack }) {
           {tab === 'cauhinh'    && <ClbCauHinhTab clb={clb} />}
         </div>
       </div>
+
+      {showBanHanh && (
+        <ClbBanHanhModal
+          clb={clb}
+          onClose={() => setShowBanHanh(false)}
+        />
+      )}
     </div>
   );
 }
@@ -2206,6 +2205,13 @@ export default function ClbPortalPage() {
       : () => cauLacBoService.getMyClubs(),
     enabled: !isClbScoped, // không cần nếu đã scoped
   });
+
+  // Nếu không phải admin và chỉ quản lý đúng 1 CLB → tự động vào luôn không cần chọn
+  useEffect(() => {
+    if (!isClbScoped && !canManageAll && !selectedClb && myClubs.length === 1) {
+      setSelectedClb(myClubs[0]);
+    }
+  }, [isClbScoped, canManageAll, selectedClb, myClubs]);
 
   // CLB-scoped: auto-render detail view của CLB được gán
   if (isClbScoped) {

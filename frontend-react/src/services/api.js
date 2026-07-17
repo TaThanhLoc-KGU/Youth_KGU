@@ -118,5 +118,13 @@ api.interceptors.response.use(
   }
 );
 
+// Axios instance không có auth interceptors — dùng cho các public endpoint
+// (tránh trường hợp token hết hạn → redirect /login trên trang public)
+export const publicApi = axios.create({
+  baseURL: API_BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 30000,
+});
+
 export default api;
 export { API_BASE_URL };

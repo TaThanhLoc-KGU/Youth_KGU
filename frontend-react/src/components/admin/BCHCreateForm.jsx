@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { ChevronRight, ChevronLeft, Plus, Trash2 } from 'lucide-react';
+import ImageUploadField from '../../components/common/ImageUploadField';
 import api from '../../services/api';
 import bchService from '../../services/bchService';
 import chucVuService from '../../services/chucVuService';
@@ -438,11 +439,11 @@ const BCHCreateForm = ({ isOpen, onClose, onSuccess }) => {
                 required
               />
 
-              <Input
-                label="Hình ảnh (URL)"
-                placeholder="https://example.com/image.jpg"
+              <ImageUploadField
+                label="Hình ảnh BCH"
                 value={formData.hinhAnh}
-                onChange={(e) => setFormData({ ...formData, hinhAnh: e.target.value })}
+                onChange={(url) => setFormData({ ...formData, hinhAnh: url })}
+                previewClass="h-28 w-full object-cover"
               />
             </div>
           </Card>

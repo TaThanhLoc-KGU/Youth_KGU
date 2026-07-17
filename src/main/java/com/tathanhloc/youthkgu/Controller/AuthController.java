@@ -170,6 +170,28 @@ public class AuthController {
     }
 
     /**
+     * Đăng nhập bằng Zalo Mini App access token
+     */
+    @PostMapping("/zalo-login")
+    @Operation(summary = "Đăng nhập bằng Zalo access token (Mini App)")
+    public ResponseEntity<ApiResponse<AuthResponse>> zaloLogin(
+            @RequestBody ZaloLoginRequest request) {
+        try {
+            AuthResponse response = authService.loginWithZalo(request.getAccessToken());
+            return ResponseEntity.ok(ApiResponse.success("Đăng nhập Zalo thành công", response));
+        } catch (Exception e) {
+            log.error("Zalo login failed", e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @lombok.Data
+    public static class ZaloLoginRequest {
+        private String accessToken;
+    }
+
+    /**
      * Đăng xuất
      */
     @PostMapping("/logout")

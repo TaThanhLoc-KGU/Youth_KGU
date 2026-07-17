@@ -1,4 +1,4 @@
-import apiClient from './api';
+import apiClient, { publicApi } from './api';
 
 const banHanhService = {
   /** Ban hành chính thức — POST /api/ky-so/ban-hanh/{maHoatDong} */
@@ -9,13 +9,17 @@ const banHanhService = {
   getDanhSach: (maHoatDong) =>
     apiClient.get(`/api/ky-so/ban-hanh/${maHoatDong}`).then(r => r.data.data || []),
 
-  /** Bản ban hành mới nhất (public) — GET /api/public/ban-hanh/{maHoatDong}/latest */
+  /** Bản ban hành mới nhất (public) — không cần đăng nhập */
   getLatest: (maHoatDong) =>
-    apiClient.get(`/api/public/ban-hanh/${maHoatDong}/latest`).then(r => r.data.data),
+    publicApi.get(`/api/public/ban-hanh/${maHoatDong}/latest`).then(r => r.data.data),
 
-  /** Tất cả bản ban hành (public) */
+  /** Tất cả bản ban hành theo hoạt động (public) */
   getAllPublic: (maHoatDong) =>
-    apiClient.get(`/api/public/ban-hanh/all/${maHoatDong}`).then(r => r.data.data || []),
+    publicApi.get(`/api/public/ban-hanh/all/${maHoatDong}`).then(r => r.data.data || []),
+
+  /** Toàn bộ ban hành còn hiệu lực — listing page (public, phân trang) */
+  getTatCa: (page = 0, size = 20) =>
+    publicApi.get(`/api/public/ban-hanh/tat-ca?page=${page}&size=${size}`).then(r => r.data.data),
 
   /** Hủy ban hành — DELETE /api/ky-so/ban-hanh/{id} */
   huyBanHanh: (id) =>

@@ -38,7 +38,19 @@ const cuocThiService = {
       api.post(`/api/cuoc-thi/${id}/checkout-winners`, { thiSinhIds }).then(r => r.data.data),
     checkoutVoters: (id) =>
       api.post(`/api/cuoc-thi/${id}/checkout-voters`).then(r => r.data.data),
+
+    // Quản lý nộp bài
+    getDanhSachChoDuyet: (id) =>
+      api.get(`/api/cuoc-thi/${id}/cho-duyet`).then(r => r.data.data),
+    duyetThiSinh: (id, thiSinhId) =>
+      api.post(`/api/cuoc-thi/${id}/thi-sinh/${thiSinhId}/duyet`).then(r => r.data.data),
+    tuChoiThiSinh: (id, thiSinhId) =>
+      api.post(`/api/cuoc-thi/${id}/thi-sinh/${thiSinhId}/tu-choi`).then(r => r.data.data),
   },
+
+  // Sinh viên tự đăng ký nộp bài
+  dangKyNopBai: (id, data) =>
+    api.post(`/api/cuoc-thi/${id}/dang-ky-nop-bai`, data).then(r => r.data.data),
 };
 
 export default cuocThiService;

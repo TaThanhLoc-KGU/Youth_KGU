@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 
+import com.tathanhloc.youthkgu.Enum.VaiTroEnum;
+import org.springframework.data.domain.Page;
 import java.util.List;
 import java.util.Map;
 
@@ -68,7 +70,34 @@ public class AccountController {
     }
 
     /**
-     * Lấy danh sách tất cả tài khoản (Admin only)
+     * Lấy danh sách tài khoản có phân trang + filter DB-level.
+     * Đây là endpoint chính cho AccountManagementPage.
+     */
+    @GetMapping("/paged")
+    @PreAuthorize("hasPermission(null, 'XEM_TAI_KHOAN')")
+    public ResponseEntity<ApiResponse<Page<AccountDTO>>> getAccountsPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String vaiTro,
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
+        try {
+            VaiTroEnum vaiTroEnum = (vaiTro != null && !vaiTro.isBlank()) ? VaiTroEnum.valueOf(vaiTro) : null;
+            Page<AccountDTO> result = accountService.getAccountsPaged(keyword, vaiTroEnum, isActive, page, size, sortBy, direction);
+            return ResponseEntity.ok(ApiResponse.<Page<AccountDTO>>builder()
+                    .success(true).data(result).build());
+        } catch (Exception e) {
+            log.error("Lỗi getAccountsPaged", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.<Page<AccountDTO>>builder().success(false).message(e.getMessage()).build());
+        }
+    }
+
+    /**
+     * Lấy danh sách tất cả tài khoản — GIỮ LẠI cho các caller cũ (export, stats).
+     * List view nên dùng /paged thay thế.
      */
     @GetMapping
     @PreAuthorize("hasPermission(null, 'XEM_TAI_KHOAN')")

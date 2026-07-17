@@ -282,6 +282,7 @@ export const ROUTES = {
   LOGIN: '/login',
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
+  CHANGE_PASSWORD: '/change-password',
 
   // Admin routes
   ADMIN: '/admin',
@@ -326,6 +327,7 @@ export const ROUTES = {
   STUDENT_TRAINING_POINTS: '/student/training-points',
   STUDENT_CLB_REGISTRATION: '/student/clb-registration',
   STUDENT_FEES: '/student/fees',
+  STUDENT_CONTESTS: '/student/contests',
 
   // BCH routes
   BCH: '/bch',

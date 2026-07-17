@@ -14,6 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -170,5 +173,27 @@ public class BCHDoanHoiController {
         log.info("GET /api/bch/statistics");
         Map<String, Object> stats = bchService.getStatistics();
         return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    // ========== IMPORT EXCEL ==========
+
+    @PostMapping(value = "/import-excel/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Xem trước danh sách BCH từ file Excel trước khi import")
+    @PreAuthorize("hasPermission(null, 'THEM_BCH')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> previewImport(
+            @RequestParam("file") MultipartFile file) throws IOException {
+        log.info("POST /api/bch/import-excel/preview - file: {}", file.getOriginalFilename());
+        List<Map<String, Object>> preview = bchService.previewImportExcel(file);
+        return ResponseEntity.ok(ApiResponse.success("Đọc file thành công", preview));
+    }
+
+    @PostMapping("/import-excel/confirm")
+    @Operation(summary = "Xác nhận import danh sách BCH từ preview")
+    @PreAuthorize("hasPermission(null, 'THEM_BCH')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> confirmImport(
+            @RequestBody List<Map<String, Object>> rows) {
+        log.info("POST /api/bch/import-excel/confirm - {} rows", rows.size());
+        Map<String, Object> result = bchService.confirmImport(rows);
+        return ResponseEntity.ok(ApiResponse.success("Import hoàn tất", result));
     }
 }

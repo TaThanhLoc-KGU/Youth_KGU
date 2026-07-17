@@ -132,22 +132,30 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
                 .build();
     }
 
+    private static final String DEFAULT_PASSWORD = "KGU@123456";
+
     @Override
     protected TaiKhoan toEntity(TaiKhoanDTO dto) {
         SinhVien sv = dto.getMaSv() != null ? sinhVienRepository.findById(dto.getMaSv()).orElse(null) : null;
         GiangVien gv = dto.getMaGv() != null ? giangVienRepository.findById(dto.getMaGv()).orElse(null) : null;
 
+        String rawPassword   = dto.getPasswordHash();
+        boolean isHashed     = rawPassword != null && rawPassword.startsWith("$2a$");
+        String encodedHash   = isHashed ? rawPassword : (rawPassword != null ? passwordEncoder.encode(rawPassword) : null);
+        // Bật cờ đổi mật khẩu khi tạo tài khoản mới với mật khẩu mặc định
+        boolean mustChange   = !isHashed && DEFAULT_PASSWORD.equals(rawPassword);
+
         return TaiKhoan.builder()
                 .id(dto.getId())
                 .username(dto.getUsername())
-                .passwordHash(dto.getPasswordHash() != null && !dto.getPasswordHash().startsWith("$2a$") ?
-                        passwordEncoder.encode(dto.getPasswordHash()) : dto.getPasswordHash())
+                .passwordHash(encodedHash)
                 .vaiTro(dto.getVaiTro())
                 .isActive(dto.getIsActive())
                 .createdAt(dto.getCreatedAt())
                 .sinhVien(sv)
                 .giangVien(gv)
                 .laAdmin(Boolean.TRUE.equals(dto.getLaAdmin()))
+                .mustChangePassword(mustChange)
                 .build();
     }
 

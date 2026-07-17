@@ -56,6 +56,22 @@ public class CauHinhEmailController {
         }
     }
 
+    @PostMapping("/send-test")
+    @Operation(summary = "Gửi email thử nghiệm đến địa chỉ chỉ định")
+    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendTestEmail(
+            @RequestParam String to,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            cauHinhEmailService.sendTestEmail(to, userDetails.getUsername());
+            return ResponseEntity.ok(ApiResponse.success(
+                    "Đã gửi email thử nghiệm đến " + to, Map.of("sent", true, "to", to)));
+        } catch (Exception e) {
+            log.error("Lỗi gửi email thử nghiệm đến {}: {}", to, e.getMessage());
+            return ResponseEntity.ok(ApiResponse.error("Gửi thất bại: " + e.getMessage()));
+        }
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("Error in CauHinhEmailController", e);

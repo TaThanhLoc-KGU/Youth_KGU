@@ -238,17 +238,31 @@ const ActivityItem = ({ activity, onClick }) => {
 
   return (
     <div
-      className="bg-white rounded-xl border border-gray-200 hover:border-enews-300 hover:shadow-sm transition-all duration-150 cursor-pointer group"
+      className={`bg-white rounded-xl cursor-pointer group transition-all duration-150 hover:shadow-sm ${
+        canRegister
+          ? 'animate-blink2-border'
+          : 'border border-gray-200 hover:border-enews-300'
+      }`}
       onClick={() => onClick(activity)}
     >
       <div className="flex items-stretch gap-0">
-        <div className="w-1 rounded-l-xl flex-shrink-0" style={{ backgroundColor: color }} />
+        <div
+          className={`w-1.5 rounded-l-xl flex-shrink-0 ${canRegister ? 'animate-blink2-bar' : ''}`}
+          style={canRegister ? undefined : { backgroundColor: color }}
+        />
         <div className="flex-1 min-w-0 px-4 py-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 text-sm sm:text-[15px] leading-snug group-hover:text-enews-700 transition-colors line-clamp-2">
-                {activity.tenHoatDong}
-              </h3>
+              <div className="flex items-start gap-2 flex-wrap">
+                <h3 className="font-semibold text-gray-900 text-sm sm:text-[15px] leading-snug group-hover:text-enews-700 transition-colors line-clamp-2 flex-1 min-w-0">
+                  {activity.tenHoatDong}
+                </h3>
+                {canRegister && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold text-white animate-blink2-bg flex-shrink-0 whitespace-nowrap">
+                    🔔 Mở ĐK
+                  </span>
+                )}
+              </div>
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-white" style={{ backgroundColor: color }}>
                   {getLoaiHoatDongLabel(activity.loaiHoatDong)}
@@ -259,11 +273,6 @@ const ActivityItem = ({ activity, onClick }) => {
                   </span>
                 )}
                 <StatusBadge trangThai={activity.trangThai} />
-                {canRegister && (
-                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-enews-100 text-enews-700 border border-enews-200 animate-pulse">
-                    📋 Mở đăng ký
-                  </span>
-                )}
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-2 text-xs text-gray-500">
                 {activity.ngayToChuc && (
@@ -580,7 +589,7 @@ const TRANG_THAI_FILTER = [
 const HoatDongPublicPage = () => {
   const [keyword, setKeyword]     = useState('');
   const [search, setSearch]       = useState('');
-  const [trangThai, setTrangThai] = useState('');
+  const [trangThai, setTrangThai] = useState('DANG_MO_DANG_KY');
   const [selected, setSelected]   = useState(null);
 
   const { data: activities = [], isLoading, error } = useQuery({

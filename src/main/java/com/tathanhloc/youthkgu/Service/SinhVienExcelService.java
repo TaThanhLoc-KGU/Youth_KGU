@@ -5,7 +5,9 @@ import com.tathanhloc.youthkgu.DTO.ExcelErrorDTO;
 import com.tathanhloc.youthkgu.DTO.SinhVienDTO;
 import com.tathanhloc.youthkgu.Enum.GioiTinhEnum;
 import com.tathanhloc.youthkgu.Model.Lop;
+import com.tathanhloc.youthkgu.Model.SinhVien;
 import com.tathanhloc.youthkgu.Repository.LopRepository;
+import com.tathanhloc.youthkgu.Repository.SinhVienRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -18,6 +20,7 @@ import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.LinkedHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +28,7 @@ import java.util.*;
 public class SinhVienExcelService {
 
     private final LopRepository lopRepository;
+    private final SinhVienRepository sinhVienRepository;
 
     /**
      * Tạo template Excel với danh sách lớp
@@ -247,6 +251,95 @@ public class SinhVienExcelService {
             workbook.write(outputStream);
             return outputStream.toByteArray();
         }
+    }
+
+    // ── Template tốt nghiệp (chỉ cột MSSV) ─────────────────────────────────
+    public byte[] createTotNghiepTemplate() throws Exception {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Danh sách tốt nghiệp");
+            CellStyle headerStyle = createHeaderStyle(workbook);
+
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {"Mã SV (MSSV)"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 6000);
+            }
+
+            // Dòng mẫu
+            sheet.createRow(1).createCell(0).setCellValue("21072006001");
+            sheet.createRow(2).createCell(0).setCellValue("21072006002");
+
+            // Hướng dẫn
+            Sheet guideSheet = workbook.createSheet("Hướng dẫn");
+            String[] guides = {
+                "HƯỚNG DẪN XỬ LÝ SINH VIÊN TỐT NGHIỆP",
+                "",
+                "1. Điền danh sách MSSV sinh viên đã tốt nghiệp vào cột 'Mã SV'",
+                "2. Mỗi MSSV một dòng, bắt đầu từ dòng 2",
+                "3. Tải lên để xem preview trước khi xác nhận",
+                "4. Sau khi xác nhận, sinh viên sẽ bị đặt trạng thái KHÔNG HOẠT ĐỘNG",
+                "",
+                "LƯU Ý: Thao tác này có thể hoàn tác bằng cách kích hoạt lại sinh viên"
+            };
+            for (int i = 0; i < guides.length; i++) {
+                Row row = guideSheet.createRow(i);
+                Cell cell = row.createCell(0);
+                cell.setCellValue(guides[i]);
+                if (i == 0) cell.setCellStyle(headerStyle);
+            }
+            guideSheet.setColumnWidth(0, 20000);
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    // ── Preview danh sách MSSV tốt nghiệp từ Excel ──────────────────────────
+    public Map<String, Object> previewTotNghiep(MultipartFile file) throws Exception {
+        List<Map<String, Object>> found = new ArrayList<>();
+        List<Map<String, Object>> notFound = new ArrayList<>();
+
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = WorkbookFactory.create(is)) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+                String maSv = getCellValueAsString(row.getCell(0));
+                if (maSv == null || maSv.isBlank()) continue;
+                maSv = maSv.trim();
+
+                Optional<SinhVien> svOpt = sinhVienRepository.findById(maSv);
+                if (svOpt.isPresent()) {
+                    SinhVien sv = svOpt.get();
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("maSv", sv.getMaSv());
+                    entry.put("hoTen", sv.getHoTen());
+                    entry.put("maLop", sv.getLop() != null ? sv.getLop().getMaLop() : null);
+                    entry.put("tenLop", sv.getLop() != null ? sv.getLop().getTenLop() : null);
+                    entry.put("isActive", sv.getIsActive());
+                    found.add(entry);
+                } else {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("maSv", maSv);
+                    entry.put("reason", "Không tìm thấy trong hệ thống");
+                    notFound.add(entry);
+                }
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("found", found);
+        result.put("notFound", notFound);
+        result.put("totalRows", found.size() + notFound.size());
+        result.put("foundCount", found.size());
+        result.put("notFoundCount", notFound.size());
+        return result;
     }
 
     // Helper methods

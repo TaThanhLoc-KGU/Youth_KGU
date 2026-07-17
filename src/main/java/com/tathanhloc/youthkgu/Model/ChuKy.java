@@ -32,6 +32,10 @@ public class ChuKy {
     @Builder.Default
     private Boolean laMacDinh = false;
 
+    /** Username của người sở hữu chữ ký. NULL = chữ ký hệ thống (cũ). */
+    @Column(name = "owner_username", length = 100)
+    private String ownerUsername;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

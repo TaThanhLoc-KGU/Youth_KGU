@@ -40,6 +40,9 @@ public class TaiKhoan {
     @Column(name = "email", unique = true, nullable = true)
     private String email;
 
+    @Column(name = "email_phu")
+    private String emailPhu;
+
     @NotNull(message = "Vai trò không được để trống")
     @Column(name = "vai_tro", nullable = false)
     @Convert(converter = VaiTroEnumConverter.class)
@@ -117,6 +120,14 @@ public class TaiKhoan {
     @ManyToOne
     @JoinColumn(name = "ma_lop")
     private Lop lop;
+
+    /**
+     * Buộc đổi mật khẩu: true khi tài khoản mới được tạo với mật khẩu mặc định
+     * hoặc admin reset password. Xóa sau khi người dùng tự đổi thành công.
+     */
+    @Column(name = "must_change_password")
+    @Builder.Default
+    private Boolean mustChangePassword = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

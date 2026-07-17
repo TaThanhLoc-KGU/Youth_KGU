@@ -83,10 +83,15 @@ public class NamHocService {
         }
     }
 
+    @Transactional
     public NamHocDTO createWithDefaultSemesters(NamHocDTO dto) {
-        // For now, just create the academic year
-        // TODO: Add logic to create default semesters
-        return create(dto);
+        NamHocDTO saved = create(dto);
+        try {
+            createSemestersForYear(saved.getMaNamHoc());
+        } catch (Exception e) {
+            log.warn("Tạo học kỳ mặc định không thành công cho {}: {}", saved.getMaNamHoc(), e.getMessage());
+        }
+        return saved;
     }
 
     @Transactional

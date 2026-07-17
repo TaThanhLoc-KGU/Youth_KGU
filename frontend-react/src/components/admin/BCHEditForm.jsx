@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Settings, Trash2 } from 'lucide-react';
+import ImageUploadField from '../../components/common/ImageUploadField';
 import bchService from '../../services/bchService';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
@@ -183,11 +184,11 @@ const BCHEditForm = ({ isOpen, bch, onClose, onSuccess }) => {
                 required
               />
 
-              <Input
-                label="Hình ảnh (URL)"
-                placeholder="https://example.com/image.jpg"
+              <ImageUploadField
+                label="Hình ảnh BCH"
                 value={formData.hinhAnh}
-                onChange={(e) => handleInputChange('hinhAnh', e.target.value)}
+                onChange={(url) => handleInputChange('hinhAnh', url)}
+                previewClass="h-28 w-full object-cover"
               />
 
               <div className="flex items-center gap-2">

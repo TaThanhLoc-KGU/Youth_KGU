@@ -178,6 +178,10 @@ public class HoatDong {
     @Builder.Default
     private Boolean choPhepDangKy = true;
 
+    @Column(name = "is_khong_dang_ky")
+    @Builder.Default
+    private Boolean isKhongDangKy = false;
+
     @Column(name = "han_dang_ky")
     private LocalDateTime hanDangKy;
 

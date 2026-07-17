@@ -389,6 +389,36 @@ public class HoatDongController {
         return ResponseEntity.ok(ApiResponse.success("Đã từ chối hoạt động", result));
     }
 
+    @PostMapping("/{maHoatDong}/gui-email")
+    @Operation(summary = "Gửi email thông báo hoạt động đến tất cả sinh viên")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> guiEmailHoatDong(
+            @PathVariable String maHoatDong) {
+        log.info("POST /api/hoat-dong/{}/gui-email", maHoatDong);
+        Map<String, Object> result = hoatDongService.guiEmailThongBao(maHoatDong);
+        return ResponseEntity.ok(ApiResponse.success("Đã kích hoạt gửi email thông báo", result));
+    }
+
+    @PostMapping("/{maHoatDong}/gui-zalo")
+    @Operation(summary = "Gửi thông báo Zalo hoạt động đến tất cả sinh viên đã liên kết")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> guiZaloHoatDong(
+            @PathVariable String maHoatDong) {
+        log.info("POST /api/hoat-dong/{}/gui-zalo", maHoatDong);
+        Map<String, Object> result = hoatDongService.guiZaloThongBao(maHoatDong);
+        return ResponseEntity.ok(ApiResponse.success("Đã kích hoạt gửi Zalo thông báo", result));
+    }
+
+    @PostMapping("/{maHoatDong}/gui-tat-ca")
+    @Operation(summary = "Gửi cả Email + Zalo thông báo hoạt động")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> guiTatCaHoatDong(
+            @PathVariable String maHoatDong) {
+        log.info("POST /api/hoat-dong/{}/gui-tat-ca", maHoatDong);
+        Map<String, Object> result = hoatDongService.guiThongBaoDayDu(maHoatDong);
+        return ResponseEntity.ok(ApiResponse.success("Đã kích hoạt gửi Email + Zalo", result));
+    }
+
     // ========== ERROR HANDLING ==========
 
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)

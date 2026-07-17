@@ -3,14 +3,15 @@ import { persist } from 'zustand/middleware';
 
 export const BLOCK_TYPES = {
   // ── Main content blocks ────────────────────────────────────────────────────
-  SEARCH_BAR:          'SEARCH_BAR',
-  HERO_SLIDER:         'HERO_SLIDER',
-  NEWS_TICKER:         'NEWS_TICKER',
-  FEATURED_GRID:       'FEATURED_GRID',
-  ALL_CATEGORIES:      'ALL_CATEGORIES',
-  CATEGORY_SECTION:    'CATEGORY_SECTION',
-  LATEST_NEWS:         'LATEST_NEWS',
-  BANNER:              'BANNER',
+  SEARCH_BAR:             'SEARCH_BAR',
+  HERO_SLIDER:            'HERO_SLIDER',
+  NEWS_TICKER:            'NEWS_TICKER',
+  HOAT_DONG_MO_DANG_KY:  'HOAT_DONG_MO_DANG_KY',  // Hoạt động đang mở đăng ký
+  FEATURED_GRID:          'FEATURED_GRID',
+  ALL_CATEGORIES:         'ALL_CATEGORIES',
+  CATEGORY_SECTION:       'CATEGORY_SECTION',
+  LATEST_NEWS:            'LATEST_NEWS',
+  BANNER:                 'BANNER',
   // ── Sidebar blocks ─────────────────────────────────────────────────────────
   SIDEBAR_FEATURED:    'SIDEBAR_FEATURED',    // Tin nổi bật (sidebar)
   SIDEBAR_CATEGORIES:  'SIDEBAR_CATEGORIES',  // Cây danh mục
@@ -40,6 +41,14 @@ export const BLOCK_META = {
     label: 'Hero Slider',
     icon: '🎠',
     description: 'Slider tự động từ Quản lý Slider',
+    unique: true,
+    configurable: false,
+    sidebar: false,
+  },
+  [BLOCK_TYPES.HOAT_DONG_MO_DANG_KY]: {
+    label: 'Hoạt động mở đăng ký',
+    icon: '📋',
+    description: 'Danh sách hoạt động đang mở đăng ký (nổi bật, chớp 2 màu)',
     unique: true,
     configurable: false,
     sidebar: false,
@@ -136,11 +145,12 @@ export const COL_SPAN_OPTIONS = [
 ];
 
 export const DEFAULT_MAIN_BLOCKS = [
-  { id: 'b-slider',   type: BLOCK_TYPES.HERO_SLIDER,     config: {},                      colSpan: 12 },
-  { id: 'b-ticker',   type: BLOCK_TYPES.NEWS_TICKER,     config: {},                      colSpan: 12 },
-  { id: 'b-featured', type: BLOCK_TYPES.FEATURED_GRID,   config: { size: 4 },             colSpan: 12 },
-  { id: 'b-cats',     type: BLOCK_TYPES.ALL_CATEGORIES,  config: {},                      colSpan: 12 },
-  { id: 'b-latest',   type: BLOCK_TYPES.LATEST_NEWS,     config: { size: 8, columns: 4 }, colSpan: 12 },
+  { id: 'b-slider',      type: BLOCK_TYPES.HERO_SLIDER,            config: {},                      colSpan: 12 },
+  { id: 'b-ticker',      type: BLOCK_TYPES.NEWS_TICKER,            config: {},                      colSpan: 12 },
+  { id: 'b-mo-dang-ky',  type: BLOCK_TYPES.HOAT_DONG_MO_DANG_KY,  config: {},                      colSpan: 12 },
+  { id: 'b-featured',    type: BLOCK_TYPES.FEATURED_GRID,          config: { size: 4 },             colSpan: 12 },
+  { id: 'b-cats',        type: BLOCK_TYPES.ALL_CATEGORIES,         config: {},                      colSpan: 12 },
+  { id: 'b-latest',      type: BLOCK_TYPES.LATEST_NEWS,            config: { size: 8, columns: 4 }, colSpan: 12 },
 ];
 
 export const DEFAULT_SIDEBAR_BLOCKS = [
@@ -214,7 +224,7 @@ const useNewsLayoutStore = create(
         sidebarBlocks: DEFAULT_SIDEBAR_BLOCKS,
       }),
     }),
-    { name: 'news-layout-v4' }  // bumped from v3 → remove search bar block from defaults
+    { name: 'news-layout-v5' }  // bumped from v4 → add HOAT_DONG_MO_DANG_KY block
   )
 );
 

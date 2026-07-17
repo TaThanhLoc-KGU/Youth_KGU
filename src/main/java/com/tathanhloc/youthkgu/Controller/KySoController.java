@@ -52,30 +52,36 @@ public class KySoController {
     // ══════════════════════════════════════════════════════════════════════
 
     @GetMapping("/chu-ky")
-    @Operation(summary = "Lấy danh sách chữ ký")
+    @Operation(summary = "Lấy danh sách chữ ký cá nhân của user hiện tại")
     @PreAuthorize("hasPermission(null, 'KY_SO_PDF') or hasPermission(null, 'CAI_DAT_HE_THONG')")
-    public ResponseEntity<ApiResponse<List<ChuKyDTO>>> getAllChuKy() {
-        return ResponseEntity.ok(ApiResponse.success(kySoService.getAllChuKy()));
+    public ResponseEntity<ApiResponse<List<ChuKyDTO>>> getAllChuKy(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String username = userDetails.getUsername();
+        return ResponseEntity.ok(ApiResponse.success(kySoService.getAllChuKy(username)));
     }
 
     @PostMapping(value = "/chu-ky", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload chữ ký mới")
-    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
+    @Operation(summary = "Upload chữ ký mới (cá nhân — gán cho tài khoản hiện tại)")
+    @PreAuthorize("hasPermission(null, 'KY_SO_PDF') or hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<ApiResponse<ChuKyDTO>> uploadChuKy(
             @RequestParam("file") MultipartFile file,
             @RequestParam("tenNguoiKy") String tenNguoiKy,
             @RequestParam(value = "chucVu", required = false) String chucVu,
-            @RequestParam(value = "laMacDinh", defaultValue = "false") boolean laMacDinh) {
-        log.info("POST /api/ky-so/chu-ky - tenNguoiKy={}", tenNguoiKy);
-        ChuKyDTO dto = kySoService.uploadChuKy(file, tenNguoiKy, chucVu, laMacDinh);
+            @RequestParam(value = "laMacDinh", defaultValue = "false") boolean laMacDinh,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String username = userDetails.getUsername();
+        log.info("POST /api/ky-so/chu-ky - tenNguoiKy={} owner={}", tenNguoiKy, username);
+        ChuKyDTO dto = kySoService.uploadChuKy(file, tenNguoiKy, chucVu, laMacDinh, username);
         return ResponseEntity.ok(ApiResponse.success("Tải chữ ký thành công", dto));
     }
 
     @DeleteMapping("/chu-ky/{id}")
-    @Operation(summary = "Xóa chữ ký")
-    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
-    public ResponseEntity<ApiResponse<Void>> deleteChuKy(@PathVariable Long id) {
-        log.info("DELETE /api/ky-so/chu-ky/{}", id);
+    @Operation(summary = "Xóa chữ ký (chỉ xóa được chữ ký của mình)")
+    @PreAuthorize("hasPermission(null, 'KY_SO_PDF') or hasPermission(null, 'CAI_DAT_HE_THONG')")
+    public ResponseEntity<ApiResponse<Void>> deleteChuKy(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        log.info("DELETE /api/ky-so/chu-ky/{} by {}", id, userDetails.getUsername());
         kySoService.deleteChuKy(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa chữ ký thành công", null));
     }
@@ -134,12 +140,13 @@ public class KySoController {
     record PreviewBody(
             List<KySoService.OverrideRow> overrideRows,
             String overrideTieuDe,
-            String overrideNgayStr
+            String overrideNgayStr,
+            List<KySoService.ColConfig> colConfig,
+            String loaiKy,
+            String orgLabel,
+            KySoService.FormatConfig formatConfig
     ) {}
 
-    /**
-     * Preview có override nội dung — dùng khi admin đã chỉnh sửa tiêu đề/danh sách SV.
-     */
     @PostMapping("/preview/{maHoatDong}")
     @Operation(summary = "Xem trước danh sách với nội dung đã chỉnh sửa")
     @PreAuthorize("hasPermission(null, 'KY_SO_PDF') or hasPermission(null, 'CAI_DAT_HE_THONG')")
@@ -149,7 +156,8 @@ public class KySoController {
         log.info("POST /api/ky-so/preview/{} - overrideRows={}", maHoatDong,
                 body.overrideRows() != null ? body.overrideRows().size() : "null");
         PreviewResult result = kySoService.generatePreview(
-                maHoatDong, body.overrideRows(), body.overrideTieuDe(), body.overrideNgayStr());
+                maHoatDong, body.overrideRows(), body.overrideTieuDe(), body.overrideNgayStr(),
+                body.colConfig(), body.loaiKy(), body.orgLabel(), body.formatConfig());
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
@@ -178,23 +186,19 @@ public class KySoController {
                 maHoatDong, body.loaiKy(), nguoiThucHien, ip);
 
         KySoService.XuatPDFRequest req = new KySoService.XuatPDFRequest(
-                maHoatDong,
-                body.loaiKy(),
-                body.chuKyBiThuId(),
-                body.tenNguoiKy(),
-                body.chuKyNguoiLapId(),
-                body.tenNguoiLap(),
-                body.chucVuNguoiLap(),
+                maHoatDong, body.loaiKy(),
+                body.chuKyBiThuId(), body.tenNguoiKy(),
+                body.chuKyNguoiLapId(), body.tenNguoiLap(), body.chucVuNguoiLap(),
                 body.conDauId(),
                 body.posBiThu()    != null ? toElementPos(body.posBiThu())    : null,
                 body.posNguoiLap() != null ? toElementPos(body.posNguoiLap()) : null,
                 body.posConDau()   != null ? toElementPos(body.posConDau())   : null,
                 body.customMaSvList(),
-                body.overrideRows(),
-                body.overrideTieuDe(),
-                body.overrideNgayStr(),
-                nguoiThucHien,
-                ip
+                body.overrideRows(), body.overrideTieuDe(), body.overrideNgayStr(),
+                nguoiThucHien, ip,
+                body.colConfig(),
+                body.orgLabel(),
+                body.formatConfig()
         );
 
         byte[] pdfBytes = kySoService.xuatDanhSachPDF(req);
@@ -241,21 +245,16 @@ public class KySoController {
     /** Body JSON cho request xuất PDF. */
     public record XuatPDFBody(
             String loaiKy,
-            Long   chuKyBiThuId,
-            String tenNguoiKy,
-            Long   chuKyNguoiLapId,
-            String tenNguoiLap,
-            String chucVuNguoiLap,
+            Long   chuKyBiThuId, String tenNguoiKy,
+            Long   chuKyNguoiLapId, String tenNguoiLap, String chucVuNguoiLap,
             Long   conDauId,
-            PosBody posBiThu,
-            PosBody posNguoiLap,
-            PosBody posConDau,
-            // Danh sách MSSV tuỳ chỉnh (null = lấy toàn bộ checked-in)
+            PosBody posBiThu, PosBody posNguoiLap, PosBody posConDau,
             List<String> customMaSvList,
-            // Nội dung đã chỉnh sửa trực tiếp trên giao diện
             List<KySoService.OverrideRow> overrideRows,
-            String overrideTieuDe,
-            String overrideNgayStr
+            String overrideTieuDe, String overrideNgayStr,
+            List<KySoService.ColConfig> colConfig,
+            String orgLabel,
+            KySoService.FormatConfig formatConfig
     ) {}
 
     /** Vị trí phần tử từ frontend (pixel, gốc trên-trái). */

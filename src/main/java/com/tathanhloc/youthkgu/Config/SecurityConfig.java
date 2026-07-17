@@ -1,7 +1,9 @@
 package com.tathanhloc.youthkgu.Config;
 
+import com.tathanhloc.youthkgu.Security.ApiKeyFilter;
 import com.tathanhloc.youthkgu.Security.CustomPermissionEvaluator;
 import com.tathanhloc.youthkgu.Security.JwtAuthenticationFilter;
+import com.tathanhloc.youthkgu.Security.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -43,15 +45,38 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
+    private final ApiKeyFilter apiKeyFilter;
     private final UserDetailsService userDetailsService;
     private final CustomPermissionEvaluator customPermissionEvaluator;
-    private final PasswordEncoder passwordEncoder; // inject từ PasswordEncoderConfig
+    private final PasswordEncoder passwordEncoder;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // ── Security headers ─────────────────────────────────────────
+                .headers(headers -> {
+                    headers.frameOptions(f -> f.deny());
+                    headers.contentTypeOptions(c -> {});
+                    headers.httpStrictTransportSecurity(hsts -> hsts
+                            .includeSubDomains(true)
+                            .maxAgeInSeconds(31_536_000));
+                    headers.referrerPolicy(r -> r.policy(
+                            org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
+                    headers.permissionsPolicy(p -> p.policy(
+                            "camera=(), microphone=(), geolocation=(), payment=()"));
+                    headers.addHeaderWriter((req, res) -> res.setHeader(
+                            "Content-Security-Policy",
+                            "default-src 'self'; " +
+                            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+                            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                            "font-src 'self' https://fonts.gstatic.com; " +
+                            "img-src 'self' data: blob: https:; " +
+                            "connect-src 'self' https://graph.zalo.me https://openapi.zalo.me; " +
+                            "frame-ancestors 'none'"));
+                })
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.web.cors.CorsUtils::isPreFlightRequest).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
@@ -61,6 +86,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         // Webhook ngân hàng (Casso/SePay/PayOS) — gọi từ ngoài, không có JWT
                         .requestMatchers("/api/clb/webhook/**").permitAll()
+                        // Webhook Zalo OA — gọi từ Zalo server, không có JWT
+                        .requestMatchers("/api/zalo/webhook").permitAll()
+                        .requestMatchers("/api/zalo/events").permitAll()
+                        .requestMatchers("/api/zalo/oauth/callback").permitAll()
+                        .requestMatchers("/api/zalo/exchange-token").permitAll()
+                        .requestMatchers("/api/zalo/test-send").permitAll()
+                        .requestMatchers("/api/zalo/broadcast").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/permissions/me").authenticated()
                         .anyRequest().authenticated()
                 )
@@ -68,6 +100,8 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

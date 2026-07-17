@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Trash2, RotateCcw, Key, Shield, Lock } from 'lucide-react';
+import { Trash2, RotateCcw, Key, Shield, Lock, Download } from 'lucide-react';
 import taikhoanService from '../../services/taikhoanService';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
@@ -95,6 +95,7 @@ const Taikhoan = () => {
   const canEdit   = hasPermission(PERMISSIONS.EDIT_TAI_KHOAN);
   const canDelete = hasPermission(PERMISSIONS.DELETE_TAI_KHOAN);
   const [confirmState, setConfirmState] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -256,6 +257,33 @@ const Taikhoan = () => {
 
   const usersToCreate = createUserType === 'SINHVIEN' ? studentsWithoutAccount : teachersWithoutAccount;
 
+  const handleExport = async () => {
+    if (!accountList.length) return;
+    setExporting(true);
+    try {
+      const XLSX = await import('xlsx');
+      const roleLabel = { ADMIN: 'Admin', GIANGVIEN: 'Giảng viên', SINHVIEN: 'Sinh viên' };
+      const ws = XLSX.utils.json_to_sheet(
+        accountList.map((a, i) => ({
+          'STT':           i + 1,
+          'Tên đăng nhập': a.tenDangNhap || '',
+          'Họ và Tên':     a.hoTen || '',
+          'Role':          roleLabel[a.role] || a.role || '',
+          'Trạng thái':    a.isActive ? 'Hoạt động' : 'Vô hiệu',
+          'Ngày tạo':      a.createdAt ? new Date(a.createdAt).toLocaleDateString('vi-VN') : '',
+        }))
+      );
+      ws['!cols'] = [{ wch: 5 }, { wch: 20 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Tài khoản');
+      XLSX.writeFile(wb, `tai_khoan_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -337,7 +365,7 @@ const Taikhoan = () => {
       {/* Filters */}
       <Card>
         <div className="p-6">
-          <div className="flex flex-wrap gap-2 sm:gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
             <SearchInput
               placeholder="Tìm kiếm tên đăng nhập, tên..."
               value={search}
@@ -365,6 +393,13 @@ const Taikhoan = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full sm:w-auto"
             />
+            <button
+              onClick={handleExport}
+              disabled={exporting || !accountList.length}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium border border-emerald-300 text-emerald-700 rounded-lg hover:bg-emerald-50 disabled:opacity-50 whitespace-nowrap">
+              <Download className="w-4 h-4" />
+              {exporting ? 'Đang xuất…' : `Xuất Excel (${accountList.length})`}
+            </button>
           </div>
         </div>
       </Card>

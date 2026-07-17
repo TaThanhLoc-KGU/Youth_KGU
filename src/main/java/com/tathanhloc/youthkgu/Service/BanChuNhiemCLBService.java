@@ -26,7 +26,6 @@ public class BanChuNhiemCLBService {
     private final SinhVienRepository       sinhVienRepository;
     private final GiangVienRepository      giangVienRepository;
     private final ChuyenVienRepository     chuyenVienRepository;
-    private final ThanhVienCLBRepository   thanhVienCLBRepository;
     private final KhoaScopeService         khoaScopeService;
 
     @Transactional(readOnly = true)
@@ -106,8 +105,6 @@ public class BanChuNhiemCLBService {
                 SinhVien sv = sinhVienRepository.findById(dto.getMaSv())
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên: " + dto.getMaSv()));
                 bcn.setSinhVien(sv);
-                // Đồng bộ chức vụ trong ThanhVienCLB
-                syncChucVuThanhVien(maClb, dto.getMaSv(), dto.getChucVu());
             }
         }
 
@@ -135,11 +132,6 @@ public class BanChuNhiemCLBService {
         bcn.setNgayBoNhiem(dto.getNgayBoNhiem());
         bcn.setNgayThoiChuc(dto.getNgayThoiChuc());
         bcn.setGhiChu(dto.getGhiChu());
-
-        // Sync lại chức vụ nếu là SV
-        if ("SV".equals(bcn.getLoaiNguoi()) && bcn.getSinhVien() != null) {
-            syncChucVuThanhVien(maClb, bcn.getSinhVien().getMaSv(), dto.getChucVu());
-        }
 
         bcn = bcnRepository.save(bcn);
         log.info("BCN updated: id={}, clb={}", id, maClb);
@@ -228,22 +220,6 @@ public class BanChuNhiemCLBService {
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────────
-
-    private void syncChucVuThanhVien(String maClb, String maSv, String chucVuBCN) {
-        String newChucVu = switch (chucVuBCN) {
-            case "Chủ nhiệm"      -> "CHU_NHIEM";
-            case "Phó chủ nhiệm" -> "PHO_CHU_NHIEM";
-            default               -> "BAN_QUAN_LY";
-        };
-        thanhVienCLBRepository.findByCauLacBoMaClbAndIsActiveTrueOrderByChucVuAsc(maClb)
-                .stream()
-                .filter(tv -> tv.getSinhVien() != null && tv.getSinhVien().getMaSv().equals(maSv))
-                .findFirst()
-                .ifPresent(tv -> {
-                    tv.setChucVu(newChucVu);
-                    thanhVienCLBRepository.save(tv);
-                });
-    }
 
     private String cellStr(Row row, int col, String def) {
         Cell c = row.getCell(col);

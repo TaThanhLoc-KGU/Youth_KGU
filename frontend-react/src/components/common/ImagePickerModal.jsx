@@ -1,25 +1,30 @@
 /**
  * ImagePickerModal — chọn ảnh bằng 2 cách:
- *  1. Upload ảnh mới từ máy tính
+ *  1. Upload ảnh mới từ máy tính (có hỗ trợ crop)
  *  2. Chọn ảnh có sẵn trên server (thư viện)
  *
  * Props:
  *  - isOpen: boolean
  *  - onClose: () => void
  *  - onSelect: (url: string) => void  — callback khi chọn xong
+ *  - aspectRatio: number | undefined — nếu truyền, mở crop modal sau khi chọn file
+ *  - cropTitle: string — tiêu đề crop modal
  */
 import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { X, Upload, Image, Check, Loader2, FolderOpen, AlertCircle } from 'lucide-react';
 import uploadService from '../../services/uploadService';
+import ImageCropModal from './ImageCropModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
-const ImagePickerModal = ({ isOpen, onClose, onSelect }) => {
+const ImagePickerModal = ({ isOpen, onClose, onSelect, aspectRatio, cropTitle }) => {
   const [tab, setTab] = useState('upload');
   const [dragOver, setDragOver] = useState(false);
   const [uploadPreview, setUploadPreview] = useState(null); // { file, dataUrl }
   const [selected, setSelected] = useState(null);           // URL đã chọn từ thư viện
+  const [showCrop, setShowCrop] = useState(false);          // hiển thị crop modal
+  const [cropSrc, setCropSrc] = useState(null);             // ảnh đưa vào crop
   const fileInputRef = useRef(null);
 
   // ── Query: danh sách ảnh server ─────────────────────────────────────────────
@@ -45,6 +50,14 @@ const ImagePickerModal = ({ isOpen, onClose, onSelect }) => {
     },
   });
 
+  // Khi crop xong → tạo File từ blob → upload
+  const handleCropConfirm = useCallback((blob) => {
+    const croppedFile = new File([blob], 'cropped.jpg', { type: 'image/jpeg' });
+    setShowCrop(false);
+    setCropSrc(null);
+    setUploadPreview({ file: croppedFile, dataUrl: URL.createObjectURL(blob) });
+  }, []);
+
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleFileChange = useCallback((file) => {
     if (!file) return;
@@ -57,9 +70,17 @@ const ImagePickerModal = ({ isOpen, onClose, onSelect }) => {
       return;
     }
     const reader = new FileReader();
-    reader.onload = (e) => setUploadPreview({ file, dataUrl: e.target.result });
+    reader.onload = (e) => {
+      if (aspectRatio) {
+        // Mở crop modal trước
+        setCropSrc(e.target.result);
+        setShowCrop(true);
+      } else {
+        setUploadPreview({ file, dataUrl: e.target.result });
+      }
+    };
     reader.readAsDataURL(file);
-  }, []);
+  }, [aspectRatio]);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
@@ -70,6 +91,8 @@ const ImagePickerModal = ({ isOpen, onClose, onSelect }) => {
   const handleClose = () => {
     setUploadPreview(null);
     setSelected(null);
+    setShowCrop(false);
+    setCropSrc(null);
     onClose();
   };
 
@@ -83,6 +106,7 @@ const ImagePickerModal = ({ isOpen, onClose, onSelect }) => {
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
 
@@ -271,6 +295,18 @@ const ImagePickerModal = ({ isOpen, onClose, onSelect }) => {
         )}
       </div>
     </div>
+
+    {/* Crop modal — overlay trên ImagePickerModal */}
+    <ImageCropModal
+      isOpen={showCrop}
+      onClose={() => { setShowCrop(false); setCropSrc(null); }}
+      imageSrc={cropSrc}
+      onConfirm={handleCropConfirm}
+      defaultAspect={aspectRatio}
+      lockAspect={!!aspectRatio}
+      title={cropTitle || 'Cắt & điều chỉnh ảnh'}
+    />
+    </>
   );
 };
 

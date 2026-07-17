@@ -52,17 +52,12 @@ const kySoService = {
 
   /**
    * Lấy ảnh preview (base64 PNG) từng trang của danh sách tham gia.
-   * Nếu có override data, gửi POST để preview đúng nội dung đã chỉnh sửa.
+   * Luôn dùng POST để hỗ trợ colConfig, overrides, editZones.
    * @param {string} maHoatDong
-   * @param {{ overrideRows?, overrideTieuDe?, overrideNgayStr? }} [overrides]
-   * @returns {Promise<{pages: string[], pageWidthPt: number, pageHeightPt: number, totalStudents: number}>}
+   * @param {{ overrideRows?, overrideTieuDe?, overrideNgayStr?, colConfig? }} [body]
    */
-  getPreview: async (maHoatDong, overrides = null) => {
-    if (overrides) {
-      const res = await api.post(`/api/ky-so/preview/${enc(maHoatDong)}`, overrides);
-      return res.data.data;
-    }
-    const res = await api.get(`/api/ky-so/preview/${enc(maHoatDong)}`);
+  getPreview: async (maHoatDong, body = null) => {
+    const res = await api.post(`/api/ky-so/preview/${enc(maHoatDong)}`, body || {});
     return res.data.data;
   },
 
@@ -79,16 +74,23 @@ const kySoService = {
    */
   xuatPDF: async (maHoatDong, params) => {
     const body = {
-      loaiKy:           params.loaiKy      || 'BÍ THƯ',
+      loaiKy:           params.loaiKy          || 'BÍ THƯ',
       chuKyBiThuId:     params.chuKyBiThuId    ?? null,
-      tenNguoiKy:       params.tenNguoiKy   || '',
+      tenNguoiKy:       params.tenNguoiKy       || '',
       chuKyNguoiLapId:  params.chuKyNguoiLapId ?? null,
-      tenNguoiLap:      params.tenNguoiLap  || '',
+      tenNguoiLap:      params.tenNguoiLap      || '',
       chucVuNguoiLap:   params.chucVuNguoiLap  ?? null,
       conDauId:         params.conDauId         ?? null,
       posBiThu:         params.posBiThu         ?? null,
       posNguoiLap:      params.posNguoiLap      ?? null,
       posConDau:        params.posConDau         ?? null,
+      customMaSvList:   params.customMaSvList   ?? null,
+      overrideRows:     params.overrideRows     ?? null,
+      overrideTieuDe:   params.overrideTieuDe   ?? null,
+      overrideNgayStr:  params.overrideNgayStr  ?? null,
+      colConfig:        params.colConfig        ?? null,
+      orgLabel:         params.orgLabel         ?? null,
+      formatConfig:     params.formatConfig     ?? null,
     };
 
     const res = await api.post(

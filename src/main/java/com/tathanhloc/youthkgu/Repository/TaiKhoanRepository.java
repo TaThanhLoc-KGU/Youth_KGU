@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +17,7 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
     // ========== Tìm kiếm cơ bản ==========
     Optional<TaiKhoan> findByUsername(String username);
     Optional<TaiKhoan> findByEmail(String email);
+    Optional<TaiKhoan> findBySinhVien_ZaloUserId(String zaloUserId);
 
     // ========== Kiểm tra tồn tại ==========
     boolean existsByUsername(String username);
@@ -89,6 +92,25 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
      */
     @Query("SELECT tk.username FROM TaiKhoan tk WHERE tk.isActive = true")
     List<String> findAllActiveUsernames();
+
+    /**
+     * Paginated search với filter — thay thế getAllAccounts() + JS filter.
+     * Truyền null để bỏ qua filter đó.
+     */
+    /**
+     * Paginated search với filter — thay thế getAllAccounts() + JS filter.
+     * Truyền null để bỏ qua filter đó.
+     */
+    @Query("SELECT tk FROM TaiKhoan tk WHERE " +
+           "(:keyword IS NULL OR LOWER(tk.hoTen) LIKE LOWER(CONCAT('%',:keyword,'%')) OR " +
+           " LOWER(tk.username) LIKE LOWER(CONCAT('%',:keyword,'%')) OR " +
+           " LOWER(tk.email) LIKE LOWER(CONCAT('%',:keyword,'%'))) " +
+           "AND (:vaiTro IS NULL OR tk.vaiTro = :vaiTro) " +
+           "AND (:isActive IS NULL OR tk.isActive = :isActive)")
+    Page<TaiKhoan> searchPaged(@Param("keyword") String keyword,
+                               @Param("vaiTro") VaiTroEnum vaiTro,
+                               @Param("isActive") Boolean isActive,
+                               Pageable pageable);
 
     /** Lấy trực tiếp maKhoa của user QUAN_LY — tránh lazy load khi dùng ngoài transaction */
     @Query("SELECT tk.khoa.maKhoa FROM TaiKhoan tk WHERE tk.username = :username AND tk.khoa IS NOT NULL")

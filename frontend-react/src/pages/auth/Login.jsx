@@ -132,6 +132,12 @@ const Login = () => {
       toast.success('Đăng nhập thành công!');
       queryClient.clear();
 
+      // Bắt buộc đổi mật khẩu nếu đang dùng mật khẩu mặc định
+      if (result.user?.mustChangePassword) {
+        navigate(ROUTES.CHANGE_PASSWORD, { replace: true });
+        return;
+      }
+
       const vaiTro = result.user.vaiTro;
       const laBCH  = result.laBCH;
       const { permissions: loadedPerms } = useAuthStore.getState();

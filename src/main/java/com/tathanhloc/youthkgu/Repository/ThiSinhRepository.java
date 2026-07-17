@@ -14,6 +14,8 @@ public interface ThiSinhRepository extends JpaRepository<ThiSinh, Long> {
 
     List<ThiSinh> findByCuocThiIdAndIsActiveTrueOrderBySoThuTuAsc(Long cuocThiId);
 
+    List<ThiSinh> findByCuocThiIdOrderBySoThuTuAsc(Long cuocThiId);
+
     long countByCuocThiId(Long cuocThiId);
 
     @Modifying

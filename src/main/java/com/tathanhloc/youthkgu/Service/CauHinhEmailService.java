@@ -82,6 +82,39 @@ public class CauHinhEmailService {
     }
 
     /**
+     * Gửi email thử nghiệm đến địa chỉ chỉ định để xác nhận email hoạt động end-to-end.
+     */
+    public void sendTestEmail(String to, String sentBy) throws Exception {
+        if (!isEmailEnabled()) {
+            throw new RuntimeException("Email chưa được kích hoạt — bật toggle 'Kích hoạt gửi email' và lưu trước.");
+        }
+        String subject = "Email thử nghiệm — Hệ thống Youth KGU";
+        String html = """
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+              <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);padding:24px;border-radius:8px 8px 0 0;">
+                <h1 style="color:#fff;margin:0;font-size:20px;">✅ Email thử nghiệm</h1>
+              </div>
+              <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                <p>Email này được gửi bởi <strong>%s</strong> để kiểm tra cấu hình SMTP.</p>
+                <p style="color:#6b7280;font-size:13px;">Nếu bạn nhận được email này, cấu hình SMTP đang hoạt động chính xác.</p>
+                <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0"/>
+                <p style="color:#6b7280;font-size:12px;">Hệ thống quản lý Youth KGU — Đoàn Trường ĐH Kiên Giang</p>
+              </div>
+            </div>
+            """.formatted(sentBy);
+
+        jakarta.mail.internet.MimeMessage message = mailSender.createMimeMessage();
+        org.springframework.mail.javamail.MimeMessageHelper helper =
+                new org.springframework.mail.javamail.MimeMessageHelper(message, true, "UTF-8");
+        helper.setFrom(getFromAddress(), getFromName());
+        helper.setTo(to);
+        helper.setSubject(subject);
+        helper.setText(html, true);
+        mailSender.send(message);
+        log.info("Test email sent to {} by {}", to, sentBy);
+    }
+
+    /**
      * Gửi email kiểm tra kết nối SMTP.
      * @return true nếu kết nối thành công
      */

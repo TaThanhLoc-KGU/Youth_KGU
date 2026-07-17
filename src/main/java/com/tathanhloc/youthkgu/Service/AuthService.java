@@ -9,6 +9,8 @@ import com.tathanhloc.youthkgu.Security.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -27,7 +29,8 @@ import java.time.LocalDateTime;
 @Slf4j
 public class AuthService {
 
-    private final AuthenticationManager authenticationManager;
+    @Autowired @Lazy
+    private AuthenticationManager authenticationManager;  // non-final để @Lazy hoạt động
     private final UserDetailsService userDetailsService;
     private final JwtService jwtService;
     private final TaiKhoanRepository taiKhoanRepository;
@@ -38,6 +41,9 @@ public class AuthService {
     private final MailService mailService;
     private final SystemLogService systemLogService;
     private final HttpServletRequest request;
+
+    /** Mật khẩu mặc định cấp cho tài khoản mới tạo. */
+    private static final String DEFAULT_PASSWORD = "KGU@123456";
 
 
     /**
@@ -64,7 +70,16 @@ public class AuthService {
             String refreshToken = jwtService.generateRefreshToken(userDetails);
 
             // Build user info
-            UserDTO userDTO = buildUserDTO(userDetails.getTaiKhoan());
+            TaiKhoan tk = userDetails.getTaiKhoan();
+            UserDTO userDTO = buildUserDTO(tk);
+
+            // Tự động bật cờ đổi mật khẩu nếu vẫn đang dùng mật khẩu mặc định
+            if (!Boolean.TRUE.equals(tk.getMustChangePassword())
+                    && passwordEncoder.matches(DEFAULT_PASSWORD, tk.getPasswordHash())) {
+                tk.setMustChangePassword(true);
+                taiKhoanRepository.save(tk);
+                userDTO.setMustChangePassword(true);
+            }
 
             log.info("Login successful for user: {}", authRequest.getUsername());
             systemLogService.log("AUTHENTICATION", "LOGIN_SUCCESS", userDetails.getUsername(), userDTO.getHoTen(),
@@ -179,8 +194,9 @@ public class AuthService {
             throw new RuntimeException("Mật khẩu cũ không đúng");
         }
 
-        // Update password
+        // Update password + clear force-change flag
         taiKhoan.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        taiKhoan.setMustChangePassword(false);
         taiKhoanRepository.save(taiKhoan);
 
         log.info("Password changed successfully for user: {}", request.getUsername());
@@ -230,6 +246,85 @@ public class AuthService {
     }
 
     /**
+     * Đăng nhập bằng Zalo access token (Mini App)
+     * Flow: Zalo token → gọi Zalo API lấy zalo_user_id → tìm sinh viên → tạo JWT
+     */
+    @Transactional
+    public AuthResponse loginWithZalo(String zaloAccessToken) {
+        // 1. Gọi Zalo API lấy thông tin user
+        String zaloUserId = fetchZaloUserId(zaloAccessToken);
+        log.info("Zalo login: zaloUserId={}", zaloUserId);
+
+        // 2. Tìm tài khoản linked với zalo_user_id
+        TaiKhoan taiKhoan = taiKhoanRepository.findBySinhVien_ZaloUserId(zaloUserId)
+                .orElseThrow(() -> new RuntimeException(
+                        "Tài khoản Zalo chưa được liên kết. Vui lòng liên hệ quản trị viên hoặc đăng nhập web để liên kết."));
+
+        if (!Boolean.TRUE.equals(taiKhoan.getIsActive())) {
+            throw new RuntimeException("Tài khoản đã bị khóa");
+        }
+
+        // 3. Load user details và generate JWT
+        CustomUserDetails userDetails = (CustomUserDetails) userDetailsService
+                .loadUserByUsername(taiKhoan.getUsername());
+        String token = jwtService.generateToken(userDetails);
+        String refreshToken = jwtService.generateRefreshToken(userDetails);
+
+        // 4. Build response (tái sử dụng logic buildAuthResponse)
+        return buildAuthResponse(token, refreshToken, taiKhoan);
+    }
+
+    private String fetchZaloUserId(String accessToken) {
+        try {
+            var restTemplate = new org.springframework.web.client.RestTemplate();
+            var headers = new org.springframework.http.HttpHeaders();
+            headers.set("access_token", accessToken);
+            var entity = new org.springframework.http.HttpEntity<>(headers);
+            var response = restTemplate.exchange(
+                    "https://graph.zalo.me/v2.0/me?fields=id,name",
+                    org.springframework.http.HttpMethod.GET, entity,
+                    com.fasterxml.jackson.databind.JsonNode.class);
+            var body = response.getBody();
+            if (body == null || !body.has("id")) {
+                throw new RuntimeException("Không lấy được thông tin Zalo");
+            }
+            return body.get("id").asText();
+        } catch (Exception e) {
+            log.error("Failed to fetch Zalo user info", e);
+            throw new RuntimeException("Xác thực Zalo thất bại: " + e.getMessage());
+        }
+    }
+
+    private AuthResponse buildAuthResponse(String token, String refreshToken, TaiKhoan taiKhoan) {
+        UserDTO userDTO = UserDTO.builder()
+                .id(taiKhoan.getId())
+                .username(taiKhoan.getUsername())
+                .vaiTro(taiKhoan.getVaiTro())
+                .isActive(taiKhoan.getIsActive())
+                .build();
+        if (taiKhoan.getSinhVien() != null) {
+            var sv = taiKhoan.getSinhVien();
+            userDTO.setHoTen(sv.getHoTen());
+            userDTO.setEmail(sv.getEmail());
+            userDTO.setLinkedEntityId(sv.getMaSv());
+            userDTO.setLinkedEntityType("SINH_VIEN");
+        } else if (taiKhoan.getGiangVien() != null) {
+            var gv = taiKhoan.getGiangVien();
+            userDTO.setHoTen(gv.getHoTen());
+            userDTO.setEmail(gv.getEmail());
+            userDTO.setLinkedEntityId(gv.getMaGv());
+            userDTO.setLinkedEntityType("GIANG_VIEN");
+        } else {
+            userDTO.setHoTen(taiKhoan.getHoTen());
+        }
+        return AuthResponse.builder()
+                .accessToken(token)
+                .refreshToken(refreshToken)
+                .user(userDTO)
+                .build();
+    }
+
+    /**
      * Refresh token
      */
     public AuthResponse refreshToken(String refreshToken) {
@@ -272,8 +367,7 @@ public class AuthService {
                 .username(taiKhoan.getUsername())
                 .vaiTro(taiKhoan.getVaiTro())
                 .isActive(taiKhoan.getIsActive())
-                // Lấy hoTen trực tiếp từ bảng taikhoan làm giá trị mặc định
-                // (sẽ bị override bởi linked entity bên dưới nếu có)
+                .mustChangePassword(Boolean.TRUE.equals(taiKhoan.getMustChangePassword()))
                 .hoTen(taiKhoan.getHoTen());
 
         // Load info from linked entity

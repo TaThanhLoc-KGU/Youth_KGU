@@ -1,13 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Trophy, Heart, Check, Loader2, ChevronLeft, Users, Star,
-  Eye, EyeOff, Clock, Music, Award, Share2, Medal,
+  Eye, EyeOff, Clock, Music, Award, Share2, Medal, Camera, Upload, X as XIcon,
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import cuocThiService from '../../services/cuocThiService';
+import uploadService from '../../services/uploadService';
 import useAuthStore from '../../stores/authStore';
+import BlockEditor from '../../components/common/BlockEditor';
 
 // ─── Device fingerprint ────────────────────────────────────────────────────────
 
@@ -42,6 +45,171 @@ function useCountdown(targetDate) {
   return timeLeft;
 }
 
+// ─── Shared upload slot cho nhóm ảnh ──────────────────────────────────────────
+
+function GroupSlot({ value, onChange, onRemove, label }) {
+  const ref = useRef();
+  const [uploading, setUploading] = useState(false);
+  const handleFile = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try { onChange(await uploadService.studentUpload(file)); }
+    catch { toast.error('Upload thất bại'); }
+    finally { setUploading(false); }
+  };
+  if (value) return (
+    <div className="relative rounded-xl overflow-hidden border border-gray-200" style={{height:90}}>
+      <img src={value} alt="" className="w-full h-full object-cover" />
+      <button type="button" onClick={onRemove}
+        className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+        <XIcon className="w-3 h-3 text-white" />
+      </button>
+    </div>
+  );
+  return (
+    <>
+      <button type="button" onClick={() => ref.current?.click()}
+        className="w-full border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-1 hover:border-orange-400 hover:bg-orange-50 transition-colors"
+        style={{height:90}}>
+        {uploading ? <Loader2 className="w-5 h-5 animate-spin text-orange-400" />
+          : <><Upload className="w-4 h-4 text-gray-400" /><span className="text-[10px] text-gray-400">{label}</span></>}
+      </button>
+      <input ref={ref} type="file" accept="image/*" className="hidden"
+        onChange={e => handleFile(e.target.files?.[0])} />
+    </>
+  );
+}
+
+// ─── Đăng ký nộp bài form ──────────────────────────────────────────────────────
+
+function DangKyNopBaiForm({ cuocThiId, hanNop, onSuccess }) {
+  const [ten, setTen]           = useState('');
+  const [moTa, setMoTa]         = useState('');
+  const [anhDaiDien, setAnhDaiDien] = useState('');
+  const [urlMedia, setUrlMedia] = useState('');
+  const [blocks, setBlocks]     = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const mainFileRef = useRef();
+
+  const hanNopExpired = hanNop && new Date() > new Date(hanNop);
+
+  const handleMainUpload = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadService.studentUpload(file);
+      setAnhDaiDien(url);
+    } catch { toast.error('Upload ảnh thất bại'); }
+    finally { setUploading(false); }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!ten.trim()) { toast.error('Vui lòng nhập tên/tiêu đề'); return; }
+    setSubmitting(true);
+    try {
+      const validBlocks = blocks.filter(b =>
+        (b.type === 'image' && b.url) || (b.type === 'text' && b.content?.trim())
+      );
+      await cuocThiService.dangKyNopBai(cuocThiId, {
+        ten: ten.trim(),
+        moTa: moTa.trim(),
+        anhDaiDien,
+        urlMedia: urlMedia.trim(),
+        loaiNopBai: 'ANH_VIDEO',
+        noiDung: validBlocks.length ? JSON.stringify(validBlocks) : null,
+      });
+      toast.success('Đăng ký nộp bài thành công! Ban tổ chức sẽ xét duyệt sớm.');
+      onSuccess?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Đăng ký thất bại');
+    } finally { setSubmitting(false); }
+  };
+
+  if (hanNopExpired) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-center">
+        <p className="text-red-700 font-semibold">⏰ Đã hết hạn nộp bài</p>
+        <p className="text-red-600 text-sm mt-1">Hạn nộp: {new Date(hanNop).toLocaleString('vi-VN')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {hanNop && (
+        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          ⏰ Hạn nộp bài: <strong>{new Date(hanNop).toLocaleString('vi-VN')}</strong>
+        </div>
+      )}
+
+      {/* Tên / tiêu đề */}
+      <div>
+        <label className="text-sm font-medium text-gray-700 block mb-1">Tiêu đề / Tên thí sinh <span className="text-red-500">*</span></label>
+        <input value={ten} onChange={e => setTen(e.target.value)} required
+          className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+          placeholder="VD: Nguyễn Văn A — Bức ảnh mùa xuân..." />
+      </div>
+
+      {/* Ảnh đại diện (thumbnail) */}
+      <div>
+        <label className="text-sm font-medium text-gray-700 block mb-1">
+          Ảnh đại diện (thumbnail) <span className="text-gray-400 font-normal">— hiển thị trên danh sách bình chọn</span>
+        </label>
+        {anhDaiDien ? (
+          <div className="relative rounded-xl overflow-hidden border" style={{height: 160}}>
+            <img src={anhDaiDien} alt="" className="w-full h-full object-cover" />
+            <button type="button" onClick={() => setAnhDaiDien('')}
+              className="absolute top-2 right-2 p-1 bg-white/90 rounded-full shadow">
+              <XIcon className="w-4 h-4 text-red-500" />
+            </button>
+          </div>
+        ) : (
+          <div onClick={() => mainFileRef.current?.click()}
+            className="border-2 border-dashed border-gray-300 rounded-xl p-5 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors">
+            {uploading ? <Loader2 className="w-7 h-7 animate-spin text-orange-500 mx-auto" />
+              : <><Camera className="w-7 h-7 text-gray-400 mx-auto mb-1.5" />
+                <p className="text-sm text-gray-500">Nhấn để tải ảnh thumbnail</p></>}
+          </div>
+        )}
+        <input ref={mainFileRef} type="file" accept="image/*" className="hidden"
+          onChange={e => handleMainUpload(e.target.files?.[0])} />
+      </div>
+
+      {/* Block editor — dàn trang bài dự thi */}
+      <div>
+        <label className="text-sm font-medium text-gray-700 block mb-2">
+          Nội dung bài dự thi <span className="text-gray-400 font-normal">— thêm ảnh, chú thích, bài viết...</span>
+        </label>
+        <BlockEditor blocks={blocks} onChange={setBlocks} />
+      </div>
+
+      {/* Video URL */}
+      <div>
+        <label className="text-sm font-medium text-gray-700 block mb-1">URL Video (tùy chọn — YouTube, Drive...)</label>
+        <input value={urlMedia} onChange={e => setUrlMedia(e.target.value)}
+          className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+          placeholder="https://youtu.be/..." />
+      </div>
+
+      {/* Mô tả ngắn */}
+      <div>
+        <label className="text-sm font-medium text-gray-700 block mb-1">Mô tả ngắn (tùy chọn)</label>
+        <textarea value={moTa} onChange={e => setMoTa(e.target.value)} rows={2}
+          className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+          placeholder="Mô tả tóm tắt bài dự thi của bạn..." />
+      </div>
+
+      <button type="submit" disabled={submitting || uploading}
+        className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+        Nộp bài tham dự
+      </button>
+    </form>
+  );
+}
+
 // ─── Category / Status helpers ─────────────────────────────────────────────────
 
 const CATEGORY_META = {
@@ -50,6 +218,8 @@ const CATEGORY_META = {
   Y_TUONG:       { emoji: '💡', label: 'Ý tưởng',    gradient: 'from-yellow-400 to-amber-500'  },
   TRANG_PHUC:    { emoji: '👗', label: 'Trang phục',  gradient: 'from-purple-500 to-violet-600' },
   BAI_VIET:      { emoji: '✍️', label: 'Bài viết',   gradient: 'from-teal-500 to-cyan-600'     },
+  NHAT_KY:       { emoji: '📔', label: 'Nhật ký',    gradient: 'from-emerald-500 to-green-600'  },
+  ANH_VIDEO:     { emoji: '📷', label: 'Ảnh/Video',  gradient: 'from-violet-500 to-purple-600'  },
   TONG_HOP:      { emoji: '🏆', label: 'Tổng hợp',   gradient: 'from-orange-500 to-amber-600'  },
 };
 
@@ -130,10 +300,11 @@ function CountdownDisplay({ thoiGianDongVote }) {
 
 // ─── Contestant card ───────────────────────────────────────────────────────────
 
-function ThiSinhCard({ ts, isOpen, hasVoted, myVoteId, onVote, voting, showVoteCount, rank }) {
+function ThiSinhCard({ ts, isOpen, hasVoted, myVoteId, onVote, voting, showVoteCount, rank, slug }) {
   const isMyVote   = myVoteId === ts.id;
   const isVoting   = voting === ts.id;
   const canVote    = isOpen && !hasVoted;
+  const hasContent = !!ts.noiDung || !!ts.anhDaiDien;
 
   return (
     <div
@@ -202,6 +373,14 @@ function ThiSinhCard({ ts, isOpen, hasVoted, myVoteId, onVote, voting, showVoteC
             <span className="font-semibold text-gray-700">{ts.soVote.toLocaleString('vi-VN')}</span>
             <span>lượt bình chọn</span>
           </div>
+        )}
+
+        {/* View entry link */}
+        {hasContent && slug && (
+          <a href={`/binh-chon/${slug}/thi-sinh/${ts.id}`}
+            className="mt-1 w-full py-1.5 rounded-xl text-xs font-semibold border border-orange-200 text-orange-600 hover:bg-orange-50 flex items-center justify-center gap-1 transition-colors">
+            📖 Xem bài dự thi
+          </a>
         )}
 
         {/* Vote button */}
@@ -384,6 +563,8 @@ export default function BinhChonDetailPage() {
   const [successMsg, setSuccessMsg]    = useState('');
   const [errorMsg, setErrorMsg]        = useState('');
   const [shareMsg, setShareMsg]        = useState('');
+  const [activeTab, setActiveTab]      = useState('binh-chon');
+  const [daNop, setDaNop]              = useState(false);
 
   // ── Fetch competition ──────────────────────────────────────────────────────
   const {
@@ -686,6 +867,68 @@ export default function BinhChonDetailPage() {
           </div>
         )}
 
+        {/* ── Tabs (only for ANH_VIDEO contests) ────────────────────────── */}
+        {ct.loaiCuocThi === 'ANH_VIDEO' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="flex border-b border-gray-100">
+              <button
+                onClick={() => setActiveTab('binh-chon')}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                  activeTab === 'binh-chon'
+                    ? 'text-orange-600 border-b-2 border-orange-500 bg-orange-50'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Heart className="w-4 h-4" /> Bình chọn
+              </button>
+              {ct.choPhepNopBai && (
+                <button
+                  onClick={() => setActiveTab('dang-ky')}
+                  className={`flex-1 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                    activeTab === 'dang-ky'
+                      ? 'text-orange-600 border-b-2 border-orange-500 bg-orange-50'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Camera className="w-4 h-4" /> Đăng ký tham dự
+                </button>
+              )}
+            </div>
+
+            {/* Đăng ký tab content */}
+            {activeTab === 'dang-ky' && ct.choPhepNopBai && (
+              <div className="p-5">
+                {daNop ? (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Check className="w-8 h-8 text-green-600" />
+                    </div>
+                    <p className="font-bold text-gray-800 text-lg">Đã nộp bài thành công!</p>
+                    <p className="text-gray-500 text-sm mt-1">Ban tổ chức sẽ xét duyệt và thêm bài dự thi của bạn vào danh sách bình chọn.</p>
+                  </div>
+                ) : !isAuthenticated ? (
+                  <div className="text-center py-8">
+                    <Camera className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="font-semibold text-gray-700">Cần đăng nhập để nộp bài</p>
+                    <button
+                      onClick={() => navigate('/login')}
+                      className="mt-3 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-semibold"
+                    >
+                      Đăng nhập ngay
+                    </button>
+                  </div>
+                ) : (
+                  <DangKyNopBaiForm
+                    cuocThiId={ct.id}
+                    hanNop={ct.hanNop}
+                    onSuccess={() => setDaNop(true)}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Closed banner ──────────────────────────────────────────────── */}
         {isDong && (
           <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-5 flex items-center gap-4">
@@ -737,7 +980,7 @@ export default function BinhChonDetailPage() {
         )}
 
         {/* ── Contestant grid ───────────────────────────────────────────── */}
-        {thiSinhList.length > 0 && (
+        {thiSinhList.length > 0 && activeTab !== 'dang-ky' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -771,6 +1014,7 @@ export default function BinhChonDetailPage() {
                     voting={votingId}
                     showVoteCount={!isHidden || isCongBo}
                     rank={isCongBo ? idx + 1 : null}
+                    slug={slug}
                   />
                 ))}
               </div>

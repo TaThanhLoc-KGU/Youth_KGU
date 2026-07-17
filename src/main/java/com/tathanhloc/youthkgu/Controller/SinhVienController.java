@@ -84,7 +84,11 @@ public class SinhVienController {
         String effectiveMaKhoa = scope.maKhoa() != null ? scope.maKhoa() : maKhoa;
         String effectiveMaLop  = scope.maLop()  != null ? scope.maLop()  : maLop;
 
-        List<SinhVienDTO> allStudents = sinhVienService.getAll();
+        // isActive mặc định true — sinh viên tốt nghiệp không xuất hiện trừ khi chủ động lọc
+        boolean showActive = isActive == null || isActive;
+        List<SinhVienDTO> allStudents = showActive
+                ? sinhVienService.getAll()
+                : sinhVienService.getAllIncludingGraduated();
 
         // Apply filters
         if (search != null && !search.isEmpty()) {
@@ -114,9 +118,10 @@ public class SinhVienController {
                     .toList();
         }
 
-        if (isActive != null) {
+        // Nếu isActive=false được truyền rõ ràng, lọc lấy chỉ sinh viên đã tốt nghiệp
+        if (isActive != null && !isActive) {
             allStudents = allStudents.stream()
-                    .filter(s -> s.getIsActive() != null && s.getIsActive().equals(isActive))
+                    .filter(s -> s.getIsActive() == null || !s.getIsActive())
                     .toList();
         }
 
@@ -441,7 +446,12 @@ public class SinhVienController {
             String effectiveMaKhoa = scope.maKhoa() != null ? scope.maKhoa() : maKhoa;
             String effectiveMaLop  = scope.maLop()  != null ? scope.maLop()  : maLop;
 
-            List<SinhVienDTO> sinhVienList = sinhVienService.getAll();
+            // Export mặc định chỉ active; isActive=false → export tốt nghiệp
+            boolean exportActive = isActive == null || isActive;
+            List<SinhVienDTO> sinhVienList = exportActive
+                    ? sinhVienService.getAll()
+                    : sinhVienService.getAllIncludingGraduated().stream()
+                        .filter(sv -> sv.getIsActive() == null || !sv.getIsActive()).toList();
 
             if (effectiveMaLop != null) {
                 sinhVienList = sinhVienList.stream()
@@ -450,12 +460,6 @@ public class SinhVienController {
             } else if (effectiveMaKhoa != null) {
                 sinhVienList = sinhVienList.stream()
                         .filter(sv -> effectiveMaKhoa.equals(sv.getMaKhoa()))
-                        .toList();
-            }
-
-            if (isActive != null) {
-                sinhVienList = sinhVienList.stream()
-                        .filter(sv -> sv.getIsActive().equals(isActive))
                         .toList();
             }
 
@@ -471,6 +475,59 @@ public class SinhVienController {
         } catch (Exception e) {
             log.error("Error exporting to Excel", e);
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // XỬ LÝ SINH VIÊN TỐT NGHIỆP HÀNG LOẠT
+    // ══════════════════════════════════════════════════════════════
+
+    @GetMapping("/template-tot-nghiep")
+    @PreAuthorize("hasPermission(null, 'IMPORT_SINH_VIEN')")
+    public ResponseEntity<byte[]> downloadTotNghiepTemplate() {
+        try {
+            byte[] file = excelService.createTotNghiepTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", "template-tot-nghiep.xlsx");
+            return ResponseEntity.ok().headers(headers).body(file);
+        } catch (Exception e) {
+            log.error("Error creating tot-nghiep template", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PostMapping("/bulk-deactivate/preview")
+    @PreAuthorize("hasPermission(null, 'IMPORT_SINH_VIEN')")
+    public ResponseEntity<Map<String, Object>> previewBulkDeactivate(
+            @RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "File trống"));
+            Map<String, Object> preview = excelService.previewTotNghiep(file);
+            return ResponseEntity.ok(preview);
+        } catch (Exception e) {
+            log.error("Error previewing bulk deactivate", e);
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/bulk-deactivate/confirm")
+    @PreAuthorize("hasPermission(null, 'IMPORT_SINH_VIEN')")
+    public ResponseEntity<Map<String, Object>> confirmBulkDeactivate(
+            @RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "File trống"));
+            Map<String, Object> preview = excelService.previewTotNghiep(file);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> found = (List<Map<String, Object>>) preview.get("found");
+            List<String> maSvList = found.stream()
+                    .map(m -> (String) m.get("maSv"))
+                    .toList();
+            Map<String, Object> result = sinhVienService.bulkDeactivate(maSvList);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error confirming bulk deactivate", e);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
         }
     }
 

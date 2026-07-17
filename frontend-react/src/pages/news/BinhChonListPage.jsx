@@ -16,6 +16,8 @@ const CATEGORY_META = {
   Y_TUONG:       { emoji: '💡', label: 'Ý tưởng',    gradient: 'from-yellow-400 to-amber-500' },
   TRANG_PHUC:    { emoji: '👗', label: 'Trang phục',  gradient: 'from-purple-500 to-violet-600' },
   BAI_VIET:      { emoji: '✍️', label: 'Bài viết',   gradient: 'from-teal-500 to-cyan-600' },
+  NHAT_KY:       { emoji: '📔', label: 'Nhật ký',    gradient: 'from-emerald-500 to-green-600' },
+  ANH_VIDEO:     { emoji: '📷', label: 'Ảnh/Video',  gradient: 'from-violet-500 to-purple-600' },
   TONG_HOP:      { emoji: '🏆', label: 'Tổng hợp',   gradient: 'from-orange-500 to-amber-600' },
 };
 

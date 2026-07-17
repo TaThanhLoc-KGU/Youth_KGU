@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Eye, RefreshCw, Download, Upload, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, RefreshCw, Download, Upload, Search, UserMinus } from 'lucide-react';
 import studentService from '../../services/studentService';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
@@ -15,6 +15,7 @@ import Modal from '../../components/common/Modal';
 import StudentForm from '../../components/admin/StudentForm';
 import StudentDetail from '../../components/admin/StudentDetail';
 import StudentExcelImport from '../../components/admin/StudentExcelImport';
+import StudentGraduateModal from '../../components/admin/StudentGraduateModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import SearchableSelect from '../../components/common/SearchableSelect';
 
@@ -43,6 +44,7 @@ const Students = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isGraduateModalOpen, setIsGraduateModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [modalMode, setModalMode] = useState('create'); // 'create' | 'edit'
 
@@ -289,6 +291,12 @@ const Students = () => {
         <span className="hidden sm:inline">Import</span>
         </Button>
         )}
+        {canImport && (
+        <Button variant="outline" icon={UserMinus} onClick={() => setIsGraduateModalOpen(true)}
+          className="text-amber-600 border-amber-300 hover:bg-amber-50">
+          <span className="hidden sm:inline">Tốt nghiệp</span>
+        </Button>
+        )}
         {canView && (
         <Button variant="outline" icon={Download} onClick={handleExport}>
         <span className="hidden sm:inline">Export</span>
@@ -496,6 +504,22 @@ const Students = () => {
             queryClient.invalidateQueries(['students']);
           }}
           onCancel={() => setIsImportModalOpen(false)}
+        />
+      </Modal>
+
+      {/* Graduate Modal */}
+      <Modal
+        isOpen={isGraduateModalOpen}
+        onClose={() => setIsGraduateModalOpen(false)}
+        title="Xử lý sinh viên tốt nghiệp"
+        size="lg"
+      >
+        <StudentGraduateModal
+          onSuccess={() => {
+            setIsGraduateModalOpen(false);
+            queryClient.invalidateQueries(['students']);
+          }}
+          onCancel={() => setIsGraduateModalOpen(false)}
         />
       </Modal>
 

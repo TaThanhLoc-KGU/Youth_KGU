@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
 import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList, Bell,
-         CheckCircle2, XCircle, Clock, Building2 } from 'lucide-react';
+         CheckCircle2, XCircle, Clock, Building2, Mail, MessageCircle } from 'lucide-react';
 import activityService from '../../services/activityService';
 import hoatDongService from '../../services/hoatDongService';
 import newsService from '../../services/newsService';
@@ -34,7 +34,8 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 const Activities = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, maKhoa } = useAuthStore();
+  const isKhoaScoped = !!maKhoa;
   const canView    = hasPermission(PERMISSIONS.XEM_HOAT_DONG);
   const canCreate  = hasPermission(PERMISSIONS.TAO_HOAT_DONG);
   const canEdit    = hasPermission(PERMISSIONS.SUA_HOAT_DONG);
@@ -169,6 +170,44 @@ const Activities = () => {
     onError: (e) => toast.error(e.response?.data?.message || 'Gửi thông báo thất bại'),
   });
 
+  const [emailingId, setEmailingId] = useState(null);
+  const [emailConfirmRow, setEmailConfirmRow] = useState(null);
+  const [zaloConfirmRow, setZaloConfirmRow] = useState(null);
+  const [zaloingId, setZaloingId] = useState(null);
+
+  const guiZaloMutation = useMutation({
+    mutationFn: (row) => {
+      setZaloingId(row.maHoatDong);
+      return hoatDongService.guiZaloThongBao(row.maHoatDong);
+    },
+    onSuccess: (data, row) => {
+      const soCoZalo = data?.data?.soCoZalo ?? 0;
+      const soSV = data?.data?.soSinhVien ?? 0;
+      toast.success(`Đang gửi Zalo đến ${soCoZalo}/${soSV} sinh viên đã liên kết cho "${row.tenHoatDong}"`);
+      setZaloingId(null);
+    },
+    onError: (e) => {
+      toast.error(e.response?.data?.message || 'Gửi Zalo thất bại');
+      setZaloingId(null);
+    },
+  });
+
+  const guiEmailMutation = useMutation({
+    mutationFn: (row) => {
+      setEmailingId(row.maHoatDong);
+      return hoatDongService.guiEmailThongBao(row.maHoatDong);
+    },
+    onSuccess: (data, row) => {
+      const so = data?.data?.soSinhVien ?? '?';
+      toast.success(`Đang gửi email đến ${so} sinh viên cho hoạt động "${row.tenHoatDong}"`);
+      setEmailingId(null);
+    },
+    onError: (e) => {
+      toast.error(e.response?.data?.message || 'Gửi email thất bại');
+      setEmailingId(null);
+    },
+  });
+
   // Table columns
   const columns = [
     {
@@ -292,16 +331,20 @@ const Activities = () => {
             onClick={(e) => { e.stopPropagation(); handleView(row); }}
             title="Xem chi tiết"
           />
-          {(canEdit || canApprove) && (
-            <Button
-              size="sm"
-              variant="ghost"
-              icon={ClipboardList}
-              onClick={(e) => { e.stopPropagation(); navigate(`/admin/activities/attendance?ma=${encodeURIComponent(row.maHoatDong)}`); }}
-              title="Danh sách điểm danh"
-              className="text-blue-600 hover:text-blue-700"
-            />
-          )}
+          {(canEdit || canApprove) && (() => {
+            const isDoanTruongActivity = isKhoaScoped && !row.maKhoa;
+            return (
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={ClipboardList}
+                onClick={(e) => { e.stopPropagation(); navigate(`/admin/activities/attendance?ma=${encodeURIComponent(row.maHoatDong)}`); }}
+                title={isDoanTruongActivity ? 'Đoàn khoa không có quyền xem điểm danh hoạt động đoàn trường' : 'Danh sách điểm danh'}
+                className={isDoanTruongActivity ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:text-blue-700'}
+                disabled={isDoanTruongActivity}
+              />
+            );
+          })()}
           {canEdit && (
             <Button
               size="sm"
@@ -320,6 +363,28 @@ const Activities = () => {
               title="Gửi thông báo đến tất cả người dùng"
               disabled={broadcastMutation.isPending}
               className="text-indigo-500 hover:text-indigo-700"
+            />
+          )}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Mail}
+              onClick={(e) => { e.stopPropagation(); setEmailConfirmRow(row); }}
+              title="Gửi email thông báo hoạt động"
+              disabled={emailingId === row.maHoatDong}
+              className="text-green-600 hover:text-green-700"
+            />
+          )}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={MessageCircle}
+              onClick={(e) => { e.stopPropagation(); setZaloConfirmRow(row); }}
+              title="Gửi Zalo thông báo hoạt động"
+              disabled={zaloingId === row.maHoatDong}
+              className="text-blue-500 hover:text-blue-700"
             />
           )}
           {canDelete && (
@@ -657,6 +722,26 @@ const Activities = () => {
         title="Xóa hoạt động"
         description={`Bạn có chắc muốn xóa hoạt động "${confirmState?.name}"? Hành động này không thể hoàn tác.`}
         isLoading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!emailConfirmRow}
+        onClose={() => setEmailConfirmRow(null)}
+        onConfirm={() => { guiEmailMutation.mutate(emailConfirmRow); setEmailConfirmRow(null); }}
+        title="Xác nhận gửi email hàng loạt"
+        description={`Bạn sắp gửi email thông báo hoạt động "${emailConfirmRow?.tenHoatDong}" đến TẤT CẢ sinh viên đang hoạt động. Bạn có chắc chắn không?`}
+        confirmLabel="Gửi email"
+        isLoading={guiEmailMutation.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!zaloConfirmRow}
+        onClose={() => setZaloConfirmRow(null)}
+        onConfirm={() => { guiZaloMutation.mutate(zaloConfirmRow); setZaloConfirmRow(null); }}
+        title="Xác nhận gửi thông báo Zalo"
+        description={`Bạn sắp gửi thông báo Zalo cho hoạt động "${zaloConfirmRow?.tenHoatDong}" đến tất cả sinh viên đã liên kết Zalo OA. Bạn có chắc chắn không?`}
+        confirmLabel="Gửi Zalo"
+        isLoading={guiZaloMutation.isPending}
       />
     </div>
   );

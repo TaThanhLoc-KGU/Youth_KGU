@@ -24,6 +24,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -209,6 +213,10 @@ public class AccountService {
 
         if (request.getAvatar() != null && !request.getAvatar().isBlank()) {
             account.setAvatar(request.getAvatar());
+        }
+
+        if (request.getEmailPhu() != null) {
+            account.setEmailPhu(request.getEmailPhu().isBlank() ? null : request.getEmailPhu().trim());
         }
 
         if (request.getBanChuyenMon() != null && !request.getBanChuyenMon().isEmpty()) {
@@ -490,6 +498,7 @@ public class AccountService {
                 .id(taiKhoan.getId())
                 .username(taiKhoan.getUsername())
                 .email(taiKhoan.getEmail())
+                .emailPhu(taiKhoan.getEmailPhu())
                 .hoTen(taiKhoan.getHoTen())
                 .soDienThoai(taiKhoan.getSoDienThoai())
                 .ngaySinh(taiKhoan.getNgaySinh())
@@ -518,13 +527,26 @@ public class AccountService {
     }
 
     /**
-     * Lấy danh sách tất cả tài khoản
+     * Lấy danh sách tất cả tài khoản — GIỮ LẠI cho backward compat, nhưng không dùng ở list view
      */
     public List<AccountDTO> getAllAccounts() {
         log.info("Lấy danh sách tất cả tài khoản");
         return taiKhoanRepository.findAll().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Paginated search — thay thế getAllAccounts() ở list view.
+     * Tất cả params nullable: null = bỏ qua filter.
+     */
+    public Page<AccountDTO> getAccountsPaged(String keyword, VaiTroEnum vaiTro, Boolean isActive,
+                                              int page, int size, String sortBy, String direction) {
+        Pageable pageable = PageRequest.of(page, size,
+                "desc".equalsIgnoreCase(direction) ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending());
+        String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+        return taiKhoanRepository.searchPaged(kw, vaiTro, isActive, pageable)
+                .map(this::toDTO);
     }
 
     /**

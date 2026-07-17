@@ -14,5 +14,6 @@ public class ChuKyDTO {
     private String chucVu;
     private String duongDan;
     private Boolean laMacDinh;
+    private String ownerUsername;
     private LocalDateTime createdAt;
 }

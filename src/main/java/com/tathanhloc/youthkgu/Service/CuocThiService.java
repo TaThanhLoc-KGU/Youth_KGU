@@ -41,29 +41,14 @@ public class CuocThiService {
                 .stream().map(ct -> toDTO(ct, true, false)).collect(Collectors.toList());
     }
 
+    /** Public: tất cả cuộc thi đang mở — không scope theo khoa (sinh viên thấy toàn trường) */
     public List<CuocThiDTO> getDangMo() {
-        String maKhoa = khoaScopeService.getCurrentMaKhoa();
-        if (maKhoa != null) {
-            return cuocThiRepository.findByHoatDongKhoaMaKhoaAndTrangThai(maKhoa, TrangThaiCuocThiEnum.DANG_MO)
-                    .stream().map(ct -> toDTO(ct, false, false)).collect(Collectors.toList());
-        }
         return cuocThiRepository.findDangMo()
                 .stream().map(ct -> toDTO(ct, false, false)).collect(Collectors.toList());
     }
 
-    /** Tất cả cuộc thi công khai (trừ DA_HUY) — cho trang bình chọn */
+    /** Public: tất cả cuộc thi công khai (trừ DA_HUY) — không scope theo khoa */
     public List<CuocThiDTO> getTatCaPublic() {
-        String maKhoa = khoaScopeService.getCurrentMaKhoa();
-        if (maKhoa != null) {
-            return cuocThiRepository.findByHoatDongKhoaMaKhoa(maKhoa).stream()
-                    .filter(ct -> ct.getTrangThai() != TrangThaiCuocThiEnum.DA_HUY)
-                    .map(ct -> {
-                        boolean hideVote = ct.getHienThiKetQua() == HienThiKetQuaEnum.AN_DEN_CUOI
-                                && ct.getTrangThai() != TrangThaiCuocThiEnum.DA_CONG_BO;
-                        return toDTO(ct, false, hideVote);
-                    })
-                    .collect(Collectors.toList());
-        }
         return cuocThiRepository.findByIsActiveTrueOrderByCreatedAtDesc()
                 .stream()
                 .filter(ct -> ct.getTrangThai() != TrangThaiCuocThiEnum.DA_HUY)
@@ -115,6 +100,8 @@ public class CuocThiService {
                 .soLuotToiDa(req.getSoLuotToiDa())
                 .thoiGianMoVote(req.getThoiGianMoVote())
                 .thoiGianDongVote(req.getThoiGianDongVote())
+                .choPhepNopBai(req.getChoPhepNopBai() != null ? req.getChoPhepNopBai() : false)
+                .hanNop(req.getHanNop())
                 .createdBy(createdBy)
                 .build();
 
@@ -153,6 +140,8 @@ public class CuocThiService {
         ct.setSoLuotToiDa(req.getSoLuotToiDa());
         ct.setThoiGianMoVote(req.getThoiGianMoVote());
         ct.setThoiGianDongVote(req.getThoiGianDongVote());
+        if (req.getChoPhepNopBai() != null) ct.setChoPhepNopBai(req.getChoPhepNopBai());
+        ct.setHanNop(req.getHanNop());
 
         ct = cuocThiRepository.save(ct);
         return toDTO(ct, true, false);
@@ -334,6 +323,8 @@ public class CuocThiService {
                 .thoiGianMoVote(ct.getThoiGianMoVote())
                 .thoiGianDongVote(ct.getThoiGianDongVote())
                 .isActive(ct.getIsActive())
+                .choPhepNopBai(ct.getChoPhepNopBai())
+                .hanNop(ct.getHanNop())
                 .createdBy(ct.getCreatedBy())
                 .createdAt(ct.getCreatedAt())
                 .danhSachThiSinh(dsTh)
@@ -355,6 +346,11 @@ public class CuocThiService {
                 .soVote(hideVoteCount ? null : ts.getSoVote())
                 .isActive(ts.getIsActive())
                 .maSv(ts.getMaSv())
+                .trangThaiDuyet(ts.getTrangThaiDuyet())
+                .loaiNopBai(ts.getLoaiNopBai())
+                .dsHinhAnh(ts.getDsHinhAnh())
+                .noiDung(ts.getNoiDung())
+                .createdAt(ts.getCreatedAt() != null ? ts.getCreatedAt().toString() : null)
                 .build();
     }
 
@@ -573,6 +569,74 @@ public class CuocThiService {
         result.put("voAnDanh",       allVotes.stream().filter(v -> v.getNguoiVoteMa() == null || v.getNguoiVoteMa().isBlank()).count());
         result.put("maHoatDong",     maHoatDong);
         return result;
+    }
+
+    // ─── Sinh viên tự đăng ký nộp bài ────────────────────────────────────────
+
+    @Transactional
+    public ThiSinhDTO dangKyNopBai(Long cuocThiId, ThiSinhDTO dto, String username) {
+        CuocThi ct = cuocThiRepository.findById(cuocThiId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy cuộc thi: " + cuocThiId));
+
+        if (!Boolean.TRUE.equals(ct.getChoPhepNopBai())) {
+            throw new RuntimeException("Cuộc thi này không mở đăng ký nộp bài");
+        }
+        if (ct.getHanNop() != null && LocalDateTime.now().isAfter(ct.getHanNop())) {
+            throw new RuntimeException("Đã hết hạn nộp bài");
+        }
+
+        // Kiểm tra xem user đã nộp chưa
+        boolean daNop = thiSinhRepository.findByCuocThiIdAndIsActiveTrueOrderBySoThuTuAsc(cuocThiId)
+                .stream().anyMatch(ts -> username.equals(ts.getMaSv()) && !"TU_CHOI".equals(ts.getTrangThaiDuyet()));
+        if (daNop) {
+            throw new RuntimeException("Bạn đã đăng ký nộp bài cho cuộc thi này");
+        }
+
+        long count = thiSinhRepository.countByCuocThiId(cuocThiId);
+        ThiSinh ts = ThiSinh.builder()
+                .cuocThi(ct)
+                .ten(dto.getTen() != null ? dto.getTen() : username)
+                .moTa(dto.getMoTa())
+                .anhDaiDien(dto.getAnhDaiDien())
+                .urlMedia(dto.getUrlMedia())
+                .soThuTu((int) count + 1)
+                .maSv(username)
+                .trangThaiDuyet("CHO_DUYET")
+                .loaiNopBai(dto.getLoaiNopBai() != null ? dto.getLoaiNopBai() : "ANH_DON")
+                .dsHinhAnh(dto.getDsHinhAnh())
+                .noiDung(dto.getNoiDung())
+                .build();
+        ts = thiSinhRepository.save(ts);
+        return toThiSinhDTO(ts, false);
+    }
+
+    @Transactional
+    public ThiSinhDTO duyetThiSinh(Long cuocThiId, Long thiSinhId) {
+        ThiSinh ts = thiSinhRepository.findById(thiSinhId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thí sinh: " + thiSinhId));
+        if (!ts.getCuocThi().getId().equals(cuocThiId)) throw new RuntimeException("Thí sinh không thuộc cuộc thi này");
+        ts.setTrangThaiDuyet("DA_DUYET");
+        ts = thiSinhRepository.save(ts);
+        return toThiSinhDTO(ts, false);
+    }
+
+    @Transactional
+    public ThiSinhDTO tuChoiThiSinh(Long cuocThiId, Long thiSinhId) {
+        ThiSinh ts = thiSinhRepository.findById(thiSinhId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thí sinh: " + thiSinhId));
+        if (!ts.getCuocThi().getId().equals(cuocThiId)) throw new RuntimeException("Thí sinh không thuộc cuộc thi này");
+        ts.setTrangThaiDuyet("TU_CHOI");
+        ts.setIsActive(false);
+        ts = thiSinhRepository.save(ts);
+        return toThiSinhDTO(ts, false);
+    }
+
+    public List<ThiSinhDTO> getDanhSachChoDuyet(Long cuocThiId) {
+        return thiSinhRepository.findByCuocThiIdOrderBySoThuTuAsc(cuocThiId)
+                .stream()
+                .filter(ts -> "CHO_DUYET".equals(ts.getTrangThaiDuyet()))
+                .map(ts -> toThiSinhDTO(ts, false))
+                .collect(Collectors.toList());
     }
 
     private String resolveSlug(String inputSlug, String tieuDe) {

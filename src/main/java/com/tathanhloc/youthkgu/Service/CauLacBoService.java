@@ -386,17 +386,7 @@ public class CauLacBoService {
         // 1. Xóa các khoản phí CHƯA ĐÓNG của sinh viên này tại CLB này
         dongPhiCLBRepository.deleteByCauLacBoMaClbAndSinhVienMaSvAndTrangThai(maClb, maSv, "CHUA_DONG");
         
-        // 2. Với các khoản ĐÃ ĐÓNG: Giữ lại bản ghi lịch sử nhưng gỡ liên kết maSv (hoặc cứ để đó nếu muốn giữ history)
-        // Tuy nhiên, yêu cầu của user là "người bị xóa vẫn hiển thị đã tham gia" -> có thể do lịch sử phí vẫn còn liên kết.
-        // Ta sẽ ẩn các bản ghi phí đã đóng của họ khỏi view "My Membership" bằng cách kiểm tra isActive của ThanhVienCLB
-        // Nhưng vì ta thực hiện HARD DELETE ThanhVienCLB, ta cần xử lý các bản ghi phí.
-        // Cách an toàn: Chuyển các phí đã đóng sang trạng thái không còn liên kết MSSV này để họ không thấy CLB đó nữa.
-        List<DongPhiCLB> phiDaDong = dongPhiCLBRepository.findBySinhVienMaSvOrderByCreatedAtDesc(maSv)
-                .stream().filter(p -> p.getCauLacBo().getMaClb().equals(maClb)).collect(Collectors.toList());
-        for (DongPhiCLB p : phiDaDong) {
-            p.setSinhVien(null); // Detach student from paid fee record of this club
-            dongPhiCLBRepository.save(p);
-        }
+        // 2. Giữ nguyên các bản ghi đóng phí đã thanh toán (lịch sử). ma_sv NOT NULL nên không được set null.
 
         // 3. HARD DELETE thành viên
         thanhVienCLBRepository.delete(tv);

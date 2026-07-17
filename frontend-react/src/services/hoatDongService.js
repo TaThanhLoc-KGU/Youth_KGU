@@ -149,6 +149,21 @@ const hoatDongService = {
     });
     return response.data.data;
   },
+
+  guiEmailThongBao: async (maHoatDong) => {
+    const response = await api.post(`/api/hoat-dong/${encodeURIComponent(maHoatDong)}/gui-email`);
+    return response.data;
+  },
+
+  guiZaloThongBao: async (maHoatDong) => {
+    const response = await api.post(`/api/hoat-dong/${encodeURIComponent(maHoatDong)}/gui-zalo`);
+    return response.data;
+  },
+
+  guiThongBaoDayDu: async (maHoatDong) => {
+    const response = await api.post(`/api/hoat-dong/${encodeURIComponent(maHoatDong)}/gui-tat-ca`);
+    return response.data;
+  },
 };
 
 export default hoatDongService;

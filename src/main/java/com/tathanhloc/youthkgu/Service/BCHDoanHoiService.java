@@ -10,9 +10,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import org.apache.poi.ss.usermodel.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -515,6 +519,203 @@ public class BCHDoanHoiService {
                 .limit(limit)
                 .map(this::toDTOWithChucVu)
                 .collect(Collectors.toList());
+    }
+
+    // ========== IMPORT EXCEL ==========
+
+    /**
+     * Đọc file Excel và trả về preview danh sách BCH cần import.
+     * Cột Excel: A=Họ Tên, B=Mã (GV/CV/SV), C=Email, D=Loại (GV/CV/SV), E=Nhiệm kỳ, F=Ngày bắt đầu, G=Ngày kết thúc
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> previewImportExcel(MultipartFile file) throws IOException {
+        log.info("Preview import Excel BCH: {}", file.getOriginalFilename());
+        List<Map<String, Object>> rows = new ArrayList<>();
+
+        try (Workbook wb = WorkbookFactory.create(file.getInputStream())) {
+            Sheet sheet = wb.getSheetAt(0);
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+
+                String hoTen  = getCellStr(row, 0);
+                String ma     = getCellStr(row, 1);
+                String email  = getCellStr(row, 2);
+                String loaiRaw = getCellStr(row, 3).toUpperCase();
+                String nhiemKy = getCellStr(row, 4);
+                String ngayBDStr = getCellStr(row, 5);
+                String ngayKTStr = getCellStr(row, 6);
+
+                if (hoTen.isBlank() && ma.isBlank()) continue;
+
+                LoaiThanhVienEnum loai = parseLoai(loaiRaw);
+                LocalDate ngayBD = parseDate(ngayBDStr, dtf);
+                LocalDate ngayKT = parseDate(ngayKTStr, dtf);
+
+                Map<String, Object> rowData = new LinkedHashMap<>();
+                rowData.put("rowNum", i + 1);
+                rowData.put("hoTen", hoTen);
+                rowData.put("ma", ma);
+                rowData.put("email", email);
+                rowData.put("loaiThanhVien", loai != null ? loai.name() : "GIANG_VIEN");
+                rowData.put("nhiemKy", nhiemKy);
+                rowData.put("ngayBatDau", ngayBD != null ? ngayBD.toString() : null);
+                rowData.put("ngayKetThuc", ngayKT != null ? ngayKT.toString() : null);
+
+                // Kiểm tra tồn tại trong DB
+                String status = "NOT_FOUND";
+                String matchedId = null;
+                String displayName = hoTen;
+
+                if (loai == LoaiThanhVienEnum.SINH_VIEN) {
+                    SinhVien sv = ma.isBlank() ? null : sinhVienRepository.findById(ma).orElse(null);
+                    if (sv == null && !email.isBlank()) sv = sinhVienRepository.findByEmail(email).orElse(null);
+                    if (sv != null) { status = "FOUND"; matchedId = sv.getMaSv(); displayName = sv.getHoTen(); }
+                } else if (loai == LoaiThanhVienEnum.GIANG_VIEN || loai == null) {
+                    GiangVien gv = ma.isBlank() ? null : giangVienRepository.findById(ma).orElse(null);
+                    if (gv == null && !email.isBlank()) gv = giangVienRepository.findByEmail(email).orElse(null);
+                    if (gv == null && !hoTen.isBlank()) {
+                        List<GiangVien> list = giangVienRepository.searchByKeyword(hoTen);
+                        if (!list.isEmpty()) gv = list.get(0);
+                    }
+                    if (gv != null) { status = "FOUND"; matchedId = gv.getMaGv(); displayName = gv.getHoTen(); }
+                } else if (loai == LoaiThanhVienEnum.CHUYEN_VIEN) {
+                    ChuyenVien cv = ma.isBlank() ? null : chuyenVienRepository.findById(ma).orElse(null);
+                    if (cv == null && !email.isBlank()) cv = chuyenVienRepository.findByEmail(email).orElse(null);
+                    if (cv == null && !hoTen.isBlank()) {
+                        List<ChuyenVien> list = chuyenVienRepository.searchByKeyword(hoTen);
+                        if (!list.isEmpty()) cv = list.get(0);
+                    }
+                    if (cv != null) { status = "FOUND"; matchedId = cv.getMaChuyenVien(); displayName = cv.getHoTen(); }
+                }
+
+                // Kiểm tra đã là BCH chưa
+                if ("FOUND".equals(status) && matchedId != null) {
+                    boolean alreadyBCH = switch (loai != null ? loai : LoaiThanhVienEnum.GIANG_VIEN) {
+                        case SINH_VIEN -> bchRepository.existsBySinhVienMaSvAndIsActiveTrue(matchedId);
+                        case GIANG_VIEN -> bchRepository.existsByGiangVienMaGvAndIsActiveTrue(matchedId);
+                        case CHUYEN_VIEN -> bchRepository.existsByChuyenVienMaChuyenVienAndIsActiveTrue(matchedId);
+                    };
+                    if (alreadyBCH) status = "ALREADY_BCH";
+                }
+
+                rowData.put("status", status);
+                rowData.put("matchedId", matchedId);
+                rowData.put("displayName", displayName);
+                rows.add(rowData);
+            }
+        }
+        return rows;
+    }
+
+    /**
+     * Xác nhận import danh sách BCH từ preview.
+     * Với "NOT_FOUND" và loại GV/CV: tạo mới GiangVien/ChuyenVien tạm (chỉ có hoTen), rồi tạo BCH.
+     * Với "ALREADY_BCH": bỏ qua.
+     */
+    @Transactional
+    public Map<String, Object> confirmImport(List<Map<String, Object>> rows) {
+        int created = 0, skipped = 0, autoCreated = 0;
+        List<String> errors = new ArrayList<>();
+
+        for (Map<String, Object> row : rows) {
+            try {
+                String status = (String) row.get("status");
+                if ("ALREADY_BCH".equals(status)) { skipped++; continue; }
+
+                String loaiStr = (String) row.getOrDefault("loaiThanhVien", "GIANG_VIEN");
+                LoaiThanhVienEnum loai = parseLoai(loaiStr);
+                if (loai == null) loai = LoaiThanhVienEnum.GIANG_VIEN;
+
+                String matchedId = (String) row.get("matchedId");
+                String hoTen = (String) row.getOrDefault("hoTen", "");
+                String email = (String) row.getOrDefault("email", "");
+                String nhiemKy = (String) row.get("nhiemKy");
+                LocalDate ngayBD = row.get("ngayBatDau") != null ? LocalDate.parse((String) row.get("ngayBatDau")) : null;
+                LocalDate ngayKT = row.get("ngayKetThuc") != null ? LocalDate.parse((String) row.get("ngayKetThuc")) : null;
+
+                if ("NOT_FOUND".equals(status)) {
+                    // Tạo mới thành viên tạm
+                    matchedId = createPlaceholderMember(loai, hoTen, email);
+                    autoCreated++;
+                }
+
+                BCHDoanHoiDTO dto = BCHDoanHoiDTO.builder()
+                        .loaiThanhVien(loai)
+                        .maThanhVien(matchedId)
+                        .nhiemKy(nhiemKy)
+                        .ngayBatDau(ngayBD)
+                        .ngayKetThuc(ngayKT)
+                        .build();
+                create(dto);
+                created++;
+            } catch (Exception e) {
+                errors.add("Hàng " + row.get("rowNum") + ": " + e.getMessage());
+                log.warn("BCH import row error: {}", e.getMessage());
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("created", created);
+        result.put("autoCreated", autoCreated);
+        result.put("skipped", skipped);
+        result.put("errors", errors);
+        return result;
+    }
+
+    private String createPlaceholderMember(LoaiThanhVienEnum loai, String hoTen, String email) {
+        String uniqueEmail = (email != null && !email.isBlank()) ? email : null;
+        return switch (loai) {
+            case GIANG_VIEN -> {
+                String maGv = "GV-TMP-" + System.currentTimeMillis();
+                GiangVien gv = GiangVien.builder()
+                        .maGv(maGv)
+                        .hoTen(hoTen.isBlank() ? "Không xác định" : hoTen)
+                        .email(uniqueEmail)
+                        .isActive(true)
+                        .build();
+                giangVienRepository.save(gv);
+                yield maGv;
+            }
+            case CHUYEN_VIEN -> {
+                String maCV = "CV-TMP-" + System.currentTimeMillis();
+                ChuyenVien cv = ChuyenVien.builder()
+                        .maChuyenVien(maCV)
+                        .hoTen(hoTen.isBlank() ? "Không xác định" : hoTen)
+                        .email(uniqueEmail)
+                        .isActive(true)
+                        .build();
+                chuyenVienRepository.save(cv);
+                yield maCV;
+            }
+            case SINH_VIEN -> throw new RuntimeException("Không thể tự tạo sinh viên — sinh viên phải có trong hệ thống");
+        };
+    }
+
+    private String getCellStr(Row row, int col) {
+        Cell cell = row.getCell(col);
+        if (cell == null) return "";
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue().trim();
+            case NUMERIC -> String.valueOf((long) cell.getNumericCellValue());
+            default -> "";
+        };
+    }
+
+    private LoaiThanhVienEnum parseLoai(String raw) {
+        if (raw == null) return LoaiThanhVienEnum.GIANG_VIEN;
+        return switch (raw.trim().toUpperCase()) {
+            case "SV", "SINH_VIEN", "SINH VIEN" -> LoaiThanhVienEnum.SINH_VIEN;
+            case "CV", "CHUYEN_VIEN", "CHUYÊN VIÊN", "CHUYEN VIEN" -> LoaiThanhVienEnum.CHUYEN_VIEN;
+            default -> LoaiThanhVienEnum.GIANG_VIEN;
+        };
+    }
+
+    private LocalDate parseDate(String s, DateTimeFormatter dtf) {
+        if (s == null || s.isBlank()) return null;
+        try { return LocalDate.parse(s, dtf); } catch (Exception e) { return null; }
     }
 
 }

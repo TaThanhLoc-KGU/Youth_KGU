@@ -18,6 +18,7 @@ public class AccountDTO {
     private Long id;
     private String username;
     private String email;
+    private String emailPhu;
     private String hoTen;
     private String soDienThoai;
     private LocalDate ngaySinh;

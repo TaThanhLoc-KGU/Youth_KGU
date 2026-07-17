@@ -98,40 +98,36 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
         return toDTO(sinhVien);
     }
 
+    // getAll() — mặc định CHỈ active, không load sinh viên tốt nghiệp
     @Override
     public List<SinhVienDTO> getAll() {
         String maKhoa = khoaScopeService.getCurrentMaKhoa();
         if (maKhoa != null) {
-            return sinhVienRepository.findByLopNganhKhoaMaKhoa(maKhoa).stream()
-                    .map(this::toDTO)
-                    .toList();
+            return sinhVienRepository.findByLopNganhKhoaMaKhoaAndIsActiveTrue(maKhoa).stream()
+                    .map(this::toDTO).toList();
         }
-        return sinhVienRepository.findAll().stream()
-                .map(this::toDTO)
-                .toList();
+        return sinhVienRepository.findByIsActiveTrue().stream()
+                .map(this::toDTO).toList();
     }
 
-    // Chỉ lấy sinh viên đang hoạt động (có scope filter theo khoa)
+    // getAllActive() — alias của getAll(), giữ lại để không break các caller khác
     public List<SinhVienDTO> getAllActive() {
+        return getAll();
+    }
+
+    // getAllIncludingGraduated() — chỉ dùng cho admin xem báo cáo / export toàn bộ
+    public List<SinhVienDTO> getAllIncludingGraduated() {
         String maKhoa = khoaScopeService.getCurrentMaKhoa();
         if (maKhoa != null) {
-            return sinhVienRepository.findByLopNganhKhoaMaKhoaAndIsActiveTrue(maKhoa).stream()
-                    .map(this::toDTO)
-                    .toList();
+            return sinhVienRepository.findByLopNganhKhoaMaKhoa(maKhoa).stream()
+                    .map(this::toDTO).toList();
         }
         return sinhVienRepository.findAll().stream()
-                .filter(sv -> sv.getIsActive() != null && sv.getIsActive())
-                .map(this::toDTO)
-                .toList();
+                .map(this::toDTO).toList();
     }
 
-    /**
-     * Lấy tất cả embedding của sinh viên đang hoạt động
-     * @return Danh sách embedding của sinh viên
-     */
     public List<Map<String, Object>> getAllEmbeddings() {
-        return sinhVienRepository.findAll().stream()
-                .filter(sv -> sv.getIsActive() != null && sv.getIsActive())
+        return sinhVienRepository.findByIsActiveTrue().stream()
                 .map(sv -> {
                     Map<String, Object> result = new HashMap<>();
                     result.put("studentId", sv.getMaSv());
@@ -162,36 +158,18 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
         long active = sinhVienRepository.countByIsActiveTrue();
         long inactive = total - active;
 
-        // Thống kê theo khoa
+        // Thống kê DB-level — không load toàn bộ bảng
         Map<String, Long> byFaculty = new HashMap<>();
-        List<SinhVien> allStudents = sinhVienRepository.findAll();
-        allStudents.stream()
-                .filter(sv -> sv.getIsActive() != null && sv.getIsActive())
-                .collect(Collectors.groupingBy(
-                        sv -> sv.getLop().getNganh().getKhoa().getTenKhoa(),
-                        Collectors.counting()
-                ))
-                .forEach(byFaculty::put);
+        sinhVienRepository.countActiveGroupByKhoa()
+                .forEach(row -> byFaculty.put((String) row[0], (Long) row[1]));
 
-        // Thống kê theo ngành
         Map<String, Long> byMajor = new HashMap<>();
-        allStudents.stream()
-                .filter(sv -> sv.getIsActive() != null && sv.getIsActive())
-                .collect(Collectors.groupingBy(
-                        sv -> sv.getLop().getNganh().getTenNganh(),
-                        Collectors.counting()
-                ))
-                .forEach(byMajor::put);
+        sinhVienRepository.countActiveGroupByNganh()
+                .forEach(row -> byMajor.put((String) row[0], (Long) row[1]));
 
-        // Thống kê theo lớp
         Map<String, Long> byClass = new HashMap<>();
-        allStudents.stream()
-                .filter(sv -> sv.getIsActive() != null && sv.getIsActive())
-                .collect(Collectors.groupingBy(
-                        sv -> sv.getLop().getTenLop(),
-                        Collectors.counting()
-                ))
-                .forEach(byClass::put);
+        sinhVienRepository.countActiveGroupByLop()
+                .forEach(row -> byClass.put((String) row[0], (Long) row[1]));
 
         return StudentCountDTO.builder()
                 .tongSinhVien(total)
@@ -255,6 +233,40 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
             }
         }
         return count;
+    }
+
+    // ── Xóa (vô hiệu hóa) sinh viên tốt nghiệp hàng loạt ───────────────────
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, Object> bulkDeactivate(List<String> maSvList) {
+        int success = 0, notFound = 0, alreadyInactive = 0;
+        List<String> failedIds = new ArrayList<>();
+
+        for (String maSv : maSvList) {
+            Optional<SinhVien> opt = sinhVienRepository.findById(maSv.trim());
+            if (opt.isEmpty()) {
+                notFound++;
+                failedIds.add(maSv + " (không tìm thấy)");
+            } else {
+                SinhVien sv = opt.get();
+                if (!Boolean.TRUE.equals(sv.getIsActive())) {
+                    alreadyInactive++;
+                } else {
+                    sv.setIsActive(false);
+                    sinhVienRepository.save(sv);
+                    success++;
+                }
+            }
+        }
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("success", true);
+        result.put("deactivated", success);
+        result.put("alreadyInactive", alreadyInactive);
+        result.put("notFound", notFound);
+        result.put("total", maSvList.size());
+        result.put("failedIds", failedIds);
+        log.info("bulkDeactivate: {} deactivated, {} notFound, {} alreadyInactive", success, notFound, alreadyInactive);
+        return result;
     }
 
     // ══════════════════════════════════════════════════════════════
