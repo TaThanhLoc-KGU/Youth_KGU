@@ -149,24 +149,6 @@ const RegisterActivities = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
 
-  // Tính toán HK/Năm học mặc định theo logic riêng của hệ thống
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const day = now.getDate();
-  const year = now.getFullYear();
-
-  let defaultSemester;
-  if (month >= 8 && month <= 11) {
-    defaultSemester = 1;
-  } else if (month === 12 || month === 1 || month === 2 || (month === 3 && day < 15)) {
-    defaultSemester = 2;
-  } else {
-    defaultSemester = 3;
-  }
-
-  const startYear = month >= 8 ? year : year - 1;
-  const defaultAcademicYear = `NH${startYear}-${startYear + 1}`;
-
   const [semesterFilter, setSemesterFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
@@ -184,7 +166,7 @@ const RegisterActivities = () => {
   // Fetch activities with pagination
   const { data: activitiesData, isLoading, refetch } = useQuery({
     queryKey: ['register-activities'],
-    queryFn: () => activityService.getAllWithPagination({ page: 0, size: 200 }),
+    queryFn: () => activityService.getAllWithPagination({ page: 0, size: 100 }),
     keepPreviousData: true,
   });
 

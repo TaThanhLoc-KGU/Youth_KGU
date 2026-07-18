@@ -22,8 +22,17 @@ const hoatDongService = {
     return response.data.data;
   },
 
-  // Create activity
-  create: async (activityData) => {
+  // Create activity — kèm file quyết định (PDF/Word...) tùy chọn
+  create: async (activityData, quyetDinhFile) => {
+    if (quyetDinhFile) {
+      const formData = new FormData();
+      formData.append('data', new Blob([JSON.stringify(activityData)], { type: 'application/json' }));
+      formData.append('quyetDinhFile', quyetDinhFile);
+      const response = await api.post('/api/hoat-dong', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data.data;
+    }
     const response = await api.post('/api/hoat-dong', activityData);
     return response.data.data;
   },
@@ -88,39 +97,39 @@ const hoatDongService = {
 
   // Open registration
   openRegistration: async (maHoatDong) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/open-registration`);
+    const response = await api.post('/api/hoat-dong/open-registration', null, { params: { ma: maHoatDong } });
     return response.data;
   },
 
   // Close registration
   closeRegistration: async (maHoatDong) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/close-registration`);
+    const response = await api.post('/api/hoat-dong/close-registration', null, { params: { ma: maHoatDong } });
     return response.data;
   },
 
   // Start activity
   start: async (maHoatDong) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/start`);
+    const response = await api.post('/api/hoat-dong/start', null, { params: { ma: maHoatDong } });
     return response.data;
   },
 
   // Complete activity
   complete: async (maHoatDong) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/complete`);
+    const response = await api.post('/api/hoat-dong/complete', null, { params: { ma: maHoatDong } });
     return response.data;
   },
 
   // Cancel activity
   cancel: async (maHoatDong, reason) => {
-    const response = await api.post(`/api/hoat-dong/${maHoatDong}/cancel`, null, {
-      params: { lyDo: reason },
+    const response = await api.post('/api/hoat-dong/cancel', null, {
+      params: { ma: maHoatDong, lyDo: reason },
     });
     return response.data;
   },
 
   // Get statistics
   getStatistics: async (maHoatDong) => {
-    const response = await api.get(`/api/hoat-dong/${maHoatDong}/statistics`);
+    const response = await api.get('/api/hoat-dong/statistics/detail', { params: { ma: maHoatDong } });
     return response.data.data;
   },
 

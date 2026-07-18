@@ -74,6 +74,36 @@ public class FileStorageService {
         }
     }
 
+    // ── Quyết định hoạt động ─────────────────────────────────────────────────────
+
+    /**
+     * Lưu file quyết định đính kèm hoạt động vào /uploads/hoat-dong/yyyy/MM/{uuid}.ext
+     */
+    public FileUploadResult saveHoatDongQuyetDinhFile(MultipartFile file) {
+        validateFile(file, ALLOWED_DOC_TYPES, MAX_DOC_SIZE,
+                "Chỉ chấp nhận: PDF, Word, Excel, PowerPoint");
+
+        String ext = getExtension(file.getOriginalFilename());
+        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        Path dir = Paths.get(uploadBasePath, "hoat-dong", yearMonth);
+
+        try {
+            Files.createDirectories(dir);
+            String storedName = UUID.randomUUID() + "." + ext;
+            Path dest = dir.resolve(storedName);
+            Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
+
+            String relativePath = "/uploads/hoat-dong/" + yearMonth + "/" + storedName;
+            log.info("Saved hoat-dong quyet-dinh file: {}", relativePath);
+            return FileUploadResult.builder()
+                    .duongDan(relativePath)
+                    .loaiFile(ext)
+                    .build();
+        } catch (IOException e) {
+            throw new BusinessException("FILE_SAVE_ERROR", "Lỗi lưu file: " + e.getMessage());
+        }
+    }
+
     // ── Ảnh media (slider, banner, ...) ────────────────────────────────────────
 
     /**

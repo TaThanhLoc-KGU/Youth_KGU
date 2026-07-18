@@ -3,7 +3,7 @@ import { Outlet, useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarPlus, ClipboardList, TrendingUp,
   User, LogOut, Home, ChevronRight, QrCode, Trophy, Users,
-  Bell, Newspaper, Menu, X,
+  Bell, Newspaper, Menu, X, Award,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES } from '../../utils/constants';
@@ -25,7 +25,9 @@ const NAV_ITEMS = [
   { icon: QrCode,          label: 'Điểm danh QR',     path: '/student/self-scan'               },
   { icon: Trophy,          label: 'Cuộc thi',         path: ROUTES.STUDENT_CONTESTS            },
   { icon: Users,           label: 'CLB / Đội nhóm',   path: ROUTES.STUDENT_CLB_REGISTRATION    },
-  { icon: ClipboardList,   label: 'Hoạt động của tôi', path: ROUTES.STUDENT_MY_ACTIVITIES      },
+  { icon: ClipboardList,   label: 'Hoạt động của tôi', path: ROUTES.STUDENT_MY_ACTIVITIES       },
+  { icon: TrendingUp,      label: 'Điểm rèn luyện',   path: ROUTES.STUDENT_TRAINING_POINTS     },
+  { icon: Award,           label: 'Chứng nhận',        path: ROUTES.STUDENT_CERTIFICATES        },
 ];
 
 const StudentLayout = () => {

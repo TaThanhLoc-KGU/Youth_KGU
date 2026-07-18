@@ -205,6 +205,14 @@ const Taikhoan = () => {
       },
     },
     {
+      header: 'Zalo',
+      accessor: 'hasZalo',
+      width: '80px',
+      render: (value) => value
+        ? <span title="Đã liên kết Zalo" className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">🔗 Đã kết</span>
+        : <span className="text-xs text-gray-400">—</span>,
+    },
+    {
       header: 'Trạng thái',
       accessor: 'isActive',
       render: (value) => (

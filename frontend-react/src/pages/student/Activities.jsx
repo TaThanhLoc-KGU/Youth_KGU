@@ -51,7 +51,7 @@ const StudentActivities = () => {
   });
 
   // ── Lấy danh sách tất cả hoạt động ────────────────────────────────────
-  const { data: activities = [], isLoading } = useQuery({
+  const { data: activities = [], isLoading, isError } = useQuery({
     queryKey: ['student-activities'],
     queryFn: () => activityService.getAllNoPagination(),
     staleTime: 2 * 60 * 1000, // cache 2 phút
@@ -249,6 +249,11 @@ const StudentActivities = () => {
       {/* Activities Grid */}
       {isLoading ? (
         <Loading />
+      ) : isError ? (
+        <div className="text-center py-16">
+          <p className="text-red-500 font-medium">Tải danh sách hoạt động thất bại</p>
+          <p className="text-gray-400 text-sm mt-1">Vui lòng thử lại sau</p>
+        </div>
       ) : filteredActivities.length === 0 ? (
         <div className="text-center py-16">
           <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />

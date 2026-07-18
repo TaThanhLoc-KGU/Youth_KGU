@@ -22,8 +22,9 @@ const STATUS_BADGE = {
 
 export default function AdminBanHanhPage() {
   const qc = useQueryClient();
-  const { maKhoa } = useAuthStore();
+  const { maKhoa, user } = useAuthStore();
   const isKhoaScoped = !!maKhoa;
+  const currentUsername = user?.username ?? user?.taiKhoan ?? '';
   const [page,          setPage]          = useState(0);
   const [search,        setSearch]        = useState('');
   const [searchInput,   setSearchInput]   = useState('');
@@ -137,8 +138,10 @@ export default function AdminBanHanhPage() {
                 {list.map(item => {
                   const revoked = isRevoked(item);
                   const badge = STATUS_BADGE[item.trangThai] ?? STATUS_BADGE.HIEU_LUC;
-                  // Đoàn khoa chỉ được thu hồi/xóa bản ban hành của đoàn khoa mình
-                  const canRevoke = !isKhoaScoped || (item.maKhoa && item.maKhoa === maKhoa);
+                  // Chỉ người đã ban hành mới được hủy/xóa
+                  const isOwner = item.nguoiBanHanh === currentUsername;
+                  // Nếu scope khoa: còn cần đúng khoa
+                  const canRevoke = isOwner && (!isKhoaScoped || (item.maKhoa && item.maKhoa === maKhoa));
                   return (
                     <tr key={item.id} className={`transition-colors ${revoked ? 'bg-gray-50 opacity-75' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3">
@@ -206,21 +209,19 @@ export default function AdminBanHanhPage() {
                               <Download className="w-4 h-4" />
                             </a>
                           )}
-                          {!revoked && (
+                          {!revoked && canRevoke && (
                             <button
-                              onClick={() => canRevoke && setConfirmItem({ item, action: 'huy' })}
-                              disabled={!canRevoke}
-                              className={`p-1.5 rounded-lg transition-colors ${canRevoke ? 'text-amber-500 hover:bg-amber-50' : 'text-gray-300 cursor-not-allowed'}`}
-                              title={canRevoke ? 'Hủy ban hành' : 'Đoàn khoa không được thu hồi bản ban hành của đoàn trường'}>
+                              onClick={() => setConfirmItem({ item, action: 'huy' })}
+                              className="p-1.5 rounded-lg transition-colors text-amber-500 hover:bg-amber-50"
+                              title="Hủy ban hành">
                               <RotateCcw className="w-4 h-4" />
                             </button>
                           )}
-                          {revoked && (
+                          {revoked && canRevoke && (
                             <button
-                              onClick={() => canRevoke && setConfirmItem({ item, action: 'xoa' })}
-                              disabled={!canRevoke}
-                              className={`p-1.5 rounded-lg transition-colors ${canRevoke ? 'text-red-500 hover:bg-red-50' : 'text-gray-300 cursor-not-allowed'}`}
-                              title={canRevoke ? 'Xóa hẳn khỏi hệ thống' : 'Đoàn khoa không được xóa bản ban hành của đoàn trường'}>
+                              onClick={() => setConfirmItem({ item, action: 'xoa' })}
+                              className="p-1.5 rounded-lg transition-colors text-red-500 hover:bg-red-50"
+                              title="Xóa hẳn khỏi hệ thống">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           )}

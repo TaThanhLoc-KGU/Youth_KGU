@@ -23,4 +23,5 @@ public class SinhVienDTO {
     private String tenLop; // For display purpose
     private String maKhoa;
     private String maNganh;
+    private Boolean hasZalo;
 }

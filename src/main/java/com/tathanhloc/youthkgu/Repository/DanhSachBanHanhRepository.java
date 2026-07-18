@@ -4,7 +4,10 @@ import com.tathanhloc.youthkgu.Model.DanhSachBanHanh;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,4 +30,9 @@ public interface DanhSachBanHanhRepository extends JpaRepository<DanhSachBanHanh
 
     Page<DanhSachBanHanh> findByTrangThaiAndTenHoatDongContainingIgnoreCaseOrTrangThaiAndMaHoatDongContainingIgnoreCase(
             String tt1, String tenHoatDong, String tt2, String maHoatDong, Pageable pageable);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE DanhSachBanHanh d SET d.soLuotTai = d.soLuotTai + 1 WHERE d.id = :id")
+    void incrementSoLuotTai(Long id);
 }

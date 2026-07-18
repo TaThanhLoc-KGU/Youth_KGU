@@ -19,6 +19,7 @@ import activityService from '../../services/activityService';
 import useAuthStore from '../../stores/authStore';
 import { formatDate } from '../../utils/dateFormat';
 import Modal from '../../components/common/Modal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const HK_LABELS = { 1: 'Học kỳ 1', 2: 'Học kỳ 2', 3: 'Học kỳ hè' };
 
@@ -77,6 +78,7 @@ const MyActivities = () => {
   const [hasSetDefault, setHasSetDefault] = useState(false);
   const [selectedReg, setSelectedReg] = useState(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState(null);
   const [gpsStatus, setGpsStatus] = useState('idle'); // idle | requesting | granted | denied
   const gpsWatchRef = useRef(null);
 
@@ -229,9 +231,7 @@ const MyActivities = () => {
 
   const handleCancel = (reg) => {
     if (reg.daDiemDanh) { toast.error('Không thể hủy đăng ký hoạt động đã tham gia!'); return; }
-    if (window.confirm(`Bạn có chắc muốn hủy đăng ký "${reg.tenHoatDong}"?`)) {
-      cancelMutation.mutate({ maSv, maHoatDong: reg.maHoatDong });
-    }
+    setCancelTarget(reg);
   };
 
   return (
@@ -558,6 +558,20 @@ const MyActivities = () => {
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={() => {
+          cancelMutation.mutate({ maSv, maHoatDong: cancelTarget.maHoatDong });
+          setCancelTarget(null);
+        }}
+        title="Hủy đăng ký"
+        description={`Bạn có chắc muốn hủy đăng ký "${cancelTarget?.tenHoatDong}"?`}
+        confirmLabel="Hủy đăng ký"
+        variant="warning"
+        isLoading={cancelMutation.isPending}
+      />
     </div>
   );
 };

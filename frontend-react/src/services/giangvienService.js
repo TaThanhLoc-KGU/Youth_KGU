@@ -13,13 +13,10 @@ const giangvienService = {
           'Pragma': 'no-cache'
         }
       });
-      console.log('Raw response:', response);
       if (!response.data) {
         throw new Error('No data received from server');
       }
-      // Handle both array and wrapped object responses
       const data = Array.isArray(response.data) ? response.data : (response.data.data || []);
-      console.log('Processed data:', data);
       return data;
     } catch (error) {
       console.error('Error fetching giangvien list:', error);

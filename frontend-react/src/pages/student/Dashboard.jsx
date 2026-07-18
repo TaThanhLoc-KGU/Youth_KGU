@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   Calendar, Activity, TrendingUp, MapPin, ChevronRight,
@@ -32,19 +32,13 @@ const StudentDashboard = () => {
   const { user } = useAuthStore();
   const maSv = user?.linkedEntityId || (user?.vaiTro === 'DOAN_VIEN' ? user?.username : null);
 
-  const { data: openActivities = [], isLoading: loadingActivities } = useQuery({
+  const { data: openActivities = [], isLoading: loadingActivities, isError: errorActivities } = useQuery({
     queryKey: ['open-activities'],
     queryFn: () => activityService.getByStatus('DANG_MO_DANG_KY'),
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: allActivitiesPage } = useQuery({
-    queryKey: ['all-activities-map'],
-    queryFn: () => activityService.getAllWithPagination({ page: 0, size: 500 }),
-    staleTime: 10 * 60 * 1000,
-  });
-
-  const { data: registrations = [], isLoading: loadingRegs } = useQuery({
+  const { data: registrations = [], isLoading: loadingRegs, isError: errorRegs } = useQuery({
     queryKey: ['student-registrations', maSv],
     queryFn: () => dangKyService.getByStudent(maSv),
     enabled: !!maSv,
@@ -57,18 +51,33 @@ const StudentDashboard = () => {
   });
   const contestsNhanBai = allContests.filter(c => c.choPhepNopBai);
 
-  const isLoading = loadingActivities || loadingRegs;
-
-  const activityMap = useMemo(() => {
-    const map = {};
-    (allActivitiesPage?.content || []).forEach(a => { map[a.maHoatDong] = a; });
-    return map;
-  }, [allActivitiesPage]);
-
   const attendedRegs = useMemo(
     () => registrations.filter(r => r.daDiemDanh === true),
     [registrations],
   );
+
+  const attendedMaHoatDong = useMemo(
+    () => [...new Set(attendedRegs.map(r => r.maHoatDong))],
+    [attendedRegs],
+  );
+
+  const activityQueries = useQueries({
+    queries: attendedMaHoatDong.map(ma => ({
+      queryKey: ['hoat-dong', ma],
+      queryFn: () => activityService.getById(ma),
+      staleTime: 10 * 60 * 1000,
+    })),
+  });
+
+  const loadingActivities = activityQueries.some(q => q.isLoading);
+  const isLoading = loadingActivities || loadingRegs;
+
+  const activityMap = useMemo(() => {
+    const map = {};
+    activityQueries.forEach(q => { if (q.data) map[q.data.maHoatDong] = q.data; });
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityQueries]);
 
   const totalPoints = useMemo(() =>
     attendedRegs.reduce((sum, reg) => {
@@ -94,6 +103,13 @@ const StudentDashboard = () => {
     { label: 'Điểm RL',     value: totalPoints,            icon: TrendingUp,   bg: 'bg-indigo-50', fg: 'text-indigo-600', num: 'text-indigo-700' },
     { label: 'HĐ đang mở', value: openActivities.length,  icon: Activity,     bg: 'bg-amber-50',  fg: 'text-amber-600',  num: 'text-amber-700'  },
   ];
+
+  if (errorActivities || errorRegs) return (
+    <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+      <p className="text-red-500 font-medium">Tải dữ liệu thất bại</p>
+      <p className="text-gray-400 text-sm mt-1">Vui lòng tải lại trang</p>
+    </div>
+  );
 
   if (isLoading) return (
     <div className="space-y-4 py-4 px-4 lg:px-6">

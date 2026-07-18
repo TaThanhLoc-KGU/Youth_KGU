@@ -62,6 +62,18 @@ public class PublicNewsController {
     // ── Tin Tức ───────────────────────────────────────────────────────────────
 
     /**
+     * GET /api/public/news/{id}  — chi tiết bài viết theo ID (cho Zalo Mini App)
+     */
+    @GetMapping("/news/{id}")
+    public ResponseEntity<?> getNewsDetail(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(Map.of("success", true, "data", tinTucService.getById(id)));
+        } catch (Exception e) {
+            return ResponseEntity.status(404).body(Map.of("success", false, "message", "Không tìm thấy bài viết"));
+        }
+    }
+
+    /**
      * GET /api/public/news?page=0&size=10&chuyenMucId=&keyword=
      * Danh sách bài viết đã PUBLISHED cho public.
      */
@@ -236,6 +248,21 @@ public class PublicNewsController {
      * Danh sách sinh viên đã tham gia (chỉ trả về tên + lớp, không lộ MSSV/email).
      * Dùng @RequestParam thay @PathVariable để tránh lỗi khi maHoatDong chứa dấu '/'
      */
+    /**
+     * GET /api/public/hoat-dong/{maHoatDong}/quyet-dinh
+     * Xem trực tuyến (inline) file quyết định đính kèm hoạt động — dùng cho PDF viewer.
+     */
+    @GetMapping("/hoat-dong/{maHoatDong}/quyet-dinh")
+    public ResponseEntity<Resource> xemQuyetDinhHoatDong(@PathVariable String maHoatDong) {
+        log.info("View quyet-dinh file for HoatDong maHoatDong={}", maHoatDong);
+        Resource resource = hoatDongService.getQuyetDinhResource(maHoatDong);
+        String ext = hoatDongService.getQuyetDinhExtension(maHoatDong);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .contentType(MediaType.parseMediaType(resolveContentType(ext)))
+                .body(resource);
+    }
+
     @GetMapping("/hoat-dong/tham-gia")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getThamGia(
             @RequestParam String ma) {

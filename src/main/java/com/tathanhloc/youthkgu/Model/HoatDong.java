@@ -245,6 +245,15 @@ public class HoatDong {
     @Column(name = "ghi_chu", columnDefinition = "TEXT")
     private String ghiChu;
 
+    /**
+     * Đường dẫn file quyết định (PDF/Word) đính kèm hoạt động, vd "/uploads/hoat-dong/2026/03/{uuid}.pdf".
+     */
+    @Column(name = "quyet_dinh_url", length = 500)
+    private String quyetDinhUrl;
+
+    @Column(name = "quyet_dinh_ten", length = 255)
+    private String quyetDinhTen;
+
     // ========== APPROVAL WORKFLOW (CLB / KHOA activities) ==========
 
     @Column(name = "nguoi_duyet", length = 100)

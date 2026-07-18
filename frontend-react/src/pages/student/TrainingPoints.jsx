@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import {
   TrendingUp,
   Award,
@@ -60,23 +60,32 @@ const TrainingPoints = () => {
     enabled: !!maSv,
   });
 
-  // All activities (for diemRenLuyen lookup)
-  const { data: activitiesPage, isLoading: loadingActivities } = useQuery({
-    queryKey: ['all-activities-map'],
-    queryFn: () => activityService.getAllWithPagination({ page: 0, size: 500 }),
-    staleTime: 10 * 60 * 1000,
+  // Unique attended activity IDs — only fetch what's needed
+  const attendedMaHoatDong = useMemo(
+    () => [...new Set(registrations.filter((r) => r.daDiemDanh).map((r) => r.maHoatDong))],
+    [registrations],
+  );
+
+  const activityQueries = useQueries({
+    queries: attendedMaHoatDong.map((ma) => ({
+      queryKey: ['hoat-dong', ma],
+      queryFn: () => activityService.getById(ma),
+      staleTime: 10 * 60 * 1000,
+    })),
   });
 
+  const loadingActivities = activityQueries.some((q) => q.isLoading);
   const isLoading = loadingRegs || loadingActivities;
 
   // Build activity lookup map
   const activityMap = useMemo(() => {
     const map = {};
-    (activitiesPage?.content || []).forEach((a) => {
-      map[a.maHoatDong] = a;
+    activityQueries.forEach((q) => {
+      if (q.data) map[q.data.maHoatDong] = q.data;
     });
     return map;
-  }, [activitiesPage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityQueries]);
 
   // Attended registrations with activity details
   const attendedWithDetails = useMemo(() => {

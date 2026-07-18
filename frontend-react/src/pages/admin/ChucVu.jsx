@@ -5,6 +5,7 @@ import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
 import { Plus, Edit, Trash2, RefreshCw, Search } from 'lucide-react';
 import chucVuService from '../../services/chucVuService';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import SearchableSelect from '../../components/common/SearchableSelect';
@@ -55,6 +56,7 @@ const ChucVu = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedChucVu, setSelectedChucVu] = useState(null);
   const [modalMode, setModalMode] = useState('create');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Fetch chuc vu list
   const { data: chucVuList = [], isLoading, refetch } = useQuery({
@@ -167,11 +169,7 @@ const ChucVu = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (maChucVu) => {
-    if (confirm('Bạn chắc chắn muốn xóa chức vụ này?')) {
-      deleteMutation.mutate(maChucVu);
-    }
-  };
+  const handleDelete = (maChucVu) => setDeleteTarget(maChucVu);
 
   const handleModalClose = () => {
     setIsModalOpen(false);
@@ -317,6 +315,16 @@ const ChucVu = () => {
           onCancel={handleModalClose}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget); setDeleteTarget(null); }}
+        title="Xóa chức vụ"
+        description="Bạn chắc chắn muốn xóa chức vụ này? Hành động này không thể hoàn tác."
+        confirmLabel="Xóa"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 };

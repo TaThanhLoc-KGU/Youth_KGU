@@ -17,6 +17,11 @@ public interface TinTucRepository extends JpaRepository<TinTuc, Long> {
     Optional<TinTuc> findByFullUrlPathAndTrangThaiAndIsDeletedFalse(
             String fullUrlPath, TrangThaiTinTuc trangThai);
 
+    // Tìm bài tin tức đã publish liên kết với 1 hoạt động (vd. bài tự tạo khi tạo hoạt động)
+    // — dùng để lấy link web thật cho hoạt động khi gửi thông báo Zalo.
+    Optional<TinTuc> findFirstByHoatDongIdAndTrangThaiAndIsDeletedFalseOrderByCreatedAtDesc(
+            String hoatDongId, TrangThaiTinTuc trangThai);
+
     // Tìm toàn bộ bài trong subtree của một chuyên mục (dùng duongDan LIKE)
     @Query("""
             SELECT t FROM TinTuc t JOIN t.chuyenMuc c

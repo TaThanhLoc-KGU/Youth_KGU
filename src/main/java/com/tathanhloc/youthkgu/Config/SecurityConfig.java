@@ -58,7 +58,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // ── Security headers ─────────────────────────────────────────
                 .headers(headers -> {
-                    headers.frameOptions(f -> f.deny());
+                    headers.frameOptions(f -> f.sameOrigin());
                     headers.contentTypeOptions(c -> {});
                     headers.httpStrictTransportSecurity(hsts -> hsts
                             .includeSubDomains(true)
@@ -75,12 +75,14 @@ public class SecurityConfig {
                             "font-src 'self' https://fonts.gstatic.com; " +
                             "img-src 'self' data: blob: https:; " +
                             "connect-src 'self' https://graph.zalo.me https://openapi.zalo.me; " +
-                            "frame-ancestors 'none'"));
+                            "frame-ancestors 'self'"));
                 })
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.web.cors.CorsUtils::isPreFlightRequest).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/hoat-dong/public/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/tin-tuc/public/**").permitAll()
                         .requestMatchers("/api/binh-chon/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
@@ -89,10 +91,13 @@ public class SecurityConfig {
                         // Webhook Zalo OA — gọi từ Zalo server, không có JWT
                         .requestMatchers("/api/zalo/webhook").permitAll()
                         .requestMatchers("/api/zalo/events").permitAll()
+                        .requestMatchers("/api/zalo/linked-users").authenticated()
+                        .requestMatchers("/api/zalo/unlink/**").authenticated()
                         .requestMatchers("/api/zalo/oauth/callback").permitAll()
+                        .requestMatchers("/api/zalo/oauth/start").permitAll()
                         .requestMatchers("/api/zalo/exchange-token").permitAll()
-                        .requestMatchers("/api/zalo/test-send").permitAll()
-                        .requestMatchers("/api/zalo/broadcast").permitAll()
+                        .requestMatchers("/api/zalo/test-send").authenticated()
+                        .requestMatchers("/api/zalo/broadcast").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/permissions/me").authenticated()
                         .anyRequest().authenticated()
                 )
@@ -117,12 +122,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000", "http://localhost:4200", "http://localhost:5173",
-                "http://34.10.108.252",
-                "https://ykgu.clbkcmc.io.vn",
-                "https://tuoitre.vnkgu.edu.vn"
-        ));
+        // setAllowedOriginPatterns("*") cho phép tất cả origin kể cả null (Zalo Mini App WebView)
+        // Không dùng setAllowedOrigins("*") vì không tương thích với allowCredentials=true
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

@@ -84,6 +84,8 @@ public class HoatDongDTO {
     private LocalDateTime hanDangKy;
     private String hinhAnhPoster;
     private String ghiChu;
+    private String quyetDinhUrl;
+    private String quyetDinhTen;
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

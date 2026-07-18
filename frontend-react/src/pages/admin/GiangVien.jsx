@@ -132,7 +132,6 @@ const GiangVien = () => {
         if (statusFilter) params.status = statusFilter;
 
         const result = await giangvienService.getAll(params);
-        console.log('Fetched giangvien data:', result);
         // Đảm bảo trả về array
         return Array.isArray(result) ? result : (result.data || []);
       } catch (error) {

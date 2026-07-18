@@ -107,6 +107,7 @@ public class BanHanhController {
                     .body(ApiResponse.error("Bản ban hành này đã bị hủy và không còn hiệu lực."));
         }
         byte[] pdfBytes = kySoService.readBanHanhFile(id);
+        banHanhRepository.incrementSoLuotTai(id);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "inline; filename=\"" + entity.getTenFile() + "\"")
@@ -184,7 +185,8 @@ public class BanHanhController {
                 e.getCreatedAt(),
                 e.getTrangThai() != null ? e.getTrangThai() : "HIEU_LUC",
                 e.getNgayHuy(),
-                e.getNguoiHuy()
+                e.getNguoiHuy(),
+                e.getSoLuotTai() != null ? e.getSoLuotTai() : 0
         );
     }
 

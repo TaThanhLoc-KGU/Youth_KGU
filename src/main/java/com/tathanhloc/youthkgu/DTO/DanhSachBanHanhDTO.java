@@ -20,5 +20,6 @@ public record DanhSachBanHanhDTO(
         // Soft-delete fields
         String        trangThai,      // HIEU_LUC | DA_HUY
         LocalDateTime ngayHuy,
-        String        nguoiHuy
+        String        nguoiHuy,
+        int           soLuotTai
 ) {}

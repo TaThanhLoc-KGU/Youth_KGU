@@ -1,18 +1,24 @@
 package com.tathanhloc.youthkgu.Service;
 
 import com.tathanhloc.youthkgu.DTO.DiemDanhStatusDTO;
+import com.tathanhloc.youthkgu.DTO.FileUploadResult;
 import com.tathanhloc.youthkgu.DTO.HoatDongDTO;
+import com.tathanhloc.youthkgu.DTO.TinTucDTO;
 import com.tathanhloc.youthkgu.Enum.*;
 import com.tathanhloc.youthkgu.Model.*;
 import com.tathanhloc.youthkgu.Repository.*;
 import com.tathanhloc.youthkgu.Util.AcademicCalendarUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -43,6 +49,15 @@ public class HoatDongService {
     private final SinhVienRepository sinhVienRepository;
     private final EmailService emailService;
     private final ZaloService zaloService;
+    private final FileStorageService fileStorageService;
+    private final TinTucService tinTucService;
+
+    /**
+     * Chuyên mục dùng cho tin tức tự động tạo khi tạo hoạt động mới.
+     * Có thể chỉnh qua application.properties nếu chuyên mục mặc định khác trên môi trường triển khai.
+     */
+    @Value("${app.tin-tuc.hoat-dong-chuyen-muc-id:1}")
+    private Long hoatDongChuyenMucId;
 
     // ========== CRUD OPERATIONS ==========
 
@@ -101,6 +116,17 @@ public class HoatDongService {
         return toDTO(hoatDong);
     }
 
+    /** Overload nhận kèm file quyết định (PDF/Word/...) — lưu file trước khi tạo hoạt động. */
+    @Transactional
+    public HoatDongDTO create(HoatDongDTO dto, MultipartFile quyetDinhFile) {
+        if (quyetDinhFile != null && !quyetDinhFile.isEmpty()) {
+            FileUploadResult result = fileStorageService.saveHoatDongQuyetDinhFile(quyetDinhFile);
+            dto.setQuyetDinhUrl(result.getDuongDan());
+            dto.setQuyetDinhTen(quyetDinhFile.getOriginalFilename());
+        }
+        return create(dto);
+    }
+
     @Transactional
     public HoatDongDTO create(HoatDongDTO dto) {
         log.info("Creating new activity: {}", dto.getMaHoatDong());
@@ -134,6 +160,14 @@ public class HoatDongService {
         hoatDong.setIsActive(true);
         hoatDong = hoatDongRepository.save(hoatDong);
 
+        // Tự động tạo + đăng 1 bài tin tức giới thiệu hoạt động, kèm link đăng ký (mini app + web).
+        // Bọc try/catch để lỗi tạo tin tức không làm hỏng việc tạo hoạt động (thao tác chính).
+        try {
+            autoCreateNewsForActivity(hoatDong);
+        } catch (Exception e) {
+            log.warn("Không thể tự tạo tin tức cho hoạt động {}: {}", hoatDong.getMaHoatDong(), e.getMessage());
+        }
+
         if (hoatDong.getTrangThai() == TrangThaiHoatDongEnum.DANG_MO_DANG_KY) {
             notificationService.sendNotificationToAllStudents(
                     "Hoạt động mới mở đăng ký",
@@ -150,6 +184,87 @@ public class HoatDongService {
 
         log.info("Activity created successfully: {}", hoatDong.getMaHoatDong());
         return toDTO(hoatDong);
+    }
+
+    /**
+     * Tự động tạo và đăng (publish) 1 bài tin tức giới thiệu hoạt động vừa tạo,
+     * liên kết qua hoatDongId, kèm link mở Mini App + link web để đăng ký.
+     */
+    private void autoCreateNewsForActivity(HoatDong hd) {
+        TinTucDTO newsDto = TinTucDTO.builder()
+                .tieuDe(hd.getTenHoatDong())
+                .tomTat(buildNewsTomTat(hd))
+                .noiDung(buildNewsNoiDung(hd))
+                .anhDaiDien(hd.getHinhAnhPoster())
+                .chuyenMucId(hoatDongChuyenMucId)
+                .hoatDongId(hd.getMaHoatDong())
+                .donViDang("Đoàn Thanh niên")
+                .build();
+
+        TinTucDTO saved = tinTucService.create(newsDto, currentUsername());
+        tinTucService.publish(saved.getId());
+        log.info("Auto-created & published TinTuc id={} for activity {}", saved.getId(), hd.getMaHoatDong());
+    }
+
+    private String buildNewsTomTat(HoatDong hd) {
+        if (hd.getMoTa() == null || hd.getMoTa().isBlank()) {
+            return "Mời các bạn đoàn viên, sinh viên tham gia hoạt động \"" + hd.getTenHoatDong() + "\".";
+        }
+        String plain = hd.getMoTa().replaceAll("<[^>]*>", "").trim();
+        return plain.length() > 200 ? plain.substring(0, 200) + "..." : plain;
+    }
+
+    private String buildNewsNoiDung(HoatDong hd) {
+        StringBuilder sb = new StringBuilder();
+        if (hd.getMoTa() != null && !hd.getMoTa().isBlank()) {
+            sb.append(hd.getMoTa());
+        }
+        sb.append("<p><strong>📅 Ngày tổ chức:</strong> ").append(hd.getNgayToChuc());
+        if (hd.getNgayKetThuc() != null && !hd.getNgayKetThuc().equals(hd.getNgayToChuc())) {
+            sb.append(" → ").append(hd.getNgayKetThuc());
+        }
+        sb.append("</p>");
+        if (hd.getDiaDiem() != null && !hd.getDiaDiem().isBlank()) {
+            sb.append("<p><strong>📍 Địa điểm:</strong> ").append(hd.getDiaDiem()).append("</p>");
+        }
+        if (hd.getDiemRenLuyen() != null && hd.getDiemRenLuyen() > 0) {
+            sb.append("<p><strong>⭐ Điểm rèn luyện:</strong> ").append(hd.getDiemRenLuyen()).append(" điểm</p>");
+        }
+
+        String miniAppUrl = zaloService.miniAppLink("activities/" + hd.getMaHoatDong());
+        sb.append("<p>👉 <a href=\"").append(miniAppUrl).append("\" target=\"_blank\">Mở Mini App để đăng ký ngay</a></p>");
+
+        if (hd.getQuyetDinhUrl() != null && !hd.getQuyetDinhUrl().isBlank()) {
+            String quyetDinhUrl = "/api/public/hoat-dong/" + hd.getMaHoatDong() + "/quyet-dinh";
+            sb.append("<p>📄 <a href=\"").append(quyetDinhUrl).append("\" target=\"_blank\">Xem quyết định đính kèm</a></p>");
+        }
+        return sb.toString();
+    }
+
+    private String currentUsername() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return (auth != null && auth.getName() != null) ? auth.getName() : "system";
+    }
+
+    /** Trả về file resource của quyết định đính kèm hoạt động, dùng để xem/tải trực tuyến. */
+    @Transactional(readOnly = true)
+    public Resource getQuyetDinhResource(String maHoatDong) {
+        HoatDong hd = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        if (hd.getQuyetDinhUrl() == null || hd.getQuyetDinhUrl().isBlank()) {
+            throw new RuntimeException("Hoạt động chưa có quyết định đính kèm");
+        }
+        return fileStorageService.loadAsResource(hd.getQuyetDinhUrl());
+    }
+
+    /** Đuôi file quyết định (vd "pdf") — dùng để build Content-Type khi xem trực tuyến. */
+    @Transactional(readOnly = true)
+    public String getQuyetDinhExtension(String maHoatDong) {
+        HoatDong hd = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        String url = hd.getQuyetDinhUrl();
+        if (url == null || !url.contains(".")) return "";
+        return url.substring(url.lastIndexOf('.') + 1).toLowerCase();
     }
 
     @Transactional
@@ -848,6 +963,8 @@ public class HoatDongService {
                 .hanDangKy(entity.getHanDangKy())
                 .hinhAnhPoster(entity.getHinhAnhPoster())
                 .ghiChu(entity.getGhiChu())
+                .quyetDinhUrl(entity.getQuyetDinhUrl())
+                .quyetDinhTen(entity.getQuyetDinhTen())
                 .isActive(entity.getIsActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -895,6 +1012,8 @@ public class HoatDongService {
                 .hanDangKy(dto.getHanDangKy())
                 .hinhAnhPoster(dto.getHinhAnhPoster())
                 .ghiChu(dto.getGhiChu())
+                .quyetDinhUrl(dto.getQuyetDinhUrl())
+                .quyetDinhTen(dto.getQuyetDinhTen())
                 .isActive(true)
                 .build();
 

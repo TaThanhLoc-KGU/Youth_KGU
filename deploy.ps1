@@ -51,8 +51,10 @@ Set-Location $PROJ
 # ── BACKEND ──────────────────────────────────────────────────────────────────
 if ($Backend) {
     Write-Host "`n===== 1/3 Build backend =====" -ForegroundColor Cyan
-    mvn clean package -DskipTests -q
-    if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Maven that bai" -ForegroundColor Red; exit 1 }
+    $prevEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+    mvn clean package -DskipTests -q "-Dmaven.clean.failOnError=false"
+    $mvnExit = $LASTEXITCODE; $ErrorActionPreference = $prevEAP
+    if ($mvnExit -ne 0) { Write-Host "[ERROR] Maven that bai" -ForegroundColor Red; exit 1 }
 
     Write-Host "`n===== 2/3 Upload JAR =====" -ForegroundColor Cyan
     Upload "$PROJ\target\youth-kgu-0.0.1-SNAPSHOT.jar" "~"
@@ -63,8 +65,10 @@ if ($Backend) {
 if ($Frontend) {
     Write-Host "`n===== Build frontend =====" -ForegroundColor Cyan
     Set-Location "$PROJ\frontend-react"
+    $prevEAP2 = $ErrorActionPreference; $ErrorActionPreference = "Continue"
     npm run build --silent
-    if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] npm build that bai" -ForegroundColor Red; exit 1 }
+    $npmExit = $LASTEXITCODE; $ErrorActionPreference = $prevEAP2
+    if ($npmExit -ne 0) { Write-Host "[ERROR] npm build that bai" -ForegroundColor Red; exit 1 }
     Set-Location $PROJ
 
     Write-Host "`n===== Upload dist =====" -ForegroundColor Cyan
@@ -96,6 +100,15 @@ if ($Frontend) {
     $lines += "echo '$SP' | sudo -S chown -R www:www $FE_DIR/ 2>/dev/null ; echo 'OK: chown'"
 }
 if ($Backend) {
+    $lines += "echo '--- Set SPRING_PROFILES_ACTIVE=prod ...'"
+    $lines += "if ! grep -q 'SPRING_PROFILES_ACTIVE' /etc/systemd/system/youth-kgu-backend.service 2>/dev/null; then"
+    $lines += "  echo '$SP' | sudo -S sed -i '/\[Service\]/a Environment=SPRING_PROFILES_ACTIVE=prod' /etc/systemd/system/youth-kgu-backend.service"
+    $lines += "  echo 'OK: added SPRING_PROFILES_ACTIVE=prod'"
+    $lines += "else"
+    $lines += "  echo '$SP' | sudo -S sed -i 's/SPRING_PROFILES_ACTIVE=.*/SPRING_PROFILES_ACTIVE=prod/' /etc/systemd/system/youth-kgu-backend.service"
+    $lines += "  echo 'OK: ensured SPRING_PROFILES_ACTIVE=prod'"
+    $lines += "fi"
+    $lines += "echo '$SP' | sudo -S systemctl daemon-reload && echo 'OK: daemon-reload'"
     $lines += "echo '--- Restart backend...'"
     $lines += "echo '$SP' | sudo -S systemctl restart youth-kgu-backend && echo 'OK: restart'"
     $lines += "sleep 4"

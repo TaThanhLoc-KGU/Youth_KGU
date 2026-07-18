@@ -36,10 +36,12 @@ import {
   FileUp,
   Plus,
   Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import api from '../../services/api';
 import activityService from '../../services/activityService';
 import diemDanhService from '../../services/diemDanhService';
+import banHanhService from '../../services/banHanhService';
 import useAuthStore from '../../stores/authStore';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -965,6 +967,24 @@ export default function ActivityAttendancePage() {
   const [showXuatModal,    setShowXuatModal]    = useState(false);
   const [showBanHanhModal, setShowBanHanhModal] = useState(false);
 
+  // Trạng thái ban hành hiện tại của hoạt động
+  const { data: latestBanHanh, refetch: refetchBanHanh } = useQuery({
+    queryKey: ['ban-hanh-latest', activity?.maHoatDong],
+    queryFn: () => banHanhService.getLatest(activity.maHoatDong),
+    enabled: !!activity?.maHoatDong,
+    staleTime: 30 * 1000,
+  });
+  const daBanHanh = latestBanHanh?.trangThai === 'HIEU_LUC';
+
+  const huyBanHanhMutation = useMutation({
+    mutationFn: (id) => banHanhService.huyBanHanh(id),
+    onSuccess: () => {
+      toast.success('Đã thu hồi ban hành. Có thể ban hành mới lại.');
+      refetchBanHanh();
+    },
+    onError: (err) => toast.error('Lỗi: ' + (err?.response?.data?.message || err.message)),
+  });
+
   // Hoạt động không đăng ký
   const [kdkMaSv, setKdkMaSv] = useState('');
   const [kdkFile, setKdkFile] = useState(null);
@@ -1103,15 +1123,33 @@ export default function ActivityAttendancePage() {
                     <span className="text-[10px] font-bold uppercase">Xuất PDF</span>
                   </button>
                   {(['DA_HOAN_THANH', 'DA_KET_THUC'].includes(activity?.trangThai)) && (
-                    <button
-                      onClick={() => canKySo && setShowBanHanhModal(true)}
-                      disabled={!canKySo}
-                      className={`rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors ${canKySo ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                      title={canKySo ? 'Ban hành danh sách chính thức có ký số' : kySoTitle}
-                    >
-                      <FileCheck className="w-5 h-5 mb-1" />
-                      <span className="text-[10px] font-bold uppercase">Ban Hành</span>
-                    </button>
+                    daBanHanh ? (
+                      // Đã ban hành → chỉ cho Thu hồi
+                      <button
+                        onClick={() => canKySo && huyBanHanhMutation.mutate(latestBanHanh.id)}
+                        disabled={!canKySo || huyBanHanhMutation.isPending}
+                        className={`rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors ${canKySo ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                        title={canKySo ? 'Thu hồi ban hành — sau đó có thể ban hành mới lại' : kySoTitle}
+                      >
+                        {huyBanHanhMutation.isPending
+                          ? <Loader2 className="w-5 h-5 mb-1 animate-spin" />
+                          : <RotateCcw className="w-5 h-5 mb-1" />}
+                        <span className="text-[10px] font-bold uppercase">Thu Hồi</span>
+                      </button>
+                    ) : (
+                      // Chưa ban hành hoặc đã thu hồi → cho Ban hành (mới)
+                      <button
+                        onClick={() => canKySo && setShowBanHanhModal(true)}
+                        disabled={!canKySo}
+                        className={`rounded-lg p-3 px-4 shadow-sm flex flex-col items-center justify-center transition-colors ${canKySo ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                        title={canKySo ? (latestBanHanh ? 'Ban hành lại (bản trước đã thu hồi)' : 'Ban hành danh sách chính thức có ký số') : kySoTitle}
+                      >
+                        <FileCheck className="w-5 h-5 mb-1" />
+                        <span className="text-[10px] font-bold uppercase">
+                          {latestBanHanh ? 'Ban Hành Mới' : 'Ban Hành'}
+                        </span>
+                      </button>
+                    )
                   )}
                 </>
               );
@@ -1794,7 +1832,7 @@ export default function ActivityAttendancePage() {
         <XuatDanhSachModal
           maHoatDong={activity.maHoatDong}
           mode="BAN_HANH"
-          onClose={() => setShowBanHanhModal(false)}
+          onClose={() => { setShowBanHanhModal(false); refetchBanHanh(); }}
         />
       )}
     </div>

@@ -42,6 +42,7 @@ public class DiemDanhHoatDongService {
     private final QRCodeService qrCodeService;
     private final NotificationService notificationService;
     private final KhoaScopeService khoaScopeService;
+    private final ZaloService zaloService;
 
     // ========== SELF-SERVICE DYNAMIC QR ==========
 
@@ -89,6 +90,15 @@ public class DiemDanhHoatDongService {
 
             // 3. Validate GPS
             if (hoatDong.getViDo() != null && hoatDong.getKinhDo() != null && hoatDong.getKhoangCachToiDa() != null) {
+                // Decode Zalo location token if present
+                if (request.getZaloLocationToken() != null && request.getZaloAccessToken() != null) {
+                    Map<String, Double> decodedLoc = zaloService.decodeLocationToken(request.getZaloLocationToken(), request.getZaloAccessToken());
+                    if (decodedLoc != null) {
+                        request.setLatitude(decodedLoc.get("latitude"));
+                        request.setLongitude(decodedLoc.get("longitude"));
+                    }
+                }
+
                 if (request.getLatitude() == null || request.getLongitude() == null) {
                     return DiemDanhQRResponse.failed("Yêu cầu bật GPS để điểm danh");
                 }

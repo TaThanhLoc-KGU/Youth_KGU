@@ -13,6 +13,7 @@ import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
 import BanForm from '../../components/admin/BanForm';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const LOAI_BAN_OPTIONS = [
   { value: '', label: 'Tất cả' },
@@ -56,6 +57,7 @@ const Ban = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBan, setSelectedBan] = useState(null);
   const [modalMode, setModalMode] = useState('create');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Fetch ban list
   const { data: banList = [], isLoading, refetch } = useQuery({
@@ -163,11 +165,7 @@ const Ban = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (maBan) => {
-    if (confirm('Bạn chắc chắn muốn xóa ban này?')) {
-      deleteMutation.mutate(maBan);
-    }
-  };
+  const handleDelete = (maBan) => setDeleteTarget(maBan);
 
   const handleModalClose = () => {
     setIsModalOpen(false);
@@ -287,6 +285,16 @@ const Ban = () => {
           onCancel={handleModalClose}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget); setDeleteTarget(null); }}
+        title="Xóa ban"
+        description="Bạn chắc chắn muốn xóa ban này? Hành động này không thể hoàn tác."
+        confirmLabel="Xóa"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 };

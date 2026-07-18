@@ -98,6 +98,7 @@ import ClbPortalPage       from './pages/clb/ClbPortalPage';
 import ClbRegistrationPage from './pages/student/ClbRegistrationPage';
 import SelfAttendanceScanner from './components/student/SelfAttendanceScanner';
 import ChungNhanPage       from './pages/admin/ChungNhanPage';
+import StudentCertificatesPage from './pages/student/StudentCertificatesPage';
 
 import useAuthStore from './stores/authStore';
 import useSessionTimeout from './hooks/useSessionTimeout';
@@ -360,7 +361,11 @@ function App() {
               <AttendanceReport />
             </PermissionGate>
           } />
-          <Route path="certificates" element={<ChungNhanPage />} />
+          <Route path="certificates" element={
+            <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH}>
+              <ChungNhanPage />
+            </PermissionGate>
+          } />
           <Route path="accounts" element={
             <PermissionGate permission={PERMISSIONS.XEM_TAI_KHOAN}>
               <AccountManagementPage />
@@ -408,15 +413,39 @@ function App() {
               <AdminChuyenMucManage />
             </PermissionGate>
           } />
-          {/* Layout editor — admin only, no sidebar */}
-          <Route path="layout-editor" element={<LayoutEditorPage />} />
-          {/* News page layout editor — admin only, no sidebar */}
-          <Route path="news-layout-editor" element={<NewsLayoutEditorPage />} />
+          {/* Layout editor — admin only */}
+          <Route path="layout-editor" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <LayoutEditorPage />
+            </PermissionGate>
+          } />
+          {/* News page layout editor — admin only */}
+          <Route path="news-layout-editor" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <NewsLayoutEditorPage />
+            </PermissionGate>
+          } />
           {/* Content managers */}
-          <Route path="slider-manager"    element={<SliderManagerPage />} />
-          <Route path="ticker-manager"    element={<TickerManagerPage />} />
-          <Route path="ad-banner-manager" element={<AdBannerManagerPage />} />
-          <Route path="bieu-mau"          element={<BieuMauManagePage />} />
+          <Route path="slider-manager" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <SliderManagerPage />
+            </PermissionGate>
+          } />
+          <Route path="ticker-manager" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <TickerManagerPage />
+            </PermissionGate>
+          } />
+          <Route path="ad-banner-manager" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <AdBannerManagerPage />
+            </PermissionGate>
+          } />
+          <Route path="bieu-mau" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_VAN_BAN}>
+              <BieuMauManagePage />
+            </PermissionGate>
+          } />
           {/* Cuộc thi & Bình chọn */}
           <Route path="cuoc-thi" element={
             <PermissionGate permission={PERMISSIONS.QUAN_LY_CUOC_THI}>
@@ -444,13 +473,21 @@ function App() {
               <KySoLichSuPage />
             </PermissionGate>
           } />
-          <Route path="zalo-debug" element={<ZaloDebugPage />} />
+          <Route path="zalo-debug" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <ZaloDebugPage />
+            </PermissionGate>
+          } />
           <Route path="cau-hinh-email" element={
             <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
               <EmailConfigPage />
             </PermissionGate>
           } />
-          <Route path="van-phong" element={<VanPhongPage />} />
+          <Route path="van-phong" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <VanPhongPage />
+            </PermissionGate>
+          } />
         </Route>
 
         {/* Student Routes - chỉ DOAN_VIEN */}
@@ -470,8 +507,8 @@ function App() {
           <Route path="training-points" element={<StudentTrainingPoints />} />
           <Route path="clb-registration" element={<ClbRegistrationPage />} />
           <Route path="fees" element={<Navigate to="/student/clb-registration?tab=fees" replace />} />
-          <Route path="registrations" element={<ComingSoon title="Đăng ký của tôi" />} />
-          <Route path="certificates" element={<ComingSoon title="Chứng nhận" />} />
+          <Route path="registrations" element={<Navigate to="/student/my-activities" replace />} />
+          <Route path="certificates" element={<StudentCertificatesPage />} />
           <Route path="self-scan" element={<SelfAttendanceScanner />} />
           <Route path="contests" element={<StudentContests />} />
           <Route path="profile" element={<ProfilePage />} />

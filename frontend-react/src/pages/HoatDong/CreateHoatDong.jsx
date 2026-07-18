@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import hoatDongService from '../../services/hoatDongService';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, FileText, Upload, X, Download } from 'lucide-react';
 
 // Validation Schema
 const schema = yup.object().shape({
@@ -38,6 +38,9 @@ const schema = yup.object().shape({
 const CreateHoatDong = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [quyetDinhFile, setQuyetDinhFile] = useState(null);
+  const [quyetDinhPreviewUrl, setQuyetDinhPreviewUrl] = useState(null);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
 
   const { register, handleSubmit, watch, formState: { errors, touchedFields } } = useForm({
     resolver: yupResolver(schema),
@@ -59,6 +62,37 @@ const CreateHoatDong = () => {
 
   const cheDoDiemDanh = watch('cheDoDiemDanh');
 
+  // Dọn object URL preview khi đổi file hoặc unmount, tránh rò rỉ bộ nhớ
+  useEffect(() => {
+    return () => {
+      if (quyetDinhPreviewUrl) URL.revokeObjectURL(quyetDinhPreviewUrl);
+    };
+  }, [quyetDinhPreviewUrl]);
+
+  const handleQuyetDinhChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Chỉ chấp nhận file PDF');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File không được vượt quá 50MB');
+      e.target.value = '';
+      return;
+    }
+    if (quyetDinhPreviewUrl) URL.revokeObjectURL(quyetDinhPreviewUrl);
+    setQuyetDinhFile(file);
+    setQuyetDinhPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleRemoveQuyetDinh = () => {
+    if (quyetDinhPreviewUrl) URL.revokeObjectURL(quyetDinhPreviewUrl);
+    setQuyetDinhFile(null);
+    setQuyetDinhPreviewUrl(null);
+  };
+
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
@@ -69,8 +103,8 @@ const CreateHoatDong = () => {
         ngayToChuc: new Date(data.ngayToChuc).toISOString().split('T')[0]
       };
 
-      await hoatDongService.create(formattedData);
-      toast.success('Tạo hoạt động thành công!');
+      await hoatDongService.create(formattedData, quyetDinhFile);
+      toast.success('Tạo hoạt động thành công! Đã tự động đăng tin tức giới thiệu.');
       navigate('/admin/activities');
     } catch (error) {
       console.error('Create activity error:', error);
@@ -378,6 +412,44 @@ const CreateHoatDong = () => {
           </div>
         </div>
 
+        {/* Quyết định đính kèm */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-blue-700 mb-4 border-b pb-2">Quyết định đính kèm</h2>
+          {!quyetDinhFile ? (
+            <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+              <Upload className="w-8 h-8 text-gray-400" />
+              <span className="text-sm text-gray-600">Bấm để chọn file quyết định (PDF, tối đa 50MB)</span>
+              <input type="file" accept="application/pdf" onChange={handleQuyetDinhChange} className="hidden" />
+            </label>
+          ) : (
+            <div className="flex items-center justify-between gap-3 border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <div className="flex items-center gap-3 min-w-0">
+                <FileText className="w-8 h-8 text-red-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{quyetDinhFile.name}</p>
+                  <p className="text-xs text-gray-500">{(quyetDinhFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowPdfPreview(true)}
+                  className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                >
+                  Xem trước
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoveQuyetDinh}
+                  className="p-1.5 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Action Buttons */}
         <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-4 justify-end pt-4 border-t">
           <button
@@ -397,6 +469,37 @@ const CreateHoatDong = () => {
           </button>
         </div>
       </form>
+
+      {showPdfPreview && quyetDinhPreviewUrl && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex flex-col">
+          <div className="flex items-center justify-between px-6 py-3 bg-white border-b shadow-sm flex-shrink-0">
+            <div className="flex items-center gap-2 text-gray-700 font-medium">
+              <FileText className="w-5 h-5 text-red-500" />
+              {quyetDinhFile?.name}
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href={quyetDinhPreviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={quyetDinhFile?.name}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                <Download className="w-4 h-4" /> Tải về
+              </a>
+              <button
+                onClick={() => setShowPdfPreview(false)}
+                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <iframe src={quyetDinhPreviewUrl} title="PDF Viewer" className="w-full h-full border-0" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

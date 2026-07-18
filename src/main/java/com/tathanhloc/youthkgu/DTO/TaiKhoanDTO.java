@@ -25,4 +25,5 @@ public class TaiKhoanDTO {
 
     private String maKhoa;
     private String tenKhoa;
+    private Boolean hasZalo;
 }

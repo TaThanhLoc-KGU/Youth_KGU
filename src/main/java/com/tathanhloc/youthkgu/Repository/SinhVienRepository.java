@@ -66,4 +66,7 @@ public interface SinhVienRepository extends JpaRepository<SinhVien, String> {
     Optional<SinhVien> findByZaloUserId(String zaloUserId);
 
     long countByZaloUserIdNotNull();
+
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM SinhVien s WHERE s.zaloUserId IS NOT NULL ORDER BY s.hoTen ASC")
+    org.springframework.data.domain.Page<SinhVien> findLinkedZaloUsers(org.springframework.data.domain.Pageable pageable);
 }

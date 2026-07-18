@@ -10,7 +10,7 @@ import { Users, Activity, Lock, Unlock, UserPlus, UserMinus, Upload,
          Settings, ClipboardList, Download, CheckSquare, XSquare,
          Clock, BadgeCheck, Award, Star, Phone, Mail,
          TrendingUp, BarChart2, ShieldCheck, Calendar, Zap, LayoutGrid,
-         QrCode, Copy, PlusCircle } from 'lucide-react';
+         QrCode, Copy, PlusCircle, RotateCcw, Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import cauLacBoService from '../../services/cauLacBoService';
 import { API_BASE_URL } from '../../services/api';
@@ -18,6 +18,8 @@ import api from '../../services/api';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS } from '../../utils/constants';
 import ClbBanHanhModal from '../../components/clb/ClbBanHanhModal';
+import clbBanHanhService from '../../services/clbBanHanhService';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 // ── ManualPayModal ─────────────────────────────────────────────────────────────
 const ManualPayModal = ({ fee, onClose, onPayOS }) => {
@@ -619,6 +621,7 @@ function ClbMemberManage({ clb }) {
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const { data: hocKyList = [] } = useQuery({
     queryKey: ['hocky-active'],
@@ -770,9 +773,11 @@ function ClbMemberManage({ clb }) {
                         <Edit2 className="w-4 h-4" />
                       </button>
                       {!isLocked && (
-                        <button onClick={() => {
-                          if (confirm(`Xóa ${m.hoTen} khỏi CLB?`)) removeMutation.mutate(m.id);
-                        }} className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
+                        <button onClick={() => setConfirmAction({
+                          title: 'Xóa thành viên',
+                          description: `Xóa ${m.hoTen} khỏi CLB?`,
+                          onConfirm: () => removeMutation.mutate(m.id),
+                        })} className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
                         title="Xóa khỏi CLB">
                           <UserMinus className="w-4 h-4" />
                         </button>
@@ -796,6 +801,16 @@ function ClbMemberManage({ clb }) {
           onClose={() => setEditingMember(null)}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => { confirmAction?.onConfirm(); setConfirmAction(null); }}
+        title={confirmAction?.title || ''}
+        description={confirmAction?.description || ''}
+        confirmLabel="Xóa"
+        isLoading={removeMutation.isPending}
+      />
     </div>
   );
 }
@@ -807,6 +822,7 @@ function ClbDongPhi({ clb }) {
   const [filterStatus, setFilterStatus] = useState('');
   const [previewFee, setPreviewFee] = useState(null);
   const [loadingPayInfo, setLoadingPayInfo] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const { data: hocKyList = [] } = useQuery({
     queryKey: ['hocky-all'],
@@ -962,8 +978,11 @@ function ClbDongPhi({ clb }) {
             <button
               onClick={() => {
                 const soTien = cauHinh?.soTienPhiKy ?? 50000;
-                if (confirm(`Sinh phí ${Number(soTien).toLocaleString('vi-VN')}đ cho tất cả thành viên trong học kỳ này?`))
-                  generateMutation.mutate();
+                setConfirmAction({
+                  title: 'Sinh phí học kỳ',
+                  description: `Sinh phí ${Number(soTien).toLocaleString('vi-VN')}đ cho tất cả thành viên trong học kỳ này?`,
+                  onConfirm: () => generateMutation.mutate(),
+                });
               }}
               disabled={generateMutation.isPending}
               className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 shadow-md shadow-indigo-200 disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
@@ -1079,9 +1098,11 @@ function ClbDongPhi({ clb }) {
                             </>
                           )}
                           {(p.trangThai === 'DA_DONG' || p.trangThai === 'MIEN_GIAM') && (
-                            <button onClick={() => {
-                              if (confirm('Đặt lại thành chưa đóng?')) resetMutation.mutate(p.id);
-                            }} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all" title="Đặt lại">
+                            <button onClick={() => setConfirmAction({
+                              title: 'Đặt lại trạng thái',
+                              description: 'Đặt lại thành chưa đóng?',
+                              onConfirm: () => resetMutation.mutate(p.id),
+                            })} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all" title="Đặt lại">
                               <RefreshCw className="w-4 h-4" />
                             </button>
                           )}
@@ -1105,12 +1126,23 @@ function ClbDongPhi({ clb }) {
       )}
 
       {previewFee && (
-        <ManualPayModal 
-          fee={previewFee} 
+        <ManualPayModal
+          fee={previewFee}
           onClose={() => setPreviewFee(null)}
           onPayOS={() => payMutation.mutate({ maClb: clb.maClb, id: previewFee.id })}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => { confirmAction?.onConfirm(); setConfirmAction(null); }}
+        title={confirmAction?.title || ''}
+        description={confirmAction?.description || ''}
+        confirmLabel="Xác nhận"
+        variant="warning"
+        isLoading={generateMutation.isPending || resetMutation.isPending}
+      />
     </div>
   );
 }
@@ -1765,6 +1797,7 @@ function ClbBcnTab({ clb }) {
   const [filterTT, setFilterTT] = useState('DUONG_NHIEM');
   const [showAdd, setShowAdd] = useState(false);
   const importRef = useRef(null);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const { data: nhiemKyList = [] } = useQuery({
     queryKey: ['clb-bcn-nhiemky', clb.maClb],
@@ -1931,14 +1964,18 @@ function ClbBcnTab({ clb }) {
 
                 {canManage && b.trangThai === 'DUONG_NHIEM' && (
                   <div className="flex gap-2 mt-3 pt-3 border-t">
-                    <button onClick={() => {
-                      if (confirm(`Đánh dấu ${b.tenNguoi || b.tenSv} thôi chức?`)) thoiChucMutation.mutate(b.id);
-                    }} className="flex-1 py-1.5 text-xs border rounded-lg text-gray-600 hover:bg-gray-50">
+                    <button onClick={() => setConfirmAction({
+                      title: 'Thôi chức',
+                      description: `Đánh dấu ${b.tenNguoi || b.tenSv} thôi chức?`,
+                      onConfirm: () => thoiChucMutation.mutate(b.id),
+                    })} className="flex-1 py-1.5 text-xs border rounded-lg text-gray-600 hover:bg-gray-50">
                       Thôi chức
                     </button>
-                    <button onClick={() => {
-                      if (confirm(`Xóa ${b.tenNguoi || b.tenSv} khỏi danh sách BCN?`)) removeMutation.mutate(b.id);
-                    }} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                    <button onClick={() => setConfirmAction({
+                      title: 'Xóa BCN',
+                      description: `Xóa ${b.tenNguoi || b.tenSv} khỏi danh sách BCN?`,
+                      onConfirm: () => removeMutation.mutate(b.id),
+                    })} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -1962,6 +1999,16 @@ function ClbBcnTab({ clb }) {
           onClose={() => setShowAdd(false)}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => { confirmAction?.onConfirm(); setConfirmAction(null); }}
+        title={confirmAction?.title || ''}
+        description={confirmAction?.description || ''}
+        confirmLabel="Xác nhận"
+        isLoading={thoiChucMutation?.isPending || removeMutation?.isPending}
+      />
     </div>
   );
 }
@@ -2003,6 +2050,27 @@ function ClbDetail({ clb, onBack }) {
   const [tab, setTab] = useState('members');
   const [exporting, setExporting] = useState(false);
   const [showBanHanh, setShowBanHanh] = useState(false);
+  const qc = useQueryClient();
+
+  // Trạng thái ban hành hiện tại của CLB
+  const { data: latestBanHanh, refetch: refetchBanHanh } = useQuery({
+    queryKey: ['clb-ban-hanh-latest', clb.maClb],
+    queryFn: () => clbBanHanhService.getDanhSach(clb.maClb).then(list => {
+      // Lấy bản HIEU_LUC mới nhất
+      return list?.find(b => b.trangThai === 'HIEU_LUC') ?? null;
+    }),
+    staleTime: 30 * 1000,
+  });
+  const daBanHanh = !!latestBanHanh;
+
+  const huyBanHanhMutation = useMutation({
+    mutationFn: (id) => clbBanHanhService.huyBanHanh(clb.maClb, id),
+    onSuccess: () => {
+      toast.success('Đã thu hồi ban hành. Có thể ban hành mới lại.');
+      refetchBanHanh();
+    },
+    onError: (err) => toast.error('Lỗi: ' + (err?.response?.data?.message || err.message)),
+  });
 
   // Badge số đơn chờ duyệt thành viên
   const { data: pendingCount = 0 } = useQuery({
@@ -2056,10 +2124,28 @@ function ClbDetail({ clb, onBack }) {
               <Download className="w-3.5 h-3.5" />
               {exporting ? 'Đang xuất…' : 'Xuất Excel'}
             </button>
-            <button onClick={() => setShowBanHanh(true)}
-              className="flex items-center gap-2 px-3 py-1.5 border border-blue-300 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-50">
-              <ShieldCheck className="w-3.5 h-3.5" /> Ban hành DS
-            </button>
+            {daBanHanh ? (
+              <button
+                onClick={() => huyBanHanhMutation.mutate(latestBanHanh.id)}
+                disabled={huyBanHanhMutation.isPending}
+                className="flex items-center gap-2 px-3 py-1.5 border border-amber-300 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-50 disabled:opacity-50"
+                title="Thu hồi ban hành — sau đó có thể ban hành mới lại"
+              >
+                {huyBanHanhMutation.isPending
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <RotateCcw className="w-3.5 h-3.5" />}
+                Thu Hồi DS
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowBanHanh(true)}
+                className="flex items-center gap-2 px-3 py-1.5 border border-blue-300 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-50"
+                title={latestBanHanh === null ? 'Ban hành DS thành viên CLB' : 'Ban hành lại (bản trước đã thu hồi)'}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {latestBanHanh === null ? 'Ban hành DS' : 'Ban hành mới'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -2106,7 +2192,7 @@ function ClbDetail({ clb, onBack }) {
       {showBanHanh && (
         <ClbBanHanhModal
           clb={clb}
-          onClose={() => setShowBanHanh(false)}
+          onClose={() => { setShowBanHanh(false); refetchBanHanh(); }}
         />
       )}
     </div>

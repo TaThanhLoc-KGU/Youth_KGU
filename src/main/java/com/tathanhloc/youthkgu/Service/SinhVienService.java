@@ -74,6 +74,7 @@ public class SinhVienService extends BaseService<SinhVien, String, SinhVienDTO> 
                 .tenLop(sv.getLop() != null ? sv.getLop().getTenLop() : null)
                 .maKhoa(sv.getLop() != null && sv.getLop().getMaKhoa() != null ? sv.getLop().getMaKhoa().getMaKhoa() : null)
                 .maNganh(sv.getLop() != null && sv.getLop().getNganh() != null ? sv.getLop().getNganh().getMaNganh() : null)
+                .hasZalo(sv.getZaloUserId() != null && !sv.getZaloUserId().isBlank())
                 .build();
     }
 

@@ -17,13 +17,13 @@ const dangKyService = {
 
   // Danh sách đăng ký của sinh viên
   getByStudent: async (maSv) => {
-    const response = await api.get(`/api/dang-ky/student/${maSv}`);
+    const response = await api.get(`/api/dang-ky/student/${encodeURIComponent(maSv)}`);
     return response.data.data;
   },
 
   // Danh sách đăng ký theo hoạt động
   getByActivity: async (maHoatDong) => {
-    const response = await api.get(`/api/dang-ky/activity/${maHoatDong}`);
+    const response = await api.get(`/api/dang-ky/activity/${encodeURIComponent(maHoatDong)}`);
     return response.data.data;
   },
 
@@ -37,13 +37,13 @@ const dangKyService = {
 
   // Thống kê đăng ký của hoạt động
   getStatistics: async (maHoatDong) => {
-    const response = await api.get(`/api/dang-ky/statistics/${maHoatDong}`);
+    const response = await api.get(`/api/dang-ky/statistics/${encodeURIComponent(maHoatDong)}`);
     return response.data.data;
   },
 
   // Thống kê đăng ký theo khoa
   getFacultyStats: async (maHoatDong) => {
-    const response = await api.get(`/api/dang-ky/faculty-stats/${maHoatDong}`);
+    const response = await api.get(`/api/dang-ky/faculty-stats/${encodeURIComponent(maHoatDong)}`);
     return response.data.data;
   },
 

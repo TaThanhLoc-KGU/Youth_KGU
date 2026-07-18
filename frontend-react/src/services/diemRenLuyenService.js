@@ -6,15 +6,15 @@ import api from './api';
  * (daDiemDanh = true) và điểm của từng hoạt động (diemRenLuyen).
  */
 const diemRenLuyenService = {
-  // Lấy lịch sử điểm danh (dùng để tính điểm rèn luyện)
-  getStudentRecords: async (maSv) => {
-    const response = await api.get(`/api/diem-danh/student/${maSv}`);
+  // Lịch sử điểm danh thô (scan records)
+  getAttendanceRecords: async (maSv) => {
+    const response = await api.get(`/api/diem-danh/student/${encodeURIComponent(maSv)}`);
     return response.data.data;
   },
 
-  // Lấy thống kê tham gia của sinh viên
-  getStudentSummary: async (maSv) => {
-    const response = await api.get(`/api/diem-danh/statistics/student/${maSv}`);
+  // Thống kê điểm danh của sinh viên
+  getAttendanceSummary: async (maSv) => {
+    const response = await api.get(`/api/diem-danh/statistics/student/${encodeURIComponent(maSv)}`);
     return response.data.data;
   },
 };

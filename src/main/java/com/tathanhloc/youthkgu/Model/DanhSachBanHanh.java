@@ -68,4 +68,8 @@ public class DanhSachBanHanh {
 
     @Column(name = "nguoi_huy")
     private String nguoiHuy;
+
+    @Column(name = "so_luot_tai", nullable = false)
+    @Builder.Default
+    private Integer soLuotTai = 0;
 }

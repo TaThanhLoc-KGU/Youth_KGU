@@ -129,6 +129,7 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
                 .maSv(tk.getSinhVien() != null ? tk.getSinhVien().getMaSv() : null)
                 .maGv(tk.getGiangVien() != null ? tk.getGiangVien().getMaGv() : null)
                 .laAdmin(tk.getLaAdmin())
+                .hasZalo(tk.getSinhVien() != null && tk.getSinhVien().getZaloUserId() != null && !tk.getSinhVien().getZaloUserId().isBlank())
                 .build();
     }
 

@@ -120,10 +120,24 @@ public class HoatDongController {
         return ResponseEntity.ok(ApiResponse.success(activity));
     }
 
-    @PostMapping
-    @Operation(summary = "Tạo hoạt động mới")
+    @PostMapping(consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Tạo hoạt động mới (JSON thuần, không kèm file quyết định)")
     @PreAuthorize("hasPermission(null, 'TAO_HOAT_DONG')")
     public ResponseEntity<ApiResponse<HoatDongDTO>> create(@Valid @RequestBody HoatDongDTO dto) {
+        return doCreate(dto, null);
+    }
+
+    @PostMapping(consumes = "multipart/form-data")
+    @Operation(summary = "Tạo hoạt động mới kèm file quyết định (PDF/Word...) đính kèm")
+    @PreAuthorize("hasPermission(null, 'TAO_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<HoatDongDTO>> createWithFile(
+            @RequestPart("data") @Valid HoatDongDTO dto,
+            @RequestPart(value = "quyetDinhFile", required = false) org.springframework.web.multipart.MultipartFile quyetDinhFile) {
+        return doCreate(dto, quyetDinhFile);
+    }
+
+    private ResponseEntity<ApiResponse<HoatDongDTO>> doCreate(
+            HoatDongDTO dto, org.springframework.web.multipart.MultipartFile quyetDinhFile) {
         // Validate logic nghiệp vụ: Thời gian kết thúc phải sau thời gian bắt đầu
         if (dto.getThoiGianBatDau() != null && dto.getThoiGianKetThuc() != null) {
             if (dto.getThoiGianKetThuc().isBefore(dto.getThoiGianBatDau())) {
@@ -133,7 +147,9 @@ public class HoatDongController {
         }
 
         log.info("POST /api/hoat-dong - Create new activity: {}", dto.getMaHoatDong());
-        HoatDongDTO created = hoatDongService.create(dto);
+        HoatDongDTO created = quyetDinhFile != null
+                ? hoatDongService.create(dto, quyetDinhFile)
+                : hoatDongService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo hoạt động thành công", created));
     }
