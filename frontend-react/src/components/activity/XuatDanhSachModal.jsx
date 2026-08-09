@@ -42,6 +42,10 @@ const DEFAULT_COL_CONFIG = [
 
 const WIDTH_PRESETS = { xs: 26, sm: 58, md: 90, lg: 135, xl: 165 };
 
+/* Khớp với hằng số mặc định bên backend (KySoService: MARGIN_L=85pt, MARGIN_R/T/B=57pt) */
+const CM_TO_PT = 28.3465;
+const DEFAULT_MARGIN_CM = { top: 2.0, bottom: 2.0, left: 3.0, right: 2.0 };
+
 function ptToPreset(pt) {
   let best = 'md', bestDiff = Infinity;
   for (const [k, v] of Object.entries(WIDTH_PRESETS)) {
@@ -246,6 +250,82 @@ function DraggableBox({ label, color, pos, onMove, containerRef,
   );
 }
 
+/* ─── MarginGuide — kéo trực tiếp trên preview để chỉnh lề trang ────────── */
+function MarginGuide({ side, valueCm, onChange, onCommit, naturalW, naturalH, imgW, imgH, containerRef }) {
+  const dragging = useRef(false);
+  const isVertical = side === 'left' || side === 'right'; // đường kẻ dọc, kéo ngang
+
+  const scaleX = imgW / naturalW;
+  const scaleY = imgH / naturalH;
+  const valuePt = valueCm * CM_TO_PT;
+
+  let style;
+  if (side === 'top')    style = { left: 0, top: valuePt * scaleY,               width: imgW, height: 0 };
+  if (side === 'bottom') style = { left: 0, top: imgH - valuePt * scaleY,        width: imgW, height: 0 };
+  if (side === 'left')   style = { top: 0, left: valuePt * scaleX,               height: imgH, width: 0 };
+  if (side === 'right')  style = { top: 0, left: imgW - valuePt * scaleX,        height: imgH, width: 0 };
+
+  const onMove = useCallback((e) => {
+    if (!dragging.current || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    let cm;
+    if (side === 'top')    cm = (e.clientY - rect.top) / scaleY / CM_TO_PT;
+    if (side === 'bottom') cm = (rect.bottom - e.clientY) / scaleY / CM_TO_PT;
+    if (side === 'left')   cm = (e.clientX - rect.left) / scaleX / CM_TO_PT;
+    if (side === 'right')  cm = (rect.right - e.clientX) / scaleX / CM_TO_PT;
+    cm = Math.max(0.5, Math.min(4, Math.round(cm * 10) / 10));
+    onChange(cm);
+  }, [side, scaleX, scaleY, containerRef, onChange]);
+
+  const onUp = useCallback(() => {
+    dragging.current = false;
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    onCommit();
+  }, [onMove, onCommit]);
+
+  const onDown = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dragging.current = true;
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  return (
+    <div
+      onMouseDown={onDown}
+      className="absolute z-30 group"
+      style={{
+        ...style,
+        cursor: isVertical ? 'ew-resize' : 'ns-resize',
+        [isVertical ? 'width' : 'height']: 0,
+      }}
+    >
+      <div
+        className="absolute bg-purple-500/70 group-hover:bg-purple-500 transition-colors"
+        style={isVertical
+          ? { left: -1, top: 0, width: 2, height: '100%' }
+          : { top: -1, left: 0, height: 2, width: '100%' }}
+      />
+      <div
+        className="absolute bg-purple-500 text-white text-[9px] font-semibold px-1 rounded shadow whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+        style={isVertical
+          ? { left: 4, top: '50%', transform: 'translateY(-50%)' }
+          : { top: 4, left: '50%', transform: 'translateX(-50%)' }}
+      >
+        {valueCm.toFixed(1)}cm
+      </div>
+      {/* Vùng bắt sự kiện rộng hơn đường kẻ để dễ kéo */}
+      <div
+        className="absolute"
+        style={isVertical
+          ? { left: -6, top: 0, width: 12, height: '100%' }
+          : { top: -6, left: 0, height: 12, width: '100%' }}
+      />
+    </div>
+  );
+}
+
 /* ─── SigImagePicker ──────────────────────────────────────────── */
 function SigImagePicker({ label, value, onChange, options, color }) {
   const borderCls = {
@@ -325,6 +405,8 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
   const [previewKey, setPreviewKey] = useState(0);
   const [imgSizes, setImgSizes] = useState({});   // pageIdx -> { w, h }
   const lastPageRef = useRef(null);
+  const firstPageRef = useRef(null);
+  const [showMarginGuides, setShowMarginGuides] = useState(false);
 
   /* ── Export state */
   const [exporting,     setExporting]     = useState(false);
@@ -846,7 +928,19 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
               Đặt lại vị trí
             </button>
           )}
+          <button onClick={() => setShowMarginGuides(v => !v)}
+            className={`flex items-center gap-1 text-xs px-2.5 py-1 border rounded-lg transition-colors ${
+              showMarginGuides ? 'bg-purple-50 border-purple-300 text-purple-700' : 'border-gray-300 hover:bg-gray-100 text-gray-600'
+            }`}>
+            <Sliders className="w-3.5 h-3.5" />
+            {showMarginGuides ? 'Đang chỉnh lề' : 'Chỉnh lề'}
+          </button>
         </div>
+        {showMarginGuides && (
+          <div className="px-4 py-1.5 bg-purple-50 border-b border-purple-100 text-[11px] text-purple-600 flex-shrink-0">
+            Kéo đường kẻ tím quanh mép trang (trên/dưới/trái/phải) để chỉnh lề — preview tự cập nhật khi thả chuột.
+          </div>
+        )}
 
         {/* Pages scroll area */}
         <div className="flex-1 overflow-auto bg-gray-300 flex flex-col items-center gap-6 p-6 min-h-0">
@@ -875,6 +969,7 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
 
           {preview && preview.pages.map((pageDataUrl, pageIdx) => {
             const isLastPage = pageIdx === lastPageIndex;
+            const isFirstPage = pageIdx === 0;
             const imgSz = imgSizes[pageIdx] || { w: 0, h: 0 };
             const pageZones = (preview.editZones || []).filter(z => z.pageIndex === pageIdx);
 
@@ -886,7 +981,7 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
                   </div>
                 )}
                 <div
-                  ref={isLastPage ? lastPageRef : undefined}
+                  ref={isLastPage ? lastPageRef : (isFirstPage ? firstPageRef : undefined)}
                   className="relative shadow-2xl bg-white"
                   style={{ display: 'inline-block' }}>
                   <img
@@ -898,8 +993,26 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
                     draggable={false}
                   />
 
+                  {/* Đường kẻ chỉnh lề — chỉ trên trang đầu vì lề áp dụng chung cho cả tài liệu */}
+                  {isFirstPage && showMarginGuides && imgSz.w > 0 && (
+                    <>
+                      {['top', 'bottom', 'left', 'right'].map((side) => (
+                        <MarginGuide
+                          key={side}
+                          side={side}
+                          valueCm={formatConfig[`margin${side[0].toUpperCase()}${side.slice(1)}Cm`] ?? DEFAULT_MARGIN_CM[side]}
+                          onChange={(cm) => updateFmt(`margin${side[0].toUpperCase()}${side.slice(1)}Cm`, cm)}
+                          onCommit={handleRefreshPreview}
+                          naturalW={naturalW} naturalH={naturalH}
+                          imgW={imgSz.w} imgH={imgSz.h}
+                          containerRef={firstPageRef}
+                        />
+                      ))}
+                    </>
+                  )}
+
                   {/* Clickable edit zones */}
-                  {imgSz.w > 0 && pageZones.map((zone, zi) => (
+                  {imgSz.w > 0 && !showMarginGuides && pageZones.map((zone, zi) => (
                     <ZoneOverlay key={zi}
                       zone={zone}
                       naturalW={naturalW} naturalH={naturalH}
@@ -908,7 +1021,7 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
                   ))}
 
                   {/* Signature/stamp drag boxes — last page only */}
-                  {isLastPage && positions && imgSz.w > 0 && (
+                  {isLastPage && positions && imgSz.w > 0 && !showMarginGuides && (
                     <>
                       <DraggableBox
                         label={form.loaiKy === 'BÍ THƯ' ? 'Bí Thư' : 'Phó Bí Thư'} color="blue"

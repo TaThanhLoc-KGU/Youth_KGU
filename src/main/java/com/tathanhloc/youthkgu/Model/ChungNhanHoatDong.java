@@ -30,6 +30,10 @@ public class ChungNhanHoatDong {
     @JoinColumn(name = "ma_hoat_dong", nullable = false)
     private HoatDong hoatDong;
 
+    @ManyToOne
+    @JoinColumn(name = "template_id")
+    private ChungNhanTemplate template;
+
     @Column(name = "ngay_cap", nullable = false)
     private LocalDate ngayCap;
 

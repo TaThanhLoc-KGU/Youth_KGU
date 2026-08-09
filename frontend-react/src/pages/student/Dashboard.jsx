@@ -32,7 +32,7 @@ const StudentDashboard = () => {
   const { user } = useAuthStore();
   const maSv = user?.linkedEntityId || (user?.vaiTro === 'DOAN_VIEN' ? user?.username : null);
 
-  const { data: openActivities = [], isLoading: loadingActivities, isError: errorActivities } = useQuery({
+  const { data: openActivities = [], isLoading: loadingOpen, isError: errorActivities } = useQuery({
     queryKey: ['open-activities'],
     queryFn: () => activityService.getByStatus('DANG_MO_DANG_KY'),
     staleTime: 5 * 60 * 1000,
@@ -70,7 +70,7 @@ const StudentDashboard = () => {
   });
 
   const loadingActivities = activityQueries.some(q => q.isLoading);
-  const isLoading = loadingActivities || loadingRegs;
+  const isLoading = loadingOpen || loadingActivities || loadingRegs;
 
   const activityMap = useMemo(() => {
     const map = {};

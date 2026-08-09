@@ -1802,6 +1802,8 @@ public class DiemDanhHoatDongService {
                         entity.getNguoiCheckIn().getMaBch() : null)
                 .tenNguoiXacNhan(entity.getNguoiCheckIn() != null ?
                         entity.getNguoiCheckIn().getSinhVien().getHoTen() : null)
+                .tenNguoiCheckOut(entity.getNguoiCheckOut() != null ?
+                        entity.getNguoiCheckOut().getSinhVien().getHoTen() : null)
                 .ghiChu(entity.getGhiChu())
                 .trangThaiCheckIn(entity.getTrangThaiCheckIn() != null ? entity.getTrangThaiCheckIn().name() : null)
                 .soPhutTre(entity.getSoPhutTre())
@@ -1845,10 +1847,27 @@ public class DiemDanhHoatDongService {
                     errors.add(maSv + ": Không tìm thấy sinh viên");
                     continue;
                 }
+                // Tạo DangKyHoatDong nếu chưa có — bảng này đóng vai trò "danh sách hiển thị";
+                // getAttendanceStatusList() duyệt từ đây nên thiếu dòng này thì SV sẽ không hiện ra bảng.
+                // Chạy trước cả khi đã có điểm danh để tự vá lại các bản ghi cũ (tạo trước khi có fix này).
+                if (dangKyRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(maSv.trim(), maHoatDong).isEmpty()) {
+                    DangKyHoatDong dk = DangKyHoatDong.builder()
+                            .id(new DangKyHoatDongId(maSv.trim(), maHoatDong))
+                            .sinhVien(sv)
+                            .hoatDong(hoatDong)
+                            .maQR("KDK_" + maHoatDong + "_" + maSv.trim())
+                            .trangThai("DA_THAM_GIA")
+                            .ghiChu("[Không đăng ký] Thêm thủ công")
+                            .isActive(true)
+                            .build();
+                    dangKyRepository.save(dk);
+                }
+
                 if (diemDanhRepository.existsBySinhVienMaSvAndHoatDongMaHoatDong(maSv.trim(), maHoatDong)) {
                     skipped++;
                     continue;
                 }
+
                 String maQR = "KDK-" + maHoatDong + "-" + maSv.trim();
                 DiemDanhHoatDong dd = DiemDanhHoatDong.builder()
                         .hoatDong(hoatDong)
@@ -1920,5 +1939,7 @@ public class DiemDanhHoatDongService {
         DiemDanhHoatDong dd = diemDanhRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bản ghi điểm danh"));
         diemDanhRepository.delete(dd);
+        dangKyRepository.findBySinhVienMaSvAndHoatDongMaHoatDong(maSv, maHoatDong)
+                .ifPresent(dangKyRepository::delete);
     }
 }

@@ -47,6 +47,7 @@ public class DiemDanhHoatDongDTO {
 
     private String maBchXacNhan;
     private String tenNguoiXacNhan; // Thêm để hiển thị
+    private String tenNguoiCheckOut; // Người xác nhận check-out (null nếu tự check-out/chưa check-out)
 
     private String ghiChu;
 

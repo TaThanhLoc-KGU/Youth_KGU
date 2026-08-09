@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
 import { Plus, Edit, Trash2, Eye, RefreshCw, Calendar, Users, Download, ClipboardList, Bell,
-         CheckCircle2, XCircle, Clock, Building2, Mail, MessageCircle } from 'lucide-react';
+         CheckCircle2, XCircle, Clock, Building2, Mail, MessageCircle, Globe, EyeOff } from 'lucide-react';
 import activityService from '../../services/activityService';
 import hoatDongService from '../../services/hoatDongService';
 import newsService from '../../services/newsService';
@@ -192,6 +192,26 @@ const Activities = () => {
     },
   });
 
+  const [congKhaiConfirmRow, setCongKhaiConfirmRow] = useState(null);
+
+  const congKhaiMutation = useMutation({
+    mutationFn: (row) => hoatDongService.congKhai(row.maHoatDong),
+    onSuccess: (_, row) => {
+      toast.success(`Đã công khai hoạt động "${row.tenHoatDong}" — sinh viên có thể xem và đăng ký`);
+      queryClient.invalidateQueries(['activities']);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Công khai thất bại'),
+  });
+
+  const anMutation = useMutation({
+    mutationFn: (row) => hoatDongService.an(row.maHoatDong),
+    onSuccess: (_, row) => {
+      toast.success(`Đã ẩn hoạt động "${row.tenHoatDong}"`);
+      queryClient.invalidateQueries(['activities']);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Ẩn hoạt động thất bại'),
+  });
+
   const guiEmailMutation = useMutation({
     mutationFn: (row) => {
       setEmailingId(row.maHoatDong);
@@ -291,12 +311,25 @@ const Activities = () => {
     {
       header: 'Trạng thái',
       accessor: 'trangThai',
-      width: '140px',
-      render: (value) => (
-        <Badge variant={getTrangThaiBadgeVariant(value)}>
-          {getTrangThaiLabel(value)}
-        </Badge>
-      ),
+      width: '160px',
+      render: (value, row) => {
+        const isPublic = row.congKhai !== false;
+        return (
+          <div className="flex flex-col gap-1 items-start">
+            <Badge variant={getTrangThaiBadgeVariant(value)}>
+              {getTrangThaiLabel(value)}
+            </Badge>
+            {value !== 'CHO_DUYET' && (
+              <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                isPublic ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200'
+              }`}>
+                {isPublic ? <Globe className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5" />}
+                {isPublic ? 'Công khai' : 'Đang ẩn'}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: 'Thao tác',
@@ -353,6 +386,29 @@ const Activities = () => {
               onClick={(e) => { e.stopPropagation(); handleEdit(row); }}
               title="Sửa"
             />
+          )}
+          {canEdit && row.trangThai !== 'CHO_DUYET' && (
+            row.congKhai === false ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={Globe}
+                onClick={(e) => { e.stopPropagation(); setCongKhaiConfirmRow(row); }}
+                title="Công khai — hiển thị cho sinh viên xem/đăng ký"
+                disabled={congKhaiMutation.isPending}
+                className="text-green-600 hover:text-green-700"
+              />
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={EyeOff}
+                onClick={(e) => { e.stopPropagation(); anMutation.mutate(row); }}
+                title="Ẩn khỏi danh sách công khai"
+                disabled={anMutation.isPending}
+                className="text-gray-500 hover:text-gray-700"
+              />
+            )
           )}
           {canEdit && (
             <Button
@@ -732,6 +788,16 @@ const Activities = () => {
         description={`Bạn sắp gửi email thông báo hoạt động "${emailConfirmRow?.tenHoatDong}" đến TẤT CẢ sinh viên đang hoạt động. Bạn có chắc chắn không?`}
         confirmLabel="Gửi email"
         isLoading={guiEmailMutation.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!congKhaiConfirmRow}
+        onClose={() => setCongKhaiConfirmRow(null)}
+        onConfirm={() => { congKhaiMutation.mutate(congKhaiConfirmRow); setCongKhaiConfirmRow(null); }}
+        title="Công khai hoạt động"
+        description={`Hoạt động "${congKhaiConfirmRow?.tenHoatDong}" sẽ hiển thị cho sinh viên xem và đăng ký. Hệ thống sẽ tự tạo tin tức giới thiệu và gửi thông báo đến tất cả sinh viên. Bạn có chắc chắn không?`}
+        confirmLabel="Công khai"
+        isLoading={congKhaiMutation.isPending}
       />
 
       <ConfirmDialog

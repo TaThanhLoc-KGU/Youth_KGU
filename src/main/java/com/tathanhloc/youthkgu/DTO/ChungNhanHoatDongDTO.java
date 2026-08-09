@@ -17,6 +17,7 @@ public class ChungNhanHoatDongDTO {
     private String emailSinhVien;
     private String maHoatDong;
     private String tenHoatDong;
+    private Long templateId;
     private LocalDate ngayCap;
     private String noiDung;
     private String filePath;

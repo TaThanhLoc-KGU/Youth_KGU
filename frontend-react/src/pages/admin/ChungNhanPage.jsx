@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { XCircle, Download, Users, UserCheck, RefreshCw } from 'lucide-react';
+import { XCircle, Download, Users, UserCheck, RefreshCw, LayoutTemplate } from 'lucide-react';
 import chungNhanService from '../../services/chungNhanService';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
@@ -13,17 +14,49 @@ import { formatDate } from '../../utils/dateFormat';
 import useAuthStore from '../../stores/authStore';
 import { PERMISSIONS } from '../../utils/constants';
 
+const TemplatePicker = ({ value, onChange }) => {
+  const { data: templates = [], isLoading } = useQuery({
+    queryKey: ['chung-nhan-mau'],
+    queryFn: chungNhanService.getTemplates,
+  });
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu chứng nhận</label>
+      {isLoading ? (
+        <p className="text-xs text-gray-400">Đang tải danh sách mẫu...</p>
+      ) : templates.length === 0 ? (
+        <p className="text-xs text-amber-600">
+          Chưa có mẫu nào — vào <Link to="/admin/certificates/templates" className="underline font-medium">Mẫu chứng nhận</Link> để tạo trước.
+        </p>
+      ) : (
+        <select
+          className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+        >
+          <option value="">— Chọn mẫu —</option>
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>{t.ten}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+};
+
 const IssueSingleModal = ({ isOpen, onClose, onSuccess }) => {
   const [maSv, setMaSv] = useState('');
   const [maHoatDong, setMaHoatDong] = useState('');
+  const [templateId, setTemplateId] = useState(null);
   const mutation = useMutation({
-    mutationFn: () => chungNhanService.issueAuto(maSv.trim(), maHoatDong.trim()),
+    mutationFn: () => chungNhanService.issueAuto(maSv.trim(), maHoatDong.trim(), templateId),
     onSuccess: () => {
       toast.success('Cấp chứng nhận thành công!');
       onSuccess();
       onClose();
       setMaSv('');
       setMaHoatDong('');
+      setTemplateId(null);
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Lỗi cấp chứng nhận'),
   });
@@ -48,6 +81,7 @@ const IssueSingleModal = ({ isOpen, onClose, onSuccess }) => {
             placeholder="VD: HD001"
           />
         </div>
+        <TemplatePicker value={templateId} onChange={setTemplateId} />
         <div className="flex gap-2 justify-end">
           <Button variant="ghost" onClick={onClose}>Hủy</Button>
           <Button
@@ -65,13 +99,15 @@ const IssueSingleModal = ({ isOpen, onClose, onSuccess }) => {
 
 const IssueBulkModal = ({ isOpen, onClose, onSuccess }) => {
   const [maHoatDong, setMaHoatDong] = useState('');
+  const [templateId, setTemplateId] = useState(null);
   const mutation = useMutation({
-    mutationFn: () => chungNhanService.issueBulk(maHoatDong.trim()),
+    mutationFn: () => chungNhanService.issueBulk(maHoatDong.trim(), templateId),
     onSuccess: (res) => {
       toast.success(res.message || 'Cấp hàng loạt thành công!');
       onSuccess();
       onClose();
       setMaHoatDong('');
+      setTemplateId(null);
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Lỗi cấp hàng loạt'),
   });
@@ -79,7 +115,7 @@ const IssueBulkModal = ({ isOpen, onClose, onSuccess }) => {
     <Modal isOpen={isOpen} onClose={onClose} title="Cấp hàng loạt theo hoạt động" size="sm">
       <div className="space-y-4">
         <p className="text-sm text-gray-600">
-          Cấp chứng nhận cho tất cả sinh viên đã tham gia hoạt động.
+          Cấp chứng nhận PDF cho tất cả sinh viên đã tham gia hoạt động, dùng mẫu đã chọn.
         </p>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Mã hoạt động</label>
@@ -90,12 +126,13 @@ const IssueBulkModal = ({ isOpen, onClose, onSuccess }) => {
             placeholder="VD: HD001"
           />
         </div>
+        <TemplatePicker value={templateId} onChange={setTemplateId} />
         <div className="flex gap-2 justify-end">
           <Button variant="ghost" onClick={onClose}>Hủy</Button>
           <Button
             onClick={() => mutation.mutate()}
             isLoading={mutation.isPending}
-            disabled={!maHoatDong}
+            disabled={!maHoatDong || !templateId}
             icon={Users}
           >
             Cấp hàng loạt
@@ -307,6 +344,11 @@ export default function ChungNhanPage() {
               </button>
               {canManage && (
                 <>
+                  <Link to="/admin/certificates/templates">
+                    <Button size="sm" variant="outline" icon={LayoutTemplate}>
+                      Mẫu chứng nhận
+                    </Button>
+                  </Link>
                   <Button size="sm" icon={UserCheck} onClick={() => setShowIssue(true)}>
                     Cấp đơn lẻ
                   </Button>

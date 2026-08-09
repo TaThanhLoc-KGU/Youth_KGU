@@ -275,6 +275,24 @@ public class HoatDongController {
         return ResponseEntity.ok(ApiResponse.success("Đã đóng đăng ký", null));
     }
 
+    @PostMapping("/cong-khai")
+    @Operation(summary = "Công khai hoạt động — hiện cho SV xem/đăng ký, tự tạo tin tức + gửi thông báo — dùng ?ma=")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<HoatDongDTO>> congKhaiHoatDong(@RequestParam String ma) {
+        log.info("POST /api/hoat-dong/cong-khai?ma={}", ma);
+        HoatDongDTO result = hoatDongService.congKhaiHoatDong(ma);
+        return ResponseEntity.ok(ApiResponse.success("Đã công khai hoạt động", result));
+    }
+
+    @PostMapping("/an")
+    @Operation(summary = "Ẩn hoạt động khỏi danh sách công khai — dùng ?ma=")
+    @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")
+    public ResponseEntity<ApiResponse<HoatDongDTO>> anHoatDong(@RequestParam String ma) {
+        log.info("POST /api/hoat-dong/an?ma={}", ma);
+        HoatDongDTO result = hoatDongService.anHoatDong(ma);
+        return ResponseEntity.ok(ApiResponse.success("Đã ẩn hoạt động", result));
+    }
+
     @PostMapping("/start")
     @Operation(summary = "Bắt đầu hoạt động — dùng ?ma=")
     @PreAuthorize("hasPermission(null, 'SUA_HOAT_DONG')")

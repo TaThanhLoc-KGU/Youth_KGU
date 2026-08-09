@@ -1,0 +1,107 @@
+name: Deploy Youth KGU
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # cho phép chạy thủ công từ GitHub UI
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true  # hủy deploy cũ nếu push liên tiếp
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: self-hosted      # chạy trên runner cài trên server
+    timeout-minutes: 20
+
+    steps:
+      # ── 1. Lấy code mới nhất ──────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── 2. Detect thay đổi (tránh build thừa) ────────────────────────────
+      - name: Detect changes
+        id: changes
+        run: |
+          git fetch origin main --depth=2 2>/dev/null || true
+          PREV=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          if [ -z "$PREV" ]; then
+            echo "frontend=true"  >> $GITHUB_OUTPUT
+            echo "backend=true"   >> $GITHUB_OUTPUT
+          else
+            FE=$(git diff --name-only $PREV HEAD -- frontend-react/ | wc -l)
+            BE=$(git diff --name-only $PREV HEAD -- src/ pom.xml | wc -l)
+            echo "frontend=$([ $FE -gt 0 ] && echo true || echo false)" >> $GITHUB_OUTPUT
+            echo "backend=$([ $BE -gt 0 ]  && echo true || echo false)" >> $GITHUB_OUTPUT
+          fi
+          echo "Detect: FE=$FE BE=$BE"
+
+      # ── 3. Build Frontend ─────────────────────────────────────────────────
+      - name: Build Frontend
+        if: steps.changes.outputs.frontend == 'true'
+        working-directory: frontend-react
+        run: |
+          echo "::group::npm install"
+          npm ci --prefer-offline --silent
+          echo "::endgroup::"
+          echo "::group::npm build"
+          npm run build
+          echo "::endgroup::"
+
+      - name: Deploy Frontend
+        if: steps.changes.outputs.frontend == 'true'
+        run: |
+          echo "Deploying frontend..."
+          sudo rm -rf /www/wwwroot/youth-kgu/*
+          sudo cp -r frontend-react/dist/. /www/wwwroot/youth-kgu/
+          sudo chown -R www:www /www/wwwroot/youth-kgu/ 2>/dev/null || true
+          echo "Frontend deployed OK"
+
+      # ── 4. Build Backend ──────────────────────────────────────────────────
+      - name: Build Backend
+        if: steps.changes.outputs.backend == 'true'
+        run: |
+          echo "::group::mvn package"
+          mvn clean package -DskipTests -q
+          echo "::endgroup::"
+
+      - name: Deploy Backend
+        if: steps.changes.outputs.backend == 'true'
+        run: |
+          echo "Deploying backend..."
+          sudo cp target/youth-kgu-0.0.1-SNAPSHOT.jar /opt/youth-kgu/backend/app.jar
+          sudo chown youthkgu:youthkgu /opt/youth-kgu/backend/app.jar
+          sudo systemctl restart youth-kgu-backend
+          echo "Waiting for backend to start..."
+          sleep 6
+          STATUS=$(sudo systemctl is-active youth-kgu-backend)
+          if [ "$STATUS" = "active" ]; then
+            echo "Backend: RUNNING ✓"
+          else
+            echo "Backend: FAILED ✗"
+            sudo journalctl -u youth-kgu-backend -n 30 --no-pager
+            exit 1
+          fi
+
+      # ── 5. Health check ───────────────────────────────────────────────────
+      - name: Health check
+        run: |
+          sleep 3
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health 2>/dev/null || echo "000")
+          echo "Backend health: $STATUS"
+          FRONTEND=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/ 2>/dev/null || echo "000")
+          echo "Frontend health: $FRONTEND"
+
+      # ── 6. Thông báo kết quả ─────────────────────────────────────────────
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Deploy Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend built**: ${{ steps.changes.outputs.frontend }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend built**: ${{ steps.changes.outputs.backend }}" >> $GITHUB_STEP_SUMMARY

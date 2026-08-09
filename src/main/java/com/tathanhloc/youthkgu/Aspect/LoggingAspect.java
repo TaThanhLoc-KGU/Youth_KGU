@@ -189,6 +189,28 @@ public class LoggingAspect {
         logDataOperation(joinPoint, "CANCEL", "hủy đăng ký");
     }
 
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.softDelete(..))")
+    public void logSoftDeleteOperations(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "DELETE", "xóa");
+    }
+
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.restore(..))")
+    public void logRestoreOperations(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "RESTORE", "khôi phục");
+    }
+
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.updateStatus(..))")
+    public void logUpdateStatusOperations(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "UPDATE_STATUS", "cập nhật trạng thái");
+    }
+
+    @AfterReturning("execution(* com.tathanhloc.youthkgu.Service.*.updateStatusBatch(..)) || "
+            + "execution(* com.tathanhloc.youthkgu.Service.*.bulkUpdateStatus(..)) || "
+            + "execution(* com.tathanhloc.youthkgu.Service.*.bulkDeactivate(..))")
+    public void logBulkUpdateOperations(JoinPoint joinPoint) {
+        logDataOperation(joinPoint, "BULK_UPDATE", "cập nhật hàng loạt");
+    }
+
     /**
      * Tạo log thao tác dữ liệu dạng: "Nguyễn Văn A đã tạo mới hoạt động [ABC123]"
      */

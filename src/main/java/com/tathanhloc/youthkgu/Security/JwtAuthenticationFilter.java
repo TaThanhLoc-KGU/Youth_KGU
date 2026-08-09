@@ -40,7 +40,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             jwt = authHeader.substring(7);
-        } else if (request.getParameter("token") != null) {
+        } else if (request.getRequestURI().endsWith("/api/notifications/stream") && request.getParameter("token") != null) {
+            // EventSource (SSE) không set được header Authorization — chỉ endpoint này mới nhận token qua query param
             jwt = request.getParameter("token");
         }
 

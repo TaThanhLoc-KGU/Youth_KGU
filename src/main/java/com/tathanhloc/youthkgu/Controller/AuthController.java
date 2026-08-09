@@ -179,6 +179,10 @@ public class AuthController {
         try {
             AuthResponse response = authService.loginWithZalo(request.getAccessToken());
             return ResponseEntity.ok(ApiResponse.success("Đăng nhập Zalo thành công", response));
+        } catch (com.tathanhloc.youthkgu.Exception.ZaloNotLinkedException e) {
+            // Chưa liên kết MSSV — trả 200 kèm errorCode riêng để FE hiển thị form nhập MSSV,
+            // không phải lỗi xác thực thật sự nên không dùng 401 (tránh bị interceptor FE xử lý như phiên hết hạn).
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage(), ZALO_NOT_LINKED_CODE));
         } catch (Exception e) {
             log.error("Zalo login failed", e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -186,9 +190,33 @@ public class AuthController {
         }
     }
 
+    private static final int ZALO_NOT_LINKED_CODE = 4041;
+
     @lombok.Data
     public static class ZaloLoginRequest {
         private String accessToken;
+    }
+
+    /**
+     * Liên kết mã số sinh viên với tài khoản Zalo hiện tại rồi đăng nhập luôn (self-service từ Mini App).
+     */
+    @PostMapping("/zalo-link")
+    @Operation(summary = "Liên kết mã số sinh viên với tài khoản Zalo rồi đăng nhập")
+    public ResponseEntity<ApiResponse<AuthResponse>> zaloLink(
+            @RequestBody ZaloLinkRequest request) {
+        try {
+            AuthResponse response = authService.linkZaloAndLogin(request.getAccessToken(), request.getMaSv());
+            return ResponseEntity.ok(ApiResponse.success("Liên kết tài khoản thành công", response));
+        } catch (Exception e) {
+            log.error("Zalo link failed", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @lombok.Data
+    public static class ZaloLinkRequest {
+        private String accessToken;
+        private String maSv;
     }
 
     /**

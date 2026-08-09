@@ -18,6 +18,7 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
     Optional<TaiKhoan> findByUsername(String username);
     Optional<TaiKhoan> findByEmail(String email);
     Optional<TaiKhoan> findBySinhVien_ZaloUserId(String zaloUserId);
+    Optional<TaiKhoan> findBySinhVien_MaSv(String maSv);
 
     // ========== Kiểm tra tồn tại ==========
     boolean existsByUsername(String username);

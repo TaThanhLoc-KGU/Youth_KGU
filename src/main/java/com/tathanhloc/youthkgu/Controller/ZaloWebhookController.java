@@ -31,6 +31,13 @@ public class ZaloWebhookController {
 
     private final ZaloService zaloService;
     private final RestTemplate restTemplate;
+    private final com.tathanhloc.youthkgu.Repository.SinhVienRepository sinhVienRepository;
+    private final com.tathanhloc.youthkgu.Service.KhoaScopeService khoaScopeService;
+
+    /** true nếu tài khoản hiện tại là Đoàn trường (không giới hạn theo khoa hay CLB nào). */
+    private boolean isDoanTruongScope() {
+        return khoaScopeService.getCurrentMaKhoa() == null && khoaScopeService.getCurrentMaClb() == null;
+    }
 
     @Value("${zalo.webhook-verify-token:youthkgu2026}")
     private String verifyToken;
@@ -306,6 +313,60 @@ public class ZaloWebhookController {
         return ResponseEntity.ok(result);
     }
 
+    // ── Gửi lại tin xác nhận "Liên kết thành công" cho TẤT CẢ SV đã liên kết Zalo — dùng khi trước
+    // đó gửi hàng loạt thất bại do access token hỏng (liên kết trong DB vẫn thành công, chỉ tin nhắn
+    // xác nhận không tới được sinh viên) ─────────────────────────────────────
+    @PostMapping("/resend-lien-ket")
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasPermission(null, 'TAO_HOAT_DONG') or hasPermission(null, 'DANG_TIN_TUC') or hasPermission(null, 'QUAN_LY_VAN_BAN')")
+    public ResponseEntity<Map<String, Object>> resendLienKet() {
+        if (!isDoanTruongScope()) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(Map.of("success", false, "error", "Chỉ Đoàn trường mới được gửi thông báo Zalo hàng loạt"));
+        }
+        List<com.tathanhloc.youthkgu.Model.SinhVien> sinhViens = sinhVienRepository.findByIsActive(true);
+        long soCoZalo = sinhViens.stream()
+                .filter(sv -> sv.getZaloUserId() != null && !sv.getZaloUserId().isBlank())
+                .count();
+        zaloService.resendLienKetConfirmation(sinhViens);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("soSinhVien", sinhViens.size());
+        result.put("soCoZalo", soCoZalo);
+        logEvent(Map.of("event_name", "RESEND_LIEN_KET", "soCoZalo", soCoZalo));
+        return ResponseEntity.ok(result);
+    }
+
+    // ── Gửi thông báo tùy chỉnh tới các SV ĐÃ LIÊN KẾT Zalo (khác broadcast() ở trên — cái đó gửi
+    // tới toàn bộ followers OA qua API broadcast của Zalo, không lọc theo dữ liệu liên kết trong hệ
+    // thống) ─────────────────────────────────────────────────────────────────
+    @PostMapping("/broadcast-linked")
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasPermission(null, 'TAO_HOAT_DONG') or hasPermission(null, 'DANG_TIN_TUC') or hasPermission(null, 'QUAN_LY_VAN_BAN')")
+    public ResponseEntity<Map<String, Object>> broadcastLinked(@RequestBody Map<String, String> body) {
+        if (!isDoanTruongScope()) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(Map.of("success", false, "error", "Chỉ Đoàn trường mới được gửi thông báo Zalo hàng loạt"));
+        }
+        String title = body.get("title");
+        String message = body.get("message");
+        if (message == null || message.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Thiếu nội dung thông báo"));
+        }
+        List<com.tathanhloc.youthkgu.Model.SinhVien> sinhViens = sinhVienRepository.findByIsActive(true);
+        long soCoZalo = sinhViens.stream()
+                .filter(sv -> sv.getZaloUserId() != null && !sv.getZaloUserId().isBlank())
+                .count();
+        zaloService.sendCustomBroadcastToLinked(sinhViens, title, message);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("soSinhVien", sinhViens.size());
+        result.put("soCoZalo", soCoZalo);
+        logEvent(Map.of("event_name", "BROADCAST_LINKED_SENT", "title", title == null ? "" : title,
+                "message", message, "soCoZalo", soCoZalo));
+        return ResponseEntity.ok(result);
+    }
+
     // ── Handlers ─────────────────────────────────────────────────────────────
 
     private void handleFollow(Map<String, Object> payload) {
@@ -313,12 +374,26 @@ public class ZaloWebhookController {
         if (zaloUserId == null) return;
         log.info("Zalo: user {} followed OA", zaloUserId);
 
-        // Gửi hướng dẫn liên kết MSSV
+        // Gửi hướng dẫn liên kết tài khoản qua chat (nhận thông báo) và qua Mini App (đăng ký hoạt
+        // động, điểm danh) — cùng dùng chung 1 zaloUserId nên làm 1 trong 2 bước là đã đủ liên kết,
+        // hướng dẫn đủ cả 2 chỉ để chắc chắn người dùng biết cả 2 cách dùng.
         zaloService.sendTextMessage(zaloUserId,
-                "👋 Xin chào! Chào mừng bạn đến với OA Đoàn Thanh niên KGU!\n\n"
-                + "Để nhận thông báo hoạt động Đoàn, bạn vui lòng nhắn MSSV của mình.\n"
-                + "Ví dụ: 21072006095\n\n"
-                + "🌐 Truy cập hệ thống: https://tuoitre.vnkgu.edu.vn/login");
+                """
+                👋 Xin chào! Chào mừng bạn đến với OA Đoàn Thanh niên KGU!
+
+                Để nhận thông báo hoạt động Đoàn, đăng ký hoạt động và điểm danh ngay trên điện thoại, hãy liên kết tài khoản theo các bước sau:
+
+                Bước 1: Nhắn mã số sinh viên (MSSV) của bạn ngay tại đây để nhận thông báo hoạt động, tin tức mới nhất qua Zalo.
+                Ví dụ: 21072006095
+
+                Bước 2: Truy cập Mini App để đăng ký hoạt động và điểm danh
+                https://zalo.me/s/1510409350081692391/
+
+                Bước 3: Trong Mini App, chọn mục "Cá nhân" → tab "Zalo" → bấm "Liên kết tài khoản"
+
+                Bước 4: Nhập mã số sinh viên → bấm "Liên kết" để đăng nhập
+
+                Làm đủ cả 2 bước (nhắn MSSV ở đây VÀ liên kết trong Mini App) để dùng được đầy đủ tính năng nhé!""");
     }
 
     private void handleUnfollow(Map<String, Object> payload) {
@@ -345,21 +420,9 @@ public class ZaloWebhookController {
         if (text.matches("\\d{8,15}")) {
             boolean linked = zaloService.linkZaloUser(zaloUserId, text);
             if (linked) {
-                replyMsg = zaloService.findByMaSv(text).map(sv -> {
-                    StringBuilder sb = new StringBuilder("✅ Liên kết thành công!\n\n");
-                    sb.append("👤 ").append(sv.getHoTen()).append("\n");
-                    sb.append("🎓 MSSV: ").append(sv.getMaSv()).append("\n");
-                    if (sv.getLop() != null) {
-                        sb.append("🏫 Lớp: ").append(sv.getLop().getTenLop()).append("\n");
-                        if (sv.getLop().getNganh() != null)
-                            sb.append("📚 Ngành: ").append(sv.getLop().getNganh().getTenNganh()).append("\n");
-                        if (sv.getLop().getMaKhoa() != null)
-                            sb.append("🏛️ Khoa: ").append(sv.getLop().getMaKhoa().getTenKhoa()).append("\n");
-                    }
-                    sb.append("\nTừ nay bạn sẽ nhận thông báo hoạt động Đoàn qua Zalo.\n");
-                    sb.append("🌐 https://tuoitre.vnkgu.edu.vn/login");
-                    return sb.toString();
-                }).orElse("✅ Liên kết MSSV " + text + " thành công!\n🌐 https://tuoitre.vnkgu.edu.vn/login");
+                replyMsg = zaloService.findByMaSv(text)
+                        .map(zaloService::buildLienKetThanhCongText)
+                        .orElse("✅ Liên kết MSSV " + text + " thành công!\n🌐 https://tuoitre.vnkgu.edu.vn/login");
             } else {
                 replyMsg = "❌ Không tìm thấy MSSV " + text + " trong hệ thống.\n\n"
                         + "Vui lòng kiểm tra lại MSSV và nhắn lại.\n"

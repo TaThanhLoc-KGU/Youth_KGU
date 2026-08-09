@@ -1,6 +1,6 @@
 import { Bell, Menu, Check, BellOff, Home, LogOut, User, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES } from '../../utils/constants';
 import notificationService from '../../services/notificationService';
@@ -24,6 +24,10 @@ const Header = ({ title, onMenuClick }) => {
 
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Ẩn thông báo khi đang ở trang điểm danh (tránh làm phân tâm khi quét QR)
+  const isAttendancePage = location.pathname.includes('/attendance') || location.pathname.includes('/scan-qr');
 
   const handleLogout = async () => {
     try {
@@ -58,6 +62,7 @@ const Header = ({ title, onMenuClick }) => {
 
   // ── Tải thông báo từ backend + thiết lập SSE ──────────────────────────────
   useEffect(() => {
+    if (isAttendancePage) return; // Không cần SSE khi đang điểm danh
     fetchNotifications();
     setupSSE();
 
@@ -224,8 +229,8 @@ const Header = ({ title, onMenuClick }) => {
             <span className="font-medium">Tin tức</span>
           </Link>
 
-          {/* Browser notification toggle (only when not granted) */}
-          {!browserNotifGranted && browserNotificationService.isSupported() && (
+          {/* Browser notification toggle (only when not granted, not on attendance page) */}
+          {!isAttendancePage && !browserNotifGranted && browserNotificationService.isSupported() && (
             <button
               onClick={handleToggleBrowserNotif}
               title="Bật thông báo hệ thống"
@@ -235,8 +240,8 @@ const Header = ({ title, onMenuClick }) => {
             </button>
           )}
 
-          {/* ── Notification bell ───────────────────────────────────── */}
-          <div className="relative" ref={dropdownRef}>
+          {/* ── Notification bell (ẩn khi đang điểm danh) ──────────── */}
+          {!isAttendancePage && <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }}
               className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -301,7 +306,7 @@ const Header = ({ title, onMenuClick }) => {
                 </div>
               </div>
             )}
-          </div>
+          </div>}
 
           {/* ── User avatar dropdown ────────────────────────────────── */}
           <div className="relative" ref={userMenuRef}>

@@ -173,6 +173,17 @@ const hoatDongService = {
     const response = await api.post(`/api/hoat-dong/${encodeURIComponent(maHoatDong)}/gui-tat-ca`);
     return response.data;
   },
+
+  // Công khai / Ẩn hoạt động khỏi danh sách công khai
+  congKhai: async (maHoatDong) => {
+    const response = await api.post('/api/hoat-dong/cong-khai', null, { params: { ma: maHoatDong } });
+    return response.data;
+  },
+
+  an: async (maHoatDong) => {
+    const response = await api.post('/api/hoat-dong/an', null, { params: { ma: maHoatDong } });
+    return response.data;
+  },
 };
 
 export default hoatDongService;

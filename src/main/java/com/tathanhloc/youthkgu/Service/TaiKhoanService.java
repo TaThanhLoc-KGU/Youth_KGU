@@ -3,13 +3,17 @@ package com.tathanhloc.youthkgu.Service;
 import com.tathanhloc.youthkgu.DTO.TaiKhoanDTO;
 import com.tathanhloc.youthkgu.Model.GiangVien;
 import com.tathanhloc.youthkgu.Model.SinhVien;
+import com.tathanhloc.youthkgu.Model.SystemLog;
 import com.tathanhloc.youthkgu.Model.TaiKhoan;
 import com.tathanhloc.youthkgu.Repository.GiangVienRepository;
 import com.tathanhloc.youthkgu.Repository.SinhVienRepository;
 import com.tathanhloc.youthkgu.Repository.TaiKhoanRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +30,8 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
     private final GiangVienRepository giangVienRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
+    private final SystemLogService systemLogService;
+    private final HttpServletRequest request;
 
     @Override
     protected JpaRepository<TaiKhoan, Long> getRepository() {
@@ -85,6 +91,8 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
         TaiKhoan existing = taiKhoanRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
 
+        String oldVaiTro = existing.getVaiTro() != null ? existing.getVaiTro().name() : null;
+
         existing.setUsername(dto.getUsername());
         if (dto.getPasswordHash() != null && !dto.getPasswordHash().equals(existing.getPasswordHash())) {
             existing.setPasswordHash(passwordEncoder.encode(dto.getPasswordHash()));
@@ -107,7 +115,19 @@ public class TaiKhoanService extends BaseService<TaiKhoan, Long, TaiKhoanDTO> {
             existing.setGiangVien(null);
         }
 
-        return toDTO(taiKhoanRepository.save(existing));
+        TaiKhoan saved = taiKhoanRepository.save(existing);
+
+        String newVaiTro = saved.getVaiTro() != null ? saved.getVaiTro().name() : null;
+        if (oldVaiTro != null && !oldVaiTro.equals(newVaiTro)) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String actor = (auth != null && auth.isAuthenticated()) ? auth.getName() : null;
+            systemLogService.log("TAI_KHOAN", "CHANGE_ROLE", actor, actor,
+                    "TaiKhoan", String.valueOf(saved.getId()),
+                    "Đổi vai trò tài khoản " + saved.getUsername() + ": " + oldVaiTro + " → " + newVaiTro,
+                    SystemLog.LogLevel.WARN, "SUCCESS", oldVaiTro, newVaiTro, request);
+        }
+
+        return toDTO(saved);
     }
 
     public TaiKhoanDTO updateStatus(Long id, boolean isActive) {

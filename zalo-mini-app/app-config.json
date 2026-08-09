@@ -1,0 +1,27 @@
+{
+  "app": {
+    "title": "Youth KGU",
+    "statusBar": {
+      "color": "#1e40af",
+      "type": "dark"
+    },
+    "headerTextColor": "white",
+    "headerBackgroundColor": "#1e40af",
+    "backgroundColor": "#f5f5f5",
+    "backgroundImage": ""
+  },
+  "domains": [
+    "tuoitre.vnkgu.edu.vn",
+    "h5.zadn.vn",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com"
+  ],
+  "listCSS": [
+    "assets/index-B1m7iHyZ.css"
+  ],
+  "listSyncJS": [
+    "assets/index.DUF5z5NJ.module.js"
+  ],
+  "listAsyncJS": [],
+  "pages": []
+}

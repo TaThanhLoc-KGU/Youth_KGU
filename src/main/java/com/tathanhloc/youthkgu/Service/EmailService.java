@@ -30,6 +30,7 @@ public class EmailService {
     private final JavaMailSender              mailSender;
     private final CauHinhEmailService         cauHinhEmailService;
     private final DiemRenLuyenCriteriaService criteriaService;
+    private final ZaloService                 zaloService;
 
     @Value("${app.name:Hệ thống Quản lý Hoạt động Đoàn - Hội}")
     private String appName;
@@ -522,11 +523,11 @@ public class EmailService {
 
               <!-- CTA -->
               <div style="background:#fff;padding:4px 28px 28px;text-align:center;">
-                <a href="https://tuoitre.vnkgu.edu.vn/login"
+                <a href="%s"
                    style="display:inline-block;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-weight:700;font-size:15px;padding:14px 36px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 12px rgba(37,99,235,0.35);">
-                  🚀 Đăng ký tham gia ngay
+                  🚀 Mở Zalo Mini App để đăng ký ngay
                 </a>
-                <p style="margin:12px 0 0;font-size:12px;color:#9ca3af;">Truy cập: tuoitre.vnkgu.edu.vn/login</p>
+                <p style="margin:12px 0 0;font-size:12px;color:#9ca3af;">Hoặc truy cập: tuoitre.vnkgu.edu.vn/login</p>
               </div>
 
               <!-- Footer -->
@@ -537,26 +538,23 @@ public class EmailService {
 
             </div>
             </body></html>
-            """.formatted(hoTen, hd.getTenHoatDong(), ngay, ngayKetThuc, gio, diaDiem, diemRLBlock, soLuong, moTa);
+            """.formatted(hoTen, hd.getTenHoatDong(), ngay, ngayKetThuc, gio, diaDiem, diemRLBlock, soLuong, moTa,
+                zaloService.miniAppLink("activities/" + hd.getMaHoatDong()));
     }
 
     /**
      * Gửi email thông báo hoạt động mới đến danh sách sinh viên (async, không block thread tạo HĐ).
-     * Trong môi trường test, chỉ gửi đến TEST_EMAIL.
      */
-    private static final String TEST_EMAIL = "thanhlocta2408@gmail.com";
-
     @Async
     public void sendBulkHoatDongNotification(List<SinhVien> sinhViens, HoatDong hoatDong) {
         if (sinhViens == null || sinhViens.isEmpty()) return;
         int sent = 0;
         for (SinhVien sv : sinhViens) {
-            String target = TEST_EMAIL; // TODO: đổi thành sv.getEmail() khi deploy thật
-            if (sv.getEmail() == null || sv.getEmail().isBlank()) continue;
+            String target = sv.getEmail();
+            if (target == null || target.isBlank()) continue;
             try {
                 sendHoatDongNotification(target, sv.getHoTen(), hoatDong);
                 sent++;
-                if (sent >= 1) break; // TODO: bỏ break này khi deploy thật
             } catch (Exception e) {
                 log.warn("Không gửi được email HĐ cho {}: {}", target, e.getMessage());
             }

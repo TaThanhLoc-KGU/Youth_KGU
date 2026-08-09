@@ -52,6 +52,22 @@ public enum VaiTroEnum {
         return this == QUAN_LY_CHI_DOAN || this == PHO_CHI_DOAN;
     }
 
+    /** Thứ hạng trong hierarchy — số càng nhỏ càng nhiều quyền. Dùng để kiểm soát ai được gán role nào. */
+    public int rank() {
+        return switch (this) {
+            case ADMIN -> 0;
+            case QUAN_LY_KHOA, PHO_QUAN_LY_KHOA -> 1;
+            case QUAN_LY_CHI_DOAN, PHO_CHI_DOAN -> 2;
+            case DOAN_VIEN, DIEM_DANH_VIEN, QUAN_LY_CLB -> 3;
+        };
+    }
+
+    /** Kiểm tra role này có được phép gán/sửa một tài khoản sang role {@code target} không. */
+    public boolean canAssign(VaiTroEnum target) {
+        if (this == ADMIN) return true;
+        return this.rank() < target.rank();
+    }
+
     @JsonCreator
     public static VaiTroEnum fromValue(String value) {
         if (value == null) return DOAN_VIEN;

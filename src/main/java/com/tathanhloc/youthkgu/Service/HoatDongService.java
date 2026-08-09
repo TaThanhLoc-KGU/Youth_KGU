@@ -51,6 +51,7 @@ public class HoatDongService {
     private final ZaloService zaloService;
     private final FileStorageService fileStorageService;
     private final TinTucService tinTucService;
+    private final TinTucRepository tinTucRepository;
 
     /**
      * Chuyên mục dùng cho tin tức tự động tạo khi tạo hoạt động mới.
@@ -105,10 +106,11 @@ public class HoatDongService {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
         
-        // Kiểm tra quyền truy cập (nếu là cán bộ khoa)
+        // Kiểm tra quyền truy cập (nếu là cán bộ khoa) — hoạt động cấp trường (khoa=null) luôn xem được,
+        // giống quy ước ở getAll()/getAllWithPagination(); chỉ chặn khi khoa khác với scope của người xem.
         String maKhoa = khoaScopeService.getCurrentMaKhoa();
         if (maKhoa != null) {
-            if (hoatDong.getKhoa() == null || !hoatDong.getKhoa().getMaKhoa().equals(maKhoa)) {
+            if (hoatDong.getKhoa() != null && !hoatDong.getKhoa().getMaKhoa().equals(maKhoa)) {
                 throw new RuntimeException("Bạn không có quyền xem hoạt động này");
             }
         }
@@ -157,32 +159,70 @@ public class HoatDongService {
             }
         }
         
+        // Mọi hoạt động mới tạo đều bắt đầu Ở TRẠNG THÁI ẨN (chưa công khai) — kể cả khi tạo trực tiếp
+        // bởi Đoàn trường (không qua CHO_DUYET). Tin tức, thông báo và hiển thị công khai cho sinh viên
+        // chỉ phát sinh khi hoạt động được "Công khai" — qua duyệt (CLB/Khoa) hoặc bấm nút Công khai
+        // (Đoàn trường tạo trực tiếp). Xem publishActivity().
         hoatDong.setIsActive(true);
+        hoatDong.setCongKhai(false);
         hoatDong = hoatDongRepository.save(hoatDong);
 
-        // Tự động tạo + đăng 1 bài tin tức giới thiệu hoạt động, kèm link đăng ký (mini app + web).
-        // Bọc try/catch để lỗi tạo tin tức không làm hỏng việc tạo hoạt động (thao tác chính).
-        try {
-            autoCreateNewsForActivity(hoatDong);
-        } catch (Exception e) {
-            log.warn("Không thể tự tạo tin tức cho hoạt động {}: {}", hoatDong.getMaHoatDong(), e.getMessage());
-        }
-
-        if (hoatDong.getTrangThai() == TrangThaiHoatDongEnum.DANG_MO_DANG_KY) {
-            notificationService.sendNotificationToAllStudents(
-                    "Hoạt động mới mở đăng ký",
-                    "Hoạt động \"" + hoatDong.getTenHoatDong() + "\" đã mở cổng đăng ký. Hãy tham gia ngay!",
-                    "NEW_ACTIVITY",
-                    hoatDong.getMaHoatDong()
-            );
-            // Gửi email bất đồng bộ đến tất cả sinh viên đang hoạt động
-            emailService.sendBulkHoatDongNotification(
-                    sinhVienRepository.findByIsActive(true),
-                    hoatDong
-            );
-        }
-
         log.info("Activity created successfully: {}", hoatDong.getMaHoatDong());
+        return toDTO(hoatDong);
+    }
+
+    /**
+     * Công khai hoạt động: hiển thị cho sinh viên xem/đăng ký, tự tạo + đăng 1 bài tin tức giới thiệu
+     * (nếu chưa có), và gửi thông báo (push + email) đến toàn bộ sinh viên. Idempotent theo cờ congKhai
+     * — gọi lại khi đã công khai rồi sẽ không tạo trùng tin tức / gửi lại thông báo.
+     */
+    private void publishActivity(HoatDong hoatDong) {
+        boolean firstTimePublic = !Boolean.TRUE.equals(hoatDong.getCongKhai());
+        hoatDong.setCongKhai(true);
+        if (!firstTimePublic) return;
+
+        // Tự động tạo + đăng 1 bài tin tức giới thiệu hoạt động, kèm link đăng ký (mini app + web).
+        // Bọc try/catch để lỗi tạo tin tức không làm hỏng việc công khai hoạt động (thao tác chính).
+        if (!tinTucRepository.existsByHoatDongIdAndIsDeletedFalse(hoatDong.getMaHoatDong())) {
+            try {
+                autoCreateNewsForActivity(hoatDong);
+            } catch (Exception e) {
+                log.warn("Không thể tự tạo tin tức cho hoạt động {}: {}", hoatDong.getMaHoatDong(), e.getMessage());
+            }
+        }
+
+        notificationService.sendNotificationToAllStudents(
+                "Hoạt động mới",
+                "Hoạt động \"" + hoatDong.getTenHoatDong() + "\" đã công khai. Hãy xem và tham gia ngay!",
+                "NEW_ACTIVITY",
+                hoatDong.getMaHoatDong()
+        );
+        // Gửi email bất đồng bộ đến tất cả sinh viên đang hoạt động
+        emailService.sendBulkHoatDongNotification(
+                sinhVienRepository.findByIsActive(true),
+                hoatDong
+        );
+    }
+
+    /** Công khai hoạt động — hiển thị cho SV + tự tạo tin tức + gửi thông báo (xem publishActivity). */
+    @Transactional
+    public HoatDongDTO congKhaiHoatDong(String maHoatDong) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        publishActivity(hoatDong);
+        hoatDong = hoatDongRepository.save(hoatDong);
+        log.info("Activity công khai: {}", maHoatDong);
+        return toDTO(hoatDong);
+    }
+
+    /** Ẩn hoạt động khỏi danh sách công khai (không xóa tin tức đã đăng, không thu hồi thông báo đã gửi). */
+    @Transactional
+    public HoatDongDTO anHoatDong(String maHoatDong) {
+        HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        hoatDong.setCongKhai(false);
+        hoatDong = hoatDongRepository.save(hoatDong);
+        log.info("Activity đã ẩn: {}", maHoatDong);
         return toDTO(hoatDong);
     }
 
@@ -325,6 +365,9 @@ public class HoatDongService {
         hoatDong.setNguoiDuyet(nguoiDuyet);
         hoatDong.setNgayDuyet(LocalDateTime.now());
         hoatDong.setLyDoTuChoi(null);
+        // Đoàn trường duyệt = công khai luôn: hiện cho SV xem/đăng ký + tự tạo tin tức + gửi thông báo.
+        // Không cần bấm thêm nút "Công khai" sau khi duyệt.
+        publishActivity(hoatDong);
         hoatDong = hoatDongRepository.save(hoatDong);
 
         log.info("Activity approved: {} → {} by {}", maHoatDong, trangThaiMoi, nguoiDuyet);
@@ -966,6 +1009,7 @@ public class HoatDongService {
                 .quyetDinhUrl(entity.getQuyetDinhUrl())
                 .quyetDinhTen(entity.getQuyetDinhTen())
                 .isActive(entity.getIsActive())
+                .congKhai(entity.getCongKhai())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .nguoiDuyet(entity.getNguoiDuyet())

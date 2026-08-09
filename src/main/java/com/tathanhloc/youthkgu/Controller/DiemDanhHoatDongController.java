@@ -288,7 +288,7 @@ public class DiemDanhHoatDongController {
 
     @PostMapping("/khong-dang-ky/{maHoatDong}/them-thu-cong")
     @Operation(summary = "Thêm sinh viên thủ công vào hoạt động không đăng ký")
-    @PreAuthorize("hasPermission(null, 'DIEM_DANH') or hasPermission(null, 'QUAN_LY_HOAT_DONG')")
+    @PreAuthorize("hasPermission(null, 'DIEM_DANH') or hasPermission(null, 'QUAN_LY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> themThuCong(
             @PathVariable String maHoatDong,
             @RequestBody List<String> maSvList) throws IOException {
@@ -299,7 +299,7 @@ public class DiemDanhHoatDongController {
 
     @PostMapping(value = "/khong-dang-ky/{maHoatDong}/import-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Import danh sách sinh viên từ Excel (hoạt động không đăng ký)")
-    @PreAuthorize("hasPermission(null, 'DIEM_DANH') or hasPermission(null, 'QUAN_LY_HOAT_DONG')")
+    @PreAuthorize("hasPermission(null, 'DIEM_DANH') or hasPermission(null, 'QUAN_LY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> importExcel(
             @PathVariable String maHoatDong,
             @RequestParam("file") MultipartFile file) throws IOException {
@@ -310,7 +310,7 @@ public class DiemDanhHoatDongController {
 
     @DeleteMapping("/khong-dang-ky/{maHoatDong}/xoa/{maSv}")
     @Operation(summary = "Xóa sinh viên khỏi danh sách tham gia (hoạt động không đăng ký)")
-    @PreAuthorize("hasPermission(null, 'DIEM_DANH') or hasPermission(null, 'QUAN_LY_HOAT_DONG')")
+    @PreAuthorize("hasPermission(null, 'DIEM_DANH') or hasPermission(null, 'QUAN_LY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<Void>> xoaKhoiDanhSach(
             @PathVariable String maHoatDong,
             @PathVariable String maSv) {

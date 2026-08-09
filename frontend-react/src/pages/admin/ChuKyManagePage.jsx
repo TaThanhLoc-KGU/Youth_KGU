@@ -1,10 +1,13 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Upload, Trash2, Star, PenLine } from 'lucide-react';
+import { Upload, Trash2, Star, PenLine, Wand2 } from 'lucide-react';
 import kySoService from '../../services/kySoService';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import { removeSignatureBackground } from '../../utils/removeSignatureBackground';
+
+const CHECKER_BG = "bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22%3E%3Crect width=%228%22 height=%228%22 fill=%22%23e5e7eb%22/%3E%3Crect x=%228%22 y=%228%22 width=%228%22 height=%228%22 fill=%22%23e5e7eb%22/%3E%3C/svg%3E')]";
 
 export default function ChuKyManagePage() {
   const qc = useQueryClient();
@@ -14,10 +17,13 @@ export default function ChuKyManagePage() {
     tenNguoiKy: '',
     chucVu: '',
     laMacDinh: false,
+    originalFile: null,
     file: null,
     preview: null,
+    autoRemoveBg: true,
   });
   const [uploading, setUploading] = useState(false);
+  const [processingBg, setProcessingBg] = useState(false);
 
   const { data: list = [], isLoading } = useQuery({
     queryKey: ['chu-ky'],
@@ -33,12 +39,29 @@ export default function ChuKyManagePage() {
     onError: () => toast.error('Xóa thất bại'),
   });
 
+  const previewFile = (file) => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => resolve(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+
+  const applyFile = async (originalFile, autoRemoveBg) => {
+    setProcessingBg(autoRemoveBg);
+    const finalFile = autoRemoveBg ? await removeSignatureBackground(originalFile) : originalFile;
+    const preview = await previewFile(finalFile);
+    setForm((f) => ({ ...f, originalFile, file: finalFile, preview }));
+    setProcessingBg(false);
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setForm((f) => ({ ...f, file, preview: ev.target.result }));
-    reader.readAsDataURL(file);
+    applyFile(file, form.autoRemoveBg);
+  };
+
+  const handleToggleAutoRemoveBg = (checked) => {
+    setForm((f) => ({ ...f, autoRemoveBg: checked }));
+    if (form.originalFile) applyFile(form.originalFile, checked);
   };
 
   const handleUpload = async () => {
@@ -49,7 +72,7 @@ export default function ChuKyManagePage() {
       await kySoService.uploadChuKy(form.file, form.tenNguoiKy, form.chucVu, form.laMacDinh);
       toast.success('Tải chữ ký thành công');
       qc.invalidateQueries({ queryKey: ['chu-ky'] });
-      setForm({ tenNguoiKy: '', chucVu: '', laMacDinh: false, file: null, preview: null });
+      setForm({ tenNguoiKy: '', chucVu: '', laMacDinh: false, originalFile: null, file: null, preview: null, autoRemoveBg: true });
       if (fileRef.current) fileRef.current.value = '';
     } catch {
       toast.error('Tải chữ ký thất bại');
@@ -66,7 +89,7 @@ export default function ChuKyManagePage() {
           Quản lý Chữ ký
         </h1>
         <p className="text-gray-500 text-sm mt-1">
-          Upload ảnh chữ ký (PNG nền trong suốt) để sử dụng khi xuất danh sách PDF.
+          Upload ảnh chữ ký để sử dụng khi xuất danh sách PDF — nền giấy sẽ được tự động xóa, chỉ giữ lại nét ký.
         </p>
       </div>
 
@@ -80,16 +103,18 @@ export default function ChuKyManagePage() {
               File ảnh chữ ký <span className="text-red-500">*</span>
             </label>
             <div
-              className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition-colors min-h-[120px] flex flex-col items-center justify-center"
+              className={`border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition-colors min-h-[120px] flex flex-col items-center justify-center ${form.preview ? CHECKER_BG : ''}`}
               onClick={() => fileRef.current?.click()}
             >
-              {form.preview ? (
+              {processingBg ? (
+                <span className="text-sm text-gray-500">Đang xóa nền...</span>
+              ) : form.preview ? (
                 <img src={form.preview} alt="preview" className="max-h-24 object-contain" />
               ) : (
                 <>
                   <Upload className="w-8 h-8 text-gray-400 mb-2" />
                   <span className="text-sm text-gray-500">Click để chọn ảnh PNG/JPG</span>
-                  <span className="text-xs text-gray-400 mt-1">Khuyến nghị: PNG nền trong suốt</span>
+                  <span className="text-xs text-gray-400 mt-1">Nền sẽ được tự động xóa</span>
                 </>
               )}
             </div>
@@ -100,6 +125,17 @@ export default function ChuKyManagePage() {
               className="hidden"
               onChange={handleFileChange}
             />
+            <label className="flex items-center gap-2 cursor-pointer mt-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-primary checkbox-sm"
+                checked={form.autoRemoveBg}
+                onChange={(e) => handleToggleAutoRemoveBg(e.target.checked)}
+              />
+              <span className="text-sm text-gray-700 flex items-center gap-1">
+                <Wand2 className="w-3.5 h-3.5 text-gray-400" /> Tự động xóa nền
+              </span>
+            </label>
           </div>
 
           {/* Thông tin */}

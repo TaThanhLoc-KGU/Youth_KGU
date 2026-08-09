@@ -169,6 +169,89 @@ public class ZaloService {
         log.info("Zalo: HĐ '{}' — gửi OK: {}, lỗi: {}", hd.getTenHoatDong(), sent, failed);
     }
 
+    /**
+     * Nội dung xác nhận "Liên kết thành công" — dùng chung cho reply webhook (lúc SV nhắn MSSV) và
+     * tính năng gửi lại hàng loạt bên dưới, để 2 nơi luôn hiển thị cùng 1 nội dung.
+     */
+    public String buildLienKetThanhCongText(SinhVien sv) {
+        StringBuilder sb = new StringBuilder("✅ Liên kết thành công!\n\n");
+        sb.append("👤 ").append(sv.getHoTen()).append("\n");
+        sb.append("🎓 MSSV: ").append(sv.getMaSv()).append("\n");
+        if (sv.getLop() != null) {
+            sb.append("🏫 Lớp: ").append(sv.getLop().getTenLop()).append("\n");
+            if (sv.getLop().getNganh() != null)
+                sb.append("📚 Ngành: ").append(sv.getLop().getNganh().getTenNganh()).append("\n");
+            if (sv.getLop().getMaKhoa() != null)
+                sb.append("🏛️ Khoa: ").append(sv.getLop().getMaKhoa().getTenKhoa()).append("\n");
+        }
+        sb.append("\nTừ nay bạn sẽ nhận thông báo hoạt động Đoàn qua Zalo.\n");
+        sb.append("🌐 https://tuoitre.vnkgu.edu.vn/login");
+        return sb.toString();
+    }
+
+    /**
+     * Gửi lại thông báo "Liên kết thành công" cho TẤT CẢ sinh viên đã liên kết Zalo trong danh sách
+     * truyền vào — dùng khi trước đó gửi hàng loạt thất bại do access token hỏng (liên kết trong DB
+     * vẫn thành công, chỉ có tin nhắn xác nhận không tới được).
+     */
+    @Async
+    public void resendLienKetConfirmation(List<SinhVien> sinhViens) {
+        List<SinhVien> coZalo = sinhViens.stream()
+                .filter(sv -> sv.getZaloUserId() != null && !sv.getZaloUserId().isBlank())
+                .toList();
+
+        if (coZalo.isEmpty()) {
+            log.info("Zalo: không có sinh viên nào đã liên kết Zalo để gửi lại xác nhận");
+            return;
+        }
+
+        log.info("Zalo: bắt đầu gửi lại xác nhận liên kết cho {} SV", coZalo.size());
+        int sent = 0, failed = 0;
+        for (SinhVien sv : coZalo) {
+            try {
+                if (sendTextMessage(sv.getZaloUserId(), buildLienKetThanhCongText(sv))) sent++;
+                else failed++;
+                Thread.sleep(100); // tránh rate limit
+            } catch (Exception e) {
+                log.warn("Zalo resend xác nhận: lỗi gửi cho {} - {}", sv.getMaSv(), e.getMessage());
+                failed++;
+            }
+        }
+        log.info("Zalo: gửi lại xác nhận liên kết — OK: {}, lỗi: {}", sent, failed);
+    }
+
+    /**
+     * Gửi 1 thông báo tùy chỉnh (không gắn với hoạt động cụ thể) đến tất cả sinh viên ĐÃ LIÊN KẾT
+     * Zalo trong danh sách truyền vào — khác với sendBroadcastMessage() (gửi tới toàn bộ followers OA
+     * qua API broadcast của Zalo, không lọc theo dữ liệu liên kết maSv ↔ zaloUserId trong hệ thống).
+     */
+    @Async
+    public void sendCustomBroadcastToLinked(List<SinhVien> sinhViens, String title, String message) {
+        List<SinhVien> coZalo = sinhViens.stream()
+                .filter(sv -> sv.getZaloUserId() != null && !sv.getZaloUserId().isBlank())
+                .toList();
+
+        if (coZalo.isEmpty()) {
+            log.info("Zalo: không có sinh viên nào đã liên kết Zalo để gửi thông báo tùy chỉnh");
+            return;
+        }
+
+        String text = (title != null && !title.isBlank() ? title + "\n\n" : "") + message;
+        log.info("Zalo: bắt đầu gửi thông báo tùy chỉnh cho {} SV đã liên kết", coZalo.size());
+        int sent = 0, failed = 0;
+        for (SinhVien sv : coZalo) {
+            try {
+                if (sendTextMessage(sv.getZaloUserId(), text)) sent++;
+                else failed++;
+                Thread.sleep(100); // tránh rate limit
+            } catch (Exception e) {
+                log.warn("Zalo custom broadcast: lỗi gửi cho {} - {}", sv.getMaSv(), e.getMessage());
+                failed++;
+            }
+        }
+        log.info("Zalo: thông báo tùy chỉnh — gửi OK: {}, lỗi: {}", sent, failed);
+    }
+
     // ── Gửi broadcast tới TẤT CẢ followers của OA ──────────────────────────
     public Map<String, Object> sendBroadcastMessage(String text) {
         try {
@@ -362,15 +445,24 @@ public class ZaloService {
                     + "&refresh_token=" + currentRefreshToken.get()
                     + "&grant_type=refresh_token";
 
-            ResponseEntity<Map> resp = restTemplate.exchange(
+            // Nhận về String thay vì Map — Zalo trả Content-Type "text/json;charset=utf-8" (không chuẩn
+            // "application/json"), khiến Spring's MappingJackson2HttpMessageConverter từ chối deserialize
+            // thẳng thành Map (ném "no suitable HttpMessageConverter found"). Tự parse bằng Jackson để
+            // tránh phụ thuộc vào việc khớp Content-Type.
+            ResponseEntity<String> resp = restTemplate.exchange(
                     "https://oauth.zaloapp.com/v4/oa/access_token",
                     HttpMethod.POST,
                     new HttpEntity<>(body, headers),
-                    Map.class);
+                    String.class);
 
-            if (resp.getBody() != null && resp.getBody().containsKey("access_token")) {
-                currentAccessToken.set((String) resp.getBody().get("access_token"));
-                currentRefreshToken.set((String) resp.getBody().get("refresh_token"));
+            Map<String, Object> parsed = resp.getBody() != null
+                    ? new com.fasterxml.jackson.databind.ObjectMapper().readValue(
+                            resp.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {})
+                    : null;
+
+            if (parsed != null && parsed.containsKey("access_token")) {
+                currentAccessToken.set((String) parsed.get("access_token"));
+                currentRefreshToken.set((String) parsed.get("refresh_token"));
                 tokenExpiresAt = Instant.now().plusSeconds(90000);
                 log.info("Zalo: token refreshed successfully, expires at {}", tokenExpiresAt);
             } else {
@@ -381,7 +473,25 @@ public class ZaloService {
         }
     }
 
+    /**
+     * Mã lỗi Zalo OA API báo access_token không hợp lệ/hết hạn. Bộ đếm tokenExpiresAt trong bộ nhớ
+     * chỉ là ước lượng lạc quan (đặt lại mỗi lần app khởi động, dựa trên config tĩnh) — không phản ánh
+     * đúng thời điểm token thực sự hết hạn bên phía Zalo, nên vẫn cần dựa vào chính response của Zalo
+     * để biết khi nào phải refresh thật sự, thay vì chỉ tin vào đồng hồ đếm giờ.
+     */
+    private static final Set<Integer> TOKEN_INVALID_ERROR_CODES = Set.of(-216, -124);
+
     private ResponseEntity<Map> post(String path, Object body) {
+        ResponseEntity<Map> resp = doPost(path, body);
+        if (isInvalidTokenError(resp)) {
+            log.warn("Zalo: access token bị từ chối ({}) — buộc refresh và thử lại 1 lần", resp.getBody());
+            refreshAccessToken();
+            resp = doPost(path, body);
+        }
+        return resp;
+    }
+
+    private ResponseEntity<Map> doPost(String path, Object body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("access_token", getAccessToken());
@@ -391,5 +501,11 @@ public class ZaloService {
                 new HttpEntity<>(body, headers),
                 Map.class
         );
+    }
+
+    private boolean isInvalidTokenError(ResponseEntity<Map> resp) {
+        if (resp.getBody() == null) return false;
+        Object err = resp.getBody().get("error");
+        return err instanceof Integer && TOKEN_INVALID_ERROR_CODES.contains(err);
     }
 }

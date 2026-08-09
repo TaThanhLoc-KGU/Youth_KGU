@@ -6,7 +6,7 @@ import {
   Newspaper, FileText, FolderOpen, LayoutGrid, LayoutTemplate,
   SlidersHorizontal, Megaphone, RectangleHorizontal, Download, User, X,
   PenLine, Stamp, History, Mail, FileCheck, GraduationCap, Trophy, Home,
-  ShieldCheck, Shield, Key,
+  ShieldCheck, Shield, Key, MessageCircle,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS, MANAGER_ROLES } from '../../utils/constants';
@@ -55,6 +55,7 @@ const ADMIN_GROUPS = [
       { icon: ClipboardCheck, label: 'Báo cáo điểm danh', path: ROUTES.ADMIN_ATTENDANCE,  permission: PERMISSIONS.MANAGE_DIEM_DANH },
       { icon: Award,          label: 'Cuộc thi & Bình chọn', path: '/admin/cuoc-thi',         permission: PERMISSIONS.QUAN_LY_CUOC_THI },
       { icon: Award,          label: 'Chứng nhận',           path: ROUTES.ADMIN_CERTIFICATES, permission: PERMISSIONS.QUAN_LY_DANG_KY  },
+      { icon: BarChart3,      label: 'Điểm rèn luyện',       path: ROUTES.ADMIN_DIEM_REN_LUYEN, permission: PERMISSIONS.XEM_THONG_KE   },
     ],
   },
   {
@@ -97,6 +98,7 @@ const ADMIN_GROUPS = [
       { icon: Stamp,               label: 'Con dấu',          path: ROUTES.ADMIN_CON_DAU,             permission: PERMISSIONS.CAI_DAT_HE_THONG, hideForKhoa: true },
       { icon: History,             label: 'Lịch sử ký số',    path: ROUTES.ADMIN_KY_SO_LICH_SU,       permission: PERMISSIONS.CAI_DAT_HE_THONG, hideForKhoa: true },
       { icon: Mail,                label: 'Cấu hình Email',   path: ROUTES.ADMIN_EMAIL_CONFIG,         permission: PERMISSIONS.CAI_DAT_HE_THONG, hideForKhoa: true },
+      { icon: MessageCircle,       label: 'Zalo OA',          path: '/admin/zalo-debug',               permission: PERMISSIONS.CAI_DAT_HE_THONG, hideForKhoa: true },
       { icon: FolderOpen,          label: 'Văn phòng điện tử', path: '/admin/van-phong',                permission: null },
     ],
   },

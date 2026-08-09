@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useEffect, Suspense } from 'react';
-import { ShieldOff } from 'lucide-react';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import PermissionGate from './components/common/PermissionGate';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -93,11 +92,13 @@ import DanhSachBanHanhListPage from './pages/news/DanhSachBanHanhListPage';
 import AdminBanHanhPage     from './pages/admin/AdminBanHanhPage';
 import VanPhongPage         from './pages/admin/VanPhongPage';
 import NamHocPage           from './pages/admin/NamHocPage';
+import DiemRenLuyenManagePage from './pages/admin/DiemRenLuyenManagePage';
 import CauLacBoPage        from './pages/admin/CauLacBoPage';
 import ClbPortalPage       from './pages/clb/ClbPortalPage';
 import ClbRegistrationPage from './pages/student/ClbRegistrationPage';
 import SelfAttendanceScanner from './components/student/SelfAttendanceScanner';
 import ChungNhanPage       from './pages/admin/ChungNhanPage';
+import ChungNhanTemplateManagePage from './pages/admin/ChungNhanTemplateManagePage';
 import StudentCertificatesPage from './pages/student/StudentCertificatesPage';
 
 import useAuthStore from './stores/authStore';
@@ -110,21 +111,6 @@ function SessionManager() {
   useSessionTimeout();
   return null;
 }
-
-// Hiển thị inline khi người dùng gõ URL trực tiếp nhưng không có quyền
-// Render TRONG layout (sidebar vẫn hiển thị) thay vì redirect 403 toàn trang
-const NoPermissionMessage = ({ feature }) => (
-  <div className="flex flex-col items-center justify-center h-96 text-center px-4">
-    <ShieldOff className="w-16 h-16 text-gray-300 mb-4" />
-    <h2 className="text-xl font-semibold text-gray-700 mb-2">Không có quyền truy cập</h2>
-    <p className="text-gray-500 max-w-sm">
-      Bạn không có quyền truy cập {feature ? `chức năng "${feature}"` : 'chức năng này'}.
-    </p>
-    <p className="text-sm text-gray-400 mt-1">
-      Vui lòng liên hệ quản trị viên để được cấp quyền.
-    </p>
-  </div>
-);
 
 const ComingSoon = ({ title }) => (
   <div className="flex items-center justify-center h-96">
@@ -346,6 +332,11 @@ function App() {
               <NamHocPage />
             </PermissionGate>
           } />
+          <Route path="diem-ren-luyen" element={
+            <PermissionGate permission={PERMISSIONS.XEM_THONG_KE}>
+              <DiemRenLuyenManagePage />
+            </PermissionGate>
+          } />
           <Route path="cau-lac-bo" element={
             <PermissionGate permission={PERMISSIONS.QUAN_LY_CLB}>
               <CauLacBoPage />
@@ -364,6 +355,11 @@ function App() {
           <Route path="certificates" element={
             <PermissionGate permission={PERMISSIONS.XEM_DIEM_DANH}>
               <ChungNhanPage />
+            </PermissionGate>
+          } />
+          <Route path="certificates/templates" element={
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_DANG_KY}>
+              <ChungNhanTemplateManagePage />
             </PermissionGate>
           } />
           <Route path="accounts" element={

@@ -87,6 +87,7 @@ public class HoatDongDTO {
     private String quyetDinhUrl;
     private String quyetDinhTen;
     private Boolean isActive;
+    private Boolean congKhai;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

@@ -41,6 +41,7 @@ public class AuthService {
     private final MailService mailService;
     private final SystemLogService systemLogService;
     private final HttpServletRequest request;
+    private final ZaloService zaloService;
 
     /** Mật khẩu mặc định cấp cho tài khoản mới tạo. */
     private static final String DEFAULT_PASSWORD = "KGU@123456";
@@ -257,8 +258,8 @@ public class AuthService {
 
         // 2. Tìm tài khoản linked với zalo_user_id
         TaiKhoan taiKhoan = taiKhoanRepository.findBySinhVien_ZaloUserId(zaloUserId)
-                .orElseThrow(() -> new RuntimeException(
-                        "Tài khoản Zalo chưa được liên kết. Vui lòng liên hệ quản trị viên hoặc đăng nhập web để liên kết."));
+                .orElseThrow(() -> new com.tathanhloc.youthkgu.Exception.ZaloNotLinkedException(
+                        "Tài khoản Zalo này chưa được liên kết với mã số sinh viên nào"));
 
         if (!Boolean.TRUE.equals(taiKhoan.getIsActive())) {
             throw new RuntimeException("Tài khoản đã bị khóa");
@@ -271,6 +272,56 @@ public class AuthService {
         String refreshToken = jwtService.generateRefreshToken(userDetails);
 
         // 4. Build response (tái sử dụng logic buildAuthResponse)
+        return buildAuthResponse(token, refreshToken, taiKhoan);
+    }
+
+    /**
+     * Liên kết mã số sinh viên với tài khoản Zalo (self-service từ Mini App) rồi đăng nhập luôn.
+     * Xác thực danh tính Zalo qua accessToken (không tin zaloUserId do client tự gửi) — cùng mức
+     * xác thực với luồng loginWithZalo ở trên, tránh giả mạo link hộ người khác.
+     *
+     * Ghi đè zaloUserId cũ nếu có (không chặn) — vì Zalo cấp user_id KHÁC NHAU cho mỗi "app"
+     * (Mini App vs Official Account), nên một SinhVien từng được liên kết qua chatbot OA
+     * (ZaloWebhookController) sẽ luôn có zaloUserId "lệch" so với ID Mini App trả về, dù cùng
+     * một người dùng thật. Chặn cứng ở đây sẽ khiến tính năng tự liên kết không bao giờ dùng được
+     * cho các SV đã từng tương tác OA. Mức xác thực này vẫn không kém an toàn hơn luồng OA hiện có
+     * (OA chấp nhận bất kỳ ai gõ đúng MSSV vào chat, không xác minh gì thêm).
+     */
+    @Transactional
+    public AuthResponse linkZaloAndLogin(String zaloAccessToken, String maSv) {
+        if (maSv == null || maSv.isBlank()) {
+            throw new RuntimeException("Vui lòng nhập mã số sinh viên");
+        }
+        String zaloUserId = fetchZaloUserId(zaloAccessToken);
+
+        TaiKhoan taiKhoan = taiKhoanRepository.findBySinhVien_MaSv(maSv.trim())
+                .orElseThrow(() -> new RuntimeException(
+                        "Không tìm thấy tài khoản với mã số sinh viên này. Vui lòng liên hệ BCH để được cấp tài khoản."));
+
+        if (!Boolean.TRUE.equals(taiKhoan.getIsActive())) {
+            throw new RuntimeException("Tài khoản đã bị khóa");
+        }
+
+        SinhVien sv = taiKhoan.getSinhVien();
+        if (!zaloUserId.equals(sv.getZaloUserId())) {
+            log.info("Zalo self-link: maSv={} zaloUserId {} -> {}", maSv, sv.getZaloUserId(), zaloUserId);
+            sv.setZaloUserId(zaloUserId);
+            sinhVienRepository.save(sv);
+
+            // Gửi tin xác nhận qua Zalo — trước đây liên kết qua Mini App không gửi gì cả, khiến
+            // người dùng không biết đã thành công hay chưa.
+            try {
+                zaloService.sendTextMessage(zaloUserId, zaloService.buildLienKetThanhCongText(sv));
+            } catch (Exception e) {
+                log.warn("Không gửi được tin xác nhận liên kết cho {}: {}", maSv, e.getMessage());
+            }
+        }
+
+        CustomUserDetails userDetails = (CustomUserDetails) userDetailsService
+                .loadUserByUsername(taiKhoan.getUsername());
+        String token = jwtService.generateToken(userDetails);
+        String refreshToken = jwtService.generateRefreshToken(userDetails);
+
         return buildAuthResponse(token, refreshToken, taiKhoan);
     }
 

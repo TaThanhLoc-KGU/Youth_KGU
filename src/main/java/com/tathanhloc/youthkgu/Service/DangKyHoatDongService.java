@@ -43,6 +43,13 @@ public class DangKyHoatDongService {
             throw new RuntimeException("Hoạt động không cho phép đăng ký");
         }
 
+        if (hoatDong.getTrangThai() == com.tathanhloc.youthkgu.Enum.TrangThaiHoatDongEnum.CHO_DUYET) {
+            throw new RuntimeException("Hoạt động đang chờ phê duyệt, chưa thể đăng ký");
+        }
+        if (Boolean.FALSE.equals(hoatDong.getCongKhai())) {
+            throw new RuntimeException("Hoạt động chưa được công khai");
+        }
+
         if (hoatDong.getHanDangKy() != null && LocalDateTime.now().isAfter(hoatDong.getHanDangKy())) {
             throw new RuntimeException("Đã hết hạn đăng ký");
         }

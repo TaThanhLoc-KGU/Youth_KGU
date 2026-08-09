@@ -685,7 +685,7 @@ public class KySoService {
         y -= 8f;
 
         float yBeforeTitle = y;
-        y = drawTitle(cs, fontBold, tieuDe, y);
+        y = drawTitle(cs, fontBold, tieuDe, y, mL, mR);
         editZones.add(new EditZone("title", 0, mL, y + 4f, PAGE_W - mL - mR, yBeforeTitle - y, -1));
         y -= 8f;
 
@@ -1063,13 +1063,19 @@ public class KySoService {
             float leftCX  = mL + (midX - mL) / 2f;
             float rightCX = midX + (PAGE_W - mR - midX) / 2f;
 
-            // Phân trang
+            // Phân trang — titleH tính từ số dòng thực tế sau khi word-wrap, khớp với drawTitle()
+            // bên dưới, tránh trường hợp tiêu đề dài tự xuống dòng nhưng không được chừa đủ chỗ
+            // (dẫn tới bảng đè lên/tràn ra ngoài lề trang).
+            //
+            // Khối ký (SIG_BLOCK_H) + dòng tổng cộng (rH) chỉ thực sự được vẽ ở TRANG CUỐI, nên
+            // không trừ chỗ cho nó khi tính sức chứa của mọi trang (trước đây trừ ở mọi trang —
+            // khiến các trang không phải trang cuối luôn thừa 1 khoảng trống lớn ở cuối trang dù
+            // không hề vẽ gì ở đó). Sau khi phân trang theo sức chứa đầy đủ, kiểm tra riêng trang
+            // cuối có đủ chỗ cho khối ký không — nếu không thì đẩy bớt vài dòng cuối sang trang mới.
             float headerH   = 75f;
-            float titleH    = tieuDe.contains("\n") ? 48f : 28f;
-            float availFirst = PAGE_H - mT - headerH - titleH - HEADER_ROW_H
-                               - SIG_BLOCK_H - rH - mB;
-            float availOther = PAGE_H - mT - HEADER_ROW_H
-                               - SIG_BLOCK_H - rH - mB;
+            float titleH    = estimateTitleHeight(tieuDe, fontBold, mL, mR);
+            float availFirst = PAGE_H - mT - headerH - titleH - HEADER_ROW_H - mB;
+            float availOther = PAGE_H - mT - HEADER_ROW_H - mB;
 
             int rowsFirst = Math.max(1, (int)(availFirst / rH));
             int rowsOther = Math.max(1, (int)(availOther / rH));
@@ -1082,6 +1088,20 @@ public class KySoService {
                     : ds;
 
             List<List<DiemDanhHoatDongDTO>> pages = paginate(rows, rowsFirst, rowsOther);
+
+            // Đảm bảo trang cuối còn đủ chỗ cho dòng tổng cộng + khối ký; nếu không, đẩy bớt
+            // các dòng cuối cùng sang một trang mới (trang này chỉ dùng sức chứa "other").
+            float sigTailNeeded = SIG_BLOCK_H + rH;
+            List<DiemDanhHoatDongDTO> lastPage = pages.get(pages.size() - 1);
+            float availOnLastPage = (pages.size() == 1) ? availFirst : availOther;
+            List<DiemDanhHoatDongDTO> overflow = new ArrayList<>();
+            while (!lastPage.isEmpty() && availOnLastPage - (lastPage.size() * rH) < sigTailNeeded) {
+                overflow.add(0, lastPage.remove(lastPage.size() - 1));
+            }
+            if (!overflow.isEmpty()) {
+                pages.add(overflow);
+            }
+
             int total = pages.size();
             float sigBlockTopY = 0f;
 
@@ -1100,7 +1120,7 @@ public class KySoService {
                         y -= 8f;
 
                         float yBeforeTitle = y;
-                        y = drawTitle(cs, fontBold, tieuDe, y);
+                        y = drawTitle(cs, fontBold, tieuDe, y, mL, mR);
                         // Title zone: từ yBeforeTitle xuống y (y là bottom sau drawTitle)
                         editZones.add(new EditZone("title", 0, mL, y + 4f, PAGE_W - mL - mR, yBeforeTitle - y, -1));
                         y -= 8f;
@@ -1458,8 +1478,9 @@ public class KySoService {
         return "DANH SÁCH SINH VIÊN THAM GIA\n" + name;
     }
 
-    private float drawTitle(PDPageContentStream cs, PDFont fontBold, String tieuDe, float y) throws IOException {
-        String[] lines = tieuDe.split("\n");
+    private float drawTitle(PDPageContentStream cs, PDFont fontBold, String tieuDe, float y,
+                             float mL, float mR) throws IOException {
+        List<String> lines = wrapTitle(tieuDe, fontBold, mL, mR);
         float maxW = 0f;
         for (String line : lines) {
             float tw = strWidth(fontBold, 12f, line);
@@ -1631,20 +1652,10 @@ public class KySoService {
         return y - rowH;
     }
 
+    // Không tô nền cho bảng (kể cả header) — chỉ vẽ viền, đúng thể thức văn bản hành chính.
     private void drawCell(PDPageContentStream cs, float x, float y, float w, float h,
                            boolean header, boolean even) throws IOException {
         cs.setLineWidth(0.4f);
-        if (header) {
-            cs.setNonStrokingColor(0.85f, 0.85f, 0.85f);
-            cs.addRect(x, y, w, h);
-            cs.fill();
-            cs.setNonStrokingColor(0f, 0f, 0f);
-        } else if (even) {
-            cs.setNonStrokingColor(0.97f, 0.97f, 0.97f);
-            cs.addRect(x, y, w, h);
-            cs.fill();
-            cs.setNonStrokingColor(0f, 0f, 0f);
-        }
         cs.addRect(x, y, w, h);
         cs.stroke();
     }
@@ -1680,6 +1691,10 @@ public class KySoService {
             fsPaths = bold
                     ? new String[]{ winFontDir + "calibrib.ttf" }
                     : new String[]{ winFontDir + "calibri.ttf" };
+        } else if ("montserrat".equals(fn)) {
+            // Không phải font hệ thống Windows — chỉ có sẵn qua classpath (đã bundle sẵn trong /fonts)
+            classpathFont = bold ? "/fonts/montserratbd.ttf" : "/fonts/montserrat.ttf";
+            fsPaths = new String[0];
         } else {
             // default: Times New Roman
             classpathFont = bold ? "/fonts/timesbd.ttf" : "/fonts/times.ttf";
@@ -1792,6 +1807,46 @@ public class KySoService {
         while (text.length() > 1 && strWidth(font, size, text + "…") > maxW)
             text = text.substring(0, text.length() - 1);
         return text + "…";
+    }
+
+    /** Word-wrap 1 dòng (không chứa \n) thành nhiều dòng vừa maxW, tách theo khoảng trắng. */
+    private List<String> wrapLine(String line, PDFont font, float size, float maxW) throws IOException {
+        List<String> out = new ArrayList<>();
+        if (line == null || line.isBlank()) { out.add(line == null ? "" : line); return out; }
+        String[] words = line.trim().split("\\s+");
+        StringBuilder cur = new StringBuilder();
+        for (String w : words) {
+            String candidate = cur.length() == 0 ? w : cur + " " + w;
+            if (cur.length() == 0 || strWidth(font, size, candidate) <= maxW) {
+                cur = new StringBuilder(candidate);
+            } else {
+                out.add(cur.toString());
+                cur = new StringBuilder(w);
+            }
+        }
+        if (cur.length() > 0) out.add(cur.toString());
+        return out;
+    }
+
+    /**
+     * Tách tiêu đề thành các dòng đã word-wrap vừa khổ giấy trừ lề trái/phải.
+     * Hỗ trợ cả xuống dòng thủ công (\n, ví dụ do người dùng nhấn Enter trong ô sửa tiêu đề)
+     * lẫn tự động ngắt dòng khi 1 dòng quá dài (VD: tên hoạt động dài) — tránh bị tràn/cắt ra
+     * ngoài lề trang như trước đây.
+     */
+    private List<String> wrapTitle(String tieuDe, PDFont fontBold, float mL, float mR) throws IOException {
+        float maxW = PAGE_W - mL - mR;
+        List<String> result = new ArrayList<>();
+        for (String rawLine : tieuDe.split("\n")) {
+            result.addAll(wrapLine(rawLine, fontBold, 12f, maxW));
+        }
+        return result;
+    }
+
+    /** Ước lượng chiều cao khối tiêu đề (dùng để tính toán phân trang) — phải khớp với drawTitle(). */
+    private float estimateTitleHeight(String tieuDe, PDFont fontBold, float mL, float mR) throws IOException {
+        int lineCount = Math.max(1, wrapTitle(tieuDe, fontBold, mL, mR).size());
+        return lineCount * 16f + 12f;
     }
 
     private List<List<DiemDanhHoatDongDTO>> paginate(List<DiemDanhHoatDongDTO> all,

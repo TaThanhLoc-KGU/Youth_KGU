@@ -1,6 +1,7 @@
 package com.tathanhloc.youthkgu.Service;
 
 import com.tathanhloc.youthkgu.DTO.ChungNhanHoatDongDTO;
+import com.tathanhloc.youthkgu.DTO.ChungNhanTemplateFieldDTO;
 import com.tathanhloc.youthkgu.Enum.TrangThaiThamGiaEnum;
 import com.tathanhloc.youthkgu.Model.*;
 import com.tathanhloc.youthkgu.Repository.*;
@@ -9,7 +10,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,6 +29,9 @@ public class ChungNhanHoatDongService {
     private final SinhVienRepository sinhVienRepository;
     private final HoatDongRepository hoatDongRepository;
     private final KhoaScopeService khoaScopeService;
+    private final ChungNhanTemplateService chungNhanTemplateService;
+    private final ChungNhanRenderService chungNhanRenderService;
+    private final FileStorageService fileStorageService;
 
     // ========== CRUD OPERATIONS ==========
 
@@ -63,11 +69,13 @@ public class ChungNhanHoatDongService {
     }
 
     /**
-     * Cấp chứng nhận tự động cho sinh viên đã hoàn thành hoạt động
+     * Cấp chứng nhận tự động cho sinh viên đã hoàn thành hoạt động.
+     * templateId != null → render kèm file PDF (ảnh khoá) từ mẫu; null → chỉ tạo bản ghi (tương
+     * thích ngược với các nơi gọi cũ chưa chọn mẫu).
      */
     @Transactional
-    public ChungNhanHoatDongDTO issueAutomatic(String maSv, String maHoatDong) {
-        log.info("Auto-issuing certificate: student={}, activity={}", maSv, maHoatDong);
+    public ChungNhanHoatDongDTO issueAutomatic(String maSv, String maHoatDong, Long templateId) {
+        log.info("Auto-issuing certificate: student={}, activity={}, template={}", maSv, maHoatDong, templateId);
 
         // Validate sinh viên
         SinhVien sinhVien = sinhVienRepository.findById(maSv)
@@ -94,14 +102,23 @@ public class ChungNhanHoatDongService {
         // Sinh mã chứng nhận
         String maChungNhan = generateCertificateCode(maHoatDong, maSv);
 
+        ChungNhanTemplate template = null;
+        String filePath = null;
+        if (templateId != null) {
+            template = chungNhanTemplateService.getEntityById(templateId);
+            filePath = renderAndSave(template, sinhVien, hoatDong, maChungNhan);
+        }
+
         // Tạo chứng nhận
         ChungNhanHoatDong chungNhan = ChungNhanHoatDong.builder()
                 .maChungNhan(maChungNhan)
                 .sinhVien(sinhVien)
                 .hoatDong(hoatDong)
+                .template(template)
                 .ngayCap(LocalDate.now())
                 .noiDung(String.format("Chứng nhận %s đã hoàn thành hoạt động '%s'",
                         sinhVien.getHoTen(), hoatDong.getTenHoatDong()))
+                .filePath(filePath)
                 .isActive(true)
                 .build();
 
@@ -109,6 +126,66 @@ public class ChungNhanHoatDongService {
 
         log.info("Certificate issued: {}", maChungNhan);
         return toDTO(chungNhan);
+    }
+
+    /**
+     * Xem trước chứng nhận (PNG, base64) trước khi cấp thật. Có maSv+maHoatDong → dùng dữ liệu
+     * thật; không có → dùng dữ liệu mẫu (để xem trước ngay trong lúc thiết kế mẫu).
+     */
+    @Transactional(readOnly = true)
+    public String previewBase64(Long templateId, String maSv, String maHoatDong) {
+        ChungNhanTemplate template = chungNhanTemplateService.getEntityById(templateId);
+        List<ChungNhanTemplateFieldDTO> fields = chungNhanTemplateService.parseFields(template.getFieldsJson());
+
+        ChungNhanRenderService.CertData data;
+        if (maSv != null && !maSv.isBlank() && maHoatDong != null && !maHoatDong.isBlank()) {
+            SinhVien sinhVien = sinhVienRepository.findById(maSv)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên: " + maSv));
+            HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+            data = new ChungNhanRenderService.CertData(
+                    sinhVien.getHoTen(), sinhVien.getMaSv(),
+                    sinhVien.getLop() != null ? sinhVien.getLop().getTenLop() : null,
+                    (sinhVien.getLop() != null && sinhVien.getLop().getMaKhoa() != null)
+                            ? sinhVien.getLop().getMaKhoa().getTenKhoa() : null,
+                    hoatDong.getTenHoatDong(),
+                    LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                    "CN-XEM-TRUOC");
+        } else {
+            data = new ChungNhanRenderService.CertData(
+                    "NGUYỄN VĂN A", "SV000000", "Lớp mẫu", "Khoa mẫu",
+                    "Tên hoạt động mẫu",
+                    LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                    "CN-XEM-TRUOC");
+        }
+
+        try {
+            byte[] png = chungNhanRenderService.renderToPng(template, fields, data);
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(png);
+        } catch (IOException e) {
+            throw new RuntimeException("Lỗi tạo bản xem trước: " + e.getMessage());
+        }
+    }
+
+    /** Render chứng nhận từ mẫu + dữ liệu thật, lưu file, trả về đường dẫn tương đối. */
+    private String renderAndSave(ChungNhanTemplate template, SinhVien sinhVien, HoatDong hoatDong, String maChungNhan) {
+        List<ChungNhanTemplateFieldDTO> fields = chungNhanTemplateService.parseFields(template.getFieldsJson());
+        ChungNhanRenderService.CertData data = new ChungNhanRenderService.CertData(
+                sinhVien.getHoTen(),
+                sinhVien.getMaSv(),
+                sinhVien.getLop() != null ? sinhVien.getLop().getTenLop() : null,
+                (sinhVien.getLop() != null && sinhVien.getLop().getMaKhoa() != null)
+                        ? sinhVien.getLop().getMaKhoa().getTenKhoa() : null,
+                hoatDong.getTenHoatDong(),
+                LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                maChungNhan
+        );
+        try {
+            byte[] pdf = chungNhanRenderService.render(template, fields, data);
+            return fileStorageService.saveChungNhanFile(pdf);
+        } catch (IOException e) {
+            throw new RuntimeException("Lỗi tạo file chứng nhận: " + e.getMessage());
+        }
     }
 
     /**
@@ -151,11 +228,16 @@ public class ChungNhanHoatDongService {
     }
 
     /**
-     * Cấp hàng loạt chứng nhận cho tất cả sinh viên đã hoàn thành
+     * Cấp hàng loạt chứng nhận cho tất cả sinh viên đã hoàn thành. Bắt buộc chọn mẫu — mục đích
+     * của tính năng là thay hoàn toàn chứng nhận giấy bằng file PDF thật, không chỉ tạo bản ghi.
      */
     @Transactional
-    public List<ChungNhanHoatDongDTO> issueBulk(String maHoatDong) {
-        log.info("Bulk-issuing certificates for activity: {}", maHoatDong);
+    public List<ChungNhanHoatDongDTO> issueBulk(String maHoatDong, Long templateId) {
+        log.info("Bulk-issuing certificates for activity: {}, template={}", maHoatDong, templateId);
+
+        if (templateId == null) {
+            throw new RuntimeException("Vui lòng chọn mẫu chứng nhận trước khi cấp hàng loạt");
+        }
 
         // Lấy danh sách sinh viên đã hoàn thành
         List<DiemDanhHoatDong> completedList = diemDanhRepository
@@ -173,7 +255,7 @@ public class ChungNhanHoatDongService {
             }
 
             try {
-                ChungNhanHoatDongDTO cert = issueAutomatic(maSv, maHoatDong);
+                ChungNhanHoatDongDTO cert = issueAutomatic(maSv, maHoatDong, templateId);
                 results.add(cert);
             } catch (Exception e) {
                 log.error("Failed to issue certificate for student: {}", maSv, e);
@@ -245,6 +327,7 @@ public class ChungNhanHoatDongService {
                 .emailSinhVien(entity.getSinhVien().getEmail())
                 .maHoatDong(entity.getHoatDong().getMaHoatDong())
                 .tenHoatDong(entity.getHoatDong().getTenHoatDong())
+                .templateId(entity.getTemplate() != null ? entity.getTemplate().getId() : null)
                 .ngayCap(entity.getNgayCap())
                 .noiDung(entity.getNoiDung())
                 .filePath(entity.getFilePath())

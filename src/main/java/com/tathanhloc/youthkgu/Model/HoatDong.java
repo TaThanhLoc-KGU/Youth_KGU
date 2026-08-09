@@ -269,6 +269,14 @@ public class HoatDong {
     @Builder.Default
     private Boolean isActive = true;
 
+    /**
+     * Công khai: true = hiển thị cho sinh viên xem/đăng ký (đã tự tạo tin tức + gửi thông báo lần đầu bật).
+     * false = mới tạo, đang ẩn — chờ BCH/Đoàn trường bấm "Công khai" để lên sóng.
+     * null = dữ liệu cũ trước khi có field này — coi như đã công khai để không ẩn mất dữ liệu cũ.
+     */
+    @Column(name = "cong_khai")
+    private Boolean congKhai;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

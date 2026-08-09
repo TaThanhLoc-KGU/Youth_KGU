@@ -22,6 +22,9 @@ public interface TinTucRepository extends JpaRepository<TinTuc, Long> {
     Optional<TinTuc> findFirstByHoatDongIdAndTrangThaiAndIsDeletedFalseOrderByCreatedAtDesc(
             String hoatDongId, TrangThaiTinTuc trangThai);
 
+    // Kiểm tra hoạt động đã có bài tin tức (tự tạo hoặc thủ công) chưa — tránh tạo trùng khi công khai lại.
+    boolean existsByHoatDongIdAndIsDeletedFalse(String hoatDongId);
+
     // Tìm toàn bộ bài trong subtree của một chuyên mục (dùng duongDan LIKE)
     @Query("""
             SELECT t FROM TinTuc t JOIN t.chuyenMuc c

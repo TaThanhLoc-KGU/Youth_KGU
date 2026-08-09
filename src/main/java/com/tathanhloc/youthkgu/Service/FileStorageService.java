@@ -241,6 +241,68 @@ public class FileStorageService {
         }
     }
 
+    // ── Ảnh nền mẫu chứng nhận ───────────────────────────────────────────────────
+
+    /**
+     * Lưu ảnh nền mẫu chứng nhận vào /uploads/chung-nhan-mau/yyyy/MM/{uuid}.ext — giữ nguyên
+     * độ phân giải gốc (không nén/resize) để toạ độ trường nội dung đặt trong trình thiết kế
+     * khớp chính xác với ảnh dùng khi render chứng nhận thật.
+     */
+    public com.tathanhloc.youthkgu.DTO.ChungNhanTemplateImageResult saveChungNhanTemplateImage(MultipartFile file) {
+        validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, "Chỉ chấp nhận: JPG, PNG, GIF, WebP");
+
+        String ext = getExtension(file.getOriginalFilename());
+        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        Path dir = Paths.get(uploadBasePath, "chung-nhan-mau", yearMonth);
+
+        try {
+            Files.createDirectories(dir);
+            String storedName = UUID.randomUUID() + "." + ext;
+            Path dest = dir.resolve(storedName);
+            Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
+
+            BufferedImage img = ImageIO.read(dest.toFile());
+            if (img == null) {
+                Files.deleteIfExists(dest);
+                throw new BusinessException("FILE_TYPE_INVALID", "Không đọc được ảnh, vui lòng chọn file ảnh hợp lệ");
+            }
+
+            String relativePath = "/uploads/chung-nhan-mau/" + yearMonth + "/" + storedName;
+            log.info("Saved chung-nhan template image: {} ({}x{})", relativePath, img.getWidth(), img.getHeight());
+            return com.tathanhloc.youthkgu.DTO.ChungNhanTemplateImageResult.builder()
+                    .duongDan(relativePath)
+                    .chieuRongPx(img.getWidth())
+                    .chieuCaoPx(img.getHeight())
+                    .build();
+        } catch (IOException e) {
+            throw new BusinessException("FILE_SAVE_ERROR", "Lỗi lưu ảnh nền: " + e.getMessage());
+        }
+    }
+
+    // ── Chứng nhận đã render ─────────────────────────────────────────────────────
+
+    /**
+     * Lưu file chứng nhận đã render (PDF ảnh khoá, không có text chọn được) vào
+     * /uploads/chung-nhan/yyyy/MM/{uuid}.pdf
+     */
+    public String saveChungNhanFile(byte[] pdfBytes) {
+        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        Path dir = Paths.get(uploadBasePath, "chung-nhan", yearMonth);
+
+        try {
+            Files.createDirectories(dir);
+            String storedName = UUID.randomUUID() + ".pdf";
+            Path dest = dir.resolve(storedName);
+            Files.write(dest, pdfBytes);
+
+            String relativePath = "/uploads/chung-nhan/" + yearMonth + "/" + storedName;
+            log.info("Saved chung-nhan PDF: {} ({} KB)", relativePath, pdfBytes.length / 1024);
+            return relativePath;
+        } catch (IOException e) {
+            throw new BusinessException("FILE_SAVE_ERROR", "Lỗi lưu chứng nhận: " + e.getMessage());
+        }
+    }
+
     // ── Load & Delete ───────────────────────────────────────────────────────────
 
     /**

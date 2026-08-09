@@ -135,6 +135,10 @@ export const PERMISSIONS = {
   SUA_CUOC_THI:                    'SUA_CUOC_THI',
   XOA_CUOC_THI:                    'XOA_CUOC_THI',
 
+  // ─── DIEM_REN_LUYEN ───────────────────────────────────────────────────────
+  QUAN_LY_DIEM_REN_LUYEN:          'QUAN_LY_DIEM_REN_LUYEN',         // Nhập, sửa, phê duyệt điểm rèn luyện
+  QUAN_LY_MAU_DANH_GIA:            'QUAN_LY_MAU_DANH_GIA',           // Tạo, sửa, clone mẫu đánh giá
+
   // ─── NEWS / eNews ─────────────────────────────────────────────────────────
   DANG_TIN_TUC:                    'DANG_TIN_TUC',
   SUA_TIN_TUC:                     'SUA_TIN_TUC',
@@ -311,6 +315,7 @@ export const ROUTES = {
   ADMIN_ACCOUNT_STATISTICS: '/admin/account-statistics',
   ADMIN_SYSTEM_LOG: '/admin/system-log',
   ADMIN_NAM_HOC: '/admin/nam-hoc',
+  ADMIN_DIEM_REN_LUYEN: '/admin/diem-ren-luyen',
 
   // User routes
   PROFILE: '/profile',

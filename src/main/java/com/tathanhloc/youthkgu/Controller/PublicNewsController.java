@@ -206,6 +206,11 @@ public class PublicNewsController {
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getPublicHoatDong() {
         log.info("Public get all activities");
         List<HoatDongDTO> list = hoatDongService.getAll().stream()
+                // Chỉ hiển thị hoạt động đã công khai (congKhai=true hoặc null = dữ liệu cũ trước khi có
+                // field này) và không còn ở trạng thái chờ duyệt / đã hủy.
+                .filter(a -> !Boolean.FALSE.equals(a.getCongKhai())
+                        && a.getTrangThai() != com.tathanhloc.youthkgu.Enum.TrangThaiHoatDongEnum.CHO_DUYET
+                        && a.getTrangThai() != com.tathanhloc.youthkgu.Enum.TrangThaiHoatDongEnum.DA_HUY)
                 .sorted((a, b) -> {
                     // 1. Ưu tiên trạng thái (hoạt động "đang chạy" lên đầu)
                     int pa = statusPriority(a.getTrangThai());

@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.List;
 
@@ -22,7 +23,12 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamNotifications(Authentication authentication) {
+    public SseEmitter streamNotifications(Authentication authentication, HttpServletResponse response) {
+        // Yêu cầu Nginx không buffer SSE response (quan trọng khi dùng HTTP/2 reverse proxy)
+        response.setHeader("X-Accel-Buffering", "no");
+        response.setHeader("Cache-Control", "no-cache");
+        response.setHeader("Connection", "keep-alive");
+
         if (authentication == null) {
             log.warn("Anonymous user tried to connect to SSE");
             return null;

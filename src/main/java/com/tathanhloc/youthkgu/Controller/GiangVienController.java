@@ -1,11 +1,16 @@
 package com.tathanhloc.youthkgu.Controller;
 
 import com.tathanhloc.youthkgu.DTO.GiangVienDTO;
+import com.tathanhloc.youthkgu.Enum.VaiTroEnum;
+import com.tathanhloc.youthkgu.Model.TaiKhoan;
+import com.tathanhloc.youthkgu.Repository.TaiKhoanRepository;
 import com.tathanhloc.youthkgu.Service.GiangVienService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
@@ -20,11 +25,28 @@ import java.util.stream.Collectors;
 public class GiangVienController {
 
     private final GiangVienService giangVienService;
+    private final TaiKhoanRepository taiKhoanRepository;
+
+    /** Đọc scope khoa từ SecurityContext — null nếu không bị giới hạn (ADMIN hoặc role không scoped). */
+    private String resolveKhoaScope() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return null;
+        TaiKhoan tk = taiKhoanRepository.findByUsername(auth.getName()).orElse(null);
+        if (tk == null) return null;
+        VaiTroEnum role = tk.getVaiTro();
+        if (role.isScopedToKhoa() && tk.getKhoa() != null) return tk.getKhoa().getMaKhoa();
+        return null;
+    }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'XEM_GIANG_VIEN')")
-    public GiangVienDTO getById(@PathVariable String id) {
-        return giangVienService.getById(id);
+    public ResponseEntity<GiangVienDTO> getById(@PathVariable String id) {
+        GiangVienDTO dto = giangVienService.getById(id);
+        String khoaScope = resolveKhoaScope();
+        if (khoaScope != null && !khoaScope.equals(dto.getMaKhoa())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping
@@ -35,13 +57,21 @@ public class GiangVienController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'SUA_GIANG_VIEN')")
-    public GiangVienDTO update(@PathVariable String id, @RequestBody GiangVienDTO dto) {
-        return giangVienService.update(id, dto);
+    public ResponseEntity<GiangVienDTO> update(@PathVariable String id, @RequestBody GiangVienDTO dto) {
+        String khoaScope = resolveKhoaScope();
+        if (khoaScope != null && !khoaScope.equals(giangVienService.getById(id).getMaKhoa())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(giangVienService.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'XOA_GIANG_VIEN')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
+        String khoaScope = resolveKhoaScope();
+        if (khoaScope != null && !khoaScope.equals(giangVienService.getById(id).getMaKhoa())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         giangVienService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -87,10 +117,14 @@ public class GiangVienController {
                     .collect(Collectors.toList());
         }
 
+        // Ép scope theo khoa (ghi đè filter người dùng truyền vào nếu role bị giới hạn khoa)
+        String khoaScope = resolveKhoaScope();
+        String effectiveKhoa = khoaScope != null ? khoaScope : khoa;
+
         // Lọc theo khoa
-        if (khoa != null && !khoa.trim().isEmpty()) {
+        if (effectiveKhoa != null && !effectiveKhoa.trim().isEmpty()) {
             result = result.stream()
-                    .filter(gv -> gv.getMaKhoa().equals(khoa))
+                    .filter(gv -> effectiveKhoa.equals(gv.getMaKhoa()))
                     .collect(Collectors.toList());
         }
 
@@ -103,6 +137,10 @@ public class GiangVienController {
     @PutMapping("/{id}/restore")
     @PreAuthorize("hasPermission(null, 'SUA_GIANG_VIEN')")
     public ResponseEntity<Void> restore(@PathVariable String id) {
+        String khoaScope = resolveKhoaScope();
+        if (khoaScope != null && !khoaScope.equals(giangVienService.getById(id).getMaKhoa())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         giangVienService.restore(id);
         return ResponseEntity.noContent().build();
     }

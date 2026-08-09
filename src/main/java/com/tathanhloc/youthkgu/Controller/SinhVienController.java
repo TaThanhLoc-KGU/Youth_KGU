@@ -62,6 +62,14 @@ public class SinhVienController {
         return new ScopeFilter(null, null);
     }
 
+    /** Kiểm tra một sinh viên có nằm trong scope (khoa/lớp) của người gọi hay không. */
+    private boolean inScope(ScopeFilter scope, SinhVienDTO dto) {
+        if (dto == null) return true;
+        if (scope.maKhoa() != null && !scope.maKhoa().equals(dto.getMaKhoa())) return false;
+        if (scope.maLop() != null && !scope.maLop().equals(dto.getMaLop())) return false;
+        return true;
+    }
+
     @GetMapping
     @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<Page<SinhVienDTO>> getAll(@RequestParam(defaultValue = "0") int page,
@@ -155,7 +163,11 @@ public class SinhVienController {
     @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<SinhVienDTO> getById(@PathVariable String id) {
         log.info("Lấy thông tin sinh viên với ID: {}", id);
-        return ResponseEntity.ok(sinhVienService.getById(id));
+        SinhVienDTO dto = sinhVienService.getById(id);
+        if (!inScope(resolveScope(), dto)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping
@@ -169,6 +181,9 @@ public class SinhVienController {
     @PreAuthorize("hasPermission(null, 'SUA_SINH_VIEN')")
     public ResponseEntity<SinhVienDTO> update(@PathVariable String id, @Valid @RequestBody SinhVienDTO dto) {
         log.info("Cập nhật sinh viên với ID {}: {}", id, dto);
+        if (!inScope(resolveScope(), sinhVienService.getById(id))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(sinhVienService.update(id, dto));
     }
 
@@ -176,6 +191,9 @@ public class SinhVienController {
     @PreAuthorize("hasPermission(null, 'XOA_SINH_VIEN')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         log.info("Xóa sinh viên với ID: {}", id);
+        if (!inScope(resolveScope(), sinhVienService.getById(id))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
         sinhVienService.softDelete(id);
         return ResponseEntity.noContent().build();
     }
@@ -184,6 +202,9 @@ public class SinhVienController {
     @PreAuthorize("hasPermission(null, 'SUA_SINH_VIEN')")
     public ResponseEntity<Void> restore(@PathVariable String id) {
         log.info("Khôi phục sinh viên với ID: {}", id);
+        if (!inScope(resolveScope(), sinhVienService.getById(id))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
         sinhVienService.restore(id);
         return ResponseEntity.noContent().build();
     }
@@ -192,7 +213,11 @@ public class SinhVienController {
     @PreAuthorize("hasPermission(null, 'XEM_SINH_VIEN')")
     public ResponseEntity<SinhVienDTO> getByMaSv(@PathVariable String maSv) {
         log.info("Tìm sinh viên theo mã: {}", maSv);
-        return ResponseEntity.ok(sinhVienService.getByMaSv(maSv));
+        SinhVienDTO dto = sinhVienService.getByMaSv(maSv);
+        if (!inScope(resolveScope(), dto)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(dto);
     }
 
     /**
