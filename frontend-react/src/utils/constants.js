@@ -115,6 +115,7 @@ export const PERMISSIONS = {
 
   // ─── KY_SO (id 59) ────────────────────────────────────────────────────────
   KY_SO_PDF:                        'KY_SO_PDF',                      // 59
+  QUAN_LY_CON_DAU:                  'QUAN_LY_CON_DAU',
 
   // ─── CLB (id 60-63, 77-79) ─────────────────────────────────────────────────
   XEM_CLB:                         'XEM_CLB',                        // 60
@@ -147,6 +148,11 @@ export const PERMISSIONS = {
   QUAN_LY_CHUYEN_MUC:              'QUAN_LY_CHUYEN_MUC',
   QUAN_LY_VAN_BAN:                 'QUAN_LY_VAN_BAN',
   XOA_VAN_BAN:                     'XOA_VAN_BAN',
+  KIEM_DUYET_BINH_LUAN:            'KIEM_DUYET_BINH_LUAN',
+
+  // ─── GOP_Y (Thùng thư góp ý) ──────────────────────────────────────────────
+  XEM_GOP_Y:                       'XEM_GOP_Y',
+  XU_LY_GOP_Y:                     'XU_LY_GOP_Y',
 
   // ─── Aliases giữ tương thích ngược với code cũ ────────────────────────────
   // (value đã được sửa để khớp DB — cập nhật dần references sang tên mới)
@@ -345,6 +351,12 @@ export const ROUTES = {
 
   // eNews — Public
   NEWS_HOME: '/news',
+
+  // Thùng thư góp ý
+  GOP_Y: '/gop-y',
+  STUDENT_GOP_Y: '/student/gop-y',
+  ADMIN_GOP_Y: '/admin/gop-y',
+  BCH_GOP_Y: '/bch/gop-y',
 
   // Cuộc thi & Bình chọn — Admin manage
   ADMIN_CUOC_THI: '/admin/cuoc-thi',

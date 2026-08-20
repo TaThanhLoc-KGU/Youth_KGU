@@ -1,5 +1,6 @@
 package com.tathanhloc.youthkgu.Model;
 
+import com.tathanhloc.youthkgu.Enum.LoaiChuKy;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -35,6 +36,12 @@ public class ChuKy {
     /** Username của người sở hữu chữ ký. NULL = chữ ký hệ thống (cũ). */
     @Column(name = "owner_username", length = 100)
     private String ownerUsername;
+
+    /** FULL = chữ ký đầy đủ (trang cuối) | NHAY = ký nháy (mọi trang trừ trang cuối). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "loai_chu_ky", length = 20, nullable = false)
+    @Builder.Default
+    private LoaiChuKy loaiChuKy = LoaiChuKy.FULL;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

@@ -87,6 +87,22 @@ public class TinTuc {
     @Builder.Default
     private Integer luotXem = 0;
 
+    @Column(name = "luot_thich")
+    @Builder.Default
+    private Integer luotThich = 0;
+
+    @Column(name = "luot_binh_luan")
+    @Builder.Default
+    private Integer luotBinhLuan = 0;
+
+    @Column(name = "luot_chia_se")
+    @Builder.Default
+    private Integer luotChiaSe = 0;
+
+    @Column(name = "khoa_binh_luan")
+    @Builder.Default
+    private Boolean khoaBinhLuan = false;
+
     @Column(name = "ngay_xuat_ban")
     private LocalDateTime ngayXuatBan;  // Set = NOW() khi PUBLISHED (TT-002)
 

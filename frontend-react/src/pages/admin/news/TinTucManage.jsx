@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Eye, Archive, Send, RotateCcw, Pin, Bell } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Archive, Send, RotateCcw, Pin, Bell, MessageSquare } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import { PERMISSIONS } from '../../../utils/constants';
 import newsService from '../../../services/newsService';
@@ -12,6 +12,7 @@ import SearchInput from '../../../components/common/SearchInput';
 import Select from '../../../components/common/Select';
 import Badge from '../../../components/common/Badge';
 import Modal from '../../../components/common/Modal';
+import CommentModerationModal from '../../../components/news/admin/CommentModerationModal';
 
 const TRANG_THAI_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -37,12 +38,14 @@ const TinTucManage = () => {
   const canEdit    = hasPermission(PERMISSIONS.SUA_TIN_TUC);
   const canDelete  = hasPermission(PERMISSIONS.XOA_TIN_TUC);
   const canPublish = hasPermission(PERMISSIONS.DUYET_TIN_TUC);
+  const canModerateComments = hasPermission(PERMISSIONS.KIEM_DUYET_BINH_LUAN);
 
   const [page, setPage]       = useState(0);
   const [search, setSearch]   = useState('');
   const [keyword, setKeyword] = useState('');
   const [trangThai, setTrangThai] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [moderatingPost, setModeratingPost] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-tin-tuc', page, keyword, trangThai],
@@ -177,6 +180,12 @@ const TinTucManage = () => {
               <Bell className="w-4 h-4" />
             </button>
           )}
+          {canModerateComments && (
+            <button onClick={() => setModeratingPost(row)}
+              className="p-1.5 text-gray-400 hover:text-primary rounded" title="Kiểm duyệt bình luận">
+              <MessageSquare className="w-4 h-4" />
+            </button>
+          )}
           {canDelete && (
             <button onClick={() => setConfirmDelete(row)}
               className="p-1.5 text-gray-400 hover:text-red-600 rounded" title="Xóa">
@@ -269,6 +278,15 @@ const TinTucManage = () => {
             </Button>
           </div>
         </Modal>
+      )}
+
+      {/* Kiểm duyệt bình luận */}
+      {moderatingPost && (
+        <CommentModerationModal
+          tinTucId={moderatingPost.id}
+          tieuDe={moderatingPost.tieuDe}
+          onClose={() => setModeratingPost(null)}
+        />
       )}
     </div>
   );

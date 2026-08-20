@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Upload, Trash2, Star, Stamp } from 'lucide-react';
+import { Upload, Trash2, Star, Stamp, User } from 'lucide-react';
 import kySoService from '../../services/kySoService';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -13,6 +13,7 @@ export default function ConDauManagePage() {
   const [form, setForm] = useState({
     ten: '',
     laMacDinh: false,
+    ownerUsername: '',
     file: null,
     preview: null,
   });
@@ -45,10 +46,10 @@ export default function ConDauManagePage() {
     if (!form.ten.trim()) { toast.error('Vui lòng nhập tên con dấu'); return; }
     setUploading(true);
     try {
-      await kySoService.uploadConDau(form.file, form.ten, form.laMacDinh);
+      await kySoService.uploadConDau(form.file, form.ten, form.laMacDinh, form.ownerUsername.trim() || null);
       toast.success('Tải con dấu thành công');
       qc.invalidateQueries({ queryKey: ['con-dau'] });
-      setForm({ ten: '', laMacDinh: false, file: null, preview: null });
+      setForm({ ten: '', laMacDinh: false, ownerUsername: '', file: null, preview: null });
       if (fileRef.current) fileRef.current.value = '';
     } catch {
       toast.error('Tải con dấu thất bại');
@@ -115,6 +116,21 @@ export default function ConDauManagePage() {
                 onChange={(e) => setForm((f) => ({ ...f, ten: e.target.value }))}
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-gray-400" /> Chủ sở hữu (tuỳ chọn)
+              </label>
+              <input
+                type="text"
+                className="input input-bordered input-sm w-full"
+                placeholder="username — để trống = dùng chung cho mọi người có quyền"
+                value={form.ownerUsername}
+                onChange={(e) => setForm((f) => ({ ...f, ownerUsername: e.target.value }))}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Nếu chỉ định, con dấu này chỉ tài khoản đó dùng được khi xuất PDF.
+              </p>
+            </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -159,6 +175,12 @@ export default function ConDauManagePage() {
                     <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" /> Mặc định
                   </span>
                 )}
+                <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded mb-1.5 ${
+                  cd.ownerUsername ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 bg-gray-100'
+                }`}>
+                  <User className="w-3 h-3" /> {cd.ownerUsername || 'Dùng chung'}
+                </span>
+                <br />
                 <div className="bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22%3E%3Crect width=%228%22 height=%228%22 fill=%22%23e5e7eb%22/%3E%3Crect x=%228%22 y=%228%22 width=%228%22 height=%228%22 fill=%22%23e5e7eb%22/%3E%3C/svg%3E')] rounded mb-2 flex items-center justify-center h-24 overflow-hidden">
                   <img
                     src={`http://localhost:8080${cd.duongDan}`}

@@ -6,7 +6,7 @@ import {
   Newspaper, FileText, FolderOpen, LayoutGrid, LayoutTemplate,
   SlidersHorizontal, Megaphone, RectangleHorizontal, Download, User, X,
   PenLine, Stamp, History, Mail, FileCheck, GraduationCap, Trophy, Home,
-  ShieldCheck, Shield, Key, MessageCircle,
+  ShieldCheck, Shield, Key, MessageCircle, Mailbox,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS, MANAGER_ROLES } from '../../utils/constants';
@@ -56,6 +56,7 @@ const ADMIN_GROUPS = [
       { icon: Award,          label: 'Cuộc thi & Bình chọn', path: '/admin/cuoc-thi',         permission: PERMISSIONS.QUAN_LY_CUOC_THI },
       { icon: Award,          label: 'Chứng nhận',           path: ROUTES.ADMIN_CERTIFICATES, permission: PERMISSIONS.QUAN_LY_DANG_KY  },
       { icon: BarChart3,      label: 'Điểm rèn luyện',       path: ROUTES.ADMIN_DIEM_REN_LUYEN, permission: PERMISSIONS.XEM_THONG_KE   },
+      { icon: Mailbox,        label: 'Góp ý',                 path: ROUTES.ADMIN_GOP_Y,       permission: PERMISSIONS.XEM_GOP_Y        },
     ],
   },
   {
@@ -124,6 +125,8 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
   PERMISSIONS.QUAN_LY_CUOC_THI, PERMISSIONS.TAO_CUOC_THI,
   PERMISSIONS.XEM_CLB, PERMISSIONS.QUAN_LY_CLB, PERMISSIONS.QUAN_LY_THANH_VIEN_CLB,
+  PERMISSIONS.KIEM_DUYET_BINH_LUAN, PERMISSIONS.QUAN_LY_CON_DAU,
+  PERMISSIONS.XEM_GOP_Y, PERMISSIONS.XU_LY_GOP_Y,
 ];
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────

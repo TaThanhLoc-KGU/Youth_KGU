@@ -102,16 +102,23 @@ api.interceptors.response.use(
       }
     }
 
-    // Lỗi khác — chỉ toast cho lỗi thực sự (không spam 401/403)
+    // Lỗi khác — toast cho mọi lỗi TRỪ 401 (401 đã có luồng refresh-token/đăng xuất riêng ở trên,
+    // toast thêm ở đây chỉ gây nhiễu). 403 (không đủ quyền) PHẢI toast — đây là nguồn thông báo lỗi
+    // DUY NHẤT cho các trang không tự xử lý onError riêng (xem Activities.jsx — các mutation Duyệt/
+    // Công khai/Gửi email/... không còn onError riêng, dựa hoàn toàn vào interceptor này để báo lỗi).
     const status = error.response?.status;
     const shouldToast =
       status !== 401 &&
-      status !== 403 &&
       originalRequest.url !== '/api/auth/login';
 
     if (shouldToast) {
       const message = error.response?.data?.message || error.message || 'Đã xảy ra lỗi';
-      toast.error(message);
+      // toastId ổn định theo URL+message: react-toastify tự bỏ qua nếu 1 toast cùng id đang hiển thị,
+      // tránh hiện lặp lại cùng 1 lỗi nhiều lần khi react-query tự động retry request thất bại
+      // (mặc định retry 1 lần cho query, 1 số trang cấu hình retry 3 lần → 1 lỗi gốc có thể sinh ra
+      // 2-4 request thất bại liên tiếp nếu không dedupe).
+      const toastId = `api-error:${originalRequest?.method || ''}:${originalRequest?.url || ''}:${message}`;
+      toast.error(message, { toastId });
     }
 
     return Promise.reject(error);

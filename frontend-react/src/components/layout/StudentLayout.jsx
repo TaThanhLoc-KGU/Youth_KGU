@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import {
   LayoutDashboard, CalendarPlus, ClipboardList, TrendingUp,
   User, LogOut, Home, ChevronRight, QrCode, Trophy, Users,
-  Bell, Newspaper, Menu, X, Award,
+  Bell, BellRing, Newspaper, Menu, X, Award, Mailbox,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES } from '../../utils/constants';
 import useNotificationHistoryStore from '../../stores/notificationHistoryStore';
+import browserNotificationService from '../../services/browserNotificationService';
+import pushSubscriptionService from '../../services/pushSubscriptionService';
 
 // Bottom nav (mobile): giới hạn 5 item quan trọng nhất
 const BOTTOM_NAV = [
@@ -28,6 +31,7 @@ const NAV_ITEMS = [
   { icon: ClipboardList,   label: 'Hoạt động của tôi', path: ROUTES.STUDENT_MY_ACTIVITIES       },
   { icon: TrendingUp,      label: 'Điểm rèn luyện',   path: ROUTES.STUDENT_TRAINING_POINTS     },
   { icon: Award,           label: 'Chứng nhận',        path: ROUTES.STUDENT_CERTIFICATES        },
+  { icon: Mailbox,         label: 'Góp ý',             path: ROUTES.STUDENT_GOP_Y, highlight: true },
 ];
 
 const StudentLayout = () => {
@@ -45,6 +49,50 @@ const StudentLayout = () => {
     navigate(ROUTES.LOGIN);
   };
 
+  // ── Push subscription (thông báo đẩy — hoạt động cả khi app đã đóng) ───────
+  const [pushStatus, setPushStatus] = useState('default'); // unsupported|denied|default|subscribed|not-subscribed
+
+  useEffect(() => {
+    let cancelled = false;
+    pushSubscriptionService.getStatus().then((status) => {
+      if (!cancelled) setPushStatus(status);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleTogglePush = async () => {
+    if (pushStatus === 'subscribed') {
+      const ok = await pushSubscriptionService.unsubscribe();
+      if (ok) {
+        setPushStatus('not-subscribed');
+        toast.info('Đã tắt thông báo đẩy.');
+      }
+      return;
+    }
+    if (pushStatus === 'unsupported') {
+      toast.warning('Trình duyệt không hỗ trợ thông báo đẩy.');
+      return;
+    }
+    if (pushStatus === 'denied') {
+      toast.warning('Bạn đã chặn thông báo. Vui lòng bật lại trong cài đặt trình duyệt.');
+      return;
+    }
+    const granted = await browserNotificationService.requestPermission();
+    if (!granted) {
+      toast.info('Bạn có thể bật thông báo đẩy bất kỳ lúc nào từ menu tài khoản.');
+      setPushStatus(browserNotificationService.getPermission() === 'denied' ? 'denied' : 'default');
+      return;
+    }
+    const ok = await pushSubscriptionService.subscribe();
+    if (ok) {
+      setPushStatus('subscribed');
+      toast.success('Đã bật thông báo đẩy! Đang gửi thông báo thử...');
+      pushSubscriptionService.sendTestPush().catch(() => {/* silent */});
+    } else {
+      toast.error('Không thể bật thông báo đẩy. Vui lòng thử lại.');
+    }
+  };
+
   const isActive = (path) =>
     location.pathname === path || location.pathname.startsWith(path + '/');
   const currentNav = NAV_ITEMS.find(n => isActive(n.path));
@@ -53,12 +101,15 @@ const StudentLayout = () => {
   const SidebarLink = ({ item }) => {
     const active = isActive(item.path);
     const Icon   = item.icon;
+    const highlightClass = 'bg-yellow-400 text-red-800 font-bold hover:bg-yellow-300 shadow-sm';
     return (
       <Link to={item.path}
         className={`flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${
-          active
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+          item.highlight
+            ? highlightClass
+            : active
+              ? 'bg-primary text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
         }`}>
         <Icon className="w-4.5 h-4.5 flex-shrink-0 w-[18px] h-[18px]" />
         {item.label}
@@ -214,6 +265,17 @@ const StudentLayout = () => {
                 <User className="w-4 h-4 text-gray-400" /> Hồ sơ cá nhân
                 <ChevronRight className="w-3.5 h-3.5 text-gray-400 ml-auto" />
               </Link>
+              <button
+                onClick={handleTogglePush}
+                disabled={pushStatus === 'unsupported'}
+                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {pushStatus === 'subscribed'
+                  ? <BellRing className="w-4 h-4 text-green-500" />
+                  : <Bell className="w-4 h-4 text-gray-400" />}
+                {pushStatus === 'subscribed' ? 'Đã bật thông báo đẩy' : 'Bật thông báo đẩy'}
+                {pushStatus === 'subscribed' && <span className="ml-auto w-2 h-2 rounded-full bg-green-500" />}
+              </button>
               <button onClick={handleLogout}
                 className="flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors w-full border-t border-gray-100">
                 <LogOut className="w-4 h-4" /> Đăng xuất

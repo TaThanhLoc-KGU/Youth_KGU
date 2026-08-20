@@ -3,10 +3,12 @@ package com.tathanhloc.youthkgu.Controller;
 import com.tathanhloc.youthkgu.DTO.ApiResponse;
 import com.tathanhloc.youthkgu.DTO.ChuKyDTO;
 import com.tathanhloc.youthkgu.DTO.ConDauDTO;
+import com.tathanhloc.youthkgu.Enum.LoaiChuKy;
 import com.tathanhloc.youthkgu.Model.KySoLichSu;
 import com.tathanhloc.youthkgu.Repository.KySoLichSuRepository;
 import com.tathanhloc.youthkgu.Service.KySoService;
 import com.tathanhloc.youthkgu.Service.KySoService.PreviewResult;
+import com.tathanhloc.youthkgu.Service.PermissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,18 +48,21 @@ public class KySoController {
 
     private final KySoService          kySoService;
     private final KySoLichSuRepository lichSuRepository;
+    private final PermissionService    permissionService;
 
     // ══════════════════════════════════════════════════════════════════════
     // CHỮ KÝ
     // ══════════════════════════════════════════════════════════════════════
 
     @GetMapping("/chu-ky")
-    @Operation(summary = "Lấy danh sách chữ ký cá nhân của user hiện tại")
+    @Operation(summary = "Lấy danh sách chữ ký cá nhân của user hiện tại (loaiChuKy: FULL hoặc NHAY, bỏ trống = tất cả)")
     @PreAuthorize("hasPermission(null, 'KY_SO_PDF') or hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<ApiResponse<List<ChuKyDTO>>> getAllChuKy(
+            @RequestParam(value = "loaiChuKy", required = false) String loaiChuKy,
             @AuthenticationPrincipal UserDetails userDetails) {
         String username = userDetails.getUsername();
-        return ResponseEntity.ok(ApiResponse.success(kySoService.getAllChuKy(username)));
+        LoaiChuKy loai = parseLoaiChuKy(loaiChuKy);
+        return ResponseEntity.ok(ApiResponse.success(kySoService.getAllChuKy(username, loai)));
     }
 
     @PostMapping(value = "/chu-ky", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -68,10 +73,11 @@ public class KySoController {
             @RequestParam("tenNguoiKy") String tenNguoiKy,
             @RequestParam(value = "chucVu", required = false) String chucVu,
             @RequestParam(value = "laMacDinh", defaultValue = "false") boolean laMacDinh,
+            @RequestParam(value = "loaiChuKy", defaultValue = "FULL") String loaiChuKy,
             @AuthenticationPrincipal UserDetails userDetails) {
         String username = userDetails.getUsername();
-        log.info("POST /api/ky-so/chu-ky - tenNguoiKy={} owner={}", tenNguoiKy, username);
-        ChuKyDTO dto = kySoService.uploadChuKy(file, tenNguoiKy, chucVu, laMacDinh, username);
+        log.info("POST /api/ky-so/chu-ky - tenNguoiKy={} owner={} loaiChuKy={}", tenNguoiKy, username, loaiChuKy);
+        ChuKyDTO dto = kySoService.uploadChuKy(file, tenNguoiKy, chucVu, laMacDinh, username, parseLoaiChuKy(loaiChuKy));
         return ResponseEntity.ok(ApiResponse.success("Tải chữ ký thành công", dto));
     }
 
@@ -90,28 +96,39 @@ public class KySoController {
     // CON DẤU
     // ══════════════════════════════════════════════════════════════════════
 
+    /**
+     * Lấy danh sách con dấu. Người có quyền QUAN_LY_CON_DAU thấy TOÀN BỘ (màn quản lý);
+     * người chỉ có KY_SO_PDF chỉ thấy con dấu dùng được (dùng chung hoặc sở hữu riêng)
+     * — dùng cho dropdown chọn con dấu khi xuất PDF.
+     */
     @GetMapping("/con-dau")
-    @Operation(summary = "Lấy danh sách con dấu")
-    @PreAuthorize("hasPermission(null, 'KY_SO_PDF') or hasPermission(null, 'CAI_DAT_HE_THONG')")
-    public ResponseEntity<ApiResponse<List<ConDauDTO>>> getAllConDau() {
-        return ResponseEntity.ok(ApiResponse.success(kySoService.getAllConDau()));
+    @Operation(summary = "Lấy danh sách con dấu (đầy đủ nếu có quyền quản lý, ngược lại chỉ con dấu dùng được)")
+    @PreAuthorize("hasPermission(null, 'KY_SO_PDF') or hasPermission(null, 'QUAN_LY_CON_DAU') or hasPermission(null, 'CAI_DAT_HE_THONG')")
+    public ResponseEntity<ApiResponse<List<ConDauDTO>>> getAllConDau(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String username = userDetails.getUsername();
+        boolean quanLy = coQuyenQuanLyConDau(username);
+        List<ConDauDTO> list = quanLy ? kySoService.getAllConDau() : kySoService.getUsableConDau(username);
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
 
     @PostMapping(value = "/con-dau", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload con dấu mới")
-    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
+    @Operation(summary = "Upload con dấu mới (ownerUsername bỏ trống = dùng chung)")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CON_DAU') or hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<ApiResponse<ConDauDTO>> uploadConDau(
             @RequestParam("file") MultipartFile file,
             @RequestParam("ten") String ten,
-            @RequestParam(value = "laMacDinh", defaultValue = "false") boolean laMacDinh) {
-        log.info("POST /api/ky-so/con-dau - ten={}", ten);
-        ConDauDTO dto = kySoService.uploadConDau(file, ten, laMacDinh);
+            @RequestParam(value = "laMacDinh", defaultValue = "false") boolean laMacDinh,
+            @RequestParam(value = "ownerUsername", required = false) String ownerUsername) {
+        log.info("POST /api/ky-so/con-dau - ten={} ownerUsername={}", ten, ownerUsername);
+        ConDauDTO dto = kySoService.uploadConDau(file, ten, laMacDinh,
+                (ownerUsername != null && !ownerUsername.isBlank()) ? ownerUsername : null);
         return ResponseEntity.ok(ApiResponse.success("Tải con dấu thành công", dto));
     }
 
     @DeleteMapping("/con-dau/{id}")
     @Operation(summary = "Xóa con dấu")
-    @PreAuthorize("hasPermission(null, 'CAI_DAT_HE_THONG')")
+    @PreAuthorize("hasPermission(null, 'QUAN_LY_CON_DAU') or hasPermission(null, 'CAI_DAT_HE_THONG')")
     public ResponseEntity<ApiResponse<Void>> deleteConDau(@PathVariable Long id) {
         log.info("DELETE /api/ky-so/con-dau/{}", id);
         kySoService.deleteConDau(id);
@@ -198,7 +215,10 @@ public class KySoController {
                 nguoiThucHien, ip,
                 body.colConfig(),
                 body.orgLabel(),
-                body.formatConfig()
+                body.formatConfig(),
+                body.apDungGiapLai(),
+                body.chuKyNhayId(),
+                body.khoaFilePdf()
         );
 
         byte[] pdfBytes = kySoService.xuatDanhSachPDF(req);
@@ -254,7 +274,10 @@ public class KySoController {
             String overrideTieuDe, String overrideNgayStr,
             List<KySoService.ColConfig> colConfig,
             String orgLabel,
-            KySoService.FormatConfig formatConfig
+            KySoService.FormatConfig formatConfig,
+            Boolean apDungGiapLai,
+            Long    chuKyNhayId,
+            Boolean khoaFilePdf
     ) {}
 
     /** Vị trí phần tử từ frontend (pixel, gốc trên-trái). */
@@ -262,6 +285,22 @@ public class KySoController {
 
     private KySoService.ElementPos toElementPos(PosBody p) {
         return new KySoService.ElementPos(p.x(), p.y(), p.width(), p.height());
+    }
+
+    private LoaiChuKy parseLoaiChuKy(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return LoaiChuKy.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** true nếu user hiện tại có quyền quản lý con dấu (QUAN_LY_CON_DAU hoặc CAI_DAT_HE_THONG), hoặc là ADMIN. */
+    private boolean coQuyenQuanLyConDau(String username) {
+        var effective = permissionService.getEffectivePermissions(username);
+        if (effective == null) return true; // null = ADMIN, toàn quyền
+        return effective.contains("QUAN_LY_CON_DAU") || effective.contains("CAI_DAT_HE_THONG");
     }
 
     /** Lấy IP thực của client (hỗ trợ proxy / load balancer). */

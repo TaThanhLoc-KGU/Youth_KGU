@@ -26,6 +26,25 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// Nhận push từ server (Web Push API) — hoạt động cả khi app đã đóng hẳn
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) {
+    data = { title: 'Youth KGU', body: event.data ? event.data.text() : '' };
+  }
+  const title = data.title || 'Youth KGU';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || '',
+      icon: data.icon || '/logo.png',
+      badge: '/logo.png',
+      tag: data.tag || `push-${Date.now()}`,
+      renotify: true,
+      data: { url: data.url || '/' },
+    })
+  );
+});
+
 // Xử lý click vào notification
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

@@ -26,6 +26,7 @@ public class DataInitializer implements ApplicationRunner {
     private final SliderItemRepository sliderItemRepository;
     private final TickerItemRepository tickerItemRepository;
     private final AdBannerRepository adBannerRepository;
+    private final TinTucRepository tinTucRepository;
 
     @Override
     @Transactional
@@ -37,8 +38,17 @@ public class DataInitializer implements ApplicationRunner {
         initializePermissions();
         initializeNamHocAndHocKy();
         initializeSampleENewsData();
+        backfillTinTucTuongTacCounters();
 
         log.info("System data initialization completed!");
+    }
+
+    /** Xem javadoc TinTucRepository.backfillNullTuongTacCounters(). */
+    private void backfillTinTucTuongTacCounters() {
+        int updated = tinTucRepository.backfillNullTuongTacCounters();
+        if (updated > 0) {
+            log.info("Backfill {} bài viết có cột tương tác (thích/bình luận/chia sẻ) NULL -> 0", updated);
+        }
     }
 
     private void initializeBan() {
@@ -114,6 +124,14 @@ public class DataInitializer implements ApplicationRunner {
         createPermissionIfNotExists("QUAN_LY_CHUYEN_MUC", "Thêm sửa xóa danh mục eNews",         "NEWS");
         createPermissionIfNotExists("QUAN_LY_VAN_BAN",    "Upload và quản lý văn bản/kế hoạch",   "NEWS");
         createPermissionIfNotExists("XOA_VAN_BAN",        "Xóa văn bản khỏi kho",                 "NEWS");
+        createPermissionIfNotExists("KIEM_DUYET_BINH_LUAN", "Khóa bình luận bài viết; chặn/bỏ chặn/xóa bình luận vi phạm", "NEWS");
+
+        // Ký số
+        createPermissionIfNotExists("QUAN_LY_CON_DAU", "Upload, xóa và gán quyền sở hữu (scoping) con dấu", "KY_SO");
+
+        // Thùng thư góp ý
+        createPermissionIfNotExists("XEM_GOP_Y",  "Xem danh sách/chi tiết góp ý-phản ánh (danh tính người gửi được ẩn)", "GOP_Y");
+        createPermissionIfNotExists("XU_LY_GOP_Y", "Cập nhật trạng thái và phản hồi góp ý-phản ánh", "GOP_Y");
         log.info("Permissions initialized successfully");
     }
 

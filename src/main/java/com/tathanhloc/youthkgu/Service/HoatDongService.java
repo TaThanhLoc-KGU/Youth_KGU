@@ -3,19 +3,16 @@ package com.tathanhloc.youthkgu.Service;
 import com.tathanhloc.youthkgu.DTO.DiemDanhStatusDTO;
 import com.tathanhloc.youthkgu.DTO.FileUploadResult;
 import com.tathanhloc.youthkgu.DTO.HoatDongDTO;
-import com.tathanhloc.youthkgu.DTO.TinTucDTO;
 import com.tathanhloc.youthkgu.Enum.*;
 import com.tathanhloc.youthkgu.Model.*;
 import com.tathanhloc.youthkgu.Repository.*;
 import com.tathanhloc.youthkgu.Util.AcademicCalendarUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -50,15 +47,6 @@ public class HoatDongService {
     private final EmailService emailService;
     private final ZaloService zaloService;
     private final FileStorageService fileStorageService;
-    private final TinTucService tinTucService;
-    private final TinTucRepository tinTucRepository;
-
-    /**
-     * Chuyên mục dùng cho tin tức tự động tạo khi tạo hoạt động mới.
-     * Có thể chỉnh qua application.properties nếu chuyên mục mặc định khác trên môi trường triển khai.
-     */
-    @Value("${app.tin-tuc.hoat-dong-chuyen-muc-id:1}")
-    private Long hoatDongChuyenMucId;
 
     // ========== CRUD OPERATIONS ==========
 
@@ -81,23 +69,38 @@ public class HoatDongService {
             list = hoatDongRepository.findByIsActiveTrueOrIsActiveIsNull();
         }
         
+        Map<String, Long> dangKyCountMap = buildDangKyCountMap();
         return list.stream()
-                .map(this::toDTO)
+                .map(hd -> toDTO(hd, dangKyCountMap))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public Page<HoatDongDTO> getAllWithPagination(Pageable pageable) {
         log.debug("Getting all activities with pagination");
-        
+
         String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        Map<String, Long> dangKyCountMap = buildDangKyCountMap();
         if (maKhoa != null) {
             // Cán bộ khoa: hoạt động khoa mình + cấp trường
             return hoatDongRepository.findByKhoaScopeOrGlobalPaged(maKhoa, pageable)
-                    .map(this::toDTO);
+                    .map(hd -> toDTO(hd, dangKyCountMap));
         }
 
-        return hoatDongRepository.findByIsActive(true, pageable).map(this::toDTO);
+        return hoatDongRepository.findByIsActive(true, pageable).map(hd -> toDTO(hd, dangKyCountMap));
+    }
+
+    /**
+     * Bulk-load số đăng ký của TẤT CẢ hoạt động thành 1 map, dùng cho các API trả về danh sách
+     * (getAll/getAllWithPagination/getByTrangThai) để tránh N+1 — xem toDTO(entity, map) và
+     * HoatDongRepository.countDangKyGroupByHoatDong().
+     */
+    private Map<String, Long> buildDangKyCountMap() {
+        Map<String, Long> map = new HashMap<>();
+        for (Object[] row : hoatDongRepository.countDangKyGroupByHoatDong()) {
+            map.put((String) row[0], (Long) row[1]);
+        }
+        return map;
     }
 
     @Transactional(readOnly = true)
@@ -172,39 +175,21 @@ public class HoatDongService {
     }
 
     /**
-     * Công khai hoạt động: hiển thị cho sinh viên xem/đăng ký, tự tạo + đăng 1 bài tin tức giới thiệu
-     * (nếu chưa có), và gửi thông báo (push + email) đến toàn bộ sinh viên. Idempotent theo cờ congKhai
-     * — gọi lại khi đã công khai rồi sẽ không tạo trùng tin tức / gửi lại thông báo.
+     * Công khai hoạt động: hiển thị cho sinh viên xem/đăng ký.
+     * <p>
+     * KHÔNG tự động gửi email/thông báo, KHÔNG tự động tạo tin tức ở đây — theo yêu cầu nghiệp vụ, việc
+     * gửi email/thông báo CHỈ thực hiện khi người dùng chủ động bấm nút "Gửi email"/"Gửi thông báo" (xem
+     * guiEmailThongBao(), NotificationController#broadcast()), và tin tức CHỈ được tạo thủ công qua giao
+     * diện quản lý tin tức. Trước đây "Công khai"/"Duyệt" tự động gửi email + thông báo tới TOÀN BỘ sinh
+     * viên và tự tạo 1 bài tin tức như tác dụng phụ ẩn — vừa gây khó chịu (người duyệt không chủ ý gửi
+     * mail/tạo tin), vừa làm request bị delay nặng vì vòng lặp gửi đồng bộ cho hàng trăm/nghìn sinh viên
+     * chạy ngay trong transaction của "Công khai"/"Duyệt".
      */
     private void publishActivity(HoatDong hoatDong) {
-        boolean firstTimePublic = !Boolean.TRUE.equals(hoatDong.getCongKhai());
         hoatDong.setCongKhai(true);
-        if (!firstTimePublic) return;
-
-        // Tự động tạo + đăng 1 bài tin tức giới thiệu hoạt động, kèm link đăng ký (mini app + web).
-        // Bọc try/catch để lỗi tạo tin tức không làm hỏng việc công khai hoạt động (thao tác chính).
-        if (!tinTucRepository.existsByHoatDongIdAndIsDeletedFalse(hoatDong.getMaHoatDong())) {
-            try {
-                autoCreateNewsForActivity(hoatDong);
-            } catch (Exception e) {
-                log.warn("Không thể tự tạo tin tức cho hoạt động {}: {}", hoatDong.getMaHoatDong(), e.getMessage());
-            }
-        }
-
-        notificationService.sendNotificationToAllStudents(
-                "Hoạt động mới",
-                "Hoạt động \"" + hoatDong.getTenHoatDong() + "\" đã công khai. Hãy xem và tham gia ngay!",
-                "NEW_ACTIVITY",
-                hoatDong.getMaHoatDong()
-        );
-        // Gửi email bất đồng bộ đến tất cả sinh viên đang hoạt động
-        emailService.sendBulkHoatDongNotification(
-                sinhVienRepository.findByIsActive(true),
-                hoatDong
-        );
     }
 
-    /** Công khai hoạt động — hiển thị cho SV + tự tạo tin tức + gửi thông báo (xem publishActivity). */
+    /** Công khai hoạt động — hiển thị cho SV xem/đăng ký (xem publishActivity). */
     @Transactional
     public HoatDongDTO congKhaiHoatDong(String maHoatDong) {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
@@ -224,66 +209,6 @@ public class HoatDongService {
         hoatDong = hoatDongRepository.save(hoatDong);
         log.info("Activity đã ẩn: {}", maHoatDong);
         return toDTO(hoatDong);
-    }
-
-    /**
-     * Tự động tạo và đăng (publish) 1 bài tin tức giới thiệu hoạt động vừa tạo,
-     * liên kết qua hoatDongId, kèm link mở Mini App + link web để đăng ký.
-     */
-    private void autoCreateNewsForActivity(HoatDong hd) {
-        TinTucDTO newsDto = TinTucDTO.builder()
-                .tieuDe(hd.getTenHoatDong())
-                .tomTat(buildNewsTomTat(hd))
-                .noiDung(buildNewsNoiDung(hd))
-                .anhDaiDien(hd.getHinhAnhPoster())
-                .chuyenMucId(hoatDongChuyenMucId)
-                .hoatDongId(hd.getMaHoatDong())
-                .donViDang("Đoàn Thanh niên")
-                .build();
-
-        TinTucDTO saved = tinTucService.create(newsDto, currentUsername());
-        tinTucService.publish(saved.getId());
-        log.info("Auto-created & published TinTuc id={} for activity {}", saved.getId(), hd.getMaHoatDong());
-    }
-
-    private String buildNewsTomTat(HoatDong hd) {
-        if (hd.getMoTa() == null || hd.getMoTa().isBlank()) {
-            return "Mời các bạn đoàn viên, sinh viên tham gia hoạt động \"" + hd.getTenHoatDong() + "\".";
-        }
-        String plain = hd.getMoTa().replaceAll("<[^>]*>", "").trim();
-        return plain.length() > 200 ? plain.substring(0, 200) + "..." : plain;
-    }
-
-    private String buildNewsNoiDung(HoatDong hd) {
-        StringBuilder sb = new StringBuilder();
-        if (hd.getMoTa() != null && !hd.getMoTa().isBlank()) {
-            sb.append(hd.getMoTa());
-        }
-        sb.append("<p><strong>📅 Ngày tổ chức:</strong> ").append(hd.getNgayToChuc());
-        if (hd.getNgayKetThuc() != null && !hd.getNgayKetThuc().equals(hd.getNgayToChuc())) {
-            sb.append(" → ").append(hd.getNgayKetThuc());
-        }
-        sb.append("</p>");
-        if (hd.getDiaDiem() != null && !hd.getDiaDiem().isBlank()) {
-            sb.append("<p><strong>📍 Địa điểm:</strong> ").append(hd.getDiaDiem()).append("</p>");
-        }
-        if (hd.getDiemRenLuyen() != null && hd.getDiemRenLuyen() > 0) {
-            sb.append("<p><strong>⭐ Điểm rèn luyện:</strong> ").append(hd.getDiemRenLuyen()).append(" điểm</p>");
-        }
-
-        String miniAppUrl = zaloService.miniAppLink("activities/" + hd.getMaHoatDong());
-        sb.append("<p>👉 <a href=\"").append(miniAppUrl).append("\" target=\"_blank\">Mở Mini App để đăng ký ngay</a></p>");
-
-        if (hd.getQuyetDinhUrl() != null && !hd.getQuyetDinhUrl().isBlank()) {
-            String quyetDinhUrl = "/api/public/hoat-dong/" + hd.getMaHoatDong() + "/quyet-dinh";
-            sb.append("<p>📄 <a href=\"").append(quyetDinhUrl).append("\" target=\"_blank\">Xem quyết định đính kèm</a></p>");
-        }
-        return sb.toString();
-    }
-
-    private String currentUsername() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        return (auth != null && auth.getName() != null) ? auth.getName() : "system";
     }
 
     /** Trả về file resource của quyết định đính kèm hoạt động, dùng để xem/tải trực tuyến. */
@@ -352,6 +277,24 @@ public class HoatDongService {
 
     // ========== APPROVAL WORKFLOW ==========
 
+    /**
+     * Kiểm tra người duyệt hiện tại (theo scope CLB/khoa) có quyền duyệt/từ chối ĐÚNG hoạt động này
+     * không — cùng logic với update(). ADMIN/Đoàn trường (không có scope) duyệt được mọi hoạt động.
+     */
+    private void kiemTraScopeDuyet(HoatDong hoatDong) {
+        String maClb  = khoaScopeService.getCurrentMaClb();
+        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        if (maClb != null) {
+            if (hoatDong.getCauLacBo() == null || !hoatDong.getCauLacBo().getMaClb().equals(maClb)) {
+                throw new RuntimeException("Không có quyền duyệt hoạt động của CLB khác");
+            }
+        } else if (maKhoa != null) {
+            if (hoatDong.getKhoa() == null || !hoatDong.getKhoa().getMaKhoa().equals(maKhoa)) {
+                throw new RuntimeException("Không có quyền duyệt hoạt động của khoa khác");
+            }
+        }
+    }
+
     @Transactional
     public HoatDongDTO duyetHoatDong(String maHoatDong, TrangThaiHoatDongEnum trangThaiMoi, String nguoiDuyet) {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
@@ -361,12 +304,16 @@ public class HoatDongService {
             throw new RuntimeException("Hoạt động không ở trạng thái chờ duyệt");
         }
 
+        // KIỂM TRA SCOPE — DUYET_HOAT_DONG_CLB/DUYET_HOAT_DONG chỉ cho phép duyệt hoạt động đúng
+        // phạm vi CLB/khoa của người duyệt (giống update()), tránh 1 CLB/khoa duyệt hộ CLB/khoa khác.
+        kiemTraScopeDuyet(hoatDong);
+
         hoatDong.setTrangThai(trangThaiMoi);
         hoatDong.setNguoiDuyet(nguoiDuyet);
         hoatDong.setNgayDuyet(LocalDateTime.now());
         hoatDong.setLyDoTuChoi(null);
-        // Đoàn trường duyệt = công khai luôn: hiện cho SV xem/đăng ký + tự tạo tin tức + gửi thông báo.
-        // Không cần bấm thêm nút "Công khai" sau khi duyệt.
+        // Đoàn trường duyệt = công khai luôn: hiện cho SV xem/đăng ký. Không cần bấm thêm nút
+        // "Công khai" sau khi duyệt (không tự gửi email/thông báo/tạo tin tức — xem publishActivity()).
         publishActivity(hoatDong);
         hoatDong = hoatDongRepository.save(hoatDong);
 
@@ -382,6 +329,8 @@ public class HoatDongService {
         if (hoatDong.getTrangThai() != TrangThaiHoatDongEnum.CHO_DUYET) {
             throw new RuntimeException("Hoạt động không ở trạng thái chờ duyệt");
         }
+
+        kiemTraScopeDuyet(hoatDong);
 
         hoatDong.setTrangThai(TrangThaiHoatDongEnum.DA_HUY);
         hoatDong.setNguoiDuyet(nguoiDuyet);
@@ -437,8 +386,9 @@ public class HoatDongService {
     @Transactional(readOnly = true)
     public List<HoatDongDTO> getByTrangThai(TrangThaiHoatDongEnum trangThai) {
         log.debug("Getting activities by status: {}", trangThai);
-        return hoatDongRepository.findByTrangThaiAndIsActive(trangThai, true).stream()
-                .map(this::toDTO)
+        Map<String, Long> dangKyCountMap = buildDangKyCountMap();
+        return hoatDongRepository.findByTrangThaiAndIsActiveFetchAll(trangThai, true).stream()
+                .map(hd -> toDTO(hd, dangKyCountMap))
                 .collect(Collectors.toList());
     }
 
@@ -940,9 +890,21 @@ public class HoatDongService {
     // ========== MAPPING METHODS ==========
 
     private HoatDongDTO toDTO(HoatDong entity) {
+        return toDTO(entity, null);
+    }
+
+    /**
+     * @param dangKyCountMap map mã hoạt động → số đăng ký, build 1 lần bằng
+     *                       {@link #buildDangKyCountMap()} rồi tái dùng cho cả danh sách — tránh N+1
+     *                       (1 query COUNT riêng cho mỗi hoạt động). Truyền null để giữ hành vi cũ
+     *                       (query từng dòng) ở những chỗ chưa được tối ưu.
+     */
+    private HoatDongDTO toDTO(HoatDong entity, Map<String, Long> dangKyCountMap) {
         if (entity == null) return null;
 
-        long soNguoiDangKy = dangKyRepository.countByHoatDongMaHoatDongAndIsActiveTrue(entity.getMaHoatDong());
+        long soNguoiDangKy = dangKyCountMap != null
+                ? dangKyCountMap.getOrDefault(entity.getMaHoatDong(), 0L)
+                : dangKyRepository.countByHoatDongMaHoatDongAndIsActiveTrue(entity.getMaHoatDong());
 
         // Tính số ngày và isMultiDay
         LocalDate ngayKetThuc = entity.getNgayKetThuc();

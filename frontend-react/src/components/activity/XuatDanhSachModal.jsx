@@ -5,7 +5,7 @@ import {
   X, Loader2, FileText, FileCheck, Pen, Stamp, Download, Eye,
   GripHorizontal, AlertCircle, CheckCircle2, Send, RefreshCw,
   Plus, Trash2, RotateCcw, MoveHorizontal, List, Settings,
-  ChevronUp, ChevronDown, Sliders,
+  ChevronUp, ChevronDown, Sliders, Lock, Layers,
 } from 'lucide-react';
 import kySoService from '../../services/kySoService';
 import banHanhService from '../../services/banHanhService';
@@ -373,6 +373,10 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
     tenNguoiLap:     '',
     chucVuNguoiLap:  'Thư ký BCH',
     conDauId:        null,
+    apDungGiapLai:   false,
+    chuKyNhayId:     null,
+    // Xuất thường mặc định tắt; ban hành chính thức mặc định bật
+    khoaFilePdf:     mode === 'BAN_HANH',
   });
 
   /* ── Nội dung (editor) */
@@ -415,8 +419,11 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
   const [banHanhResult, setBanHanhResult] = useState(null);
 
   /* ── Queries */
-  const { data: dsChuKy  = [] } = useQuery({ queryKey: ['chu-ky'],  queryFn: kySoService.getAllChuKy });
-  const { data: dsConDau = [] } = useQuery({ queryKey: ['con-dau'], queryFn: kySoService.getAllConDau });
+  const { data: dsChuKyAll = [] } = useQuery({ queryKey: ['chu-ky'],  queryFn: () => kySoService.getAllChuKy() });
+  const { data: dsConDau   = [] } = useQuery({ queryKey: ['con-dau'], queryFn: kySoService.getAllConDau });
+  // Chữ ký đầy đủ (trang cuối) vs ký nháy (mọi trang trừ trang cuối) — cùng 1 bảng, lọc theo loaiChuKy
+  const dsChuKy     = dsChuKyAll.filter(ck => (ck.loaiChuKy || 'FULL') !== 'NHAY');
+  const dsChuKyNhay = dsChuKyAll.filter(ck => ck.loaiChuKy === 'NHAY');
   const { data: dsChucVu = [] } = useQuery({
     queryKey: ['chuc-vu'],
     queryFn: () => api.get('/api/chuc-vu').then(r => r.data.data || []),
@@ -656,6 +663,38 @@ export default function XuatDanhSachModal({ maHoatDong, onClose, mode = 'XUAT_PD
           <img src={imgUrl(dsConDau.find(c => c.id === form.conDauId)?.duongDan)}
             alt="preview" className="h-14 object-contain border rounded bg-gray-50" />
         )}
+      </div>
+
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5">
+        <h4 className="text-xs font-bold text-slate-600 flex items-center gap-1.5 uppercase tracking-wide">
+          <Lock className="w-3.5 h-3.5" /> Bảo mật &amp; chống giả mạo
+        </h4>
+
+        <label className={`flex items-start gap-2 ${!form.conDauId ? 'opacity-50' : ''}`}>
+          <input type="checkbox" className="mt-0.5 w-3.5 h-3.5 rounded accent-orange-600 cursor-pointer"
+            checked={form.apDungGiapLai}
+            disabled={!form.conDauId}
+            onChange={e => setForm(f => ({ ...f, apDungGiapLai: e.target.checked }))} />
+          <span className="text-xs text-gray-600">
+            <span className="font-medium text-gray-700 flex items-center gap-1"><Layers className="w-3 h-3" /> Đóng dấu giáp lai</span>
+            Đóng con dấu lên mọi trang (dùng ảnh con dấu đã chọn ở trên) để chống rút/thay trang.
+          </span>
+        </label>
+
+        <SigImagePicker label="Ký nháy (mọi trang trừ trang cuối, tuỳ chọn)"
+          value={form.chuKyNhayId}
+          onChange={v => setForm(f => ({ ...f, chuKyNhayId: v }))}
+          options={dsChuKyNhay} color="blue" />
+
+        <label className="flex items-start gap-2">
+          <input type="checkbox" className="mt-0.5 w-3.5 h-3.5 rounded accent-orange-600 cursor-pointer"
+            checked={form.khoaFilePdf}
+            onChange={e => setForm(f => ({ ...f, khoaFilePdf: e.target.checked }))} />
+          <span className="text-xs text-gray-600">
+            <span className="font-medium text-gray-700">Khóa chỉnh sửa PDF</span> — ai cũng mở/xem/in được,
+            nhưng không sửa nội dung hay copy text (không cần mật khẩu để mở).
+          </span>
+        </label>
       </div>
 
       {(!form.tenNguoiKy.trim() || !form.tenNguoiLap.trim()) && (

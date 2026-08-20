@@ -1,5 +1,6 @@
 package com.tathanhloc.youthkgu.Repository;
 
+import com.tathanhloc.youthkgu.Enum.LoaiChuKy;
 import com.tathanhloc.youthkgu.Model.ChuKy;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -16,4 +17,7 @@ public interface ChuKyRepository extends JpaRepository<ChuKy, Long> {
 
     /** Chữ ký mặc định của một user (để tự động chọn khi xuất PDF) */
     Optional<ChuKy> findFirstByOwnerUsernameAndLaMacDinhTrue(String ownerUsername);
+
+    /** Chữ ký của một user, lọc theo loại (FULL hoặc NHAY) */
+    List<ChuKy> findByOwnerUsernameAndLoaiChuKyOrderByCreatedAtDesc(String ownerUsername, LoaiChuKy loaiChuKy);
 }

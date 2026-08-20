@@ -13,6 +13,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -45,15 +51,35 @@ public class ZaloService {
     @Value("${zalo.mini-app-id}")
     private String miniAppId;
 
+    @Value("${app.secure-data.path:./secure-data}")
+    private String secureDataPath;
+
     // Token runtime — tự cập nhật khi refresh, không cần restart server
     private final AtomicReference<String> currentAccessToken = new AtomicReference<>();
     private final AtomicReference<String> currentRefreshToken = new AtomicReference<>();
     private volatile Instant tokenExpiresAt = Instant.EPOCH;
 
+    /**
+     * Ưu tiên nạp access/refresh token đã lưu ở lần refresh gần nhất (file {app.secure-data.path}/
+     * zalo-tokens.properties), fallback về giá trị tĩnh trong application.properties nếu chưa từng lưu.
+     * BẮT BUỘC phải làm vậy: Zalo ROTATE refresh_token mỗi lần dùng (refresh_token cũ hết hiệu lực ngay
+     * sau khi refresh thành công) — nếu chỉ giữ token trong bộ nhớ (AtomicReference) như trước, mọi lần
+     * restart/redeploy server sẽ nạp lại refresh_token TĨNH đã bị Zalo vô hiệu hoá từ lâu, khiến lần
+     * refresh kế tiếp luôn thất bại — đây chính là nguyên nhân "tự động refresh token Zalo không hoạt
+     * động" dù logic refresh (refreshAccessToken()) tự nó không có lỗi.
+     */
     @jakarta.annotation.PostConstruct
     public void init() {
-        currentAccessToken.set(oaAccessTokenConfig);
-        currentRefreshToken.set(oaRefreshTokenConfig);
+        Properties saved = loadSavedTokens();
+        if (saved != null) {
+            currentAccessToken.set(saved.getProperty("accessToken"));
+            currentRefreshToken.set(saved.getProperty("refreshToken"));
+            log.info("Zalo OA: dùng cặp token đã lưu tại {}", tokenFile().toAbsolutePath());
+        } else {
+            currentAccessToken.set(oaAccessTokenConfig);
+            currentRefreshToken.set(oaRefreshTokenConfig);
+            log.info("Zalo OA: chưa có token đã lưu — dùng giá trị mặc định trong application.properties");
+        }
         tokenExpiresAt = Instant.now().plusSeconds(90000);
     }
 
@@ -61,7 +87,45 @@ public class ZaloService {
         currentAccessToken.set(accessToken);
         if (refreshToken != null && !refreshToken.isBlank()) currentRefreshToken.set(refreshToken);
         tokenExpiresAt = Instant.now().plusSeconds(86400); // 24h
+        persistTokens(currentAccessToken.get(), currentRefreshToken.get());
         log.info("Zalo OA tokens updated via OAuth callback");
+    }
+
+    private Path tokenFile() {
+        return Paths.get(secureDataPath, "zalo-tokens.properties");
+    }
+
+    private Properties loadSavedTokens() {
+        Path file = tokenFile();
+        if (!Files.exists(file)) return null;
+        try (InputStream in = Files.newInputStream(file)) {
+            Properties props = new Properties();
+            props.load(in);
+            String access = props.getProperty("accessToken");
+            String refresh = props.getProperty("refreshToken");
+            if (access == null || access.isBlank() || refresh == null || refresh.isBlank()) return null;
+            return props;
+        } catch (IOException e) {
+            log.warn("Không đọc được file token Zalo đã lưu {}: {}", file.toAbsolutePath(), e.getMessage());
+            return null;
+        }
+    }
+
+    /** Lưu access/refresh token hiện tại xuống đĩa (secure-data, KHÔNG serve công khai như /uploads/**). */
+    private void persistTokens(String accessToken, String refreshToken) {
+        Path file = tokenFile();
+        try {
+            if (file.getParent() != null) Files.createDirectories(file.getParent());
+            Properties props = new Properties();
+            props.setProperty("accessToken", accessToken == null ? "" : accessToken);
+            props.setProperty("refreshToken", refreshToken == null ? "" : refreshToken);
+            try (OutputStream out = Files.newOutputStream(file)) {
+                props.store(out, "Zalo OA access/refresh token hien tai - TU DONG GHI, KHONG SUA TAY");
+            }
+        } catch (IOException e) {
+            log.error("Không thể lưu token Zalo vào file {} — refresh_token vừa bị Zalo rotate sẽ MẤT khi " +
+                    "restart, lần refresh kế tiếp sau restart sẽ thất bại!", file.toAbsolutePath(), e);
+        }
     }
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -383,9 +447,8 @@ public class ZaloService {
     }
 
     /**
-     * Link web của hoạt động — ưu tiên bài tin tức đã publish liên kết với hoạt động
-     * (tự tạo khi tạo hoạt động, xem HoatDongService.autoCreateNewsForActivity),
-     * fallback về trang danh sách hoạt động chung nếu chưa có bài nào.
+     * Link web của hoạt động — ưu tiên bài tin tức đã publish liên kết với hoạt động (tạo thủ công qua
+     * giao diện quản lý tin tức), fallback về trang danh sách hoạt động chung nếu chưa có bài nào.
      */
     private String websiteLink(String maHoatDong) {
         return tinTucRepository
@@ -464,6 +527,7 @@ public class ZaloService {
                 currentAccessToken.set((String) parsed.get("access_token"));
                 currentRefreshToken.set((String) parsed.get("refresh_token"));
                 tokenExpiresAt = Instant.now().plusSeconds(90000);
+                persistTokens(currentAccessToken.get(), currentRefreshToken.get());
                 log.info("Zalo: token refreshed successfully, expires at {}", tokenExpiresAt);
             } else {
                 log.error("Zalo: token refresh failed: {}", resp.getBody());

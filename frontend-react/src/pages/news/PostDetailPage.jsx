@@ -6,6 +6,8 @@ import Breadcrumb from '../../components/news/public/Breadcrumb';
 import VanBanAttachment from '../../components/news/public/VanBanAttachment';
 import ActivityRegisterBtn from '../../components/news/public/ActivityRegisterBtn';
 import PostCard from '../../components/news/public/PostCard';
+import LikeShareBar from '../../components/news/public/LikeShareBar';
+import CommentSection from '../../components/news/public/CommentSection';
 import { useQuery } from '@tanstack/react-query';
 import newsService from '../../services/newsService';
 
@@ -90,52 +92,89 @@ const PostDetailPage = ({ post }) => {
           <Breadcrumb items={post.breadcrumb || []} currentTitle={post.tieuDe} />
         </div>
 
-        {/* Category tag */}
-        {post.chuyenMuc && (
-          <a
-            href={`/${post.chuyenMuc.fullPathSlug}`}
-            className="inline-block bg-primary text-white text-xs font-bold px-3 py-1 rounded-full mb-3 hover:bg-primary-700 transition-colors"
-          >
-            {post.chuyenMuc.ten}
-          </a>
-        )}
-
-        {/* Title */}
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight mb-4 break-words">
-          {post.tieuDe}
-        </h1>
-
-        {/* Meta bar */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-500 mb-5 pb-4 border-b border-gray-100">
-          {post.ngayXuatBan && (
-            <span className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 flex-shrink-0" />
-              {fmtDate(post.ngayXuatBan)}
-            </span>
-          )}
-          {post.donViDang && (
-            <span className="flex items-center gap-1.5">
-              <User className="w-4 h-4 flex-shrink-0" />
-              {post.donViDang}
-            </span>
-          )}
-          {post.luotXem != null && (
-            <span className="flex items-center gap-1.5">
-              <Eye className="w-4 h-4 flex-shrink-0" />
-              {post.luotXem} lượt xem
-            </span>
-          )}
-        </div>
-
-        {/* Hero image */}
-        {post.anhDaiDien && (
-          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden mb-6 bg-gray-100">
+        {/* Hero: khi có ảnh đại diện, tiêu đề + meta hòa vào ảnh (overlay + gradient scrim);
+            khi không có ảnh, quay về tiêu đề dạng chữ thường như trước. */}
+        {post.anhDaiDien ? (
+          <div className="relative aspect-[4/3] sm:aspect-[16/9] rounded-2xl overflow-hidden mb-6 bg-gray-900">
             <img
               src={post.anhDaiDien}
               alt={post.tieuDe}
               className="absolute inset-0 w-full h-full object-cover"
             />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/0" />
+            <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
+              {post.chuyenMuc && (
+                <a
+                  href={`/${post.chuyenMuc.fullPathSlug}`}
+                  className="inline-flex items-center bg-white/15 backdrop-blur-sm ring-1 ring-white/25 text-white text-xs font-bold px-3 py-1 rounded-full mb-3 hover:bg-white/25 transition-colors"
+                >
+                  {post.chuyenMuc.ten}
+                </a>
+              )}
+              <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight mb-3 break-words [text-wrap:balance] [text-shadow:0_1px_12px_rgba(0,0,0,0.35)]">
+                {post.tieuDe}
+              </h1>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-white/85">
+                {post.ngayXuatBan && (
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 flex-shrink-0" />
+                    {fmtDate(post.ngayXuatBan)}
+                  </span>
+                )}
+                {post.donViDang && (
+                  <span className="flex items-center gap-1.5">
+                    <User className="w-4 h-4 flex-shrink-0" />
+                    {post.donViDang}
+                  </span>
+                )}
+                {post.luotXem != null && (
+                  <span className="flex items-center gap-1.5">
+                    <Eye className="w-4 h-4 flex-shrink-0" />
+                    {post.luotXem} lượt xem
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Category tag */}
+            {post.chuyenMuc && (
+              <a
+                href={`/${post.chuyenMuc.fullPathSlug}`}
+                className="inline-block bg-primary text-white text-xs font-bold px-3 py-1 rounded-full mb-3 hover:bg-primary-700 transition-colors"
+              >
+                {post.chuyenMuc.ten}
+              </a>
+            )}
+
+            {/* Title */}
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight mb-4 break-words">
+              {post.tieuDe}
+            </h1>
+
+            {/* Meta bar */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-500 mb-5 pb-4 border-b border-gray-100">
+              {post.ngayXuatBan && (
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                  {fmtDate(post.ngayXuatBan)}
+                </span>
+              )}
+              {post.donViDang && (
+                <span className="flex items-center gap-1.5">
+                  <User className="w-4 h-4 flex-shrink-0" />
+                  {post.donViDang}
+                </span>
+              )}
+              {post.luotXem != null && (
+                <span className="flex items-center gap-1.5">
+                  <Eye className="w-4 h-4 flex-shrink-0" />
+                  {post.luotXem} lượt xem
+                </span>
+              )}
+            </div>
+          </>
         )}
 
         {/* Summary — styled as blockquote */}
@@ -198,7 +237,13 @@ const PostDetailPage = ({ post }) => {
             ))}
           </div>
         )}
+
+        {/* Thích / Bình luận / Chia sẻ */}
+        <LikeShareBar post={post} />
       </article>
+
+      {/* Bình luận */}
+      <CommentSection post={post} />
 
       {/* Related articles */}
       {related.length > 0 && (

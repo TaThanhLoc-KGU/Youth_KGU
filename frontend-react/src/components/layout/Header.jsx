@@ -1,10 +1,11 @@
-import { Bell, Menu, Check, BellOff, Home, LogOut, User, ChevronDown } from 'lucide-react';
+import { Bell, BellRing, Menu, Check, BellOff, Home, LogOut, User, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES } from '../../utils/constants';
 import notificationService from '../../services/notificationService';
 import browserNotificationService from '../../services/browserNotificationService';
+import pushSubscriptionService from '../../services/pushSubscriptionService';
 import useNotificationHistoryStore from '../../stores/notificationHistoryStore';
 import { toast } from 'react-toastify';
 import { formatDistanceToNow } from 'date-fns';
@@ -201,6 +202,50 @@ const Header = ({ title, onMenuClick }) => {
 
   const browserNotifGranted = browserNotificationService.isGranted();
 
+  // ── Push subscription (thông báo đẩy — hoạt động cả khi app đã đóng) ───────
+  const [pushStatus, setPushStatus] = useState('default'); // unsupported|denied|default|subscribed|not-subscribed
+
+  useEffect(() => {
+    let cancelled = false;
+    pushSubscriptionService.getStatus().then((status) => {
+      if (!cancelled) setPushStatus(status);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleTogglePush = async () => {
+    if (pushStatus === 'subscribed') {
+      const ok = await pushSubscriptionService.unsubscribe();
+      if (ok) {
+        setPushStatus('not-subscribed');
+        toast.info('Đã tắt thông báo đẩy.');
+      }
+      return;
+    }
+    if (pushStatus === 'unsupported') {
+      toast.warning('Trình duyệt không hỗ trợ thông báo đẩy.');
+      return;
+    }
+    if (pushStatus === 'denied') {
+      toast.warning('Bạn đã chặn thông báo. Vui lòng bật lại trong cài đặt trình duyệt.');
+      return;
+    }
+    const granted = await browserNotificationService.requestPermission();
+    if (!granted) {
+      toast.info('Bạn có thể bật thông báo đẩy bất kỳ lúc nào từ menu tài khoản.');
+      setPushStatus(browserNotificationService.getPermission() === 'denied' ? 'denied' : 'default');
+      return;
+    }
+    const ok = await pushSubscriptionService.subscribe();
+    if (ok) {
+      setPushStatus('subscribed');
+      toast.success('Đã bật thông báo đẩy! Đang gửi thông báo thử...');
+      pushSubscriptionService.sendTestPush().catch(() => {/* silent */});
+    } else {
+      toast.error('Không thể bật thông báo đẩy. Vui lòng thử lại.');
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 pt-[var(--sat)]">
@@ -339,6 +384,17 @@ const Header = ({ title, onMenuClick }) => {
                   <User className="w-4 h-4 text-gray-400" />
                   Hồ sơ cá nhân
                 </Link>
+                <button
+                  onClick={handleTogglePush}
+                  disabled={pushStatus === 'unsupported'}
+                  className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {pushStatus === 'subscribed'
+                    ? <BellRing className="w-4 h-4 text-green-500" />
+                    : <Bell className="w-4 h-4 text-gray-400" />}
+                  {pushStatus === 'subscribed' ? 'Đã bật thông báo đẩy' : 'Bật thông báo đẩy'}
+                  {pushStatus === 'subscribed' && <span className="ml-auto w-2 h-2 rounded-full bg-green-500" />}
+                </button>
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full border-t border-gray-100 mt-1"

@@ -5,17 +5,19 @@ const enc = (s) => encodeURIComponent(s);
 const kySoService = {
   // ── Chữ ký ──────────────────────────────────────────────────────────────
 
-  getAllChuKy: async () => {
-    const res = await api.get('/api/ky-so/chu-ky');
+  /** loaiChuKy: 'FULL' | 'NHAY' | undefined (undefined = tất cả) */
+  getAllChuKy: async (loaiChuKy) => {
+    const res = await api.get('/api/ky-so/chu-ky', { params: loaiChuKy ? { loaiChuKy } : {} });
     return res.data.data;
   },
 
-  uploadChuKy: async (file, tenNguoiKy, chucVu, laMacDinh = false) => {
+  uploadChuKy: async (file, tenNguoiKy, chucVu, laMacDinh = false, loaiChuKy = 'FULL') => {
     const form = new FormData();
     form.append('file', file);
     form.append('tenNguoiKy', tenNguoiKy);
     if (chucVu) form.append('chucVu', chucVu);
     form.append('laMacDinh', laMacDinh);
+    form.append('loaiChuKy', loaiChuKy);
     const res = await api.post('/api/ky-so/chu-ky', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -28,16 +30,18 @@ const kySoService = {
 
   // ── Con dấu ──────────────────────────────────────────────────────────────
 
+  /** Toàn bộ con dấu (yêu cầu quyền QUAN_LY_CON_DAU) hoặc chỉ con dấu dùng được (nếu không có quyền quản lý) — backend tự quyết định. */
   getAllConDau: async () => {
     const res = await api.get('/api/ky-so/con-dau');
     return res.data.data;
   },
 
-  uploadConDau: async (file, ten, laMacDinh = false) => {
+  uploadConDau: async (file, ten, laMacDinh = false, ownerUsername = null) => {
     const form = new FormData();
     form.append('file', file);
     form.append('ten', ten);
     form.append('laMacDinh', laMacDinh);
+    if (ownerUsername) form.append('ownerUsername', ownerUsername);
     const res = await api.post('/api/ky-so/con-dau', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -91,6 +95,9 @@ const kySoService = {
       colConfig:        params.colConfig        ?? null,
       orgLabel:         params.orgLabel         ?? null,
       formatConfig:     params.formatConfig     ?? null,
+      apDungGiapLai:    params.apDungGiapLai    ?? false,
+      chuKyNhayId:      params.chuKyNhayId       ?? null,
+      khoaFilePdf:      params.khoaFilePdf       ?? false,
     };
 
     const res = await api.post(

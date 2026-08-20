@@ -13,5 +13,6 @@ public class ConDauDTO {
     private String ten;
     private String duongDan;
     private Boolean laMacDinh;
+    private String ownerUsername;
     private LocalDateTime createdAt;
 }

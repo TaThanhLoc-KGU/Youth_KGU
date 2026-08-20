@@ -390,7 +390,11 @@ public class HoatDongController {
 
     @GetMapping("/cho-duyet")
     @Operation(summary = "Lấy danh sách hoạt động đang chờ phê duyệt (CLB/Khoa tạo)")
-    @PreAuthorize("hasPermission(null, 'DUYET_HOAT_DONG_CLB')")
+    // DUYET_HOAT_DONG_CLB được cấp mặc định cho QUAN_LY_CLB (V27/V38); DUYET_HOAT_DONG được cấp mặc
+    // định cho QUAN_LY_KHOA/PHO_QUAN_LY_KHOA (V34/V54) — nhưng trước đây endpoint chỉ chấp nhận
+    // DUYET_HOAT_DONG_CLB nên Đoàn khoa luôn bị 403 khi bấm Duyệt. Chấp nhận CẢ HAI để đúng thiết kế
+    // gốc "Phê duyệt hoạt động do CLB/Đoàn Khoa tạo" (xem comment gốc trong V27__bcn_clb_activity_approval.sql).
+    @PreAuthorize("hasPermission(null, 'DUYET_HOAT_DONG_CLB') or hasPermission(null, 'DUYET_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getChouDuyet() {
         log.info("GET /api/hoat-dong/cho-duyet");
         return ResponseEntity.ok(ApiResponse.success(
@@ -399,7 +403,11 @@ public class HoatDongController {
 
     @PutMapping("/duyet")
     @Operation(summary = "Phê duyệt hoạt động CLB/Khoa — dùng ?ma=")
-    @PreAuthorize("hasPermission(null, 'DUYET_HOAT_DONG_CLB')")
+    // DUYET_HOAT_DONG_CLB được cấp mặc định cho QUAN_LY_CLB (V27/V38); DUYET_HOAT_DONG được cấp mặc
+    // định cho QUAN_LY_KHOA/PHO_QUAN_LY_KHOA (V34/V54) — nhưng trước đây endpoint chỉ chấp nhận
+    // DUYET_HOAT_DONG_CLB nên Đoàn khoa luôn bị 403 khi bấm Duyệt. Chấp nhận CẢ HAI để đúng thiết kế
+    // gốc "Phê duyệt hoạt động do CLB/Đoàn Khoa tạo" (xem comment gốc trong V27__bcn_clb_activity_approval.sql).
+    @PreAuthorize("hasPermission(null, 'DUYET_HOAT_DONG_CLB') or hasPermission(null, 'DUYET_HOAT_DONG')")
     public ResponseEntity<ApiResponse<HoatDongDTO>> duyetHoatDong(
             @RequestParam String ma,
             @RequestParam(defaultValue = "SAP_DIEN_RA") String trangThaiMoi,
@@ -412,7 +420,11 @@ public class HoatDongController {
 
     @PutMapping("/tu-choi")
     @Operation(summary = "Từ chối hoạt động CLB/Khoa — dùng ?ma=")
-    @PreAuthorize("hasPermission(null, 'DUYET_HOAT_DONG_CLB')")
+    // DUYET_HOAT_DONG_CLB được cấp mặc định cho QUAN_LY_CLB (V27/V38); DUYET_HOAT_DONG được cấp mặc
+    // định cho QUAN_LY_KHOA/PHO_QUAN_LY_KHOA (V34/V54) — nhưng trước đây endpoint chỉ chấp nhận
+    // DUYET_HOAT_DONG_CLB nên Đoàn khoa luôn bị 403 khi bấm Duyệt. Chấp nhận CẢ HAI để đúng thiết kế
+    // gốc "Phê duyệt hoạt động do CLB/Đoàn Khoa tạo" (xem comment gốc trong V27__bcn_clb_activity_approval.sql).
+    @PreAuthorize("hasPermission(null, 'DUYET_HOAT_DONG_CLB') or hasPermission(null, 'DUYET_HOAT_DONG')")
     public ResponseEntity<ApiResponse<HoatDongDTO>> tuChoiHoatDong(
             @RequestParam String ma,
             @RequestBody(required = false) java.util.Map<String, String> body,

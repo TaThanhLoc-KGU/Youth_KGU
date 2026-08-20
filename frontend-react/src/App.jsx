@@ -82,6 +82,9 @@ import ThiSinhDetailPage    from './pages/news/ThiSinhDetailPage';
 import ChuKyManagePage      from './pages/admin/ChuKyManagePage';
 import ConDauManagePage     from './pages/admin/ConDauManagePage';
 import KySoLichSuPage       from './pages/admin/KySoLichSuPage';
+// Thùng thư góp ý
+import GopYPage             from './pages/news/GopYPage';
+import GopYManagePage       from './pages/admin/GopYManagePage';
 // Email config
 import EmailConfigPage      from './pages/admin/EmailConfigPage';
 import ZaloDebugPage        from './pages/admin/ZaloDebugPage';
@@ -148,6 +151,9 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.DANG_TIN_TUC, PERMISSIONS.SUA_TIN_TUC, PERMISSIONS.DUYET_TIN_TUC,
   PERMISSIONS.QUAN_LY_VAN_BAN, PERMISSIONS.QUAN_LY_CHUYEN_MUC,
   PERMISSIONS.QUAN_LY_CUOC_THI, PERMISSIONS.TAO_CUOC_THI,
+  PERMISSIONS.KIEM_DUYET_BINH_LUAN,
+  // Ký số / Góp ý
+  PERMISSIONS.QUAN_LY_CON_DAU, PERMISSIONS.XEM_GOP_Y, PERMISSIONS.XU_LY_GOP_Y,
 ];
 
 
@@ -460,8 +466,14 @@ function App() {
             </PermissionGate>
           } />
           <Route path="con-dau" element={
-            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+            <PermissionGate permission={PERMISSIONS.QUAN_LY_CON_DAU}>
               <ConDauManagePage />
+            </PermissionGate>
+          } />
+          {/* Thùng thư góp ý */}
+          <Route path="gop-y" element={
+            <PermissionGate permission={PERMISSIONS.XEM_GOP_Y}>
+              <GopYManagePage />
             </PermissionGate>
           } />
           <Route path="ky-so-lich-su" element={
@@ -507,6 +519,7 @@ function App() {
           <Route path="certificates" element={<StudentCertificatesPage />} />
           <Route path="self-scan" element={<SelfAttendanceScanner />} />
           <Route path="contests" element={<StudentContests />} />
+          <Route path="gop-y" element={<GopYPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
 
@@ -567,6 +580,12 @@ function App() {
               <PermissionMatrixPage />
             </PermissionGate>
           } />
+          {/* Thùng thư góp ý */}
+          <Route path="gop-y" element={
+            <PermissionGate permission={PERMISSIONS.XEM_GOP_Y}>
+              <GopYManagePage />
+            </PermissionGate>
+          } />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
 
@@ -585,6 +604,7 @@ function App() {
           <Route path="bieu-mau" element={<BieuMauListPage />} />
           <Route path="hoat-dong" element={<HoatDongPublicPage />} />
           <Route path="danh-sach-ban-hanh" element={<DanhSachBanHanhListPage />} />
+          <Route path="gop-y" element={<GopYPage />} />
           <Route path="binh-chon" element={<BinhChonListPage />} />
           <Route path="binh-chon/:slug" element={<BinhChonDetailPage />} />
           <Route path="binh-chon/:slug/thi-sinh/:thiSinhId" element={<ThiSinhDetailPage />} />

@@ -26,6 +26,12 @@ public class TinTucDetailDTO {
     private Integer luotXem;
     private String fullUrlPath;
 
+    // Tương tác: like/comment/share
+    private Integer luotThich;
+    private Integer luotBinhLuan;
+    private Integer luotChiaSe;
+    private Boolean khoaBinhLuan;
+
     // Danh mục + breadcrumb
     private ChuyenMucDTO chuyenMuc;
     private List<ChuyenMucDTO> breadcrumb;  // [root → ... → chuyenMuc hiện tại]

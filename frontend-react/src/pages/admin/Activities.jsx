@@ -42,6 +42,7 @@ const Activities = () => {
   const canDelete  = hasPermission(PERMISSIONS.XOA_HOAT_DONG);
   const canApprove       = hasPermission(PERMISSIONS.DUYET_HOAT_DONG);
   const canApproveClb    = hasPermission(PERMISSIONS.DUYET_HOAT_DONG_CLB);
+  const canApproveAny    = canApprove || canApproveClb;
   const [showApprovalPanel, setShowApprovalPanel] = useState(false);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason]   = useState('');
@@ -86,10 +87,12 @@ const Activities = () => {
   const { data: pendingActivities = [], refetch: refetchPending } = useQuery({
     queryKey: ['activities-cho-duyet'],
     queryFn: () => hoatDongService.getChouDuyet(),
-    enabled: canApproveClb,
+    enabled: canApproveAny,
     refetchInterval: 30000,
   });
 
+  // onError không gọi toast.error() ở đây — interceptor chung trong services/api.js đã tự hiện toast
+  // cho mọi request lỗi rồi, gọi thêm ở đây sẽ hiện trùng 2 toast cho cùng 1 lỗi.
   const duyetMutation = useMutation({
     mutationFn: ({ ma, trangThaiMoi }) => hoatDongService.duyet(ma, trangThaiMoi),
     onSuccess: () => {
@@ -97,7 +100,6 @@ const Activities = () => {
       queryClient.invalidateQueries(['activities-cho-duyet']);
       queryClient.invalidateQueries(['activities']);
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Lỗi phê duyệt'),
   });
 
   const tuChoiMutation = useMutation({
@@ -109,7 +111,6 @@ const Activities = () => {
       setRejectTarget(null);
       setRejectReason('');
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Lỗi từ chối'),
   });
 
   // Fetch activities with pagination
@@ -153,12 +154,9 @@ const Activities = () => {
       toast.success('Xóa hoạt động thành công!');
       queryClient.invalidateQueries(['activities']);
     },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Xóa hoạt động thất bại!');
-    },
   });
 
-  // Broadcast notification mutation
+  // Broadcast notification mutation — chỉ gửi khi bấm nút này (không tự động khi Duyệt/Công khai)
   const broadcastMutation = useMutation({
     mutationFn: (row) => newsService.broadcastNotification({
       title: `🎯 Hoạt động mới: ${row.tenHoatDong}`,
@@ -166,8 +164,7 @@ const Activities = () => {
       type: 'HOAT_DONG',
       relatedId: row.maHoatDong,
     }),
-    onSuccess: (count) => toast.success(`Đã gửi thông báo đến ${count} người dùng`),
-    onError: (e) => toast.error(e.response?.data?.message || 'Gửi thông báo thất bại'),
+    onSuccess: (count) => toast.success(`Đang gửi thông báo đến ${count} người dùng`),
   });
 
   const [emailingId, setEmailingId] = useState(null);
@@ -186,8 +183,8 @@ const Activities = () => {
       toast.success(`Đang gửi Zalo đến ${soCoZalo}/${soSV} sinh viên đã liên kết cho "${row.tenHoatDong}"`);
       setZaloingId(null);
     },
-    onError: (e) => {
-      toast.error(e.response?.data?.message || 'Gửi Zalo thất bại');
+    onError: () => {
+      // Toast lỗi đã được interceptor chung (services/api.js) hiện rồi — ở đây chỉ cần dọn state loading.
       setZaloingId(null);
     },
   });
@@ -200,7 +197,6 @@ const Activities = () => {
       toast.success(`Đã công khai hoạt động "${row.tenHoatDong}" — sinh viên có thể xem và đăng ký`);
       queryClient.invalidateQueries(['activities']);
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Công khai thất bại'),
   });
 
   const anMutation = useMutation({
@@ -209,7 +205,6 @@ const Activities = () => {
       toast.success(`Đã ẩn hoạt động "${row.tenHoatDong}"`);
       queryClient.invalidateQueries(['activities']);
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Ẩn hoạt động thất bại'),
   });
 
   const guiEmailMutation = useMutation({
@@ -222,8 +217,8 @@ const Activities = () => {
       toast.success(`Đang gửi email đến ${so} sinh viên cho hoạt động "${row.tenHoatDong}"`);
       setEmailingId(null);
     },
-    onError: (e) => {
-      toast.error(e.response?.data?.message || 'Gửi email thất bại');
+    onError: () => {
+      // Toast lỗi đã được interceptor chung (services/api.js) hiện rồi — ở đây chỉ cần dọn state loading.
       setEmailingId(null);
     },
   });
@@ -338,7 +333,7 @@ const Activities = () => {
       render: (_, row) => (
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Nút Duyệt / Từ chối — chỉ hiện khi CHO_DUYET và có quyền */}
-          {canApproveClb && row.trangThai === 'CHO_DUYET' && (
+          {canApproveAny && row.trangThai === 'CHO_DUYET' && (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); duyetMutation.mutate({ ma: row.maHoatDong, trangThaiMoi: 'DANG_MO_DANG_KY' }); }}
@@ -486,7 +481,7 @@ const Activities = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          {canApproveClb && (
+          {canApproveAny && (
             <button onClick={() => setShowApprovalPanel(p => !p)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 pendingActivities.length > 0
@@ -513,7 +508,7 @@ const Activities = () => {
       </div>
 
       {/* Approval Panel */}
-      {canApproveClb && showApprovalPanel && (() => {
+      {canApproveAny && showApprovalPanel && (() => {
         const clbPending   = pendingActivities.filter(a => !!a.maClb);
         const khoaPending  = pendingActivities.filter(a => !a.maClb && !!a.maKhoa);
         return (
@@ -795,8 +790,9 @@ const Activities = () => {
         onClose={() => setCongKhaiConfirmRow(null)}
         onConfirm={() => { congKhaiMutation.mutate(congKhaiConfirmRow); setCongKhaiConfirmRow(null); }}
         title="Công khai hoạt động"
-        description={`Hoạt động "${congKhaiConfirmRow?.tenHoatDong}" sẽ hiển thị cho sinh viên xem và đăng ký. Hệ thống sẽ tự tạo tin tức giới thiệu và gửi thông báo đến tất cả sinh viên. Bạn có chắc chắn không?`}
+        description={`Hoạt động "${congKhaiConfirmRow?.tenHoatDong}" sẽ hiển thị cho sinh viên xem và đăng ký, hệ thống sẽ tự tạo tin tức giới thiệu. Việc gửi email/thông báo tới sinh viên KHÔNG tự động — dùng riêng nút Gửi thông báo / Gửi email khi bạn muốn.`}
         confirmLabel="Công khai"
+        variant="primary"
         isLoading={congKhaiMutation.isPending}
       />
 

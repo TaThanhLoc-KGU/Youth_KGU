@@ -68,7 +68,11 @@ public class BanHanhController {
                 nguoiThucHien, ip,
                 body.colConfig(),
                 body.orgLabel(),
-                body.formatConfig()
+                body.formatConfig(),
+                body.apDungGiapLai(),
+                body.chuKyNhayId(),
+                // Ban hành chính thức mặc định khóa PDF nếu body không chỉ định rõ (null → true)
+                body.khoaFilePdf() != null ? body.khoaFilePdf() : Boolean.TRUE
         );
 
         DanhSachBanHanh entity = kySoService.banHanhDanhSach(req);

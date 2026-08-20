@@ -1,4 +1,24 @@
-import { AlertTriangle, Trash2, Loader2 } from 'lucide-react';
+import { AlertTriangle, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
+
+// variant: 'danger' (xóa/hủy — đỏ, icon thùng rác) | 'warning' (cần cẩn trọng — vàng, icon cảnh báo)
+//         | 'primary' (hành động tích cực như công khai/kích hoạt — xanh lá, icon check)
+const VARIANT_STYLES = {
+  danger: {
+    icon: Trash2,
+    iconWrap: 'bg-red-50 text-red-600 ring-red-100',
+    button: 'bg-red-600 hover:bg-red-700',
+  },
+  warning: {
+    icon: AlertTriangle,
+    iconWrap: 'bg-amber-50 text-amber-600 ring-amber-100',
+    button: 'bg-amber-500 hover:bg-amber-600',
+  },
+  primary: {
+    icon: CheckCircle2,
+    iconWrap: 'bg-green-50 text-green-600 ring-green-100',
+    button: 'bg-green-600 hover:bg-green-700',
+  },
+};
 
 const ConfirmDialog = ({
   isOpen,
@@ -13,7 +33,7 @@ const ConfirmDialog = ({
 }) => {
   if (!isOpen) return null;
 
-  const isDanger = variant === 'danger';
+  const { icon: Icon, iconWrap, button } = VARIANT_STYLES[variant] || VARIANT_STYLES.danger;
 
   return (
     <div
@@ -26,15 +46,8 @@ const ConfirmDialog = ({
       >
         <div className="p-5">
           {/* Icon */}
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ring-1 ${
-            isDanger
-              ? 'bg-red-50 text-red-600 ring-red-100'
-              : 'bg-amber-50 text-amber-600 ring-amber-100'
-          }`}>
-            {isDanger
-              ? <Trash2 className="w-4.5 h-4.5" />
-              : <AlertTriangle className="w-4.5 h-4.5" />
-            }
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ring-1 ${iconWrap}`}>
+            <Icon className="w-4.5 h-4.5" />
           </div>
 
           <h3 className="text-[15px] font-semibold text-slate-900 mb-1.5">{title}</h3>
@@ -55,11 +68,7 @@ const ConfirmDialog = ({
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className={`flex-1 h-9 flex items-center justify-center gap-1.5 px-4 text-sm font-medium text-white rounded-lg transition-all shadow-sm disabled:opacity-60 active:scale-[0.97] ${
-              isDanger
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-amber-500 hover:bg-amber-600'
-            }`}
+            className={`flex-1 h-9 flex items-center justify-center gap-1.5 px-4 text-sm font-medium text-white rounded-lg transition-all shadow-sm disabled:opacity-60 active:scale-[0.97] ${button}`}
           >
             {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {confirmLabel}

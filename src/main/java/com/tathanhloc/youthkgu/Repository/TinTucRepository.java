@@ -117,4 +117,53 @@ public interface TinTucRepository extends JpaRepository<TinTuc, Long> {
     Page<TinTuc> findPublishedByDonViDang(@Param("donViDang") String donViDang,
                                       @Param("trangThai") com.tathanhloc.youthkgu.Enum.TrangThaiTinTuc trangThai,
                                       Pageable pageable);
+
+    // ── Tương tác: tăng/giảm nguyên tử (tránh lost-update khi bấm nhanh) ──────
+    // clearAutomatically = true là BẮT BUỘC: bulk UPDATE (@Modifying) không tự động cập nhật
+    // persistence context. Nếu không clear, entity TinTuc đã load trước đó trong CÙNG transaction
+    // (vd. loadTinTuc() ở đầu TinTucTuongTacService.toggleLike()) vẫn còn trong first-level cache
+    // của Hibernate — gọi lại findById() ngay sau increment sẽ trả về bản ghi CŨ (số đếm sai),
+    // không phải giá trị vừa UPDATE trong DB.
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE TinTuc t SET t.luotThich = t.luotThich + 1 WHERE t.id = :id")
+    void incrementLuotThich(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE TinTuc t SET t.luotThich = GREATEST(t.luotThich - 1, 0) WHERE t.id = :id")
+    void decrementLuotThich(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE TinTuc t SET t.luotBinhLuan = t.luotBinhLuan + 1 WHERE t.id = :id")
+    void incrementLuotBinhLuan(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE TinTuc t SET t.luotBinhLuan = GREATEST(t.luotBinhLuan - 1, 0) WHERE t.id = :id")
+    void decrementLuotBinhLuan(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE TinTuc t SET t.luotChiaSe = t.luotChiaSe + 1 WHERE t.id = :id")
+    void incrementLuotChiaSe(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE TinTuc t SET t.khoaBinhLuan = :khoa WHERE t.id = :id")
+    void updateKhoaBinhLuan(@Param("id") Long id, @Param("khoa") boolean khoa);
+
+    /**
+     * Backfill 1 lần cho các bài viết TẠO TRƯỚC KHI 4 cột tương tác (luot_thich/luot_binh_luan/
+     * luot_chia_se/khoa_binh_luan) được thêm vào bảng — Hibernate ddl-auto=update chỉ ALTER TABLE
+     * thêm cột mới với giá trị NULL cho các dòng đã có, KHÔNG áp @Builder.Default cho dữ liệu cũ.
+     * Nếu không backfill, các phép tăng nguyên tử (SET x = x + 1) trên dòng NULL sẽ mãi mãi ra NULL
+     * (NULL + 1 = NULL trong SQL) — gọi ở DataInitializer, idempotent (chạy lại vô hại, WHERE rỗng).
+     */
+    @Modifying
+    @Query(value = "UPDATE tin_tuc SET " +
+            "luot_thich = COALESCE(luot_thich, 0), " +
+            "luot_binh_luan = COALESCE(luot_binh_luan, 0), " +
+            "luot_chia_se = COALESCE(luot_chia_se, 0), " +
+            "khoa_binh_luan = COALESCE(khoa_binh_luan, false) " +
+            "WHERE luot_thich IS NULL OR luot_binh_luan IS NULL " +
+            "OR luot_chia_se IS NULL OR khoa_binh_luan IS NULL",
+            nativeQuery = true)
+    int backfillNullTuongTacCounters();
 }

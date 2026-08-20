@@ -3,6 +3,7 @@ package com.tathanhloc.youthkgu.Service;
 import com.tathanhloc.youthkgu.DTO.ChuKyDTO;
 import com.tathanhloc.youthkgu.DTO.ConDauDTO;
 import com.tathanhloc.youthkgu.DTO.DiemDanhHoatDongDTO;
+import com.tathanhloc.youthkgu.Enum.LoaiChuKy;
 import com.tathanhloc.youthkgu.Exception.BusinessException;
 import com.tathanhloc.youthkgu.Model.*;
 import com.tathanhloc.youthkgu.Model.DanhSachBanHanh;
@@ -13,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
+import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.apache.pdfbox.pdmodel.font.*;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName;
 import org.apache.pdfbox.pdmodel.graphics.image.*;
@@ -108,22 +111,31 @@ public class KySoService {
     // PUBLIC CRUD — Chữ ký
     // ═══════════════════════════════════════════════════════════════════════
 
-    /** Lấy chữ ký của một user (chỉ chữ ký cá nhân của họ). */
+    /** Lấy chữ ký của một user (chỉ chữ ký cá nhân của họ), mọi loại. */
     public List<ChuKyDTO> getAllChuKy(String ownerUsername) {
-        return chuKyRepository.findByOwnerUsernameOrderByCreatedAtDesc(ownerUsername)
-                .stream().map(this::toChuKyDTO).toList();
+        return getAllChuKy(ownerUsername, null);
+    }
+
+    /** Lấy chữ ký của một user, lọc theo loại (FULL/NHAY) nếu chỉ định. */
+    public List<ChuKyDTO> getAllChuKy(String ownerUsername, LoaiChuKy loai) {
+        List<ChuKy> list = chuKyRepository.findByOwnerUsernameOrderByCreatedAtDesc(ownerUsername);
+        if (loai != null) {
+            list = list.stream().filter(ck -> loai.equals(ck.getLoaiChuKy())).toList();
+        }
+        return list.stream().map(this::toChuKyDTO).toList();
     }
 
     /** Upload chữ ký mới — gán owner là user hiện tại. */
     public ChuKyDTO uploadChuKy(MultipartFile file, String tenNguoiKy, String chucVu,
-                                boolean laMacDinh, String ownerUsername) {
+                                boolean laMacDinh, String ownerUsername, LoaiChuKy loaiChuKy) {
         validateImageFile(file);
-        if (laMacDinh) clearDefaultChuKyForOwner(ownerUsername);
+        LoaiChuKy loai = loaiChuKy != null ? loaiChuKy : LoaiChuKy.FULL;
+        if (laMacDinh) clearDefaultChuKyForOwnerAndLoai(ownerUsername, loai);
         String duongDan = saveImage(file, "chu-ky");
         return toChuKyDTO(chuKyRepository.save(
                 ChuKy.builder().tenNguoiKy(tenNguoiKy).chucVu(chucVu)
                         .duongDan(duongDan).laMacDinh(laMacDinh)
-                        .ownerUsername(ownerUsername).build()));
+                        .ownerUsername(ownerUsername).loaiChuKy(loai).build()));
     }
 
     public void deleteChuKy(Long id) {
@@ -137,16 +149,24 @@ public class KySoService {
     // PUBLIC CRUD — Con dấu
     // ═══════════════════════════════════════════════════════════════════════
 
+    /** Toàn bộ con dấu — dùng cho màn quản lý (yêu cầu quyền QUAN_LY_CON_DAU). */
     public List<ConDauDTO> getAllConDau() {
         return conDauRepository.findAll().stream().map(this::toConDauDTO).toList();
     }
 
-    public ConDauDTO uploadConDau(MultipartFile file, String ten, boolean laMacDinh) {
+    /** Con dấu mà 1 user dùng được: dùng chung (owner NULL) hoặc sở hữu riêng. */
+    public List<ConDauDTO> getUsableConDau(String username) {
+        return conDauRepository.findByOwnerUsernameIsNullOrOwnerUsername(username)
+                .stream().map(this::toConDauDTO).toList();
+    }
+
+    public ConDauDTO uploadConDau(MultipartFile file, String ten, boolean laMacDinh, String ownerUsername) {
         validateImageFile(file);
         if (laMacDinh) clearDefaultConDau();
         String duongDan = saveImage(file, "con-dau");
         return toConDauDTO(conDauRepository.save(
-                ConDau.builder().ten(ten).duongDan(duongDan).laMacDinh(laMacDinh).build()));
+                ConDau.builder().ten(ten).duongDan(duongDan).laMacDinh(laMacDinh)
+                        .ownerUsername(ownerUsername).build()));
     }
 
     public void deleteConDau(Long id) {
@@ -300,7 +320,10 @@ public class KySoService {
             String ipAddress,
             List<ColConfig> colConfig,   // null = DEFAULT_COL_CONFIG
             String orgLabel,             // null = "TM. BAN THƯỜNG VỤ ĐOÀN TRƯỜNG"
-            FormatConfig formatConfig    // null = dùng mặc định
+            FormatConfig formatConfig,   // null = dùng mặc định
+            Boolean apDungGiapLai,       // true = đóng dấu giáp lai lên mọi trang
+            Long    chuKyNhayId,         // ID ảnh chữ ký nháy (LoaiChuKy.NHAY), áp lên mọi trang trừ trang cuối
+            Boolean khoaFilePdf          // true = khóa chỉnh sửa/copy (không mật khẩu mở)
     ) {}
 
     /** Kết quả buildDraftPDF: PDF bytes + metadata vị trí + edit zones. */
@@ -316,6 +339,7 @@ public class KySoService {
         byte[] imgNguoiLap = loadOptionalImage(req.chuKyNguoiLapId(), chuKyRepository);
         byte[] imgConDau   = req.conDauId() != null
                 ? loadImageFromConDau(req.conDauId()) : null;
+        byte[] imgKyNhay   = loadOptionalImage(req.chuKyNhayId(), chuKyRepository);
 
         // Bước 1: Sinh PDF nháp — dùng override nếu admin đã chỉnh sửa nội dung
         DraftResult draft = buildDraftPDF(hd, ds,
@@ -324,19 +348,35 @@ public class KySoService {
                 req.formatConfig());
 
         // Bước 2: Áp ảnh chữ ký / con dấu vào trang cuối
-        byte[] withImages = applySignatureImages(draft, req, imgBiThu, imgNguoiLap, imgConDau);
+        byte[] pdf = applySignatureImages(draft, req, imgBiThu, imgNguoiLap, imgConDau);
 
-        // Bước 3: Ký số cryptographic (X.509 self-signed, SHA256withRSA, CMS/PKCS7 detached)
+        // Bước 3: Giáp lai — đóng dấu lên mọi trang (chống rút/thay trang)
+        if (Boolean.TRUE.equals(req.apDungGiapLai()) && imgConDau != null) {
+            pdf = applyGiapLai(pdf, imgConDau);
+        }
+
+        // Bước 4: Ký nháy — mọi trang trừ trang cuối
+        if (imgKyNhay != null) {
+            pdf = applyKyNhay(pdf, imgKyNhay);
+        }
+
+        // Bước 5: Khóa chỉnh sửa/copy — PHẢI chạy TRƯỚC bước ký số cryptographic
+        //         (xem javadoc applyPdfLock() để biết lý do thứ tự)
+        if (Boolean.TRUE.equals(req.khoaFilePdf())) {
+            pdf = applyPdfLock(pdf);
+        }
+
+        // Bước 6: Ký số cryptographic (X.509 self-signed, SHA256withRSA, CMS/PKCS7 detached)
         //         → text vẫn selectable; Acrobat hiển thị "Document was certified"
         byte[] certifiedPdf;
         try {
-            certifiedPdf = signWithCertificate(withImages, req.tenNguoiKy());
+            certifiedPdf = signWithCertificate(pdf, req.tenNguoiKy());
         } catch (Exception e) {
             log.warn("Không thể ký số cryptographic, trả PDF thường: {}", e.getMessage());
-            certifiedPdf = withImages;
+            certifiedPdf = pdf;
         }
 
-        // Bước 4: Audit log
+        // Bước 7: Audit log
         String tenFile = "danh_sach_" + req.maHoatDong() + ".pdf";
         lichSuRepository.save(KySoLichSu.builder()
                 .maHoatDong(req.maHoatDong())
@@ -370,6 +410,7 @@ public class KySoService {
         byte[] imgBiThu    = loadOptionalImage(req.chuKyBiThuId(),    chuKyRepository);
         byte[] imgNguoiLap = loadOptionalImage(req.chuKyNguoiLapId(), chuKyRepository);
         byte[] imgConDau   = req.conDauId() != null ? loadImageFromConDau(req.conDauId()) : null;
+        byte[] imgKyNhay   = loadOptionalImage(req.chuKyNhayId(), chuKyRepository);
 
         // Bước 1: Sinh PDF — dùng override nếu admin đã chỉnh sửa nội dung
         DraftResult draft = buildDraftPDF(hd, ds,
@@ -378,18 +419,33 @@ public class KySoService {
                 req.formatConfig());
 
         // Bước 2: Áp ảnh chữ ký
-        byte[] withImages = applySignatureImages(draft, req, imgBiThu, imgNguoiLap, imgConDau);
+        byte[] pdf = applySignatureImages(draft, req, imgBiThu, imgNguoiLap, imgConDau);
 
-        // Bước 3: Ký số cryptographic
-        byte[] pdfBytes;
-        try {
-            pdfBytes = signWithCertificate(withImages, req.tenNguoiKy());
-        } catch (Exception e) {
-            log.warn("Không thể ký số khi ban hành, dùng PDF thường: {}", e.getMessage());
-            pdfBytes = withImages;
+        // Bước 3: Giáp lai — đóng dấu lên mọi trang (chống rút/thay trang)
+        if (Boolean.TRUE.equals(req.apDungGiapLai()) && imgConDau != null) {
+            pdf = applyGiapLai(pdf, imgConDau);
         }
 
-        // Bước 4: Lưu file vào disk
+        // Bước 4: Ký nháy — mọi trang trừ trang cuối
+        if (imgKyNhay != null) {
+            pdf = applyKyNhay(pdf, imgKyNhay);
+        }
+
+        // Bước 5: Khóa chỉnh sửa/copy — PHẢI chạy TRƯỚC bước ký số cryptographic
+        if (Boolean.TRUE.equals(req.khoaFilePdf())) {
+            pdf = applyPdfLock(pdf);
+        }
+
+        // Bước 6: Ký số cryptographic
+        byte[] pdfBytes;
+        try {
+            pdfBytes = signWithCertificate(pdf, req.tenNguoiKy());
+        } catch (Exception e) {
+            log.warn("Không thể ký số khi ban hành, dùng PDF thường: {}", e.getMessage());
+            pdfBytes = pdf;
+        }
+
+        // Bước 7: Lưu file vào disk
         String timestamp = String.valueOf(System.currentTimeMillis());
         String tenFile = "danh_sach_" + req.maHoatDong() + "_" + timestamp + ".pdf";
         Path banHanhDir = Paths.get(uploadBasePath, "ban-hanh");
@@ -397,7 +453,7 @@ public class KySoService {
         Path filePath = banHanhDir.resolve(tenFile);
         Files.write(filePath, pdfBytes);
 
-        // Bước 5: Ghi metadata vào DB
+        // Bước 8: Ghi metadata vào DB
         DanhSachBanHanh entity = DanhSachBanHanh.builder()
                 .maHoatDong(req.maHoatDong())
                 .tenHoatDong(hd.getTenHoatDong())
@@ -417,7 +473,7 @@ public class KySoService {
 
         entity = banHanhRepository.save(entity);
 
-        // Bước 6: Audit log (dùng lại KySoLichSu)
+        // Bước 9: Audit log (dùng lại KySoLichSu)
         lichSuRepository.save(KySoLichSu.builder()
                 .maHoatDong(req.maHoatDong())
                 .tenHoatDong(hd.getTenHoatDong())
@@ -558,7 +614,10 @@ public class KySoService {
             List<ColConfig> colConfig,
             FormatConfig formatConfig,
             String nguoiThucHien,
-            String ipAddress
+            String ipAddress,
+            Boolean apDungGiapLai,       // true = đóng dấu giáp lai lên mọi trang
+            Long    chuKyNhayId,         // ID ảnh chữ ký nháy (LoaiChuKy.NHAY)
+            Boolean khoaFilePdf          // true = khóa chỉnh sửa/copy (không mật khẩu mở)
     ) {}
 
     /** Xem trước PDF danh sách thành viên CLB (không ký, trả về ảnh PNG base64). */
@@ -590,14 +649,31 @@ public class KySoService {
 
         byte[] imgChuNhiem = loadOptionalImage(req.chuKyChuNhiemId(), chuKyRepository);
         byte[] imgConDau   = req.conDauId() != null ? loadImageFromConDau(req.conDauId()) : null;
+        byte[] imgKyNhay   = loadOptionalImage(req.chuKyNhayId(), chuKyRepository);
 
-        byte[] withImages = applyClbSignatureImages(draft, req, imgChuNhiem, imgConDau);
+        byte[] pdf = applyClbSignatureImages(draft, req, imgChuNhiem, imgConDau);
+
+        // Giáp lai — đóng dấu lên mọi trang (chống rút/thay trang)
+        if (Boolean.TRUE.equals(req.apDungGiapLai()) && imgConDau != null) {
+            pdf = applyGiapLai(pdf, imgConDau);
+        }
+
+        // Ký nháy — mọi trang trừ trang cuối
+        if (imgKyNhay != null) {
+            pdf = applyKyNhay(pdf, imgKyNhay);
+        }
+
+        // Khóa chỉnh sửa/copy — PHẢI chạy TRƯỚC bước ký số cryptographic
+        if (Boolean.TRUE.equals(req.khoaFilePdf())) {
+            pdf = applyPdfLock(pdf);
+        }
+
         byte[] pdfBytes;
         try {
-            pdfBytes = signWithCertificate(withImages, req.tenChuNhiem());
+            pdfBytes = signWithCertificate(pdf, req.tenChuNhiem());
         } catch (Exception e) {
             log.warn("Không thể ký số CLB, dùng PDF thường: {}", e.getMessage());
-            pdfBytes = withImages;
+            pdfBytes = pdf;
         }
 
         String timestamp = String.valueOf(System.currentTimeMillis());
@@ -1291,6 +1367,122 @@ public class KySoService {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // GIÁP LAI — đóng dấu lên mọi trang để chống rút/thay trang
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Đóng dấu giáp lai: vẽ cùng 1 ảnh con dấu tại cùng 1 vị trí (mép phải,
+     * giữa trang theo chiều dọc) trên MỌI trang của tài liệu, kèm số trang
+     * "Trang X/Y" ở chân trang. Khi in và xếp các trang sát mép phải, vệt dấu
+     * thẳng hàng liên tục — nếu 1 trang bị rút hoặc thay, vệt dấu sẽ bị
+     * lệch/đứt đoạn, phát hiện được bằng mắt thường.
+     */
+    private byte[] applyGiapLai(byte[] pdfBytes, byte[] sealImg) throws IOException {
+        try (PDDocument doc = Loader.loadPDF(pdfBytes);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            int total = doc.getNumberOfPages();
+            PDImageXObject sealXObj = PDImageXObject.createFromByteArray(doc, sealImg, "giaplai");
+            PDFont fontReg = loadFont(doc, false, null);
+
+            float size = 36f;
+            float x = PAGE_W - size - 6f;
+            float y = PAGE_H / 2f - size / 2f;
+
+            for (int i = 0; i < total; i++) {
+                PDPage page = doc.getPage(i);
+                try (PDPageContentStream cs = new PDPageContentStream(
+                        doc, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
+                    cs.drawImage(sealXObj, x, y, size, size);
+
+                    String label = "Trang " + (i + 1) + "/" + total;
+                    cs.setFont(fontReg, 8f);
+                    float tw = strWidth(fontReg, 8f, label);
+                    drawText(cs, label, (PAGE_W - tw) / 2f, 24f);
+                }
+            }
+
+            doc.save(out);
+            return out.toByteArray();
+        }
+    }
+
+    /**
+     * Ký nháy: vẽ ảnh chữ ký nháy (nhỏ) ở góc dưới-phải trên MỌI trang TRỪ
+     * trang cuối (trang cuối đã có chữ ký đầy đủ + con dấu chính trong khối ký).
+     * Tài liệu 1 trang không có gì để ký nháy (không có trang nào "trừ trang cuối").
+     */
+    private byte[] applyKyNhay(byte[] pdfBytes, byte[] kyNhayImg) throws IOException {
+        try (PDDocument doc = Loader.loadPDF(pdfBytes);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            int total = doc.getNumberOfPages();
+            if (total <= 1) {
+                doc.save(out);
+                return out.toByteArray();
+            }
+
+            PDImageXObject sigXObj = PDImageXObject.createFromByteArray(doc, kyNhayImg, "kynhay");
+            float w = 40f, h = 22f;
+            float x = PAGE_W - MARGIN_R - w;
+            float y = MARGIN_B - 10f;
+
+            for (int i = 0; i < total - 1; i++) {
+                PDPage page = doc.getPage(i);
+                try (PDPageContentStream cs = new PDPageContentStream(
+                        doc, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
+                    cs.drawImage(sigXObj, x, y, w, h);
+                }
+            }
+
+            doc.save(out);
+            return out.toByteArray();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // KHÓA PDF — hạn chế chỉnh sửa/copy, không mật khẩu để mở/xem/in
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Khóa PDF ở mức "hạn chế chỉnh sửa": ai cũng mở/xem/in được (không mật
+     * khẩu mở), nhưng không sửa được nội dung, không copy text, không chèn
+     * annotation/chữ ký giả vào file.
+     * <p>
+     * QUAN TRỌNG — thứ tự gọi: hàm này PHẢI chạy TRƯỚC {@code signWithCertificate()}.
+     * {@code signWithCertificate()} dùng {@code saveIncrementalForExternalSigning()}
+     * (ghi incremental, chỉ thêm phần chữ ký, giữ nguyên byte gốc để ByteRange hợp lệ),
+     * trong khi {@code PDDocument.protect(...)} ghi full rewrite (tạo lại toàn bộ xref
+     * + mã hóa stream). Nếu khóa PDF SAU khi ký số, chữ ký số sẽ bị hỏng/không hợp lệ.
+     */
+    private byte[] applyPdfLock(byte[] pdfBytes) throws IOException {
+        try (PDDocument doc = Loader.loadPDF(pdfBytes);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            AccessPermission ap = new AccessPermission();
+            ap.setCanModify(false);
+            ap.setCanModifyAnnotations(false);
+            ap.setCanExtractContent(false);
+            ap.setCanAssembleDocument(false);
+            ap.setCanFillInForm(false);
+            ap.setCanPrint(true);
+            ap.setCanPrintFaithful(true);
+            ap.setCanExtractForAccessibility(true);
+
+            // Owner password ngẫu nhiên, không lưu lại — chỉ dùng để khóa quyền
+            // chỉnh sửa, không ai cần biết mật khẩu này. User password để trống
+            // = mở/xem/in tự do, không cần mật khẩu.
+            String ownerPassword = UUID.randomUUID().toString() + UUID.randomUUID();
+            StandardProtectionPolicy policy = new StandardProtectionPolicy(ownerPassword, "", ap);
+            policy.setEncryptionKeyLength(128);
+            doc.protect(policy);
+
+            doc.save(out);
+            return out.toByteArray();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // CHỮ KÝ SỐ CRYPTOGRAPHIC — X.509 self-signed + RSA-2048 + CMS/PKCS7
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -1910,8 +2102,8 @@ public class KySoService {
         });
     }
 
-    private void clearDefaultChuKyForOwner(String ownerUsername) {
-        chuKyRepository.findByOwnerUsernameOrderByCreatedAtDesc(ownerUsername).forEach(ck -> {
+    private void clearDefaultChuKyForOwnerAndLoai(String ownerUsername, LoaiChuKy loai) {
+        chuKyRepository.findByOwnerUsernameAndLoaiChuKyOrderByCreatedAtDesc(ownerUsername, loai).forEach(ck -> {
             if (Boolean.TRUE.equals(ck.getLaMacDinh())) {
                 ck.setLaMacDinh(false); chuKyRepository.save(ck);
             }
@@ -1932,12 +2124,14 @@ public class KySoService {
         return ChuKyDTO.builder().id(ck.getId()).tenNguoiKy(ck.getTenNguoiKy())
                 .chucVu(ck.getChucVu()).duongDan(ck.getDuongDan())
                 .laMacDinh(ck.getLaMacDinh()).ownerUsername(ck.getOwnerUsername())
+                .loaiChuKy(ck.getLoaiChuKy() != null ? ck.getLoaiChuKy().name() : null)
                 .createdAt(ck.getCreatedAt()).build();
     }
 
     private ConDauDTO toConDauDTO(ConDau cd) {
         return ConDauDTO.builder().id(cd.getId()).ten(cd.getTen())
                 .duongDan(cd.getDuongDan()).laMacDinh(cd.getLaMacDinh())
+                .ownerUsername(cd.getOwnerUsername())
                 .createdAt(cd.getCreatedAt()).build();
     }
 }

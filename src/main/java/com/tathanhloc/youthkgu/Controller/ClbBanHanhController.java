@@ -53,7 +53,10 @@ public class ClbBanHanhController {
             String overrideTieuDe,
             String overrideNgayStr,
             List<KySoService.ColConfig> colConfig,
-            KySoService.FormatConfig formatConfig
+            KySoService.FormatConfig formatConfig,
+            Boolean apDungGiapLai,
+            Long    chuKyNhayId,
+            Boolean khoaFilePdf
     ) {}
 
     @PostMapping("/preview")
@@ -156,7 +159,11 @@ public class ClbBanHanhController {
                 members,
                 b.overrideTieuDe(), b.overrideNgayStr(),
                 b.colConfig(), b.formatConfig(),
-                nguoiThucHien, ip
+                nguoiThucHien, ip,
+                b.apDungGiapLai(),
+                b.chuKyNhayId(),
+                // Ban hành chính thức CLB mặc định khóa PDF nếu body không chỉ định rõ (null → true)
+                b.khoaFilePdf() != null ? b.khoaFilePdf() : Boolean.TRUE
         );
     }
 

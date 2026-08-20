@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Edit, Trash2, Eye, Send, Archive, RotateCcw, Bell } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Send, Archive, RotateCcw, Bell, MessageSquare } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import { PERMISSIONS } from '../../../utils/constants';
 import newsService from '../../../services/newsService';
@@ -11,6 +11,7 @@ import Modal from '../../../components/common/Modal';
 import Button from '../../../components/common/Button';
 import SearchInput from '../../../components/common/SearchInput';
 import Select from '../../../components/common/Select';
+import CommentModerationModal from '../../../components/news/admin/CommentModerationModal';
 
 const STATUS_BADGE = {
   DRAFT:     { label: 'Nháp',     color: 'gray' },
@@ -36,12 +37,14 @@ const BCHTinTucManage = () => {
   const canEdit    = hasPermission(PERMISSIONS.SUA_TIN_TUC);
   const canDelete  = hasPermission(PERMISSIONS.XOA_TIN_TUC);
   const canPublish = hasPermission(PERMISSIONS.DUYET_TIN_TUC) || hasPermission(PERMISSIONS.DANG_TIN_TUC);
+  const canModerateComments = hasPermission(PERMISSIONS.KIEM_DUYET_BINH_LUAN);
 
   const [page, setPage]           = useState(0);
   const [search, setSearch]       = useState('');
   const [keyword, setKeyword]     = useState('');
   const [trangThai, setTrangThai] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [moderatingPost, setModeratingPost] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['bch-tin-tuc', page, keyword, trangThai],
@@ -211,6 +214,12 @@ const BCHTinTucManage = () => {
                       <Bell className="w-4 h-4" />
                     </button>
                   )}
+                  {canModerateComments && (
+                    <button onClick={() => setModeratingPost(post)}
+                      className="p-1.5 text-gray-400 hover:text-primary rounded" title="Kiểm duyệt bình luận">
+                      <MessageSquare className="w-4 h-4" />
+                    </button>
+                  )}
                   {canDelete && (
                     <button onClick={() => setConfirmDelete(post)}
                       className="p-1.5 text-gray-400 hover:text-red-600 rounded" title="Xóa">
@@ -257,6 +266,15 @@ const BCHTinTucManage = () => {
             </Button>
           </div>
         </Modal>
+      )}
+
+      {/* Kiểm duyệt bình luận */}
+      {moderatingPost && (
+        <CommentModerationModal
+          tinTucId={moderatingPost.id}
+          tieuDe={moderatingPost.tieuDe}
+          onClose={() => setModeratingPost(null)}
+        />
       )}
     </div>
   );

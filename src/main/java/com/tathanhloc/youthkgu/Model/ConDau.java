@@ -29,6 +29,10 @@ public class ConDau {
     @Builder.Default
     private Boolean laMacDinh = false;
 
+    /** Username sở hữu con dấu. NULL = dùng chung cho ai có quyền KY_SO_PDF. */
+    @Column(name = "owner_username", length = 100)
+    private String ownerUsername;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

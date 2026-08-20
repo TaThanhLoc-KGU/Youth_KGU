@@ -17,6 +17,23 @@ public interface HoatDongRepository extends JpaRepository<HoatDong, String> {
 
     List<HoatDong> findByTrangThai(TrangThaiHoatDongEnum trangThai);
     List<HoatDong> findByTrangThaiAndIsActive(TrangThaiHoatDongEnum trangThai, Boolean isActive);
+
+    /**
+     * Bản có JOIN FETCH toàn bộ quan hệ mà toDTO() cần (phongHoc, nguoiPhuTrach+sinhVien, khoa, nganh,
+     * cauLacBo, namHoc) — dùng riêng cho màn hình duyệt hoạt động (getChoDuyet) để tránh N+1: trước đây
+     * mỗi hoạt động trả về kéo theo 4-5 SELECT phụ (lazy-load + secondary-select cho quan hệ EAGER mặc
+     * định), danh sách N hoạt động chờ duyệt tốn ~4N+1 query thay vì 1.
+     */
+    @Query("SELECT hd FROM HoatDong hd " +
+            "LEFT JOIN FETCH hd.phongHoc " +
+            "LEFT JOIN FETCH hd.nguoiPhuTrach bch LEFT JOIN FETCH bch.sinhVien " +
+            "LEFT JOIN FETCH hd.khoa " +
+            "LEFT JOIN FETCH hd.nganh " +
+            "LEFT JOIN FETCH hd.cauLacBo " +
+            "LEFT JOIN FETCH hd.namHoc " +
+            "WHERE hd.trangThai = :trangThai AND hd.isActive = :isActive")
+    List<HoatDong> findByTrangThaiAndIsActiveFetchAll(@Param("trangThai") TrangThaiHoatDongEnum trangThai,
+                                                        @Param("isActive") Boolean isActive);
     List<HoatDong> findByIsActiveTrue();
     // Lấy tất cả chưa bị xoá (isActive = true HOẶC NULL — tương thích data cũ trước khi có default)
     List<HoatDong> findByIsActiveTrueOrIsActiveIsNull();

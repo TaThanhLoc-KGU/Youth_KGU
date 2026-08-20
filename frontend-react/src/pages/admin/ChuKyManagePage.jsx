@@ -17,6 +17,7 @@ export default function ChuKyManagePage() {
     tenNguoiKy: '',
     chucVu: '',
     laMacDinh: false,
+    loaiChuKy: 'FULL',
     originalFile: null,
     file: null,
     preview: null,
@@ -27,7 +28,7 @@ export default function ChuKyManagePage() {
 
   const { data: list = [], isLoading } = useQuery({
     queryKey: ['chu-ky'],
-    queryFn: kySoService.getAllChuKy,
+    queryFn: () => kySoService.getAllChuKy(),
   });
 
   const deleteMut = useMutation({
@@ -69,10 +70,10 @@ export default function ChuKyManagePage() {
     if (!form.tenNguoiKy.trim()) { toast.error('Vui lòng nhập tên người ký'); return; }
     setUploading(true);
     try {
-      await kySoService.uploadChuKy(form.file, form.tenNguoiKy, form.chucVu, form.laMacDinh);
+      await kySoService.uploadChuKy(form.file, form.tenNguoiKy, form.chucVu, form.laMacDinh, form.loaiChuKy);
       toast.success('Tải chữ ký thành công');
       qc.invalidateQueries({ queryKey: ['chu-ky'] });
-      setForm({ tenNguoiKy: '', chucVu: '', laMacDinh: false, originalFile: null, file: null, preview: null, autoRemoveBg: true });
+      setForm({ tenNguoiKy: '', chucVu: '', laMacDinh: false, loaiChuKy: 'FULL', originalFile: null, file: null, preview: null, autoRemoveBg: true });
       if (fileRef.current) fileRef.current.value = '';
     } catch {
       toast.error('Tải chữ ký thất bại');
@@ -162,6 +163,17 @@ export default function ChuKyManagePage() {
                 onChange={(e) => setForm((f) => ({ ...f, chucVu: e.target.value }))}
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Loại chữ ký</label>
+              <select
+                className="select select-bordered select-sm w-full"
+                value={form.loaiChuKy}
+                onChange={(e) => setForm((f) => ({ ...f, loaiChuKy: e.target.value }))}
+              >
+                <option value="FULL">Đầy đủ (đặt ở trang cuối)</option>
+                <option value="NHAY">Ký nháy (mọi trang trừ trang cuối)</option>
+              </select>
+            </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -197,11 +209,16 @@ export default function ChuKyManagePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {list.map((ck) => (
               <div key={ck.id} className="border rounded-lg p-3 relative group hover:shadow-md transition-shadow bg-white">
-                {ck.laMacDinh && (
-                  <span className="absolute top-2 right-2 flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">
-                    <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" /> Mặc định
-                  </span>
-                )}
+                <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                  {ck.laMacDinh && (
+                    <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">
+                      <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" /> Mặc định
+                    </span>
+                  )}
+                  {ck.loaiChuKy === 'NHAY' && (
+                    <span className="text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Ký nháy</span>
+                  )}
+                </div>
                 {/* Ảnh chữ ký trên nền checker */}
                 <div className="bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22%3E%3Crect width=%228%22 height=%228%22 fill=%22%23e5e7eb%22/%3E%3Crect x=%228%22 y=%228%22 width=%228%22 height=%228%22 fill=%22%23e5e7eb%22/%3E%3C/svg%3E')] rounded mb-2 flex items-center justify-center h-20 overflow-hidden">
                   <img

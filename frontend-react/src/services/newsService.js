@@ -121,6 +121,69 @@ const newsService = {
     return response.data;
   },
 
+  // ── Tương tác: bình luận / thích / chia sẻ (public) ────────────────────────
+
+  /** Danh sách bình luận công khai (chỉ HIEN) của 1 bài */
+  getBinhLuan: async (tinTucId, params = {}) => {
+    const response = await api.get(`/api/public/news/${tinTucId}/binh-luan`, { params });
+    return response.data?.data;
+  },
+
+  /** Gửi bình luận mới. body: { noiDung, hoTen?, soDienThoai?, email? } */
+  postBinhLuan: async (tinTucId, body) => {
+    const response = await api.post(`/api/public/news/${tinTucId}/binh-luan`, body);
+    return response.data?.data;
+  },
+
+  /** Trạng thái tương tác hiện tại (đã thích chưa, các bộ đếm, khóa bình luận) */
+  getReactions: async (tinTucId, deviceId) => {
+    const response = await api.get(`/api/public/news/${tinTucId}/reactions`, {
+      params: deviceId ? { deviceId } : {},
+    });
+    return response.data?.data;
+  },
+
+  /** Toggle thích/bỏ thích */
+  thich: async (tinTucId, deviceId) => {
+    const response = await api.post(`/api/public/news/${tinTucId}/thich`, { deviceId });
+    return response.data?.data;
+  },
+
+  /** Ghi nhận 1 lượt chia sẻ, trả về tổng lượt chia sẻ mới */
+  chiaSe: async (tinTucId) => {
+    const response = await api.post(`/api/public/news/${tinTucId}/chia-se`);
+    return response.data?.data;
+  },
+
+  // ── Tương tác: kiểm duyệt bình luận (BCH/Admin — cần quyền KIEM_DUYET_BINH_LUAN) ──
+
+  /** Toàn bộ bình luận (kể cả đã chặn/xóa) của 1 bài — dùng cho màn kiểm duyệt */
+  getBinhLuanManage: async (tinTucId, params = {}) => {
+    const response = await api.get(`/api/news/${tinTucId}/binh-luan`, { params });
+    return response.data?.data;
+  },
+
+  chanBinhLuan: async (commentId) => {
+    const response = await api.patch(`/api/news/binh-luan/${commentId}/chan`);
+    return response.data;
+  },
+
+  boChanBinhLuan: async (commentId) => {
+    const response = await api.patch(`/api/news/binh-luan/${commentId}/bo-chan`);
+    return response.data;
+  },
+
+  xoaBinhLuan: async (commentId) => {
+    const response = await api.delete(`/api/news/binh-luan/${commentId}`);
+    return response.data;
+  },
+
+  /** Khóa/mở khóa bình luận cho 1 bài viết */
+  khoaBinhLuan: async (tinTucId, khoa) => {
+    const response = await api.patch(`/api/news/${tinTucId}/khoa-binh-luan`, null, { params: { khoa } });
+    return response.data;
+  },
+
   /**
    * Gửi thông báo broadcast đến toàn bộ người dùng đang hoạt động.
    * @param {string} title     - Tiêu đề thông báo

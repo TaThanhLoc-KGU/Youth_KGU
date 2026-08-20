@@ -9,6 +9,9 @@ import com.tathanhloc.youthkgu.Repository.SinhVienRepository;
 import com.tathanhloc.youthkgu.Repository.TaiKhoanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +32,21 @@ public class NotificationService {
     private final SinhVienRepository sinhVienRepository;
     private final HoatDongRepository hoatDongRepository;
     private final TaiKhoanRepository taiKhoanRepository;
+    private final WebPushService webPushService;
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+
+    /**
+     * Self-reference qua Spring proxy (@Lazy phá vòng lặp khởi tạo bean). Bắt buộc để @Async thật sự
+     * có hiệu lực khi 1 method trong CHÍNH class này gọi 1 method @Async khác — gọi "this.xxx()" trực
+     * tiếp (self-invocation) sẽ bỏ qua proxy của Spring nên @Async không chạy (vẫn chạy đồng bộ).
+     * PHẢI là field không final + @Autowired @Lazy (không phải constructor injection qua Lombok
+     * @RequiredArgsConstructor) — Lombok KHÔNG copy @Lazy sang tham số constructor được sinh ra, nên
+     * field final sẽ gây BeanCurrentlyInCreationException khi khởi động. Đúng theo pattern đã dùng ở
+     * AccountService.accountServiceSelf / AuthService.authenticationManager trong cùng project.
+     */
+    @Autowired
+    @Lazy
+    private NotificationService self;
 
     public SseEmitter createEmitter(String userId) {
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
@@ -64,6 +81,26 @@ public class NotificationService {
 
         // Gửi SSE sau khi đã lưu DB — không để exception SSE phá transaction
         pushSseNotification(userId, notification);
+
+        // Gửi Web Push (RFC 8291) — tới được thiết bị kể cả khi tab/app đã đóng hẳn (không chỉ minimize).
+        // Tách riêng try/catch giống pushSseNotification(): lỗi push không được phá transaction/luồng chính.
+        try {
+            webPushService.sendPushToUser(userId, title, message, buildNotificationUrl(type, relatedId));
+        } catch (Exception e) {
+            log.warn("Lỗi khi gửi web push cho user {}: {}", userId, e.getMessage());
+        }
+    }
+
+    /**
+     * Đường dẫn trong app tương ứng với loại thông báo — nhúng vào payload push để khi người dùng
+     * bấm vào thông báo đẩy sẽ mở đúng trang liên quan. Không cần quá phức tạp, chỉ cần không null.
+     */
+    private String buildNotificationUrl(String type, String relatedId) {
+        if (type == null) return "/";
+        return switch (type) {
+            case "NEW_ACTIVITY", "REMINDER", "ATTENDANCE_RESULT" -> "/student/activities";
+            default -> "/";
+        };
     }
 
     /**
@@ -90,11 +127,18 @@ public class NotificationService {
         }
     }
 
-    @Transactional
+    /**
+     * Gửi thông báo tới TẤT CẢ sinh viên. CHẠY BẤT ĐỒNG BỘ (@Async) — vòng lặp gửi cho hàng trăm/nghìn
+     * sinh viên (mỗi lượt: insert DB + thử SSE + thử Web Push) có thể mất nhiều giây; nếu chạy đồng bộ
+     * ngay trong request gọi hàm này (vd trong 1 @Transactional khác như duyệt/công khai hoạt động) sẽ
+     * làm request đó bị delay nặng, thậm chí timeout. Gọi hàm này KHÔNG chờ kết quả (fire-and-forget).
+     */
+    @Async
     public void sendNotificationToAllStudents(String title, String message, String type, String relatedId) {
         log.info("Sending notification to all students: {}", title);
         // Chỉ lấy maSv (không load toàn bộ entity) để tiết kiệm RAM
-        sinhVienRepository.findAllMaSv().forEach(maSv -> {
+        List<String> allMaSv = sinhVienRepository.findAllMaSv();
+        allMaSv.forEach(maSv -> {
             try {
                 sendNotification(maSv, title, message, type, relatedId);
             } catch (Exception e) {
@@ -102,17 +146,28 @@ public class NotificationService {
                 log.warn("Failed to send notification to student {}: {}", maSv, e.getMessage());
             }
         });
+        log.info("Sent notification to {} students (async): {}", allMaSv.size(), title);
     }
 
     /**
      * Gửi thông báo đến TẤT CẢ tài khoản đang hoạt động trong hệ thống.
      * Dùng khi Bí thư / Admin muốn broadcast tin tức, văn bản, hoạt động.
-     * Trả về số lượng tài khoản đã nhận.
+     * Đếm số người nhận NGAY (nhanh, không IO ngoài DB) rồi trả về; việc gửi thực tế cho từng người
+     * chạy bất đồng bộ ở sendToUsersAsync() để không chặn request — xem lý do trong javadoc của
+     * sendNotificationToAllStudents().
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public int sendBroadcastNotification(String title, String message, String type, String relatedId) {
-        log.info("Broadcasting notification to all active users: type={} relatedId={}", type, relatedId);
         List<String> usernames = taiKhoanRepository.findAllActiveUsernames();
+        log.info("Broadcasting notification to all active users: type={} relatedId={} total={}",
+                type, relatedId, usernames.size());
+        self.sendToUsersAsync(usernames, title, message, type, relatedId);
+        return usernames.size();
+    }
+
+    /** Phần gửi thực tế của sendBroadcastNotification() — tách riêng để @Async có hiệu lực (xem field self). */
+    @Async
+    public void sendToUsersAsync(List<String> usernames, String title, String message, String type, String relatedId) {
         usernames.forEach(username -> {
             try {
                 sendNotification(username, title, message, type, relatedId);
@@ -120,8 +175,7 @@ public class NotificationService {
                 log.warn("Failed to broadcast to user {}: {}", username, e.getMessage());
             }
         });
-        log.info("Broadcast sent to {} users", usernames.size());
-        return usernames.size();
+        log.info("Broadcast sent to {} users (async)", usernames.size());
     }
 
     public List<Notification> getNotifications(String userId) {
@@ -160,7 +214,7 @@ public class NotificationService {
                         || hd.getTrangThai() == TrangThaiHoatDongEnum.DANG_MO_DANG_KY)
                 .forEach(hd -> {
                     log.info("Sending reminder for activity: {}", hd.getMaHoatDong());
-                    sendNotificationToAllStudents(
+                    self.sendNotificationToAllStudents(
                             "Nhắc nhở: Hoạt động ngày mai",
                             "Hoạt động \"" + hd.getTenHoatDong() + "\" sẽ diễn ra vào ngày mai. Hãy chuẩn bị!",
                             "REMINDER",

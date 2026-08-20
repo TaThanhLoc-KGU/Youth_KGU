@@ -175,6 +175,7 @@ const NewsHeader = ({ onMenuToggle, menuOpen, onMenuClose }) => {
       ],
     },
     { label: 'Bình chọn', path: '/binh-chon', cats: [], highlight: true },
+    { label: 'Góp ý', path: '/gop-y', cats: [], highlight: true },
   ];
 
   const closeDrawer = onMenuClose || onMenuToggle;
