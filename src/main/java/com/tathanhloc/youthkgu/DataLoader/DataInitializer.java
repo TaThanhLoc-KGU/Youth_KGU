@@ -132,6 +132,10 @@ public class DataInitializer implements ApplicationRunner {
         // Thùng thư góp ý
         createPermissionIfNotExists("XEM_GOP_Y",  "Xem danh sách/chi tiết góp ý-phản ánh (danh tính người gửi được ẩn)", "GOP_Y");
         createPermissionIfNotExists("XU_LY_GOP_Y", "Cập nhật trạng thái và phản hồi góp ý-phản ánh", "GOP_Y");
+
+        // Gửi email hàng loạt
+        createPermissionIfNotExists("GUI_EMAIL_HANG_LOAT",
+                "Quản lý nhóm mail/mẫu email và soạn, gửi email hàng loạt tới các nhóm", "EMAIL");
         log.info("Permissions initialized successfully");
     }
 

@@ -85,6 +85,7 @@ import KySoLichSuPage       from './pages/admin/KySoLichSuPage';
 // Thùng thư góp ý
 import GopYPage             from './pages/news/GopYPage';
 import GopYManagePage       from './pages/admin/GopYManagePage';
+import EmailBroadcastPage   from './pages/admin/EmailBroadcastPage';
 // Email config
 import EmailConfigPage      from './pages/admin/EmailConfigPage';
 import ZaloDebugPage        from './pages/admin/ZaloDebugPage';
@@ -154,6 +155,8 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.KIEM_DUYET_BINH_LUAN,
   // Ký số / Góp ý
   PERMISSIONS.QUAN_LY_CON_DAU, PERMISSIONS.XEM_GOP_Y, PERMISSIONS.XU_LY_GOP_Y,
+  // Email hàng loạt
+  PERMISSIONS.GUI_EMAIL_HANG_LOAT,
 ];
 
 
@@ -476,6 +479,12 @@ function App() {
               <GopYManagePage />
             </PermissionGate>
           } />
+          {/* Soạn & gửi email hàng loạt */}
+          <Route path="gui-email" element={
+            <PermissionGate permission={PERMISSIONS.GUI_EMAIL_HANG_LOAT}>
+              <EmailBroadcastPage />
+            </PermissionGate>
+          } />
           <Route path="ky-so-lich-su" element={
             <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
               <KySoLichSuPage />
@@ -584,6 +593,12 @@ function App() {
           <Route path="gop-y" element={
             <PermissionGate permission={PERMISSIONS.XEM_GOP_Y}>
               <GopYManagePage />
+            </PermissionGate>
+          } />
+          {/* Soạn & gửi email hàng loạt */}
+          <Route path="gui-email" element={
+            <PermissionGate permission={PERMISSIONS.GUI_EMAIL_HANG_LOAT}>
+              <EmailBroadcastPage />
             </PermissionGate>
           } />
           <Route path="profile" element={<ProfilePage />} />

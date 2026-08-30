@@ -250,6 +250,26 @@ public class EmailService {
     }
 
     /**
+     * Gửi 1 email nội dung HTML TỰ DO (subject/body do người gọi truyền vào nguyên văn) —
+     * dùng cho tính năng soạn & gửi email hàng loạt (EmailBroadcastService), khác với các
+     * hàm sendXxxEmail() ở trên vốn build sẵn nội dung theo template cố định.
+     * Trả về true/false thay vì nuốt exception, để caller đếm được số gửi thành công/thất bại.
+     */
+    public boolean sendCustomEmail(String to, String subject, String htmlBody) {
+        if (!cauHinhEmailService.isEmailEnabled()) {
+            log.info("[MOCK] Email tùy chỉnh '{}' → {}", subject, to);
+            return true;
+        }
+        try {
+            sendHtmlEmail(to, subject, htmlBody);
+            return true;
+        } catch (Exception e) {
+            log.error("Lỗi gửi email tùy chỉnh cho {}: {}", to, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Gửi email HTML — dùng from address/name từ DB config.
      */
     private void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException, java.io.UnsupportedEncodingException {

@@ -6,7 +6,7 @@ import {
   Newspaper, FileText, FolderOpen, LayoutGrid, LayoutTemplate,
   SlidersHorizontal, Megaphone, RectangleHorizontal, Download, User, X,
   PenLine, Stamp, History, Mail, FileCheck, GraduationCap, Trophy, Home,
-  ShieldCheck, Shield, Key, MessageCircle, Mailbox,
+  ShieldCheck, Shield, Key, MessageCircle, Mailbox, MailPlus,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES, ROLES, PERMISSIONS, MANAGER_ROLES } from '../../utils/constants';
@@ -57,6 +57,7 @@ const ADMIN_GROUPS = [
       { icon: Award,          label: 'Chứng nhận',           path: ROUTES.ADMIN_CERTIFICATES, permission: PERMISSIONS.QUAN_LY_DANG_KY  },
       { icon: BarChart3,      label: 'Điểm rèn luyện',       path: ROUTES.ADMIN_DIEM_REN_LUYEN, permission: PERMISSIONS.XEM_THONG_KE   },
       { icon: Mailbox,        label: 'Góp ý',                 path: ROUTES.ADMIN_GOP_Y,       permission: PERMISSIONS.XEM_GOP_Y        },
+      { icon: MailPlus,       label: 'Soạn & Gửi Email',      path: ROUTES.ADMIN_EMAIL_BROADCAST, permission: PERMISSIONS.GUI_EMAIL_HANG_LOAT },
     ],
   },
   {
@@ -126,7 +127,7 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.QUAN_LY_CUOC_THI, PERMISSIONS.TAO_CUOC_THI,
   PERMISSIONS.XEM_CLB, PERMISSIONS.QUAN_LY_CLB, PERMISSIONS.QUAN_LY_THANH_VIEN_CLB,
   PERMISSIONS.KIEM_DUYET_BINH_LUAN, PERMISSIONS.QUAN_LY_CON_DAU,
-  PERMISSIONS.XEM_GOP_Y, PERMISSIONS.XU_LY_GOP_Y,
+  PERMISSIONS.XEM_GOP_Y, PERMISSIONS.XU_LY_GOP_Y, PERMISSIONS.GUI_EMAIL_HANG_LOAT,
 ];
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────

@@ -154,6 +154,9 @@ export const PERMISSIONS = {
   XEM_GOP_Y:                       'XEM_GOP_Y',
   XU_LY_GOP_Y:                     'XU_LY_GOP_Y',
 
+  // ─── EMAIL (Soạn & gửi email hàng loạt) ───────────────────────────────────
+  GUI_EMAIL_HANG_LOAT:             'GUI_EMAIL_HANG_LOAT',
+
   // ─── Aliases giữ tương thích ngược với code cũ ────────────────────────────
   // (value đã được sửa để khớp DB — cập nhật dần references sang tên mới)
   VIEW_SINH_VIEN:                  'XEM_SINH_VIEN',
@@ -357,6 +360,10 @@ export const ROUTES = {
   STUDENT_GOP_Y: '/student/gop-y',
   ADMIN_GOP_Y: '/admin/gop-y',
   BCH_GOP_Y: '/bch/gop-y',
+
+  // Soạn & gửi email hàng loạt
+  ADMIN_EMAIL_BROADCAST: '/admin/gui-email',
+  BCH_EMAIL_BROADCAST: '/bch/gui-email',
 
   // Cuộc thi & Bình chọn — Admin manage
   ADMIN_CUOC_THI: '/admin/cuoc-thi',
