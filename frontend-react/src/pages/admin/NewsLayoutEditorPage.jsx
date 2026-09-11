@@ -690,7 +690,7 @@ const NewsLayoutEditorPage = () => {
       {/* ── Top bar ── */}
       <div className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0 z-20">
         <div className="h-14 px-4 flex items-center gap-3">
-          <button onClick={() => navigate('/admin/dashboard')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+          <button onClick={() => navigate('/admin')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Dashboard</span>
           </button>

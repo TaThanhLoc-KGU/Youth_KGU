@@ -157,6 +157,11 @@ export const PERMISSIONS = {
   // ─── EMAIL (Soạn & gửi email hàng loạt) ───────────────────────────────────
   GUI_EMAIL_HANG_LOAT:             'GUI_EMAIL_HANG_LOAT',
 
+  // ─── THI TRẮC NGHIỆM ─────────────────────────────────────────────────────
+  THI_TN_QUAN_LY_CAU_HOI:          'THI_TN_QUAN_LY_CAU_HOI',
+  THI_TN_QUAN_LY_DE_THI:           'THI_TN_QUAN_LY_DE_THI',
+  THI_TN_XEM_KET_QUA:              'THI_TN_XEM_KET_QUA',
+
   // ─── Aliases giữ tương thích ngược với code cũ ────────────────────────────
   // (value đã được sửa để khớp DB — cập nhật dần references sang tên mới)
   VIEW_SINH_VIEN:                  'XEM_SINH_VIEN',
@@ -399,4 +404,16 @@ export const ROUTES = {
 
   // Email config
   ADMIN_EMAIL_CONFIG: '/admin/cau-hinh-email',
+
+  // Cài đặt hệ thống (feature-flag)
+  ADMIN_SYSTEM_SETTINGS: '/admin/cai-dat-he-thong',
+
+  // Thi trắc nghiệm — Admin
+  ADMIN_TN_DE_THI:       '/admin/tn/de-thi',
+  ADMIN_TN_DE_THI_TAO:   '/admin/tn/de-thi/tao',
+  ADMIN_TN_CAU_HOI:      '/admin/tn/cau-hoi',
+  // Thi trắc nghiệm — Đoàn viên
+  STUDENT_TN:            '/student/tn',
+  STUDENT_TN_LAM_BAI:    '/student/tn/lam-bai',   // /:luotThiId
+  STUDENT_TN_KET_QUA:    '/student/tn/ket-qua',   // /:luotThiId
 };

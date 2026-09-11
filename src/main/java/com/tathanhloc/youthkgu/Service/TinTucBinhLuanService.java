@@ -34,6 +34,7 @@ public class TinTucBinhLuanService {
 
     private final TinTucBinhLuanRepository repo;
     private final TinTucRepository tinTucRepo;
+    private final SystemSettingService systemSettingService;
 
     @Transactional(readOnly = true)
     public Page<BinhLuanDTO> getVisibleComments(Long tinTucId, Pageable pageable) {
@@ -47,6 +48,11 @@ public class TinTucBinhLuanService {
     }
 
     public BinhLuanDTO create(Long tinTucId, BinhLuanCreateRequest req, CustomUserDetails userOrNull, String ip) {
+        // Công tắc chung: admin có thể tắt toàn bộ tính năng bình luận qua trang "Cài đặt hệ thống".
+        if (!systemSettingService.getBoolean("tintuc.binh_luan_bat", true)) {
+            throw new BusinessException("BINH_LUAN_TAT", "Chức năng bình luận đang tạm tắt");
+        }
+
         TinTuc tinTuc = tinTucRepo.findById(tinTucId)
                 .filter(t -> !Boolean.TRUE.equals(t.getIsDeleted()))
                 .orElseThrow(() -> new ResourceNotFoundException("Bài viết không tồn tại: " + tinTucId));

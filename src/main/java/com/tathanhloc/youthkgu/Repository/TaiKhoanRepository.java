@@ -133,6 +133,10 @@ public interface TaiKhoanRepository extends JpaRepository<TaiKhoan, Long> {
     @Query("SELECT tk.clb.maClb FROM TaiKhoan tk WHERE tk.username = :username AND tk.clb IS NOT NULL")
     Optional<String> findMaClbByUsername(@Param("username") String username);
 
+    /** Lấy maSv của đoàn viên đang đăng nhập — tránh lazy load TaiKhoan.sinhVien ngoài transaction. */
+    @Query("SELECT tk.sinhVien.maSv FROM TaiKhoan tk WHERE tk.username = :username AND tk.sinhVien IS NOT NULL")
+    Optional<String> findMaSvByUsername(@Param("username") String username);
+
     // ========== Scope-based queries cho phân quyền đa cấp ==========
 
     /** Lấy tài khoản theo scope khoa */

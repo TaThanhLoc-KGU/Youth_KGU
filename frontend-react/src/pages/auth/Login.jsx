@@ -20,8 +20,12 @@ const ADMIN_SECTION_PERMS = [
   PERMISSIONS.QUAN_LY_PHAN_QUYEN_TAI_KHOAN,
 ];
 
+// Các route "trang chủ" cũ — bỏ qua để login luôn đưa về Menu chức năng (/admin)
+const LEGACY_LANDING = ['/admin', '/admin/dashboard', '/bch', '/bch/dashboard'];
+
 const canAccessFromPath = (from, vaiTro, laBCHFlag, hasAdminPerm) => {
   if (!from || from === ROUTES.LOGIN || from === '/') return false;
+  if (LEGACY_LANDING.includes(from)) return false;
   if (from.startsWith('/admin'))   return MANAGER_ROLES.includes(vaiTro) && (vaiTro === 'ADMIN' || hasAdminPerm);
   if (from.startsWith('/bch'))     return laBCHFlag || MANAGER_ROLES.includes(vaiTro);
   if (from.startsWith('/student')) return vaiTro === 'DOAN_VIEN';
@@ -107,7 +111,7 @@ const Login = () => {
       return;
     }
     if (MANAGER_ROLES.includes(authUser.vaiTro)) {
-      navigate(ROUTES.ADMIN_DASHBOARD, { replace: true });
+      navigate(ROUTES.ADMIN, { replace: true });
     } else if (authUser.vaiTro === 'DOAN_VIEN') {
       navigate(ROUTES.STUDENT_DASHBOARD, { replace: true });
     } else {
@@ -149,7 +153,7 @@ const Login = () => {
         return;
       }
       if (MANAGER_ROLES.includes(vaiTro)) {
-        navigate(ROUTES.ADMIN_DASHBOARD);
+        navigate(ROUTES.ADMIN);
       } else if (vaiTro === 'DOAN_VIEN') {
         navigate(ROUTES.STUDENT_DASHBOARD);
       } else {

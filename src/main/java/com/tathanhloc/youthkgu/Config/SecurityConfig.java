@@ -3,6 +3,7 @@ package com.tathanhloc.youthkgu.Config;
 import com.tathanhloc.youthkgu.Security.ApiKeyFilter;
 import com.tathanhloc.youthkgu.Security.CustomPermissionEvaluator;
 import com.tathanhloc.youthkgu.Security.JwtAuthenticationFilter;
+import com.tathanhloc.youthkgu.Security.MaintenanceModeFilter;
 import com.tathanhloc.youthkgu.Security.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -47,6 +48,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final RateLimitFilter rateLimitFilter;
     private final ApiKeyFilter apiKeyFilter;
+    private final MaintenanceModeFilter maintenanceModeFilter;
     private final UserDetailsService userDetailsService;
     private final CustomPermissionEvaluator customPermissionEvaluator;
     private final PasswordEncoder passwordEncoder;
@@ -81,6 +83,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.web.cors.CorsUtils::isPreFlightRequest).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/system-settings/public").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/hoat-dong/public/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/tin-tuc/public/**").permitAll()
                         .requestMatchers("/api/binh-chon/**").permitAll()
@@ -107,7 +110,9 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // Chạy SAU jwtAuthFilter để SecurityContext đã có authentication (phân biệt admin)
+                .addFilterAfter(maintenanceModeFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

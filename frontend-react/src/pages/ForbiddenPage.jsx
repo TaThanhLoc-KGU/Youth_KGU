@@ -9,7 +9,7 @@ const ForbiddenPage = () => {
 
   const getHomeRoute = () => {
     if (!user) return ROUTES.LOGIN;
-    if (MANAGER_ROLES.includes(user.vaiTro)) return ROUTES.ADMIN_DASHBOARD;
+    if (MANAGER_ROLES.includes(user.vaiTro)) return ROUTES.ADMIN;
     if (user.vaiTro === 'DOAN_VIEN') return ROUTES.STUDENT_DASHBOARD;
     return ROUTES.PROFILE;
   };

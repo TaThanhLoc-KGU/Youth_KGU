@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import {
   LayoutDashboard, CalendarPlus, ClipboardList, TrendingUp,
   User, LogOut, Home, ChevronRight, QrCode, Trophy, Users,
-  Bell, BellRing, Newspaper, Menu, X, Award, Mailbox,
+  Bell, BellRing, Newspaper, Menu, X, Award, Mailbox, FileCheck,
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { ROUTES } from '../../utils/constants';
@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { icon: CalendarPlus,    label: 'Đăng ký HĐ',       path: ROUTES.STUDENT_REGISTER_ACTIVITIES },
   { icon: QrCode,          label: 'Điểm danh QR',     path: '/student/self-scan'               },
   { icon: Trophy,          label: 'Cuộc thi',         path: ROUTES.STUDENT_CONTESTS            },
+  { icon: FileCheck,       label: 'Thi trắc nghiệm',  path: ROUTES.STUDENT_TN                  },
   { icon: Users,           label: 'CLB / Đội nhóm',   path: ROUTES.STUDENT_CLB_REGISTRATION    },
   { icon: ClipboardList,   label: 'Hoạt động của tôi', path: ROUTES.STUDENT_MY_ACTIVITIES       },
   { icon: TrendingUp,      label: 'Điểm rèn luyện',   path: ROUTES.STUDENT_TRAINING_POINTS     },

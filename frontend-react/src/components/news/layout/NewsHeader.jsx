@@ -192,7 +192,7 @@ const NewsHeader = ({ onMenuToggle, menuOpen, onMenuClose }) => {
             {isAuthenticated ? (
               <>
                 {canAdmin && (
-                  <Link to="/admin/dashboard" className="flex items-center gap-1 text-xs text-gray-600 hover:text-blue-800 transition-colors">
+                  <Link to="/admin" className="flex items-center gap-1 text-xs text-gray-600 hover:text-blue-800 transition-colors">
                     <LayoutDashboard className="w-3.5 h-3.5" />
                     <span className="hidden md:inline">Quản trị</span>
                   </Link>

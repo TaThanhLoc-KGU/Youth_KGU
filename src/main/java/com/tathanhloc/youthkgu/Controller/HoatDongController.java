@@ -2,8 +2,7 @@ package com.tathanhloc.youthkgu.Controller;
 
 import com.tathanhloc.youthkgu.DTO.*;
 import com.tathanhloc.youthkgu.Enum.*;
-import com.tathanhloc.youthkgu.Model.TaiKhoan;
-import com.tathanhloc.youthkgu.Repository.TaiKhoanRepository;
+import com.tathanhloc.youthkgu.Security.AccessPolicyService;
 import com.tathanhloc.youthkgu.Service.HoatDongService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,7 +17,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -35,39 +33,11 @@ import java.util.*;
 public class HoatDongController {
 
     private final HoatDongService hoatDongService;
-    private final TaiKhoanRepository taiKhoanRepository;
+    private final AccessPolicyService accessPolicy;
 
-    /**
-     * Trả về maKhoa scope của người dùng hiện tại, hoặc null nếu không giới hạn.
-     * QUAN_LY_CHI_DOAN lấy maKhoa từ lop của họ vì hoạt động không có field maLop.
-     * University-level activities (maKhoa == null) luôn hiển thị cho tất cả cấp.
-     */
-    private String resolveKhoaScope() {
-        try {
-            var auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null || !auth.isAuthenticated()) return null;
-            TaiKhoan tk = taiKhoanRepository.findByUsername(auth.getName()).orElse(null);
-            if (tk == null) return null;
-            VaiTroEnum role = tk.getVaiTro();
-            if (role == VaiTroEnum.ADMIN) return null;
-            if (role.isScopedToKhoa() && tk.getKhoa() != null)
-                return tk.getKhoa().getMaKhoa();
-            if (role.isScopedToChiDoan() && tk.getLop() != null && tk.getLop().getMaKhoa() != null)
-                return tk.getLop().getMaKhoa().getMaKhoa();
-        } catch (Exception e) {
-            log.warn("resolveKhoaScope failed, falling back to no scope: {}", e.getMessage());
-        }
-        return null;
-    }
-
-    /** Lọc list hoạt động theo scope: giữ lại activity cấp trường (maKhoa==null) + maKhoa khớp. */
-    private List<HoatDongDTO> applyScope(List<HoatDongDTO> list) {
-        String scopeKhoa = resolveKhoaScope();
-        if (scopeKhoa == null) return list;
-        return list.stream()
-                .filter(a -> a.getMaKhoa() == null || scopeKhoa.equals(a.getMaKhoa()))
-                .toList();
-    }
+    // Việc lọc theo phạm vi khoa/CLB đã chuyển hết vào tầng service (HoatDongService + AccessPolicyService,
+    // fail-closed). Không còn resolveKhoaScope()/applyScope() ở controller (fail-open, lọc chồng, phân
+    // trang lại trong bộ nhớ).
 
     // ========== CRUD ENDPOINTS ==========
 
@@ -76,7 +46,7 @@ public class HoatDongController {
     @PreAuthorize("hasRole('ADMIN') or hasPermission(null, 'XEM_HOAT_DONG') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getAll() {
         log.info("GET /api/hoat-dong - Get all activities");
-        return ResponseEntity.ok(ApiResponse.success(applyScope(hoatDongService.getAll())));
+        return ResponseEntity.ok(ApiResponse.success(hoatDongService.getAll()));
     }
 
     @GetMapping("/page")
@@ -89,26 +59,10 @@ public class HoatDongController {
             @RequestParam(defaultValue = "desc") String sortDir) {
 
         log.info("GET /api/hoat-dong/page - page={}, size={}", page, size);
-        String scopeKhoa = resolveKhoaScope();
+        // Scope (khoa/CLB) do HoatDongService.getAllWithPagination() tự xử lý bằng repo query đã đánh chỉ mục.
         Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
-
-        if (scopeKhoa == null) {
-            return ResponseEntity.ok(PageResponse.of(hoatDongService.getAllWithPagination(pageable)));
-        }
-        // Scope: lọc toàn bộ rồi tự tạo Page
-        final String khoaFilter = scopeKhoa;
-        Comparator<LocalDate> dateOrder = sortDir.equalsIgnoreCase("asc")
-                ? Comparator.naturalOrder() : Comparator.reverseOrder();
-        List<HoatDongDTO> filtered = hoatDongService.getAll().stream()
-                .filter(a -> a.getMaKhoa() == null || khoaFilter.equals(a.getMaKhoa()))
-                .sorted(Comparator.comparing(HoatDongDTO::getNgayToChuc, Comparator.nullsLast(dateOrder)))
-                .toList();
-        int start = page * size;
-        int end = Math.min(start + size, filtered.size());
-        List<HoatDongDTO> pageContent = start < filtered.size() ? filtered.subList(start, end) : List.of();
-        Page<HoatDongDTO> result = new org.springframework.data.domain.PageImpl<>(pageContent, pageable, filtered.size());
-        return ResponseEntity.ok(PageResponse.of(result));
+        return ResponseEntity.ok(PageResponse.of(hoatDongService.getAllWithPagination(pageable)));
     }
 
     @GetMapping("/detail")
@@ -194,7 +148,7 @@ public class HoatDongController {
             @PathVariable String trangThai) {
         log.info("GET /api/hoat-dong/trang-thai/{}", trangThai);
         TrangThaiHoatDongEnum status = TrangThaiHoatDongEnum.valueOf(trangThai);
-        return ResponseEntity.ok(ApiResponse.success(applyScope(hoatDongService.getByTrangThai(status))));
+        return ResponseEntity.ok(ApiResponse.success(hoatDongService.getByTrangThai(status)));
     }
 
     @GetMapping("/loai/{loaiHoatDong}")
@@ -204,7 +158,7 @@ public class HoatDongController {
             @PathVariable String loaiHoatDong) {
         log.info("GET /api/hoat-dong/loai/{}", loaiHoatDong);
         LoaiHoatDongEnum type = LoaiHoatDongEnum.valueOf(loaiHoatDong);
-        return ResponseEntity.ok(ApiResponse.success(applyScope(hoatDongService.getByLoaiHoatDong(type))));
+        return ResponseEntity.ok(ApiResponse.success(hoatDongService.getByLoaiHoatDong(type)));
     }
 
     @GetMapping("/cap-do/{capDo}")
@@ -214,7 +168,7 @@ public class HoatDongController {
             @PathVariable String capDo) {
         log.info("GET /api/hoat-dong/cap-do/{}", capDo);
         CapDoEnum level = CapDoEnum.valueOf(capDo);
-        return ResponseEntity.ok(ApiResponse.success(applyScope(hoatDongService.getByCapDo(level))));
+        return ResponseEntity.ok(ApiResponse.success(hoatDongService.getByCapDo(level)));
     }
 
     @GetMapping("/upcoming")
@@ -222,7 +176,7 @@ public class HoatDongController {
     @PreAuthorize("hasRole('ADMIN') or hasPermission(null, 'XEM_HOAT_DONG') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getUpcoming() {
         log.info("GET /api/hoat-dong/upcoming");
-        return ResponseEntity.ok(ApiResponse.success(applyScope(hoatDongService.getUpcomingActivities())));
+        return ResponseEntity.ok(ApiResponse.success(hoatDongService.getUpcomingActivities()));
     }
 
     @GetMapping("/ongoing")
@@ -230,7 +184,7 @@ public class HoatDongController {
     @PreAuthorize("hasRole('ADMIN') or hasPermission(null, 'XEM_HOAT_DONG') or hasPermission(null, 'DANG_KY_HOAT_DONG') or hasPermission(null, 'QUET_QR')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getOngoing() {
         log.info("GET /api/hoat-dong/ongoing");
-        return ResponseEntity.ok(ApiResponse.success(applyScope(hoatDongService.getOngoingActivities())));
+        return ResponseEntity.ok(ApiResponse.success(hoatDongService.getOngoingActivities()));
     }
 
     @GetMapping("/search")
@@ -250,7 +204,7 @@ public class HoatDongController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         log.info("GET /api/hoat-dong/date-range?start={}&end={}", startDate, endDate);
-        return ResponseEntity.ok(ApiResponse.success(applyScope(hoatDongService.getByDateRange(startDate, endDate))));
+        return ResponseEntity.ok(ApiResponse.success(hoatDongService.getByDateRange(startDate, endDate)));
     }
 
     // ========== ACTION ENDPOINTS ==========
@@ -397,8 +351,9 @@ public class HoatDongController {
     @PreAuthorize("hasPermission(null, 'DUYET_HOAT_DONG_CLB') or hasPermission(null, 'DUYET_HOAT_DONG')")
     public ResponseEntity<ApiResponse<List<HoatDongDTO>>> getChouDuyet() {
         log.info("GET /api/hoat-dong/cho-duyet");
+        // Chỉ trả các hoạt động chờ duyệt mà người đăng nhập ĐƯỢC PHÉP duyệt (đúng phạm vi khoa/CLB).
         return ResponseEntity.ok(ApiResponse.success(
-                applyScope(hoatDongService.getByTrangThai(TrangThaiHoatDongEnum.CHO_DUYET))));
+                accessPolicy.filterApprovable(hoatDongService.getByTrangThai(TrangThaiHoatDongEnum.CHO_DUYET))));
     }
 
     @PutMapping("/duyet")
@@ -468,9 +423,15 @@ public class HoatDongController {
     // ========== ERROR HANDLING ==========
 
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
-    public void rethrowAccessDenied(org.springframework.security.access.AccessDeniedException e)
-            throws org.springframework.security.access.AccessDeniedException {
-        throw e;
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(
+            org.springframework.security.access.AccessDeniedException e) {
+        // Bao gồm ScopeAccessDeniedException (siết phạm vi khoa/CLB) — trả nguyên văn lý do cho người dùng.
+        log.warn("Access denied on /api/hoat-dong: {}", e.getMessage());
+        String msg = e.getMessage();
+        if (msg == null || msg.isBlank() || msg.contains("Access Denied")) {
+            msg = "Bạn không có quyền thực hiện thao tác này";
+        }
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(msg, 403));
     }
 
     @ExceptionHandler(Exception.class)

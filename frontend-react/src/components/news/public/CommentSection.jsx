@@ -4,6 +4,7 @@ import { Send, Lock, User, Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import newsService from '../../../services/newsService';
 import useAuthStore from '../../../stores/authStore';
+import usePublicSettings from '../../../hooks/usePublicSettings';
 import GuestInfoModal from './GuestInfoModal';
 
 const fmtDate = (d) =>
@@ -16,6 +17,8 @@ const fmtDate = (d) =>
 /** Danh sách bình luận + form gửi bình luận (khách cần điền họ tên/sđt/email, tài khoản thì tự lấy tên). */
 const CommentSection = ({ post }) => {
   const { isAuthenticated, user } = useAuthStore();
+  const { isOn } = usePublicSettings();
+  const binhLuanBat = isOn('tintuc.binh_luan_bat');
   const queryClient = useQueryClient();
   const [noiDung, setNoiDung] = useState('');
   const [showGuestModal, setShowGuestModal] = useState(false);
@@ -60,7 +63,12 @@ const CommentSection = ({ post }) => {
         Bình luận{page?.totalElements > 0 ? ` (${page.totalElements})` : ''}
       </h2>
 
-      {post.khoaBinhLuan ? (
+      {!binhLuanBat ? (
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-500 rounded-xl px-4 py-3 text-sm mb-5">
+          <Lock className="w-4 h-4 flex-shrink-0" />
+          Chức năng bình luận đang tạm tắt.
+        </div>
+      ) : post.khoaBinhLuan ? (
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-500 rounded-xl px-4 py-3 text-sm mb-5">
           <Lock className="w-4 h-4 flex-shrink-0" />
           Bài viết này đã bị khóa bình luận.

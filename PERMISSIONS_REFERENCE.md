@@ -1,7 +1,11 @@
 # PERMISSIONS REFERENCE — Youth KGU
 
-> Tài liệu tham chiếu quyền hệ thống sau migration **V_permissions_cleanup.sql**
-> Tổng: **58 permissions**, ID cố định 1-58.
+> ⚠️ **LỖI THỜI (2026-09).** Nguồn sự thật DUY NHẤT hiện nay là
+> [`src/main/resources/seed/permissions-catalog.txt`](src/main/resources/seed/permissions-catalog.txt)
+> — `NAME|CATEGORY|DESCRIPTION`, ~114 khoá, `DataInitializer.initializePermissions()` seed idempotent
+> mỗi lần khởi động (mọi môi trường tự có đủ, không cần chạy migration SQL tay).
+> Bộ quyền mặc định theo vai trò: [`seed/role-default-permissions.txt`](src/main/resources/seed/role-default-permissions.txt)
+> (chỉ seed cho vai trò đang có 0 dòng). Danh sách bên dưới chỉ để tham khảo lịch sử.
 
 ---
 

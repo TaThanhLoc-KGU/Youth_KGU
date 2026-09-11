@@ -1,0 +1,120 @@
+# Catalog quyền hệ thống — 1 dòng = NAME|CATEGORY|DESCRIPTION
+# DataInitializer.initializePermissions() đọc file này, createPermissionIfNotExists từng dòng (idempotent).
+# Nguồn sự thật DUY NHẤT — thêm quyền mới thì thêm 1 dòng ở đây, không rải rác trong migration SQL nữa.
+CAI_DAT_CHUYEN_VIEN|CHUYEN_VIEN|Quản lý toàn bộ danh sách chuyên viên
+CAI_DAT_HE_THONG|HE_THONG|Cài đặt hệ thống
+CAI_DAT_HOC_KY|TO_CHUC|Thêm/sửa/xóa Học kỳ
+CAI_DAT_KHOA|TO_CHUC|Thêm/sửa/xóa Khoa
+CAI_DAT_KHOA_HOC|TO_CHUC|Thêm/sửa/xóa Khóa học
+CAI_DAT_LOP|TO_CHUC|Thêm/sửa/xóa Lớp
+CAI_DAT_NAM_HOC|TO_CHUC|Thêm/sửa/xóa Năm học
+CAI_DAT_NGANH|TO_CHUC|Thêm/sửa/xóa Ngành
+CAU_HINH_CLB|CLB|Cấu hình tham số CLB (cơ chế, phí, đăng ký)
+CHINH_SUA_DIEM_DANH|DIEM_DANH|Chỉnh sửa điểm danh thủ công
+DANG_KY_CLB|CLB|Sinh viên tự đăng ký tham gia CLB
+DANG_KY_HOAT_DONG|HOAT_DONG|Đăng ký tham gia hoạt động
+DANG_TIN_TUC|NEWS|Tạo và đăng bài viết eNews
+DOI_MAT_KHAU|HE_THONG|Đổi mật khẩu
+DUYET_HOAT_DONG|HOAT_DONG|Duyệt hoạt động
+DUYET_HOAT_DONG_CLB|HOAT_DONG|Phê duyệt hoạt động do CLB/Đoàn Khoa tạo
+DUYET_TAI_KHOAN|TAI_KHOAN|Duyệt tài khoản đăng ký
+DUYET_THANH_VIEN_CLB|CLB|Duyệt / từ chối đơn đăng ký thành viên CLB
+DUYET_TIN_TUC|NEWS|Duyệt bài viết trước khi publish
+EXPORT_SINH_VIEN|SINH_VIEN|Xuất danh sách sinh viên ra Excel
+GIAO_DIEM_DANH|DIEM_DANH|Giao nhiệm vụ điểm danh cho tài khoản
+GUI_EMAIL_HANG_LOAT|EMAIL|Quản lý nhóm mail/mẫu email và soạn, gửi email hàng loạt tới các nhóm
+HUY_DANG_KY_HOAT_DONG|HOAT_DONG|Hủy đăng ký hoạt động
+IMPORT_SINH_VIEN|SINH_VIEN|Import sinh viên từ Excel
+IMPORT_TAI_KHOAN|TAI_KHOAN|Nhập danh sách tài khoản từ Excel
+KIEM_DUYET_BINH_LUAN|NEWS|Khóa bình luận bài viết; chặn/bỏ chặn/xóa bình luận vi phạm
+KY_SO_PDF|KY_SO|Ký số và xuất danh sách PDF có chữ ký điện tử
+PHAN_CONG_DIEM_DANH|DIEM_DANH|Phân công người điểm danh
+QUAN_LY_BAN|BCH|Quản lý ban
+QUAN_LY_BCN_CLB|CLB|Quản lý Ban Chủ Nhiệm CLB (thêm/sửa/xóa nhân sự BCN)
+QUAN_LY_CHUC_VU|BCH|Quản lý chức vụ
+QUAN_LY_CHUYEN_MUC|NEWS|Thêm sửa xóa danh mục eNews
+QUAN_LY_CLB|CLB|Tạo, sửa, xóa câu lạc bộ / đội / nhóm
+QUAN_LY_CON_DAU|KY_SO|Upload, xóa và gán quyền sở hữu (scoping) con dấu
+QUAN_LY_CUOC_THI|CUOC_THI|Xem danh sách và chi tiết cuộc thi
+QUAN_LY_DANG_KY|HOAT_DONG|Quản lý đăng ký hoạt động
+QUAN_LY_DIEM_REN_LUYEN|DIEM_REN_LUYEN|Nhập, chấm và duyệt điểm rèn luyện
+QUAN_LY_MAU_DANH_GIA|DIEM_REN_LUYEN|Thêm sửa xóa mẫu phiếu đánh giá điểm rèn luyện
+QUAN_LY_PHAN_QUYEN_NHOM|PHAN_QUYEN|Quản lý quyền theo nhóm/chức vụ
+QUAN_LY_PHAN_QUYEN_TAI_KHOAN|PHAN_QUYEN|Phân quyền riêng cho tài khoản
+QUAN_LY_PHI_CLB|CLB|Quản lý đóng phí thành viên CLB
+QUAN_LY_THANH_VIEN_CLB|CLB|Thêm, sửa, xóa thành viên CLB
+QUAN_LY_VAN_BAN|NEWS|Upload và quản lý văn bản/kế hoạch
+QUET_QR|DIEM_DANH|Quét mã QR điểm danh
+SUA_BAN|BCH|Sửa thông tin Ban / Đội / CLB
+SUA_BCH|BCH|Sửa thông tin BCH
+SUA_CHUC_VU|BCH|Sửa thông tin chức vụ
+SUA_CHUYEN_VIEN|CHUYEN_VIEN|Sửa thông tin chuyên viên
+SUA_CUOC_THI|CUOC_THI|Sửa cuộc thi và quản lý thí sinh
+SUA_GIANG_VIEN|GIANG_VIEN|Sửa giảng viên
+SUA_HOAT_DONG|HOAT_DONG|Sửa hoạt động
+SUA_KHOA|TO_CHUC|Sửa thông tin khoa
+SUA_KHOA_HOC|TO_CHUC|Sửa thông tin khóa học
+SUA_LOP|TO_CHUC|Sửa thông tin lớp
+SUA_NGANH|TO_CHUC|Sửa thông tin ngành
+SUA_SINH_VIEN|SINH_VIEN|Sửa sinh viên
+SUA_TAI_KHOAN|TAI_KHOAN|Sửa thông tin tài khoản
+SUA_THONG_TIN_CA_NHAN|HE_THONG|Sửa thông tin cá nhân
+SUA_TIN_TUC|NEWS|Sửa bài viết eNews
+TAO_CUOC_THI|CUOC_THI|Tạo cuộc thi mới
+TAO_HOAT_DONG|HOAT_DONG|Tạo hoạt động
+TAO_TAI_KHOAN|TAI_KHOAN|Tạo tài khoản mới
+THEM_BAN|BCH|Thêm Ban / Đội / CLB mới
+THEM_BCH|BCH|Thêm thành viên BCH
+THEM_CHUC_VU|BCH|Thêm chức vụ mới
+THEM_CHUYEN_VIEN|CHUYEN_VIEN|Thêm chuyên viên mới
+THEM_GIANG_VIEN|GIANG_VIEN|Thêm giảng viên
+THEM_KHOA|TO_CHUC|Thêm khoa mới
+THEM_KHOA_HOC|TO_CHUC|Thêm khóa học mới
+THEM_LOP|TO_CHUC|Thêm lớp mới
+THEM_NGANH|TO_CHUC|Thêm ngành mới
+THEM_SINH_VIEN|SINH_VIEN|Thêm sinh viên
+XEM_BAN|BCH|Xem danh sách Ban / Đội / CLB
+XEM_BAO_CAO|BAO_CAO|Xem báo cáo thống kê
+XEM_BCH|BCH|Xem danh sách BCH
+XEM_CHUC_VU|BCH|Xem danh sách chức vụ
+XEM_CHUYEN_VIEN|CHUYEN_VIEN|Xem danh sách chuyên viên
+XEM_CLB|CLB|Xem danh sách câu lạc bộ / đội / nhóm
+XEM_DIEM_DANH|DIEM_DANH|Xem báo cáo điểm danh
+XEM_GIANG_VIEN|GIANG_VIEN|Xem danh sách giảng viên
+XEM_GOP_Y|GOP_Y|Xem danh sách/chi tiết góp ý-phản ánh (danh tính người gửi được ẩn)
+XEM_HOAT_DONG|HOAT_DONG|Xem hoạt động
+XEM_HOC_KY|TO_CHUC|Xem học kỳ
+XEM_KHOA|TO_CHUC|Xem danh sách khoa
+XEM_KHOA_HOC|TO_CHUC|Xem khóa học
+XEM_LICH_SU_THAM_GIA|HOAT_DONG|Xem lịch sử tham gia
+XEM_LOP|TO_CHUC|Xem danh sách lớp
+XEM_NAM_HOC|TO_CHUC|Xem năm học
+XEM_NGANH|TO_CHUC|Xem danh sách ngành
+XEM_SINH_VIEN|SINH_VIEN|Xem danh sách sinh viên
+XEM_SYSTEM_LOG|SYSTEM|Xem system log
+XEM_TAI_KHOAN|TAI_KHOAN|Xem danh sách tài khoản
+XEM_THONG_KE|BAO_CAO|Xem thống kê tổng quan
+XEM_THONG_TIN_CA_NHAN|HE_THONG|Xem thông tin cá nhân
+XOA_BAN|BCH|Xóa Ban / Đội / CLB
+XOA_BCH|BCH|Xóa thành viên BCH
+XOA_CHUC_VU|BCH|Xóa chức vụ
+XOA_CHUYEN_VIEN|CHUYEN_VIEN|Xóa chuyên viên
+XOA_CUOC_THI|CUOC_THI|Xóa cuộc thi
+XOA_GIANG_VIEN|GIANG_VIEN|Xóa giảng viên
+XOA_HOAT_DONG|HOAT_DONG|Xóa hoạt động
+XOA_KHOA|TO_CHUC|Xóa khoa
+XOA_KHOA_HOC|TO_CHUC|Xóa khóa học
+XOA_LOP|TO_CHUC|Xóa lớp
+XOA_NGANH|TO_CHUC|Xóa ngành
+XOA_SINH_VIEN|SINH_VIEN|Xóa sinh viên
+XOA_TAI_KHOAN|TAI_KHOAN|Xóa tài khoản
+XOA_TIN_TUC|NEWS|Xóa bài viết eNews
+XOA_VAN_BAN|NEWS|Xóa văn bản khỏi kho
+XUAT_BAO_CAO|BAO_CAO|Xuất báo cáo (Excel/PDF)
+XUAT_DS_DANG_KY|DIEM_DANH|Xuất danh sách đăng ký hoạt động
+XUAT_DS_DIEM_DANH|DIEM_DANH|Xuất danh sách điểm danh của hoạt động
+XUAT_SYSTEM_LOG|SYSTEM|Xuất system log
+XU_LY_GOP_Y|GOP_Y|Cập nhật trạng thái và phản hồi góp ý-phản ánh
+THI_TN_QUAN_LY_CAU_HOI|THI_TRAC_NGHIEM|Quản lý ngân hàng câu hỏi trắc nghiệm
+THI_TN_QUAN_LY_DE_THI|THI_TRAC_NGHIEM|Tạo/sửa/xuất bản đề thi trắc nghiệm
+THI_TN_XEM_KET_QUA|THI_TRAC_NGHIEM|Xem kết quả & thống kê bài thi trắc nghiệm

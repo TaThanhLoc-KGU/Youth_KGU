@@ -34,8 +34,12 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 const Activities = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { hasPermission, maKhoa } = useAuthStore();
+  const { hasPermission, maKhoa, maClb, laAdmin } = useAuthStore();
   const isKhoaScoped = !!maKhoa;
+  // Người bị giới hạn phạm vi (cán bộ khoa / CLB, không phải admin) — chỉ được thao tác trên HĐ của đơn vị mình
+  const isScoped = !laAdmin && (!!maKhoa || !!maClb);
+  const rowIsMine = (row) => !isScoped
+    || (maClb ? row?.maClb === maClb : (!!row?.maKhoa && row.maKhoa === maKhoa));
   const canView    = hasPermission(PERMISSIONS.XEM_HOAT_DONG);
   const canCreate  = hasPermission(PERMISSIONS.TAO_HOAT_DONG);
   const canEdit    = hasPermission(PERMISSIONS.SUA_HOAT_DONG);
@@ -46,6 +50,8 @@ const Activities = () => {
   const [showApprovalPanel, setShowApprovalPanel] = useState(false);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason]   = useState('');
+  // Cán bộ khoa/CLB: mặc định chỉ xem HĐ của đơn vị mình; bấm nút để hiện thêm cột HĐ Đoàn trường
+  const [showTruongColumn, setShowTruongColumn] = useState(false);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
@@ -146,6 +152,10 @@ const Activities = () => {
     return acc;
   }, {});
   const hasSections = doanTruongList.length > 0 || doanKhoaList.length > 0;
+
+  // Bố cục 2 cột cho cán bộ khoa/CLB: cột "của tôi" + cột "Đoàn trường" (chỉ đọc)
+  const myList     = displayActivities.filter(rowIsMine);
+  const truongList = displayActivities.filter(a => !a.maKhoa && !a.maClb);
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -330,10 +340,17 @@ const Activities = () => {
       header: 'Thao tác',
       accessor: 'actions',
       width: '210px',
-      render: (_, row) => (
+      render: (_, row) => {
+        const mine = rowIsMine(row);
+        return (
         <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Nút Duyệt / Từ chối — chỉ hiện khi CHO_DUYET và có quyền */}
-          {canApproveAny && row.trangThai === 'CHO_DUYET' && (
+          {isScoped && !mine && (
+            <span className="text-[11px] text-gray-400 italic px-1" title="Hoạt động ngoài phạm vi quản lý của bạn">
+              ngoài phạm vi
+            </span>
+          )}
+          {/* Nút Duyệt / Từ chối — chỉ hiện khi CHO_DUYET, có quyền, và trong phạm vi mình */}
+          {canApproveAny && mine && row.trangThai === 'CHO_DUYET' && (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); duyetMutation.mutate({ ma: row.maHoatDong, trangThaiMoi: 'DANG_MO_DANG_KY' }); }}
@@ -373,7 +390,7 @@ const Activities = () => {
               />
             );
           })()}
-          {canEdit && (
+          {canEdit && mine && (
             <Button
               size="sm"
               variant="ghost"
@@ -382,7 +399,7 @@ const Activities = () => {
               title="Sửa"
             />
           )}
-          {canEdit && row.trangThai !== 'CHO_DUYET' && (
+          {canEdit && mine && row.trangThai !== 'CHO_DUYET' && (
             row.congKhai === false ? (
               <Button
                 size="sm"
@@ -405,7 +422,7 @@ const Activities = () => {
               />
             )
           )}
-          {canEdit && (
+          {canEdit && mine && (
             <Button
               size="sm"
               variant="ghost"
@@ -416,7 +433,7 @@ const Activities = () => {
               className="text-indigo-500 hover:text-indigo-700"
             />
           )}
-          {canEdit && (
+          {canEdit && mine && (
             <Button
               size="sm"
               variant="ghost"
@@ -427,7 +444,7 @@ const Activities = () => {
               className="text-green-600 hover:text-green-700"
             />
           )}
-          {canEdit && (
+          {canEdit && mine && (
             <Button
               size="sm"
               variant="ghost"
@@ -438,7 +455,7 @@ const Activities = () => {
               className="text-blue-500 hover:text-blue-700"
             />
           )}
-          {canDelete && (
+          {canDelete && mine && (
             <Button
               size="sm"
               variant="ghost"
@@ -449,7 +466,8 @@ const Activities = () => {
             />
           )}
         </div>
-      ),
+        );
+      },
     },
   ];
 
@@ -507,10 +525,11 @@ const Activities = () => {
         </div>
       </div>
 
-      {/* Approval Panel */}
+      {/* Approval Panel — /cho-duyet đã lọc server-side (chỉ HĐ người này được duyệt) */}
       {canApproveAny && showApprovalPanel && (() => {
-        const clbPending   = pendingActivities.filter(a => !!a.maClb);
-        const khoaPending  = pendingActivities.filter(a => !a.maClb && !!a.maKhoa);
+        const clbPending    = pendingActivities.filter(a => !!a.maClb);
+        const khoaPending   = pendingActivities.filter(a => !a.maClb && !!a.maKhoa);
+        const truongPending = pendingActivities.filter(a => !a.maClb && !a.maKhoa);
         return (
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -540,6 +559,42 @@ const Activities = () => {
                           <p className="text-xs text-gray-500 mt-0.5">
                             {a.ngayToChuc}{a.diaDiem ? ` · ${a.diaDiem}` : ''}
                             {a.tenClb && <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-medium">CLB: {a.tenClb}</span>}
+                          </p>
+                          {a.capDo && <p className="text-xs text-gray-400 mt-0.5">Cấp độ: {a.capDo}</p>}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => duyetMutation.mutate({ ma: a.maHoatDong, trangThaiMoi: 'DANG_MO_DANG_KY' })}
+                            disabled={duyetMutation.isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Duyệt
+                          </button>
+                          <button
+                            onClick={() => setRejectTarget(a)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-medium hover:bg-red-200">
+                            <XCircle className="w-3.5 h-3.5" /> Từ chối
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Hoạt động cấp trường / chưa gán đơn vị (chỉ admin thấy được) ── */}
+                {truongPending.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-gray-500" />
+                      <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        Đoàn trường / chưa gán ({truongPending.length})
+                      </span>
+                    </div>
+                    {truongPending.map(a => (
+                      <div key={a.maHoatDong} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">{a.tenHoatDong}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {a.ngayToChuc}{a.diaDiem ? ` · ${a.diaDiem}` : ''}
                           </p>
                           {a.capDo && <p className="text-xs text-gray-400 mt-0.5">Cấp độ: {a.capDo}</p>}
                         </div>
@@ -696,13 +751,62 @@ const Activities = () => {
         </div>
       </Card>
 
-      {/* Table — chia theo Đoàn trường / Đoàn Khoa */}
+      {/* Nút hiện/ẩn cột Đoàn trường — chỉ cho cán bộ khoa/CLB */}
+      {isScoped && !isLoading && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowTruongColumn(v => !v)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+              showTruongColumn
+                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <Globe className="w-4 h-4" />
+            {showTruongColumn ? 'Ẩn hoạt động Đoàn trường' : `Xem hoạt động Đoàn trường (${truongList.length})`}
+          </button>
+        </div>
+      )}
+
+      {/* Table — cán bộ khoa/CLB: 2 cột; admin: xếp theo Đoàn trường / từng khoa */}
       {isLoading ? (
         <Card>
           <div className="overflow-x-auto">
             <Table columns={columns} data={[]} loading={true} />
           </div>
         </Card>
+      ) : isScoped ? (
+        <div className={showTruongColumn ? 'grid grid-cols-1 xl:grid-cols-2 gap-4 items-start' : ''}>
+          <Card>
+            <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+              <div className="w-1 h-5 bg-emerald-500 rounded-full flex-shrink-0" />
+              <h3 className="font-semibold text-emerald-700 text-sm uppercase tracking-wide">
+                {maClb ? 'Hoạt động CLB' : 'Hoạt động Đoàn khoa'}
+              </h3>
+              <span className="text-[11px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-semibold">
+                {myList.length}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <Table columns={columns} data={myList} loading={false} emptyMessage="Chưa có hoạt động nào của đơn vị bạn." />
+            </div>
+          </Card>
+          {showTruongColumn && (
+            <Card>
+              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <div className="w-1 h-5 bg-blue-500 rounded-full flex-shrink-0" />
+                <h3 className="font-semibold text-blue-700 text-sm uppercase tracking-wide">Đoàn trường</h3>
+                <span className="text-[11px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-semibold">
+                  {truongList.length}
+                </span>
+                <span className="text-[11px] text-gray-400 ml-1">(chỉ xem)</span>
+              </div>
+              <div className="overflow-x-auto">
+                <Table columns={columns} data={truongList} loading={false} emptyMessage="Không có hoạt động Đoàn trường." />
+              </div>
+            </Card>
+          )}
+        </div>
       ) : hasSections ? (
         <>
           {/* Đoàn trường */}

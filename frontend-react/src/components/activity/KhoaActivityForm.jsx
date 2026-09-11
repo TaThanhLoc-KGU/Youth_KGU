@@ -13,6 +13,7 @@ import Button from '../common/Button';
 import Card from '../common/Card';
 import RenLuyenSelector from './RenLuyenSelector';
 import activityService from '../../services/activityService';
+import usePublicSettings from '../../hooks/usePublicSettings';
 import { formatDate, formatDateTime } from '../../utils/dateFormat';
 import {
   LOAI_HOAT_DONG_OPTIONS,
@@ -153,6 +154,11 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
   const queryClient = useQueryClient();
   const initialized = useRef(false);
 
+  // Feature-flag ảnh hưởng luồng tạo hoạt động cấp khoa (xem trang "Cài đặt hệ thống")
+  const { isOn } = usePublicSettings();
+  const canDuyet    = isOn('hoatdong.duyet_doan_khoa_bat_buoc'); // true = phải chờ duyệt
+  const khoaTuCongKhai = isOn('hoatdong.khoa_tu_cong_khai');
+
   const [formData, setFormData] = useState({
     maHoatDong: '',
     tenHoatDong: '',
@@ -168,7 +174,7 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
     thoiGianToiThieu: 60,
     choPhepCheckInSom: 30,
     yeuCauCheckOut: false,
-    cheDoDiemDanh: 'CHECKIN_ONLY',
+    cheDoDiemDanh: 'CHECKIN_CHECKOUT',
     diaDiem: '',
     viDo: null,
     kinhDo: null,
@@ -220,7 +226,12 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
 
   const createMutation = useMutation({
     mutationFn: (data) => activityService.create(data),
-    onSuccess: () => { toast.success('Đã gửi hoạt động chờ Đoàn trường duyệt!'); onSuccess(); },
+    onSuccess: () => {
+      if (canDuyet) toast.success('Đã gửi hoạt động chờ duyệt!');
+      else if (khoaTuCongKhai) toast.success('Đã tạo & công khai hoạt động!');
+      else toast.success('Đã tạo hoạt động (chưa công khai).');
+      onSuccess();
+    },
     onError: (err) => { toast.error(err.response?.data?.message || 'Lỗi khi tạo hoạt động!'); },
   });
 
@@ -236,9 +247,13 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
       toast.error('Vui lòng điền các thông tin bắt buộc');
       return;
     }
-    const submitData = { ...formData, capDo: 'KHOA' };
-    if (isEdit) updateMutation.mutate(submitData);
-    else createMutation.mutate(submitData);
+    if (isEdit) {
+      // Không cho khoa tự đổi trạng thái / cấp độ khi sửa — backend cũng chặn, nhưng không gửi cho gọn
+      const { trangThai, capDo, ...rest } = formData;
+      updateMutation.mutate(rest);
+    } else {
+      createMutation.mutate({ ...formData, capDo: 'KHOA' });
+    }
   };
 
   return (
@@ -248,7 +263,14 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
         <Info className="w-5 h-5 text-amber-500 flex-shrink-0" />
         <div className="text-sm text-amber-800">
           <p className="font-bold">Portal Quản lý Đoàn Khoa</p>
-          <p>Các hoạt động tạo mới sẽ tự động được gán cấp <strong>Khoa</strong> và gửi chờ Đoàn trường phê duyệt.</p>
+          <p>
+            Hoạt động tạo mới tự động gán cấp <strong>Khoa</strong>.{' '}
+            {canDuyet
+              ? 'Hoạt động sẽ ở trạng thái chờ duyệt trước khi hiển thị cho sinh viên.'
+              : khoaTuCongKhai
+                ? 'Hoạt động sẽ ở trạng thái Sắp diễn ra và được công khai ngay.'
+                : 'Hoạt động sẽ ở trạng thái Sắp diễn ra, cần bấm Công khai sau để hiển thị.'}
+          </p>
         </div>
       </div>
 

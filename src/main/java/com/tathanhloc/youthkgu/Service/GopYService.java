@@ -32,8 +32,13 @@ import java.time.LocalDateTime;
 public class GopYService {
 
     private final GopYRepository repo;
+    private final SystemSettingService systemSettingService;
 
     public GopYDTO submit(GopYCreateRequest req, String username) {
+        // Công tắc chung: admin có thể tạm đóng thùng thư góp ý qua trang "Cài đặt hệ thống".
+        if (!systemSettingService.getBoolean("gopy.bat", true)) {
+            throw new BusinessException("GOP_Y_TAT", "Thùng thư góp ý đang tạm đóng");
+        }
         if (req.getTieuDe() == null || req.getTieuDe().isBlank()) {
             throw new BusinessException("TIEU_DE_TRONG", "Vui lòng nhập tiêu đề góp ý");
         }

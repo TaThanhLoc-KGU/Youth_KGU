@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { Mailbox, Send, LogIn, ShieldCheck, Loader2, MessageSquareReply } from 'lucide-react';
 import gopYService from '../../services/gopYService';
 import useAuthStore from '../../stores/authStore';
+import usePublicSettings from '../../hooks/usePublicSettings';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
 import { ROUTES } from '../../utils/constants';
@@ -35,6 +36,8 @@ const fmtDate = (d) =>
  */
 const GopYPage = () => {
   const { isAuthenticated } = useAuthStore();
+  const { isOn } = usePublicSettings();
+  const gopYBat = isOn('gopy.bat');
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('gui');
   const [form, setForm] = useState({ tieuDe: '', noiDung: '', loai: 'GOP_Y' });
@@ -81,7 +84,13 @@ const GopYPage = () => {
         </p>
       </div>
 
-      {!isAuthenticated ? (
+      {!gopYBat ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center">
+          <Mailbox className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+          <p className="font-semibold text-amber-800">Thùng thư góp ý đang tạm đóng</p>
+          <p className="text-sm text-amber-600 mt-1">Vui lòng quay lại sau.</p>
+        </div>
+      ) : !isAuthenticated ? (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-center">
           <ShieldCheck className="w-8 h-8 text-blue-500 mx-auto mb-2" />
           <p className="font-semibold text-blue-800">Vui lòng đăng nhập để gửi góp ý</p>

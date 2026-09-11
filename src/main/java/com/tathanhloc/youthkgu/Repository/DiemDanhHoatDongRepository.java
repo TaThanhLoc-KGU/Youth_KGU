@@ -156,4 +156,45 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             "ORDER BY nam, thang",
             nativeQuery = true)
     List<Object[]> findTrendDiemDanhLast12Months(@Param("startDate") LocalDateTime startDate);
+
+    // ========== THỐNG KÊ NÂNG CAO (scope theo khoa; maKhoa = '' nghĩa là toàn hệ thống) ==========
+
+    /** Đếm điểm danh theo trạng thái — lọc theo khoa của sinh viên. Trả [trang_thai, count] */
+    @Query(value = "SELECT dd.trang_thai, COUNT(*) " +
+            "FROM diem_danh_hoat_dong dd " +
+            "LEFT JOIN sinhvien sv ON dd.ma_sv = sv.ma_sv " +
+            "LEFT JOIN lop l ON sv.ma_lop = l.ma_lop " +
+            "WHERE (:maKhoa = '' OR l.ma_khoa = :maKhoa) " +
+            "GROUP BY dd.trang_thai", nativeQuery = true)
+    List<Object[]> countByTrangThaiScoped(@Param("maKhoa") String maKhoa);
+
+    /** [soDiTre, soVeSom, tongLuot] — lọc theo khoa */
+    @Query(value = "SELECT " +
+            "COALESCE(SUM(CASE WHEN dd.so_phut_tre  > 0 THEN 1 ELSE 0 END), 0), " +
+            "COALESCE(SUM(CASE WHEN dd.so_phut_ve_som > 0 THEN 1 ELSE 0 END), 0), " +
+            "COUNT(*) " +
+            "FROM diem_danh_hoat_dong dd " +
+            "LEFT JOIN sinhvien sv ON dd.ma_sv = sv.ma_sv " +
+            "LEFT JOIN lop l ON sv.ma_lop = l.ma_lop " +
+            "WHERE (:maKhoa = '' OR l.ma_khoa = :maKhoa)", nativeQuery = true)
+    List<Object[]> countLateEarlyScoped(@Param("maKhoa") String maKhoa);
+
+    /** Điểm danh theo tên khoa — lọc theo khoa. Trả [ten_khoa, count] */
+    @Query(value = "SELECT COALESCE(k.ten_khoa, 'Không xác định'), COUNT(*) " +
+            "FROM diem_danh_hoat_dong dd " +
+            "LEFT JOIN sinhvien sv ON dd.ma_sv = sv.ma_sv " +
+            "LEFT JOIN lop l ON sv.ma_lop = l.ma_lop " +
+            "LEFT JOIN khoa k ON l.ma_khoa = k.ma_khoa " +
+            "WHERE dd.trang_thai = 'DA_THAM_GIA' AND (:maKhoa = '' OR l.ma_khoa = :maKhoa) " +
+            "GROUP BY k.ma_khoa, k.ten_khoa ORDER BY 2 DESC", nativeQuery = true)
+    List<Object[]> countDiemDanhGroupByKhoaScoped(@Param("maKhoa") String maKhoa);
+
+    /** Top sinh viên tích cực nhất — lọc theo khoa. Trả [ma_sv, ho_ten, soLan] */
+    @Query(value = "SELECT dd.ma_sv, MAX(sv.ho_ten), COUNT(*) c " +
+            "FROM diem_danh_hoat_dong dd " +
+            "LEFT JOIN sinhvien sv ON dd.ma_sv = sv.ma_sv " +
+            "LEFT JOIN lop l ON sv.ma_lop = l.ma_lop " +
+            "WHERE dd.trang_thai = 'DA_THAM_GIA' AND (:maKhoa = '' OR l.ma_khoa = :maKhoa) " +
+            "GROUP BY dd.ma_sv ORDER BY c DESC LIMIT :lim", nativeQuery = true)
+    List<Object[]> topStudentsScoped(@Param("maKhoa") String maKhoa, @Param("lim") int lim);
 }

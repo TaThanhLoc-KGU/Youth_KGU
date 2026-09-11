@@ -16,11 +16,8 @@ const hoatDongService = {
     return response.data;
   },
 
-  // Get activity by ID
-  getById: async (maHoatDong) => {
-    const response = await api.get(`/api/hoat-dong/${maHoatDong}`);
-    return response.data.data;
-  },
+  // Lưu ý: getById / update / delete đã BỎ — chúng trỏ tới /api/hoat-dong/{ma} (không tồn tại).
+  // Dùng activityService (getById → /detail?ma=, update → /update?ma=, delete → /delete?ma=).
 
   // Create activity — kèm file quyết định (PDF/Word...) tùy chọn
   create: async (activityData, quyetDinhFile) => {
@@ -35,18 +32,6 @@ const hoatDongService = {
     }
     const response = await api.post('/api/hoat-dong', activityData);
     return response.data.data;
-  },
-
-  // Update activity
-  update: async (maHoatDong, activityData) => {
-    const response = await api.put(`/api/hoat-dong/${maHoatDong}`, activityData);
-    return response.data.data;
-  },
-
-  // Delete activity
-  delete: async (maHoatDong) => {
-    const response = await api.delete(`/api/hoat-dong/${maHoatDong}`);
-    return response.data;
   },
 
   // Filter by status

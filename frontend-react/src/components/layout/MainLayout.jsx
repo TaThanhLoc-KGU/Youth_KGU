@@ -3,11 +3,15 @@ import { Outlet, useLocation, Link } from 'react-router-dom';
 import { LayoutDashboard, Activity, QrCode, ClipboardCheck, Menu } from 'lucide-react';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import HubBreadcrumb from './HubBreadcrumb';
 import { ROUTES } from '../../utils/constants';
 
 const MainLayout = ({ title }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+
+  // Trang "Menu chức năng" (hub) render toàn màn hình, không sidebar / header / bottom-nav.
+  const isHub = location.pathname === '/admin' || location.pathname.startsWith('/admin/hub');
   
   // Touch gestures for Sidebar
   const touchStartX = useRef(null);
@@ -48,8 +52,10 @@ const MainLayout = ({ title }) => {
     touchCurrentX.current = null;
   };
 
+  if (isHub) return <Outlet />;
+
   return (
-    <div 
+    <div
       className="min-h-screen min-h-[100dvh] flex flex-col lg:block overflow-x-hidden"
       style={{ backgroundColor: '#f1f5f9' }}
       onTouchStart={onTouchStart}
@@ -65,6 +71,7 @@ const MainLayout = ({ title }) => {
         />
 
         <main className="flex-1 p-3 sm:p-5 lg:p-6 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-6">
+          <HubBreadcrumb />
           <Outlet />
         </main>
       </div>

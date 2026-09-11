@@ -65,6 +65,13 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // 503 = chế độ bảo trì (MaintenanceModeFilter) — không phải lỗi phiên, chỉ báo nhẹ rồi reject
+    if (error.response?.status === 503) {
+      const msg = error.response.data?.message || 'Hệ thống đang bảo trì, vui lòng quay lại sau.';
+      toast.warning(msg, { toastId: 'maintenance-503' });
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Nếu đang refresh rồi → xếp hàng chờ
       if (_isRefreshing) {

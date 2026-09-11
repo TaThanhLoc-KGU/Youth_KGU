@@ -75,7 +75,7 @@ export default function ChangePasswordPage() {
       // Redirect based on role
       const vaiTro = user.vaiTro;
       if (MANAGER_ROLES.includes(vaiTro)) {
-        navigate(ROUTES.ADMIN_DASHBOARD, { replace: true });
+        navigate(ROUTES.ADMIN, { replace: true });
       } else if (vaiTro === 'DOAN_VIEN') {
         navigate(ROUTES.STUDENT_DASHBOARD, { replace: true });
       } else {

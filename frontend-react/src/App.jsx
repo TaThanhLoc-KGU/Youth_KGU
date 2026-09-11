@@ -4,6 +4,14 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import PermissionGate from './components/common/PermissionGate';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import MainLayout from './components/layout/MainLayout';
+import MaintenanceBanner from './components/layout/MaintenanceBanner';
+import TnDeThiListPage from './pages/admin/tn/TnDeThiListPage';
+import TnDeThiFormPage from './pages/admin/tn/TnDeThiFormPage';
+import TnCauHoiBankPage from './pages/admin/tn/TnCauHoiBankPage';
+import TnDanhSachDeThi from './pages/student/tn/TnDanhSachDeThi';
+import TnLamBaiPage from './pages/student/tn/TnLamBaiPage';
+import TnKetQuaPage from './pages/student/tn/TnKetQuaPage';
+import AdminHubPage from './pages/admin/AdminHubPage';
 import StudentLayout from './components/layout/StudentLayout';
 import Loading from './components/common/Loading';
 import Login from './pages/auth/Login';
@@ -88,6 +96,7 @@ import GopYManagePage       from './pages/admin/GopYManagePage';
 import EmailBroadcastPage   from './pages/admin/EmailBroadcastPage';
 // Email config
 import EmailConfigPage      from './pages/admin/EmailConfigPage';
+import SystemSettingsPage   from './pages/admin/SystemSettingsPage';
 import ZaloDebugPage        from './pages/admin/ZaloDebugPage';
 // Ban hành public
 import BanHanhPublicPage    from './pages/public/BanHanhPublicPage';
@@ -189,6 +198,9 @@ function App() {
       {/* Session manager: theo dõi token expiry + inactivity timeout */}
       <SessionManager />
 
+      {/* Thanh cảnh báo chế độ bảo trì (feature-flag hethong.bao_tri) */}
+      <MaintenanceBanner />
+
       {isAuthLoading && <Loading fullScreen text="Đang xử lý..." />}
 
       <Suspense fallback={<Loading fullScreen text="Đang tải dữ liệu..." />}>
@@ -244,7 +256,8 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to={ROUTES.ADMIN_DASHBOARD} replace />} />
+          <Route index element={<AdminHubPage />} />
+          <Route path="hub/:groupKey" element={<AdminHubPage />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="students" element={
             <PermissionGate permission={PERMISSIONS.XEM_SINH_VIEN}>
@@ -500,6 +513,24 @@ function App() {
               <EmailConfigPage />
             </PermissionGate>
           } />
+          <Route path="cai-dat-he-thong" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <SystemSettingsPage />
+            </PermissionGate>
+          } />
+          {/* Thi trắc nghiệm */}
+          <Route path="tn/de-thi" element={
+            <PermissionGate permission={PERMISSIONS.THI_TN_QUAN_LY_DE_THI}><TnDeThiListPage /></PermissionGate>
+          } />
+          <Route path="tn/de-thi/tao" element={
+            <PermissionGate permission={PERMISSIONS.THI_TN_QUAN_LY_DE_THI}><TnDeThiFormPage /></PermissionGate>
+          } />
+          <Route path="tn/de-thi/:id/sua" element={
+            <PermissionGate permission={PERMISSIONS.THI_TN_QUAN_LY_DE_THI}><TnDeThiFormPage /></PermissionGate>
+          } />
+          <Route path="tn/cau-hoi" element={
+            <PermissionGate permission={PERMISSIONS.THI_TN_QUAN_LY_CAU_HOI}><TnCauHoiBankPage /></PermissionGate>
+          } />
           <Route path="van-phong" element={
             <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
               <VanPhongPage />
@@ -528,6 +559,9 @@ function App() {
           <Route path="certificates" element={<StudentCertificatesPage />} />
           <Route path="self-scan" element={<SelfAttendanceScanner />} />
           <Route path="contests" element={<StudentContests />} />
+          <Route path="tn" element={<TnDanhSachDeThi />} />
+          <Route path="tn/lam-bai/:deThiId" element={<TnLamBaiPage />} />
+          <Route path="tn/ket-qua/:luotThiId" element={<TnKetQuaPage />} />
           <Route path="gop-y" element={<GopYPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
@@ -548,7 +582,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to={ROUTES.BCH_DASHBOARD} replace />} />
+          <Route index element={<Navigate to="/admin" replace />} />
           <Route path="dashboard" element={<BCHDashboard />} />
           <Route path="activities" element={<BCHActivities />} />
           <Route path="activities/create" element={<HoatDongEditorPage backPath="/bch/activities" />} />

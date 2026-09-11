@@ -104,4 +104,11 @@ public interface DangKyHoatDongRepository extends JpaRepository<DangKyHoatDong, 
 
     // Tìm đăng ký theo mã sinh viên và mã hoạt động — dùng cho checkout winners cuộc thi
     Optional<DangKyHoatDong> findBySinhVienMaSvAndHoatDongMaHoatDong(String maSv, String maHoatDong);
+
+    /** Tổng đăng ký active — lọc theo khoa của sinh viên (maKhoa = '' → toàn hệ thống) */
+    @Query(value = "SELECT COUNT(*) FROM dang_ky_hoat_dong dk " +
+            "LEFT JOIN sinhvien sv ON dk.ma_sv = sv.ma_sv " +
+            "LEFT JOIN lop l ON sv.ma_lop = l.ma_lop " +
+            "WHERE dk.is_active = true AND (:maKhoa = '' OR l.ma_khoa = :maKhoa)", nativeQuery = true)
+    long countActiveScoped(@Param("maKhoa") String maKhoa);
 }

@@ -51,6 +51,7 @@ public interface HoatDongRepository extends JpaRepository<HoatDong, String> {
     
     // CLB (Câu Lạc Bộ) related queries
     List<HoatDong> findByCauLacBoMaClbOrderByNgayToChucDesc(String maClb);
+    Page<HoatDong> findByCauLacBoMaClbAndIsActiveTrue(String maClb, Pageable pageable);
     
     @Query("SELECT hd FROM HoatDong hd WHERE hd.cauLacBo.maClb = :maClb AND hd.namHoc.maNamHoc = :maNamHoc ORDER BY hd.ngayToChuc DESC")
     List<HoatDong> findByCauLacBoMaClbAndNamHoc(@Param("maClb") String maClb, @Param("maNamHoc") String maNamHoc);

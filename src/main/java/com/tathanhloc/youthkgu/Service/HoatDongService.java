@@ -6,6 +6,8 @@ import com.tathanhloc.youthkgu.DTO.HoatDongDTO;
 import com.tathanhloc.youthkgu.Enum.*;
 import com.tathanhloc.youthkgu.Model.*;
 import com.tathanhloc.youthkgu.Repository.*;
+import com.tathanhloc.youthkgu.Security.AccessPolicyService;
+import com.tathanhloc.youthkgu.Security.ScopeAction;
 import com.tathanhloc.youthkgu.Util.AcademicCalendarUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +49,8 @@ public class HoatDongService {
     private final EmailService emailService;
     private final ZaloService zaloService;
     private final FileStorageService fileStorageService;
+    private final SystemSettingService systemSettingService;
+    private final AccessPolicyService accessPolicy;
 
     // ========== CRUD OPERATIONS ==========
 
@@ -79,8 +83,15 @@ public class HoatDongService {
     public Page<HoatDongDTO> getAllWithPagination(Pageable pageable) {
         log.debug("Getting all activities with pagination");
 
-        String maKhoa = khoaScopeService.getCurrentMaKhoa();
+        String maClb  = khoaScopeService.getCurrentMaClb();
+        String maKhoa = (maClb == null) ? khoaScopeService.getCurrentMaKhoa() : null;
         Map<String, Long> dangKyCountMap = buildDangKyCountMap();
+
+        if (maClb != null) {
+            // Tài khoản CLB: chỉ hoạt động của CLB mình
+            return hoatDongRepository.findByCauLacBoMaClbAndIsActiveTrue(maClb, pageable)
+                    .map(hd -> toDTO(hd, dangKyCountMap));
+        }
         if (maKhoa != null) {
             // Cán bộ khoa: hoạt động khoa mình + cấp trường
             return hoatDongRepository.findByKhoaScopeOrGlobalPaged(maKhoa, pageable)
@@ -108,16 +119,7 @@ public class HoatDongService {
         log.debug("Getting activity by ID: {}", maHoatDong);
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
-        
-        // Kiểm tra quyền truy cập (nếu là cán bộ khoa) — hoạt động cấp trường (khoa=null) luôn xem được,
-        // giống quy ước ở getAll()/getAllWithPagination(); chỉ chặn khi khoa khác với scope của người xem.
-        String maKhoa = khoaScopeService.getCurrentMaKhoa();
-        if (maKhoa != null) {
-            if (hoatDong.getKhoa() != null && !hoatDong.getKhoa().getMaKhoa().equals(maKhoa)) {
-                throw new RuntimeException("Bạn không có quyền xem hoạt động này");
-            }
-        }
-        
+        accessPolicy.assertCan(ScopeAction.READ, hoatDong);
         return toDTO(hoatDong);
     }
 
@@ -146,6 +148,9 @@ public class HoatDongService {
 
         HoatDong hoatDong = toEntity(dto);
 
+        // Cờ: khoa được tự công khai ngay khi tạo (chỉ khi tắt "duyệt đoàn khoa" + bật "khoa tự công khai").
+        boolean congKhaiNgay = false;
+
         // ÉP SCOPE CLB: tài khoản CLB → ép capDo=BAN_DOI_CLB, gán cauLacBo, và bắt buộc đặt trạng thái CHO_DUYET
         String maClb = khoaScopeService.getCurrentMaClb();
         if (maClb != null) {
@@ -153,21 +158,35 @@ public class HoatDongService {
             hoatDong.setTrangThai(TrangThaiHoatDongEnum.CHO_DUYET); // Luôn bắt đầu bằng Chờ phê duyệt
             cauLacBoRepository.findById(maClb).ifPresent(hoatDong::setCauLacBo);
         } else {
-            // ÉP SCOPE KHOA: cán bộ khoa → ép capDo=KHOA, khoa=khoaOfUser, và bắt buộc đặt trạng thái CHO_DUYET
+            // ÉP SCOPE KHOA: cán bộ khoa → ép capDo=KHOA, khoa=khoaOfUser.
+            // Trạng thái ban đầu phụ thuộc feature-flag "hoatdong.duyet_doan_khoa_bat_buoc":
+            //   - true (mặc định)  → CHO_DUYET (chờ Đoàn trường / Bí thư Đoàn khoa duyệt)
+            //   - false            → SAP_DIEN_RA luôn; nếu thêm "hoatdong.khoa_tu_cong_khai" = true thì công khai ngay
             String maKhoa = khoaScopeService.getCurrentMaKhoa();
             if (maKhoa != null) {
                 hoatDong.setCapDo(CapDoEnum.KHOA);
-                hoatDong.setTrangThai(TrangThaiHoatDongEnum.CHO_DUYET); // Luôn bắt đầu bằng Chờ phê duyệt
                 khoaRepository.findById(maKhoa).ifPresent(hoatDong::setKhoa);
+                if (systemSettingService.getBoolean("hoatdong.duyet_doan_khoa_bat_buoc", true)) {
+                    hoatDong.setTrangThai(TrangThaiHoatDongEnum.CHO_DUYET);
+                } else {
+                    hoatDong.setTrangThai(TrangThaiHoatDongEnum.SAP_DIEN_RA);
+                    congKhaiNgay = systemSettingService.getBoolean("hoatdong.khoa_tu_cong_khai", false);
+                }
             }
         }
-        
-        // Mọi hoạt động mới tạo đều bắt đầu Ở TRẠNG THÁI ẨN (chưa công khai) — kể cả khi tạo trực tiếp
+
+        // ABAC: sau khi ép scope ở trên, xác nhận khoa/CLB đích nằm trong phạm vi người tạo — chặn
+        // trường hợp Đoàn trường-... không, chặn cán bộ khoa gửi dto.maKhoa/maClb của đơn vị khác.
+        accessPolicy.assertTargetInScope(ScopeAction.WRITE,
+                hoatDong.getKhoa() != null ? hoatDong.getKhoa().getMaKhoa() : null,
+                hoatDong.getCauLacBo() != null ? hoatDong.getCauLacBo().getMaClb() : null);
+
+        // Mọi hoạt động mới tạo mặc định Ở TRẠNG THÁI ẨN (chưa công khai) — kể cả khi tạo trực tiếp
         // bởi Đoàn trường (không qua CHO_DUYET). Tin tức, thông báo và hiển thị công khai cho sinh viên
         // chỉ phát sinh khi hoạt động được "Công khai" — qua duyệt (CLB/Khoa) hoặc bấm nút Công khai
-        // (Đoàn trường tạo trực tiếp). Xem publishActivity().
+        // (Đoàn trường tạo trực tiếp). NGOẠI LỆ: khoa tự tạo + không cần duyệt + được tự công khai.
         hoatDong.setIsActive(true);
-        hoatDong.setCongKhai(false);
+        hoatDong.setCongKhai(congKhaiNgay);
         hoatDong = hoatDongRepository.save(hoatDong);
 
         log.info("Activity created successfully: {}", hoatDong.getMaHoatDong());
@@ -194,6 +213,7 @@ public class HoatDongService {
     public HoatDongDTO congKhaiHoatDong(String maHoatDong) {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        assertCanCongKhaiAn(hoatDong);
         publishActivity(hoatDong);
         hoatDong = hoatDongRepository.save(hoatDong);
         log.info("Activity công khai: {}", maHoatDong);
@@ -205,10 +225,25 @@ public class HoatDongService {
     public HoatDongDTO anHoatDong(String maHoatDong) {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        assertCanCongKhaiAn(hoatDong);
         hoatDong.setCongKhai(false);
         hoatDong = hoatDongRepository.save(hoatDong);
         log.info("Activity đã ẩn: {}", maHoatDong);
         return toDTO(hoatDong);
+    }
+
+    /**
+     * Công khai/ẩn: ADMIN/Đoàn trường luôn được. Cán bộ khoa chỉ được nếu feature-flag
+     * "hoatdong.khoa_tu_cong_khai" bật VÀ hoạt động thuộc đúng khoa mình. CLB: hoạt động đúng CLB mình.
+     */
+    private void assertCanCongKhaiAn(HoatDong hd) {
+        accessPolicy.assertCan(ScopeAction.WRITE, hd);
+        if (!accessPolicy.callerUnrestricted()
+                && khoaScopeService.getCurrentMaKhoa() != null
+                && !systemSettingService.getBoolean("hoatdong.khoa_tu_cong_khai", false)) {
+            throw new com.tathanhloc.youthkgu.Exception.ScopeAccessDeniedException(
+                    "Khoa không được tự công khai/ẩn hoạt động — liên hệ Đoàn trường");
+        }
     }
 
     /** Trả về file resource của quyết định đính kèm hoạt động, dùng để xem/tải trực tuyến. */
@@ -239,17 +274,16 @@ public class HoatDongService {
         HoatDong existing = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
 
-        // KIỂM TRA SCOPE TRƯỚC KHI CẬP NHẬT
-        String maClb  = khoaScopeService.getCurrentMaClb();
-        String maKhoa = khoaScopeService.getCurrentMaKhoa();
-        if (maClb != null) {
-            if (existing.getCauLacBo() == null || !existing.getCauLacBo().getMaClb().equals(maClb)) {
-                throw new RuntimeException("Không có quyền sửa hoạt động của CLB khác");
-            }
-        } else if (maKhoa != null) {
-            if (existing.getKhoa() == null || !existing.getKhoa().getMaKhoa().equals(maKhoa)) {
-                throw new RuntimeException("Không có quyền sửa hoạt động của khoa khác");
-            }
+        // ABAC: (1) chỉ sửa được hoạt động TRONG phạm vi mình
+        accessPolicy.assertCan(ScopeAction.WRITE, existing);
+        // (2) nếu DTO muốn đổi khoa/CLB → khoa/CLB ĐÍCH cũng phải trong phạm vi (chặn dời hoạt động ra ngoài)
+        if (dto.getMaKhoa() != null || dto.getMaClb() != null) {
+            accessPolicy.assertTargetInScope(ScopeAction.WRITE, dto.getMaKhoa(), dto.getMaClb());
+        }
+        // (3) người bị scope KHÔNG được tự đổi trạng thái (vượt luồng duyệt) — bỏ trường này khỏi payload
+        if (!accessPolicy.callerUnrestricted()) {
+            dto.setTrangThai(null);
+            dto.setCapDo(null);
         }
 
         // Validate điểm rèn luyện so với tiêu chí
@@ -268,6 +302,7 @@ public class HoatDongService {
 
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
 
         hoatDong.setIsActive(false);
         hoatDongRepository.save(hoatDong);
@@ -276,24 +311,6 @@ public class HoatDongService {
     }
 
     // ========== APPROVAL WORKFLOW ==========
-
-    /**
-     * Kiểm tra người duyệt hiện tại (theo scope CLB/khoa) có quyền duyệt/từ chối ĐÚNG hoạt động này
-     * không — cùng logic với update(). ADMIN/Đoàn trường (không có scope) duyệt được mọi hoạt động.
-     */
-    private void kiemTraScopeDuyet(HoatDong hoatDong) {
-        String maClb  = khoaScopeService.getCurrentMaClb();
-        String maKhoa = khoaScopeService.getCurrentMaKhoa();
-        if (maClb != null) {
-            if (hoatDong.getCauLacBo() == null || !hoatDong.getCauLacBo().getMaClb().equals(maClb)) {
-                throw new RuntimeException("Không có quyền duyệt hoạt động của CLB khác");
-            }
-        } else if (maKhoa != null) {
-            if (hoatDong.getKhoa() == null || !hoatDong.getKhoa().getMaKhoa().equals(maKhoa)) {
-                throw new RuntimeException("Không có quyền duyệt hoạt động của khoa khác");
-            }
-        }
-    }
 
     @Transactional
     public HoatDongDTO duyetHoatDong(String maHoatDong, TrangThaiHoatDongEnum trangThaiMoi, String nguoiDuyet) {
@@ -304,9 +321,9 @@ public class HoatDongService {
             throw new RuntimeException("Hoạt động không ở trạng thái chờ duyệt");
         }
 
-        // KIỂM TRA SCOPE — DUYET_HOAT_DONG_CLB/DUYET_HOAT_DONG chỉ cho phép duyệt hoạt động đúng
-        // phạm vi CLB/khoa của người duyệt (giống update()), tránh 1 CLB/khoa duyệt hộ CLB/khoa khác.
-        kiemTraScopeDuyet(hoatDong);
+        // ABAC: người duyệt chỉ duyệt được hoạt động đúng phạm vi khoa/CLB của mình
+        // (ADMIN/Đoàn trường duyệt mọi hoạt động).
+        accessPolicy.assertCan(ScopeAction.APPROVE, hoatDong);
 
         hoatDong.setTrangThai(trangThaiMoi);
         hoatDong.setNguoiDuyet(nguoiDuyet);
@@ -330,7 +347,7 @@ public class HoatDongService {
             throw new RuntimeException("Hoạt động không ở trạng thái chờ duyệt");
         }
 
-        kiemTraScopeDuyet(hoatDong);
+        accessPolicy.assertCan(ScopeAction.APPROVE, hoatDong);
 
         hoatDong.setTrangThai(TrangThaiHoatDongEnum.DA_HUY);
         hoatDong.setNguoiDuyet(nguoiDuyet);
@@ -348,6 +365,7 @@ public class HoatDongService {
     public Map<String, Object> guiEmailThongBao(String maHoatDong) {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
         List<SinhVien> sinhViens = sinhVienRepository.findByIsActive(true);
         emailService.sendBulkHoatDongNotification(sinhViens, hoatDong);
         log.info("Triggered email notification for activity {} to {} students", maHoatDong, sinhViens.size());
@@ -360,6 +378,7 @@ public class HoatDongService {
     public Map<String, Object> guiZaloThongBao(String maHoatDong) {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
         List<SinhVien> sinhViens = sinhVienRepository.findByIsActive(true);
         long soCoZalo = sinhViens.stream().filter(sv -> sv.getZaloUserId() != null).count();
         zaloService.sendBulkHoatDongNotification(sinhViens, hoatDong);
@@ -374,6 +393,7 @@ public class HoatDongService {
     public Map<String, Object> guiThongBaoDayDu(String maHoatDong) {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
         List<SinhVien> sinhViens = sinhVienRepository.findByIsActive(true);
         long soCoZalo = sinhViens.stream().filter(sv -> sv.getZaloUserId() != null).count();
         emailService.sendBulkHoatDongNotification(sinhViens, hoatDong);
@@ -387,44 +407,45 @@ public class HoatDongService {
     public List<HoatDongDTO> getByTrangThai(TrangThaiHoatDongEnum trangThai) {
         log.debug("Getting activities by status: {}", trangThai);
         Map<String, Long> dangKyCountMap = buildDangKyCountMap();
-        return hoatDongRepository.findByTrangThaiAndIsActiveFetchAll(trangThai, true).stream()
+        List<HoatDongDTO> list = hoatDongRepository.findByTrangThaiAndIsActiveFetchAll(trangThai, true).stream()
                 .map(hd -> toDTO(hd, dangKyCountMap))
                 .collect(Collectors.toList());
+        return accessPolicy.filterReadable(list);
     }
 
     @Transactional(readOnly = true)
     public List<HoatDongDTO> getByLoaiHoatDong(LoaiHoatDongEnum loaiHoatDong) {
         log.debug("Getting activities by type: {}", loaiHoatDong);
-        return hoatDongRepository.findByLoaiHoatDong(loaiHoatDong).stream()
+        return accessPolicy.filterReadable(hoatDongRepository.findByLoaiHoatDong(loaiHoatDong).stream()
                 .filter(hd -> hd.getIsActive())
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
     @Transactional(readOnly = true)
     public List<HoatDongDTO> getByCapDo(CapDoEnum capDo) {
         log.debug("Getting activities by level: {}", capDo);
-        return hoatDongRepository.findByCapDo(capDo).stream()
+        return accessPolicy.filterReadable(hoatDongRepository.findByCapDo(capDo).stream()
                 .filter(hd -> hd.getIsActive())
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
     @Transactional(readOnly = true)
     public List<HoatDongDTO> getUpcomingActivities() {
         log.debug("Getting upcoming activities");
-        return hoatDongRepository.findUpcomingActivities(LocalDate.now()).stream()
+        return accessPolicy.filterReadable(hoatDongRepository.findUpcomingActivities(LocalDate.now()).stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
     @Transactional(readOnly = true)
     public List<HoatDongDTO> getOngoingActivities() {
         log.debug("Getting ongoing activities");
         LocalDate today = LocalDate.now();
-        return hoatDongRepository.findOngoingActivities(today).stream()
+        return accessPolicy.filterReadable(hoatDongRepository.findOngoingActivities(today).stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
     @Transactional(readOnly = true)
@@ -438,9 +459,9 @@ public class HoatDongService {
     @Transactional(readOnly = true)
     public List<HoatDongDTO> getByDateRange(LocalDate startDate, LocalDate endDate) {
         log.debug("Getting activities from {} to {}", startDate, endDate);
-        return hoatDongRepository.findByDateRange(startDate, endDate).stream()
+        return accessPolicy.filterReadable(hoatDongRepository.findByDateRange(startDate, endDate).stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
     // ========== BUSINESS LOGIC ==========
@@ -452,6 +473,7 @@ public class HoatDongService {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
 
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
         hoatDong.setChoPhepDangKy(true);
         hoatDong.setTrangThai(TrangThaiHoatDongEnum.DANG_MO_DANG_KY);
         hoatDongRepository.save(hoatDong);
@@ -473,6 +495,7 @@ public class HoatDongService {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
 
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
         hoatDong.setChoPhepDangKy(false);
         hoatDong.setTrangThai(TrangThaiHoatDongEnum.SAP_DIEN_RA);
         hoatDongRepository.save(hoatDong);
@@ -487,6 +510,7 @@ public class HoatDongService {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
 
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
         // Lưu lại trạng thái cũ để có thể revert nếu lỡ tay
         if (hoatDong.getTrangThai() != TrangThaiHoatDongEnum.DANG_DIEN_RA) {
             hoatDong.setTrangThaiTruocKhiBatDau(hoatDong.getTrangThai().name());
@@ -509,6 +533,7 @@ public class HoatDongService {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
 
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
         if (hoatDong.getTrangThai() != TrangThaiHoatDongEnum.DANG_DIEN_RA) {
             throw new RuntimeException("Hoạt động chưa bắt đầu — không cần hoàn tác");
         }
@@ -544,6 +569,7 @@ public class HoatDongService {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
 
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
         hoatDong.setTrangThai(TrangThaiHoatDongEnum.DA_HOAN_THANH);
         hoatDong.setChoPhepDangKy(false);
         hoatDongRepository.save(hoatDong);
@@ -568,6 +594,7 @@ public class HoatDongService {
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
 
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
         hoatDong.setTrangThai(TrangThaiHoatDongEnum.DA_HUY);
         hoatDong.setChoPhepDangKy(false);
         hoatDong.setGhiChu(hoatDong.getGhiChu() + "\n[HỦY] " + lyDo);
@@ -753,6 +780,7 @@ public class HoatDongService {
 
         HoatDong hoatDong = hoatDongRepository.findById(maHoatDong)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động: " + maHoatDong));
+        accessPolicy.assertCan(ScopeAction.WRITE, hoatDong);
 
         hoatDong.setKetThucSom(true);
         hoatDong.setThoiGianKetThucThucTe(LocalDateTime.now());

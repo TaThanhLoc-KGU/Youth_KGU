@@ -112,7 +112,7 @@ const Table = ({
           )}>
             {data.map((row, rowIndex) => (
               <tr
-                key={row.id ?? row.maSv ?? row.maKhoa ?? row.maLop ?? rowIndex}
+                key={row.id ?? row.maSv ?? row.maHoatDong ?? row.key ?? row.maKhoa ?? row.maLop ?? rowIndex}
                 onClick={() => onRowClick?.(row)}
                 className={clsx(
                   'group transition-colors duration-100',

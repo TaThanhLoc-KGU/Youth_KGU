@@ -1,7 +1,9 @@
 package com.tathanhloc.youthkgu.DataLoader;
 
+import com.tathanhloc.youthkgu.Enum.KieuSettingEnum;
 import com.tathanhloc.youthkgu.Model.*;
 import com.tathanhloc.youthkgu.Repository.*;
+import com.tathanhloc.youthkgu.Service.SystemSettingService;
 import com.tathanhloc.youthkgu.Util.AcademicCalendarUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,8 @@ public class DataInitializer implements ApplicationRunner {
     private final TickerItemRepository tickerItemRepository;
     private final AdBannerRepository adBannerRepository;
     private final TinTucRepository tinTucRepository;
+    private final SystemSettingService systemSettingService;
+    private final RoleDefaultPermissionRepository roleDefaultPermissionRepository;
 
     @Override
     @Transactional
@@ -36,11 +40,33 @@ public class DataInitializer implements ApplicationRunner {
         initializeBan();
         initializeChucVu();
         initializePermissions();
+        initializeRoleDefaultPermissions();
+        initializeSystemSettings();
         initializeNamHocAndHocKy();
         initializeSampleENewsData();
         backfillTinTucTuongTacCounters();
 
         log.info("System data initialization completed!");
+    }
+
+    /**
+     * Seed các feature-flag mặc định (idempotent — chỉ chèn khoá còn thiếu).
+     * Xem {@link SystemSettingService} và trang admin "Cài đặt hệ thống".
+     */
+    private void initializeSystemSettings() {
+        systemSettingService.seedDefault("hoatdong.duyet_doan_khoa_bat_buoc", "true", KieuSettingEnum.BOOLEAN,
+                "HOAT_DONG", "Bắt buộc Đoàn khoa gửi hoạt động chờ Đoàn trường duyệt (tắt = khoa tự tạo, không cần duyệt)", true);
+        systemSettingService.seedDefault("hoatdong.khoa_tu_cong_khai", "false", KieuSettingEnum.BOOLEAN,
+                "HOAT_DONG", "Cho phép Đoàn khoa tự công khai / ẩn hoạt động của khoa mình", true);
+        systemSettingService.seedDefault("tintuc.binh_luan_bat", "true", KieuSettingEnum.BOOLEAN,
+                "TIN_TUC", "Bật tính năng bình luận trên trang tin tức", true);
+        systemSettingService.seedDefault("gopy.bat", "true", KieuSettingEnum.BOOLEAN,
+                "GOP_Y", "Mở thùng thư góp ý cho sinh viên gửi phản ánh", true);
+        systemSettingService.seedDefault("hethong.bao_tri", "false", KieuSettingEnum.BOOLEAN,
+                "HE_THONG", "Chế độ bảo trì — tạm khoá mọi truy cập API của tài khoản không phải admin", true);
+        systemSettingService.seedDefault("hethong.bao_tri_thong_bao", "Hệ thống đang bảo trì, vui lòng quay lại sau.",
+                KieuSettingEnum.STRING, "HE_THONG", "Thông báo hiển thị khi bật chế độ bảo trì", true);
+        log.info("System settings initialized");
     }
 
     /** Xem javadoc TinTucRepository.backfillNullTuongTacCounters(). */
@@ -114,29 +140,38 @@ public class DataInitializer implements ApplicationRunner {
         log.info("ChucVu data initialized successfully");
     }
 
+    /**
+     * Seed TOÀN BỘ catalog quyền từ 1 nguồn duy nhất: resources/seed/permissions-catalog.txt
+     * (mỗi dòng NAME|CATEGORY|DESCRIPTION). Idempotent — createPermissionIfNotExists từng dòng.
+     * Trước đây quyền rải rác ở dump SQL gốc + ~10 file migration chạy tay → prod thường thiếu quyền;
+     * giờ mọi môi trường boot lên là có đủ.
+     */
     private void initializePermissions() {
-        log.info("Initializing Permissions (idempotent)...");
-        // eNews
-        createPermissionIfNotExists("DANG_TIN_TUC",       "Tạo và đăng bài viết eNews",           "NEWS");
-        createPermissionIfNotExists("SUA_TIN_TUC",        "Sửa bài viết eNews",                   "NEWS");
-        createPermissionIfNotExists("XOA_TIN_TUC",        "Xóa bài viết eNews",                   "NEWS");
-        createPermissionIfNotExists("DUYET_TIN_TUC",      "Duyệt bài viết trước khi publish",     "NEWS");
-        createPermissionIfNotExists("QUAN_LY_CHUYEN_MUC", "Thêm sửa xóa danh mục eNews",         "NEWS");
-        createPermissionIfNotExists("QUAN_LY_VAN_BAN",    "Upload và quản lý văn bản/kế hoạch",   "NEWS");
-        createPermissionIfNotExists("XOA_VAN_BAN",        "Xóa văn bản khỏi kho",                 "NEWS");
-        createPermissionIfNotExists("KIEM_DUYET_BINH_LUAN", "Khóa bình luận bài viết; chặn/bỏ chặn/xóa bình luận vi phạm", "NEWS");
-
-        // Ký số
-        createPermissionIfNotExists("QUAN_LY_CON_DAU", "Upload, xóa và gán quyền sở hữu (scoping) con dấu", "KY_SO");
-
-        // Thùng thư góp ý
-        createPermissionIfNotExists("XEM_GOP_Y",  "Xem danh sách/chi tiết góp ý-phản ánh (danh tính người gửi được ẩn)", "GOP_Y");
-        createPermissionIfNotExists("XU_LY_GOP_Y", "Cập nhật trạng thái và phản hồi góp ý-phản ánh", "GOP_Y");
-
-        // Gửi email hàng loạt
-        createPermissionIfNotExists("GUI_EMAIL_HANG_LOAT",
-                "Quản lý nhóm mail/mẫu email và soạn, gửi email hàng loạt tới các nhóm", "EMAIL");
-        log.info("Permissions initialized successfully");
+        log.info("Initializing Permissions từ catalog (idempotent)...");
+        int created = 0, total = 0;
+        try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(
+                new org.springframework.core.io.ClassPathResource("seed/permissions-catalog.txt").getInputStream(),
+                java.nio.charset.StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) continue;
+                String[] p = line.split("\\|", 3);
+                if (p.length < 2) continue;
+                String name = p[0].trim();
+                String category = p[1].trim();
+                String desc = p.length >= 3 ? p[2].trim() : name;
+                total++;
+                if (permissionRepository.findByName(name).isEmpty()) {
+                    permissionRepository.save(Permission.builder()
+                            .name(name).description(desc).category(category).build());
+                    created++;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Không đọc được seed/permissions-catalog.txt — bỏ qua seed catalog quyền", e);
+        }
+        log.info("Permissions: catalog {} khoá, tạo mới {} khoá", total, created);
     }
 
     /**
@@ -154,7 +189,53 @@ public class DataInitializer implements ApplicationRunner {
         }
     }
 
-    // assignPermissionsToRole đã bị xóa theo thiết kế mới: quyền gán trực tiếp cho từng tài khoản
+    /**
+     * Seed bộ quyền mặc định baseline theo vai trò từ resources/seed/role-default-permissions.txt.
+     * CHỈ seed cho vai trò đang có 0 dòng trong role_default_permissions (môi trường fresh, hoặc prod
+     * bị mất do Flyway tắt — đúng tinh thần V54__backfill_role_default_permissions.sql). Vai trò đã có
+     * grant → KHÔNG đụng, tránh ghi đè tuỳ chỉnh của admin trên trang Phân quyền.
+     */
+    private void initializeRoleDefaultPermissions() {
+        java.util.Map<String, java.util.List<String>> byRole = new java.util.HashMap<>();
+        try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(
+                new org.springframework.core.io.ClassPathResource("seed/role-default-permissions.txt").getInputStream(),
+                java.nio.charset.StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) continue;
+                String[] p = line.split("\\|", 2);
+                if (p.length < 2) continue;
+                byRole.computeIfAbsent(p[0].trim(), k -> new java.util.ArrayList<>()).add(p[1].trim());
+            }
+        } catch (Exception e) {
+            log.error("Không đọc được seed/role-default-permissions.txt — bỏ qua seed baseline vai trò", e);
+            return;
+        }
+
+        int rolesSeeded = 0;
+        for (var entry : byRole.entrySet()) {
+            String role = entry.getKey();
+            if (!roleDefaultPermissionRepository.findPermissionIdsByVaiTro(role).isEmpty()) {
+                continue; // vai trò đã có grant → giữ nguyên
+            }
+            java.util.List<RoleDefaultPermission> rows = new java.util.ArrayList<>();
+            for (String permName : entry.getValue()) {
+                permissionRepository.findByName(permName).ifPresent(perm -> rows.add(
+                        RoleDefaultPermission.builder()
+                                .vaiTro(role).permission(perm)
+                                .createdAt(java.time.LocalDateTime.now()).build()));
+            }
+            if (!rows.isEmpty()) {
+                roleDefaultPermissionRepository.saveAll(rows);
+                rolesSeeded++;
+                log.info("Baseline: seed {} quyền mặc định cho vai trò {}", rows.size(), role);
+            }
+        }
+        if (rolesSeeded == 0) {
+            log.info("Role default permissions: tất cả vai trò đã có grant, không seed baseline");
+        }
+    }
 
     /**
      * Khởi tạo dữ liệu Năm học và Học kỳ theo lịch của trường KGU.
