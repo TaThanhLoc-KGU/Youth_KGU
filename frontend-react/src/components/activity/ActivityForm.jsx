@@ -425,7 +425,6 @@ const ActivityForm = ({
 
   const validate = () => {
     const errs = {};
-    if (!formData.maHoatDong?.trim() && !isEdit) errs.maHoatDong = 'Mã hoạt động không được để trống';
     if (!formData.tenHoatDong?.trim()) errs.tenHoatDong = 'Tên hoạt động không được để trống';
     if (!formData.ngayToChuc) errs.ngayToChuc = 'Vui lòng chọn ngày bắt đầu';
     if (formData.ngayKetThuc && formData.ngayToChuc && formData.ngayKetThuc < formData.ngayToChuc)
@@ -441,7 +440,6 @@ const ActivityForm = ({
   const validateStep = (step) => {
     const errs = {};
     if (step === 1) {
-      if (!formData.maHoatDong?.trim() && !isEdit) errs.maHoatDong = 'Vui lòng nhập mã hoạt động';
       if (!formData.tenHoatDong?.trim()) errs.tenHoatDong = 'Vui lòng nhập tên hoạt động';
     }
     if (step === 2) {
@@ -494,10 +492,7 @@ const ActivityForm = ({
     const { name, value, type, checked } = e.target;
     if (name === 'capDo' && (isClb || isKhoa)) return;
     if (name === 'trangThai' && isClb && !isEdit) return;
-    let finalValue = type === 'checkbox' ? checked : value;
-    if (name === 'maHoatDong' && typeof finalValue === 'string') {
-      finalValue = finalValue.toUpperCase().replace(/[^A-Z0-9_\-]/g, '');
-    }
+    const finalValue = type === 'checkbox' ? checked : value;
     setFormData((prev) => ({ ...prev, [name]: finalValue }));
   };
 
@@ -527,7 +522,6 @@ const ActivityForm = ({
   const requiredFilled = !!(
     formData.tenHoatDong?.trim() &&
     formData.ngayToChuc &&
-    (isEdit || formData.maHoatDong?.trim()) &&
     (formData.diemRenLuyen !== '' && formData.diemRenLuyen !== null)
   );
 
@@ -604,13 +598,6 @@ const ActivityForm = ({
   // ── Content sections (shared JSX, responsive classes handle layout) ────────
   const S1 = () => (
     <div className="space-y-4">
-      {!isEdit && (
-        <div>
-          <Input label="Mã hoạt động *" name="maHoatDong" value={formData.maHoatDong}
-            onChange={handleChange} placeholder="HD2025_01" error={errors.maHoatDong} />
-          <p className="text-xs text-gray-400 mt-1">Chỉ gồm A–Z, 0–9, _ và -</p>
-        </div>
-      )}
       <Input label="Tên hoạt động *" name="tenHoatDong" value={formData.tenHoatDong}
         onChange={handleChange} placeholder="VD: Hội thảo công nghệ 2025" error={errors.tenHoatDong} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1024,9 +1011,7 @@ const ActivityForm = ({
                 ? 'Vui lòng nhập tên hoạt động'
                 : !formData.ngayToChuc
                   ? 'Vui lòng chọn ngày tổ chức'
-                  : (!isEdit && !formData.maHoatDong?.trim())
-                    ? 'Vui lòng nhập mã hoạt động'
-                    : 'Vui lòng điền đầy đủ thông tin bắt buộc'}
+                  : 'Vui lòng điền đầy đủ thông tin bắt buộc'}
           </p>
         )}
         <div className="flex gap-3">

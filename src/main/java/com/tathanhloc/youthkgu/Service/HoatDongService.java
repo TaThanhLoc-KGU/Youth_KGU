@@ -136,6 +136,11 @@ public class HoatDongService {
 
     @Transactional
     public HoatDongDTO create(HoatDongDTO dto) {
+        // Tự sinh mã hoạt động nếu người tạo không nhập — bớt 1 trường phải tự nghĩ mã (đặc biệt
+        // với cán bộ khoa: trước đây bắt buộc gõ tay 1 mã duy nhất trước khi tạo được hoạt động).
+        if (dto.getMaHoatDong() == null || dto.getMaHoatDong().isBlank()) {
+            dto.setMaHoatDong(generateMaHoatDong(dto.getLoaiHoatDong()));
+        }
         log.info("Creating new activity: {}", dto.getMaHoatDong());
 
         // Validate mã hoạt động
@@ -191,6 +196,32 @@ public class HoatDongService {
 
         log.info("Activity created successfully: {}", hoatDong.getMaHoatDong());
         return toDTO(hoatDong);
+    }
+
+    /**
+     * Sinh mã hoạt động duy nhất theo cấu trúc thống nhất toàn hệ thống:
+     *   {Cấp}KGU-{Mã loại hoạt động}-{Số thứ tự tự động, 4 số}
+     * Cấp: DT = Đoàn trường, DK = Đoàn khoa, CLB = cấp Ban/Đội/CLB (theo scope người tạo).
+     * Mã loại hoạt động = ký tự đầu mỗi từ trong tên hằng số enum (VD TINH_NGUYEN → "TN", THE_THAO → "TT").
+     */
+    private String generateMaHoatDong(LoaiHoatDongEnum loai) {
+        String capPrefix = khoaScopeService.getCurrentMaClb() != null ? "CLBKGU"
+                : khoaScopeService.getCurrentMaKhoa() != null ? "DKKGU"
+                : "DTKGU";
+        String base = capPrefix + "-" + loaiHoatDongCode(loai);
+        long seq = hoatDongRepository.countByMaHoatDongStartingWith(base + "-") + 1;
+        String candidate;
+        do {
+            candidate = base + "-" + String.format("%04d", seq++);
+        } while (hoatDongRepository.existsById(candidate));
+        return candidate;
+    }
+
+    private String loaiHoatDongCode(LoaiHoatDongEnum loai) {
+        if (loai == null) return "KH";
+        StringBuilder sb = new StringBuilder();
+        for (String part : loai.name().split("_")) if (!part.isEmpty()) sb.append(part.charAt(0));
+        return sb.toString();
     }
 
     /**

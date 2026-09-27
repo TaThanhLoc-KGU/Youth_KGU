@@ -329,6 +329,7 @@ export const ROUTES = {
   ADMIN_ACCOUNT_STATISTICS: '/admin/account-statistics',
   ADMIN_SYSTEM_LOG: '/admin/system-log',
   ADMIN_NAM_HOC: '/admin/nam-hoc',
+  ADMIN_NHAP_KHOA_MOI: '/admin/nhap-khoa-moi',
   ADMIN_DIEM_REN_LUYEN: '/admin/diem-ren-luyen',
 
   // User routes

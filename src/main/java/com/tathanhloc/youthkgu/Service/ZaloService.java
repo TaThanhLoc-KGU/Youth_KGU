@@ -80,13 +80,16 @@ public class ZaloService {
             currentRefreshToken.set(oaRefreshTokenConfig);
             log.info("Zalo OA: chưa có token đã lưu — dùng giá trị mặc định trong application.properties");
         }
-        tokenExpiresAt = Instant.now().plusSeconds(90000);
+        // Không biết tuổi thật của token đã nạp (có thể cũ) — coi như đã hết hạn để buộc refresh ngay
+        // lần gọi/kiểm tra đầu tiên, thay vì "tin" nó còn sống tới 25h như trước (chính là 1 phần
+        // nguyên nhân "lâu lâu end" — token thật của Zalo chỉ sống ~1h, không phải 25h).
+        tokenExpiresAt = Instant.now();
     }
 
     public void updateTokens(String accessToken, String refreshToken) {
         currentAccessToken.set(accessToken);
         if (refreshToken != null && !refreshToken.isBlank()) currentRefreshToken.set(refreshToken);
-        tokenExpiresAt = Instant.now().plusSeconds(86400); // 24h
+        tokenExpiresAt = Instant.now().plusSeconds(3600); // Zalo OA v4: access_token sống ~1h
         persistTokens(currentAccessToken.get(), currentRefreshToken.get());
         log.info("Zalo OA tokens updated via OAuth callback");
     }
@@ -498,6 +501,28 @@ public class ZaloService {
         return currentAccessToken.get();
     }
 
+    /**
+     * Auto-refresh CHỦ ĐỘNG, chạy đều đặn bất kể có ai gửi Zalo hay không — đây là fix chính cho
+     * "lâu lâu nó end quài": trước đây refresh CHỈ xảy ra khi có 1 lệnh gửi Zalo thật sự đi qua
+     * getAccessToken()/post(), nên nếu hệ thống im ắng (không hoạt động nào cần thông báo) trong
+     * thời gian dài, access_token chết mà không ai refresh, và refresh_token (Zalo ROTATE + có hạn
+     * dùng riêng) có thể trôi qua hạn luôn nếu để càng lâu không dùng tới.
+     * 45 phút < hạn thật của access_token (~60 phút) → luôn refresh trước khi nó kịp hết hạn, đồng
+     * thời liên tục "làm mới" refresh_token nên không bao giờ bị vô hiệu do để lâu không đụng tới.
+     * initialDelay 2 phút: refresh ngay sau khi app khởi động (tự hồi phục nếu token bị "già" trong
+     * lúc server tắt để deploy) mà không cần chờ 1 request thật.
+     */
+    @org.springframework.scheduling.annotation.Scheduled(
+            initialDelay = 2 * 60 * 1000, fixedRate = 45 * 60 * 1000)
+    public void autoRefreshAccessToken() {
+        String refresh = currentRefreshToken.get();
+        if (refresh == null || refresh.isBlank()) {
+            log.debug("Zalo: chưa liên kết OA (chưa có refresh_token) — bỏ qua auto-refresh định kỳ");
+            return;
+        }
+        refreshAccessToken();
+    }
+
     private synchronized void refreshAccessToken() {
         try {
             log.info("Zalo: refreshing access token...");
@@ -526,9 +551,19 @@ public class ZaloService {
             if (parsed != null && parsed.containsKey("access_token")) {
                 currentAccessToken.set((String) parsed.get("access_token"));
                 currentRefreshToken.set((String) parsed.get("refresh_token"));
-                tokenExpiresAt = Instant.now().plusSeconds(90000);
+                // Dùng expires_in THẬT do Zalo trả về (thường "3600" dạng String) thay vì số cứng —
+                // trước đây luôn set +90000s (25h) trong khi token thật chỉ sống ~1h, khiến bộ đếm nội
+                // bộ sai lệch hoàn toàn với thực tế phía Zalo.
+                long expiresInSec = 3600;
+                Object expiresInRaw = parsed.get("expires_in");
+                if (expiresInRaw != null) {
+                    try { expiresInSec = Long.parseLong(String.valueOf(expiresInRaw).trim()); }
+                    catch (NumberFormatException ignore) { /* giữ mặc định 3600s */ }
+                }
+                tokenExpiresAt = Instant.now().plusSeconds(expiresInSec);
                 persistTokens(currentAccessToken.get(), currentRefreshToken.get());
-                log.info("Zalo: token refreshed successfully, expires at {}", tokenExpiresAt);
+                log.info("Zalo: token refreshed successfully (expires_in={}s), expires at {}",
+                        expiresInSec, tokenExpiresAt);
             } else {
                 log.error("Zalo: token refresh failed: {}", resp.getBody());
             }

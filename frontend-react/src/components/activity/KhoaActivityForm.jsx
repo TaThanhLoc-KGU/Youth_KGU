@@ -191,6 +191,7 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
   });
 
   const [showMap, setShowMap] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (initialData && !initialized.current) {
@@ -217,8 +218,7 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    let finalValue = type === 'checkbox' ? checked : value;
-    if (name === 'maHoatDong') finalValue = finalValue.toUpperCase().replace(/[^A-Z0-9_\-]/g, '');
+    const finalValue = type === 'checkbox' ? checked : value;
     setFormData(prev => ({ ...prev, [name]: finalValue }));
   };
 
@@ -276,10 +276,7 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
 
       <Card title="Thông tin cơ bản" icon={FileText}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {!isEdit && (
-            <Input label="Mã hoạt động" name="maHoatDong" value={formData.maHoatDong} onChange={handleChange} placeholder="VD: KHOA_CNTT_01" required />
-          )}
-          <div className={isEdit ? 'col-span-2' : ''}>
+          <div className="col-span-2">
             <Input label="Tên hoạt động" name="tenHoatDong" value={formData.tenHoatDong} onChange={handleChange} placeholder="VD: Hội thảo hướng nghiệp khoa CNTT" required />
           </div>
           <Select label="Loại hoạt động" name="loaiHoatDong" value={formData.loaiHoatDong} onChange={handleChange}>
@@ -341,28 +338,8 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
           })}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <Input label="Check-in sớm (phút)" type="number" name="choPhepCheckInSom"
-              value={formData.choPhepCheckInSom} onChange={handleChange} min="0" />
-            <p className="text-xs text-gray-400 mt-1">Trước giờ bắt đầu</p>
-          </div>
-          <div>
-            <Input label="Trễ tối đa (phút)" type="number" name="thoiGianTreToiDa"
-              value={formData.thoiGianTreToiDa} onChange={handleChange} min="0" />
-            <p className="text-xs text-gray-400 mt-1">Quá mức = không tính</p>
-          </div>
-          {(formData.cheDoDiemDanh === 'CHECKIN_CHECKOUT' || formData.cheDoDiemDanh === 'CHECKOUT_ONLY') && (
-            <div>
-              <Input label="Tối thiểu (phút)" type="number" name="thoiGianToiThieu"
-                value={formData.thoiGianToiThieu} onChange={handleChange} min="0" />
-              <p className="text-xs text-gray-400 mt-1">Thời gian tham dự tối thiểu</p>
-            </div>
-          )}
-        </div>
-
         {(formData.cheDoDiemDanh === 'CHECKIN_CHECKOUT') && (
-          <div className="mt-3">
+          <div className="mb-3">
             <Toggle name="yeuCauCheckOut" checked={!!formData.yeuCauCheckOut}
               label="Bắt buộc check-out"
               hint="Sinh viên phải quét QR khi về mới tính hoàn thành"
@@ -371,11 +348,38 @@ const KhoaActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCa
           </div>
         )}
 
-        <div className="mt-3">
-          <Input label="Bán kính điểm danh (m)" type="number" name="khoangCachToiDa"
-            value={formData.khoangCachToiDa ?? ''} onChange={handleChange} min="0" placeholder="Không giới hạn" />
-          <p className="text-xs text-gray-400 mt-1">Cần ghim toạ độ GPS để dùng tính năng này</p>
-        </div>
+        <button type="button" onClick={() => setShowAdvanced(v => !v)}
+          className="text-sm text-amber-700 font-medium hover:text-amber-800 flex items-center gap-1">
+          <Settings2 className="w-3.5 h-3.5" />
+          {showAdvanced ? 'Ẩn tuỳ chọn nâng cao' : 'Tuỳ chọn nâng cao (đã có sẵn giá trị mặc định hợp lý)'}
+        </button>
+
+        {showAdvanced && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <div>
+              <Input label="Check-in sớm (phút)" type="number" name="choPhepCheckInSom"
+                value={formData.choPhepCheckInSom} onChange={handleChange} min="0" />
+              <p className="text-xs text-gray-400 mt-1">Trước giờ bắt đầu</p>
+            </div>
+            <div>
+              <Input label="Trễ tối đa (phút)" type="number" name="thoiGianTreToiDa"
+                value={formData.thoiGianTreToiDa} onChange={handleChange} min="0" />
+              <p className="text-xs text-gray-400 mt-1">Quá mức = không tính</p>
+            </div>
+            {(formData.cheDoDiemDanh === 'CHECKIN_CHECKOUT' || formData.cheDoDiemDanh === 'CHECKOUT_ONLY') && (
+              <div>
+                <Input label="Tối thiểu (phút)" type="number" name="thoiGianToiThieu"
+                  value={formData.thoiGianToiThieu} onChange={handleChange} min="0" />
+                <p className="text-xs text-gray-400 mt-1">Thời gian tham dự tối thiểu</p>
+              </div>
+            )}
+            <div className="md:col-span-3">
+              <Input label="Bán kính điểm danh (m)" type="number" name="khoangCachToiDa"
+                value={formData.khoangCachToiDa ?? ''} onChange={handleChange} min="0" placeholder="Không giới hạn" />
+              <p className="text-xs text-gray-400 mt-1">Cần ghim toạ độ GPS để dùng tính năng này</p>
+            </div>
+          </div>
+        )}
       </Card>
 
       <div className="mt-2">

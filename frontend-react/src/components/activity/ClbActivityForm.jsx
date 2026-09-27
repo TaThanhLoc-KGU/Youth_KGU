@@ -190,8 +190,7 @@ const ClbActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCan
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    let finalValue = type === 'checkbox' ? checked : value;
-    if (name === 'maHoatDong') finalValue = finalValue.toUpperCase().replace(/[^A-Z0-9_\-]/g, '');
+    const finalValue = type === 'checkbox' ? checked : value;
     setFormData(prev => ({ ...prev, [name]: finalValue }));
   };
 
@@ -256,10 +255,7 @@ const ClbActivityForm = ({ initialData = null, mode = 'create', onSuccess, onCan
       {/* Thông tin chính */}
       <Card title="1. Thông tin cơ bản" icon={FileText}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {!isEdit && (
-            <Input label="Mã hoạt động" name="maHoatDong" value={formData.maHoatDong} onChange={handleChange} placeholder="VD: CLB_GUITAR_01" required />
-          )}
-          <div className={isEdit ? 'col-span-2' : ''}>
+          <div className="col-span-2">
             <Input label="Tên hoạt động" name="tenHoatDong" value={formData.tenHoatDong} onChange={handleChange} placeholder="VD: Giao lưu âm nhạc cuối tuần" required />
           </div>
           <Select label="Loại hoạt động" name="loaiHoatDong" value={formData.loaiHoatDong} onChange={handleChange}>

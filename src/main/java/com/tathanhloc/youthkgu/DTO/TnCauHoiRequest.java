@@ -16,6 +16,9 @@ public class TnCauHoiRequest {
     private String maKhoa;
     private List<DapAnItem> dapAns;
 
+    /** Chỉ dùng khi nhập từ Excel: tên danh mục nhập tay, resolve → danhMucId lúc commit (tự tạo nếu chưa có). */
+    private String danhMucTenNhap;
+
     @Data
     public static class DapAnItem {
         private Long id;         // nullable khi thêm mới

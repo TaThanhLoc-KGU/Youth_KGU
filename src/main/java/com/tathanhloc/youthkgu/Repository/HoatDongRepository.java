@@ -156,4 +156,7 @@ public interface HoatDongRepository extends JpaRepository<HoatDong, String> {
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+    /** Đếm số mã hoạt động đã bắt đầu bằng tiền tố — dùng sinh số thứ tự tự động cho mã mới. */
+    long countByMaHoatDongStartingWith(String prefix);
 }

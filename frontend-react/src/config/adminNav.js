@@ -5,7 +5,7 @@ import {
   Newspaper, FileText, FolderOpen, LayoutGrid, LayoutTemplate,
   SlidersHorizontal, Megaphone, RectangleHorizontal, Download,
   PenLine, Stamp, History, Mail, FileCheck, GraduationCap, Trophy,
-  ShieldCheck, MessageCircle, Mailbox, MailPlus, Boxes,
+  ShieldCheck, MessageCircle, Mailbox, MailPlus, Boxes, UploadCloud,
 } from 'lucide-react';
 import { ROUTES, PERMISSIONS, MANAGER_ROLES } from '../utils/constants';
 import useAuthStore from '../stores/authStore';
@@ -46,6 +46,7 @@ export const ADMIN_GROUPS = [
       { icon: Trophy,        label: 'CLB / Đội / Nhóm',    path: ROUTES.ADMIN_CAU_LAC_BO,  permission: PERMISSIONS.QUAN_LY_CLB, hideForClb: true },
       { icon: Users,         label: 'Cổng CLB',            path: ROUTES.ADMIN_CLB_PORTAL,  anyOf: [PERMISSIONS.QUAN_LY_CLB, PERMISSIONS.QUAN_LY_THANH_VIEN_CLB] },
       { icon: GraduationCap, label: 'Năm học & Học kỳ',   path: ROUTES.ADMIN_NAM_HOC,     permission: PERMISSIONS.XEM_NAM_HOC, hideForKhoa: true },
+      { icon: UploadCloud,   label: 'Nhập khóa mới',       path: ROUTES.ADMIN_NHAP_KHOA_MOI, permission: PERMISSIONS.CAI_DAT_HE_THONG, hideForKhoa: true },
     ],
   },
   {

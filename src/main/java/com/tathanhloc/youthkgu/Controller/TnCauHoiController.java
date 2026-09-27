@@ -1,23 +1,31 @@
 package com.tathanhloc.youthkgu.Controller;
 
 import com.tathanhloc.youthkgu.DTO.ApiResponse;
+import com.tathanhloc.youthkgu.DTO.ExcelImportPreviewDTO;
 import com.tathanhloc.youthkgu.DTO.TnCauHoiDTO;
 import com.tathanhloc.youthkgu.DTO.TnCauHoiRequest;
 import com.tathanhloc.youthkgu.Model.TnDanhMuc;
 import com.tathanhloc.youthkgu.Repository.TnDanhMucRepository;
+import com.tathanhloc.youthkgu.Service.TnCauHoiExcelService;
 import com.tathanhloc.youthkgu.Service.TnCauHoiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 /** Ngân hàng câu hỏi trắc nghiệm (Admin/cán bộ). */
 @RestController
@@ -30,6 +38,7 @@ public class TnCauHoiController {
 
     private final TnCauHoiService service;
     private final TnDanhMucRepository danhMucRepo;
+    private final TnCauHoiExcelService excelService;
 
     @GetMapping
     @Operation(summary = "Tìm/lọc câu hỏi")
@@ -81,6 +90,42 @@ public class TnCauHoiController {
         dm.setIsActive(true);
         dm.setCreatedBy(auth.getName());
         return ResponseEntity.ok(ApiResponse.success(danhMucRepo.save(dm)));
+    }
+
+    // ==================== Nhập hàng loạt từ Excel ====================
+
+    @GetMapping("/import/template")
+    @Operation(summary = "Tải file mẫu nhập câu hỏi bằng Excel")
+    public ResponseEntity<ByteArrayResource> downloadTemplate() throws Exception {
+        byte[] bytes = excelService.createTemplate();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename("mau_nhap_cau_hoi.xlsx").build().toString())
+                .body(new ByteArrayResource(bytes));
+    }
+
+    @PostMapping("/import/preview")
+    @Operation(summary = "Xem trước danh sách câu hỏi trước khi nhập từ Excel")
+    public ResponseEntity<ApiResponse<ExcelImportPreviewDTO>> previewImport(
+            @RequestParam("file") MultipartFile file) throws Exception {
+        if (file.isEmpty()) throw new IllegalArgumentException("File không được để trống");
+        return ResponseEntity.ok(ApiResponse.success(excelService.preview(file)));
+    }
+
+    @PostMapping("/import/confirm")
+    @Operation(summary = "Xác nhận nhập câu hỏi từ Excel (chỉ nhập các dòng hợp lệ)")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> confirmImport(
+            @RequestParam("file") MultipartFile file, Authentication auth) throws Exception {
+        if (file.isEmpty()) throw new IllegalArgumentException("File không được để trống");
+        ExcelImportPreviewDTO preview = excelService.preview(file);
+        @SuppressWarnings("unchecked")
+        List<TnCauHoiRequest> valid = (List<TnCauHoiRequest>) (List<?>) preview.getValidData();
+        int created = excelService.commit(valid, service, auth.getName());
+        log.info("Nhập câu hỏi TN từ Excel: {} câu thành công, {} dòng lỗi, bởi {}",
+                created, preview.getErrorRows(), auth.getName());
+        return ResponseEntity.ok(ApiResponse.success("Đã nhập " + created + " câu hỏi",
+                Map.of("created", created, "errorRows", preview.getErrorRows())));
     }
 
     @ExceptionHandler(Exception.class)

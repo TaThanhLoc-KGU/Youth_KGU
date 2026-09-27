@@ -105,6 +105,7 @@ import DanhSachBanHanhListPage from './pages/news/DanhSachBanHanhListPage';
 import AdminBanHanhPage     from './pages/admin/AdminBanHanhPage';
 import VanPhongPage         from './pages/admin/VanPhongPage';
 import NamHocPage           from './pages/admin/NamHocPage';
+import NhapKhoaMoiPage      from './pages/admin/NhapKhoaMoiPage';
 import DiemRenLuyenManagePage from './pages/admin/DiemRenLuyenManagePage';
 import CauLacBoPage        from './pages/admin/CauLacBoPage';
 import ClbPortalPage       from './pages/clb/ClbPortalPage';
@@ -352,6 +353,11 @@ function App() {
           <Route path="nam-hoc" element={
             <PermissionGate permission={PERMISSIONS.XEM_NAM_HOC}>
               <NamHocPage />
+            </PermissionGate>
+          } />
+          <Route path="nhap-khoa-moi" element={
+            <PermissionGate permission={PERMISSIONS.CAI_DAT_HE_THONG}>
+              <NhapKhoaMoiPage />
             </PermissionGate>
           } />
           <Route path="diem-ren-luyen" element={

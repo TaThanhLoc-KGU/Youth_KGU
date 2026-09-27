@@ -13,6 +13,19 @@ const tnService = {
     remove: (id) => api.delete(`/api/tn/cau-hoi/${id}`),
     danhMuc: () => api.get('/api/tn/cau-hoi/danh-muc').then(unwrap),
     createDanhMuc: (body) => api.post('/api/tn/cau-hoi/danh-muc', body).then(unwrap),
+
+    // Nhập hàng loạt từ Excel
+    downloadTemplate: () => api.get('/api/tn/cau-hoi/import/template', { responseType: 'blob' }),
+    importPreview: (file) => {
+      const fd = new FormData(); fd.append('file', file);
+      return api.post('/api/tn/cau-hoi/import/preview', fd,
+        { headers: { 'Content-Type': 'multipart/form-data' } }).then(unwrap);
+    },
+    importConfirm: (file) => {
+      const fd = new FormData(); fd.append('file', file);
+      return api.post('/api/tn/cau-hoi/import/confirm', fd,
+        { headers: { 'Content-Type': 'multipart/form-data' } }).then(unwrap);
+    },
   },
 
   // ============ ĐỀ THI (admin) ============

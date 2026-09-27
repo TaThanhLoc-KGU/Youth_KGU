@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Search, Pencil, Trash2, ArrowLeft, Check, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ArrowLeft, Check, X, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import tnService, { DO_KHO, LOAI_CAU_HOI } from '../../../services/tnService';
 import { ROUTES } from '../../../utils/constants';
 import Loading from '../../../components/common/Loading';
@@ -24,6 +24,7 @@ export default function TnCauHoiBankPage() {
   const [doKho, setDoKho] = useState('');
   const [page, setPage] = useState(0);
   const [editing, setEditing] = useState(null);   // null | {} | question
+  const [showImport, setShowImport] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tn-ch', kw, doKho, page],
@@ -46,7 +47,10 @@ export default function TnCauHoiBankPage() {
           <button onClick={() => navigate(ROUTES.ADMIN_TN_DE_THI)}><ArrowLeft className="w-5 h-5 text-slate-400" /></button>
           <h1 className="text-xl font-bold text-slate-900">Ngân hàng câu hỏi</h1>
         </div>
-        <Button icon={Plus} onClick={() => setEditing({ ...EMPTY_Q })}>Thêm câu hỏi</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" icon={Upload} onClick={() => setShowImport(true)}>Nhập từ Excel</Button>
+          <Button icon={Plus} onClick={() => setEditing({ ...EMPTY_Q })}>Thêm câu hỏi</Button>
+        </div>
       </div>
 
       <div className="flex gap-2">
@@ -92,7 +96,96 @@ export default function TnCauHoiBankPage() {
         <CauHoiModal q={editing} danhMuc={danhMuc || []} onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); qc.invalidateQueries({ queryKey: ['tn-ch'] }); }} />
       )}
+
+      {showImport && (
+        <ImportExcelModal onClose={() => setShowImport(false)}
+          onImported={() => { setShowImport(false); qc.invalidateQueries({ queryKey: ['tn-ch'] }); qc.invalidateQueries({ queryKey: ['tn-danh-muc'] }); }} />
+      )}
     </div>
+  );
+}
+
+function ImportExcelModal({ onClose, onImported }) {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [result, setResult] = useState(null);
+
+  const mutPreview = useMutation({
+    mutationFn: (f) => tnService.cauHoi.importPreview(f),
+    onSuccess: setPreview,
+    onError: (e) => toast.error(e?.response?.data?.message || 'Không đọc được file'),
+  });
+  const mutConfirm = useMutation({
+    mutationFn: () => tnService.cauHoi.importConfirm(file),
+    onSuccess: (data) => { setResult(data); toast.success(`Đã nhập ${data.created} câu hỏi`); },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Nhập thất bại'),
+  });
+
+  const chonFile = (f) => { setFile(f); setPreview(null); setResult(null); mutPreview.mutate(f); };
+  const taiMau = async () => {
+    const res = await tnService.cauHoi.downloadTemplate();
+    const url = URL.createObjectURL(new Blob([res.data]));
+    const a = document.createElement('a');
+    a.href = url; a.download = 'mau_nhap_cau_hoi.xlsx'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Modal isOpen onClose={onClose} title="Nhập câu hỏi từ Excel" size="lg">
+      <div className="space-y-4">
+        {!result && (
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" icon={Download} onClick={taiMau}>Tải file mẫu</Button>
+            <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-primary text-white text-sm font-medium cursor-pointer hover:bg-primary-600">
+              <Upload className="w-4 h-4" /> Chọn file
+              <input type="file" accept=".xlsx,.xls" className="hidden"
+                onChange={(e) => e.target.files?.[0] && chonFile(e.target.files[0])} />
+            </label>
+            {file && <span className="text-sm text-slate-500 inline-flex items-center gap-1.5">
+              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />{file.name}
+            </span>}
+          </div>
+        )}
+
+        {mutPreview.isPending && <p className="text-sm text-slate-400">Đang đọc file…</p>}
+
+        {preview && !result && (
+          <>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg bg-slate-50 py-2.5"><p className="text-lg font-bold">{preview.totalRows}</p><p className="text-xs text-slate-500">Tổng dòng</p></div>
+              <div className="rounded-lg bg-emerald-50 py-2.5"><p className="text-lg font-bold text-emerald-600">{preview.validRows}</p><p className="text-xs text-slate-500">Hợp lệ</p></div>
+              <div className="rounded-lg bg-rose-50 py-2.5"><p className="text-lg font-bold text-rose-600">{preview.errorRows}</p><p className="text-xs text-slate-500">Lỗi</p></div>
+            </div>
+            {preview.errorRows > 0 && (
+              <div className="max-h-40 overflow-y-auto rounded-lg bg-rose-50/50 p-2 space-y-1">
+                {preview.errors.slice(0, 50).map((e, i) => (
+                  <p key={i} className="text-xs text-rose-600 flex gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    Dòng {e.rowNumber}: {e.errorMessage}
+                  </p>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={onClose}>Huỷ</Button>
+              <Button isLoading={mutConfirm.isPending} disabled={preview.validRows === 0}
+                onClick={() => mutConfirm.mutate()}>
+                Xác nhận nhập {preview.validRows} câu hỏi
+              </Button>
+            </div>
+          </>
+        )}
+
+        {result && (
+          <div className="text-center py-4">
+            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+            <p className="font-semibold text-slate-800">Đã nhập {result.created} câu hỏi</p>
+            {result.errorRows > 0 && <p className="text-sm text-slate-500">{result.errorRows} dòng bị bỏ qua do lỗi</p>}
+            <Button className="mt-4" onClick={onImported}>Xong</Button>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
 
