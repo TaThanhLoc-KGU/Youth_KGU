@@ -197,4 +197,24 @@ public interface DiemDanhHoatDongRepository extends JpaRepository<DiemDanhHoatDo
             "WHERE dd.trang_thai = 'DA_THAM_GIA' AND (:maKhoa = '' OR l.ma_khoa = :maKhoa) " +
             "GROUP BY dd.ma_sv ORDER BY c DESC LIMIT :lim", nativeQuery = true)
     List<Object[]> topStudentsScoped(@Param("maKhoa") String maKhoa, @Param("lim") int lim);
+
+    // ========== XÁC NHẬN HOẠT ĐỘNG ĐÃ THAM GIA (điểm rèn luyện) ==========
+
+    /** Toàn bộ mã SV đã tham gia (có điểm rèn luyện > 0) ít nhất 1 hoạt động trong 1 học kỳ. */
+    @Query("SELECT DISTINCT dd.sinhVien.maSv FROM DiemDanhHoatDong dd " +
+            "WHERE dd.trangThai = 'DA_THAM_GIA' " +
+            "AND dd.hoatDong.soHocKy = :soHocKy AND dd.hoatDong.namHoc.maNamHoc = :maNamHoc " +
+            "AND dd.hoatDong.diemRenLuyen IS NOT NULL AND dd.hoatDong.diemRenLuyen > 0")
+    List<String> findDistinctMaSvDaThamGiaTrongHocKy(@Param("soHocKy") Integer soHocKy,
+                                                       @Param("maNamHoc") String maNamHoc);
+
+    /** Các hoạt động (có tính điểm rèn luyện) 1 sinh viên đã tham gia trong 1 học kỳ, theo ngày tổ chức. */
+    @Query("SELECT dd FROM DiemDanhHoatDong dd JOIN FETCH dd.hoatDong hd " +
+            "WHERE dd.sinhVien.maSv = :maSv AND dd.trangThai = 'DA_THAM_GIA' " +
+            "AND hd.soHocKy = :soHocKy AND hd.namHoc.maNamHoc = :maNamHoc " +
+            "AND hd.diemRenLuyen IS NOT NULL AND hd.diemRenLuyen > 0 " +
+            "ORDER BY hd.ngayToChuc ASC")
+    List<DiemDanhHoatDong> findDaThamGiaTrongHocKy(@Param("maSv") String maSv,
+                                                    @Param("soHocKy") Integer soHocKy,
+                                                    @Param("maNamHoc") String maNamHoc);
 }

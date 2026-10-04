@@ -14,6 +14,7 @@ CHINH_SUA_DIEM_DANH|DIEM_DANH|Chỉnh sửa điểm danh thủ công
 DANG_KY_CLB|CLB|Sinh viên tự đăng ký tham gia CLB
 DANG_KY_HOAT_DONG|HOAT_DONG|Đăng ký tham gia hoạt động
 DANG_TIN_TUC|NEWS|Tạo và đăng bài viết eNews
+DIEM_DANH|DIEM_DANH|Điểm danh thủ công/nhập Excel/gỡ khỏi danh sách cho hoạt động không đăng ký
 DOI_MAT_KHAU|HE_THONG|Đổi mật khẩu
 DUYET_HOAT_DONG|HOAT_DONG|Duyệt hoạt động
 DUYET_HOAT_DONG_CLB|HOAT_DONG|Phê duyệt hoạt động do CLB/Đoàn Khoa tạo
@@ -38,7 +39,9 @@ QUAN_LY_CON_DAU|KY_SO|Upload, xóa và gán quyền sở hữu (scoping) con d�
 QUAN_LY_CUOC_THI|CUOC_THI|Xem danh sách và chi tiết cuộc thi
 QUAN_LY_DANG_KY|HOAT_DONG|Quản lý đăng ký hoạt động
 QUAN_LY_DIEM_REN_LUYEN|DIEM_REN_LUYEN|Nhập, chấm và duyệt điểm rèn luyện
+QUAN_LY_HOAT_DONG|HOAT_DONG|Điểm danh thủ công/nhập Excel/gỡ khỏi danh sách cho hoạt động không đăng ký
 QUAN_LY_MAU_DANH_GIA|DIEM_REN_LUYEN|Thêm sửa xóa mẫu phiếu đánh giá điểm rèn luyện
+QUAN_LY_NAM_HOC|TO_CHUC|Thêm/xóa/sắp xếp học kỳ trong năm học, tạo học kỳ mặc định
 QUAN_LY_PHAN_QUYEN_NHOM|PHAN_QUYEN|Quản lý quyền theo nhóm/chức vụ
 QUAN_LY_PHAN_QUYEN_TAI_KHOAN|PHAN_QUYEN|Phân quyền riêng cho tài khoản
 QUAN_LY_PHI_CLB|CLB|Quản lý đóng phí thành viên CLB
@@ -49,6 +52,7 @@ SUA_BAN|BCH|Sửa thông tin Ban / Đội / CLB
 SUA_BCH|BCH|Sửa thông tin BCH
 SUA_CHUC_VU|BCH|Sửa thông tin chức vụ
 SUA_CHUYEN_VIEN|CHUYEN_VIEN|Sửa thông tin chuyên viên
+SUA_CLB|BCH|Sửa thông tin Ban / Đội / CLB
 SUA_CUOC_THI|CUOC_THI|Sửa cuộc thi và quản lý thí sinh
 SUA_GIANG_VIEN|GIANG_VIEN|Sửa giảng viên
 SUA_HOAT_DONG|HOAT_DONG|Sửa hoạt động
@@ -67,6 +71,7 @@ THEM_BAN|BCH|Thêm Ban / Đội / CLB mới
 THEM_BCH|BCH|Thêm thành viên BCH
 THEM_CHUC_VU|BCH|Thêm chức vụ mới
 THEM_CHUYEN_VIEN|CHUYEN_VIEN|Thêm chuyên viên mới
+THEM_CLB|BCH|Thêm Ban / Đội / CLB mới
 THEM_GIANG_VIEN|GIANG_VIEN|Thêm giảng viên
 THEM_KHOA|TO_CHUC|Thêm khoa mới
 THEM_KHOA_HOC|TO_CHUC|Thêm khóa học mới
@@ -99,6 +104,7 @@ XOA_BAN|BCH|Xóa Ban / Đội / CLB
 XOA_BCH|BCH|Xóa thành viên BCH
 XOA_CHUC_VU|BCH|Xóa chức vụ
 XOA_CHUYEN_VIEN|CHUYEN_VIEN|Xóa chuyên viên
+XOA_CLB|BCH|Xóa Ban / Đội / CLB
 XOA_CUOC_THI|CUOC_THI|Xóa cuộc thi
 XOA_GIANG_VIEN|GIANG_VIEN|Xóa giảng viên
 XOA_HOAT_DONG|HOAT_DONG|Xóa hoạt động

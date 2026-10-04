@@ -1028,6 +1028,236 @@ public class KySoService {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // XÁC NHẬN HOẠT ĐỘNG ĐÃ THAM GIA (điểm rèn luyện) — 1 PDF / 1 sinh viên / 1 học kỳ
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** 1 dòng trong bảng: tên hoạt động + nhãn mục điểm rèn luyện đã ghép sẵn (VD "Mục 3.4: ... (+5đ)"). */
+    public record XacNhanHoatDongRow(String tenHoatDong, String mucDiem) {}
+
+    /** Toàn bộ tham số dựng 1 file xác nhận cho 1 sinh viên. */
+    public record XacNhanHoatDongRequest(
+            String maSv, String hoTen, String maLop, String tenKhoa, String tenNganh,
+            String ngayStr,
+            List<XacNhanHoatDongRow> hoatDongs,
+            Long chuKyNguoiLapId, String tenNguoiLap, String chucVuNguoiLap,
+            Long conDauId,
+            Boolean apDungGiapLai,
+            Boolean khoaFilePdf
+    ) {}
+
+    /** Xuất PDF xác nhận (đã ký số + khoá theo cấu hình) cho 1 sinh viên. */
+    public byte[] xuatXacNhanHoatDong(XacNhanHoatDongRequest req) throws IOException {
+        return xuatXacNhanHoatDong(req, null);
+    }
+
+    /**
+     * Cho phép truyền sẵn 1 {@link SigningIdentity} (sinh 1 lần) khi xuất NHIỀU file liên tiếp
+     * cho CÙNG 1 người ký (VD: xuất xác nhận hoạt động cho cả trường) — tránh sinh khoá RSA mới
+     * (tốn CPU) cho từng sinh viên, giúp mỗi lượt xử lý nhanh và ngắn hơn nhiều.
+     */
+    public byte[] xuatXacNhanHoatDong(XacNhanHoatDongRequest req, SigningIdentity signingIdentity) throws IOException {
+        DraftResult draft = buildXacNhanDraftPDF(req);
+
+        byte[] imgNguoiLap = loadOptionalImage(req.chuKyNguoiLapId(), chuKyRepository);
+        byte[] imgConDau   = req.conDauId() != null ? loadImageFromConDau(req.conDauId()) : null;
+
+        byte[] pdf = applyXacNhanSignatureImage(draft, imgNguoiLap, imgConDau);
+
+        if (Boolean.TRUE.equals(req.apDungGiapLai()) && imgConDau != null) {
+            pdf = applyGiapLai(pdf, imgConDau);
+        }
+        if (Boolean.TRUE.equals(req.khoaFilePdf())) {
+            pdf = applyPdfLock(pdf);
+        }
+        try {
+            return signingIdentity != null
+                    ? signWithCertificate(pdf, signingIdentity)
+                    : signWithCertificate(pdf, req.tenNguoiLap());
+        } catch (Exception e) {
+            log.warn("Không thể ký số xác nhận hoạt động cho SV {}, dùng PDF thường: {}",
+                    req.maSv(), e.getMessage());
+            return pdf;
+        }
+    }
+
+    private static final float XN_MARGIN = 56.7f; // ~2cm
+
+    private DraftResult buildXacNhanDraftPDF(XacNhanHoatDongRequest req) throws IOException {
+        float mL = XN_MARGIN, mR = XN_MARGIN, mT = XN_MARGIN, mB = XN_MARGIN, rH = ROW_H;
+        float[] colWidths = {30f, 280f, PAGE_W - mL - mR - 30f - 280f};
+        String[] headers = {"STT", "TÊN HOẠT ĐỘNG", "MỤC CỘNG ĐIỂM RÈN LUYỆN"};
+        float tableW = PAGE_W - mL - mR;
+
+        float midX    = PAGE_W / 2f;
+        float leftCX  = mL + (midX - mL) / 2f;
+        float rightCX = midX + (PAGE_W - mR - midX) / 2f;
+        float minY    = mB + SIG_BLOCK_H + 10f;
+
+        List<XacNhanHoatDongRow> rows = req.hoatDongs() != null ? req.hoatDongs() : List.of();
+        List<EditZone> editZones = new ArrayList<>();
+        float sigBlockTopY = 0f;
+
+        try (PDDocument doc = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            PDFont fontReg  = loadFont(doc, false, null);
+            PDFont fontBold = loadFont(doc, true, null);
+
+            PDPage page = new PDPage(PDRectangle.A4);
+            doc.addPage(page);
+            PDPageContentStream cs = new PDPageContentStream(doc, page);
+            float y = PAGE_H - mT;
+
+            y = drawHeader(cs, fontReg, fontBold, y, req.ngayStr(), null, mL, mR);
+            y -= 10f;
+            y = drawTitle(cs, fontBold, "XÁC NHẬN HOẠT ĐỘNG ĐÃ THAM GIA", y, mL, mR);
+            y -= 14f;
+
+            y = drawXacNhanInfoBlock(cs, fontReg, fontBold, y, req, mL);
+            y -= 12f;
+
+            if (y - HEADER_ROW_H - rH < minY) {
+                cs.close();
+                PDPage np = new PDPage(PDRectangle.A4); doc.addPage(np);
+                cs = new PDPageContentStream(doc, np); y = PAGE_H - mT;
+            }
+            y = drawTableHeader(cs, fontBold, y, colWidths, headers, mL);
+
+            if (rows.isEmpty()) {
+                drawCell(cs, mL, y - rH, tableW, rH, false, false);
+                cs.setFont(fontReg, 9.5f);
+                drawText(cs, "Không có hoạt động nào được ghi nhận trong học kỳ này.", mL + 6f, y - 14f);
+                y -= rH;
+            } else {
+                for (int i = 0; i < rows.size(); i++) {
+                    if (y - rH < minY) {
+                        cs.close();
+                        PDPage np = new PDPage(PDRectangle.A4); doc.addPage(np);
+                        cs = new PDPageContentStream(doc, np); y = PAGE_H - mT;
+                        y = drawTableHeader(cs, fontBold, y, colWidths, headers, mL);
+                    }
+                    XacNhanHoatDongRow row = rows.get(i);
+                    boolean even = (i % 2 == 0);
+                    float x = mL;
+
+                    drawCell(cs, x, y - rH, colWidths[0], rH, false, even);
+                    cs.setFont(fontReg, 9.5f);
+                    String sttStr = String.valueOf(i + 1);
+                    float sttW = strWidth(fontReg, 9.5f, sttStr);
+                    drawText(cs, sttStr, x + (colWidths[0] - sttW) / 2f, y - 14f);
+                    x += colWidths[0];
+
+                    drawCell(cs, x, y - rH, colWidths[1], rH, false, even);
+                    // drawWrappedCellText() tính điểm xuống dòng với cỡ chữ CỐ ĐỊNH 8.5f bên trong
+                    // nó — phải set cs font đúng 8.5f trước khi gọi, nếu không dòng chữ thật sự vẽ
+                    // ra sẽ RỘNG HƠN mức đã đo (VD lỡ set 9.5f), tràn khỏi cột và đè lên cột kế bên
+                    // (đúng bug từng gặp: tên hoạt động dài đè lên cột "Mục cộng điểm rèn luyện").
+                    cs.setFont(fontReg, 8.5f);
+                    drawWrappedCellText(cs, fontReg, row.tenHoatDong() != null ? row.tenHoatDong() : "",
+                            x, y, colWidths[1] - 8f);
+                    x += colWidths[1];
+
+                    drawCell(cs, x, y - rH, colWidths[2], rH, false, even);
+                    cs.setFont(fontReg, 8.5f);
+                    drawWrappedCellText(cs, fontReg, row.mucDiem() != null ? row.mucDiem() : "",
+                            x, y, colWidths[2] - 8f);
+
+                    y -= rH;
+                }
+            }
+
+            y -= 24f;
+            if (y - SIG_BLOCK_H < mB) {
+                cs.close();
+                PDPage np = new PDPage(PDRectangle.A4); doc.addPage(np);
+                cs = new PDPageContentStream(doc, np); y = PAGE_H - mT - 24f;
+            }
+            sigBlockTopY = PAGE_H - y;
+            drawXacNhanSignBlock(cs, fontBold, fontReg, y, req.ngayStr(), req.tenNguoiLap(), rightCX);
+
+            cs.close();
+            doc.save(out);
+            return new DraftResult(out.toByteArray(), sigBlockTopY, leftCX, rightCX, editZones);
+        }
+    }
+
+    /** Khối thông tin sinh viên: Mã số SV / Họ và tên / Mã Lớp / Khoa / Ngành — mỗi dòng 1 nhãn:giá trị. */
+    private float drawXacNhanInfoBlock(PDPageContentStream cs, PDFont fontReg, PDFont fontBold,
+                                        float y, XacNhanHoatDongRequest req, float mL) throws IOException {
+        String[][] fields = {
+                {"Mã số sinh viên: ", req.maSv()},
+                {"Họ và tên: ",       req.hoTen()},
+                {"Mã Lớp: ",          req.maLop()},
+                {"Khoa: ",            req.tenKhoa()},
+                {"Ngành: ",           req.tenNganh()},
+        };
+        float lineH = 17f;
+        cs.setFont(fontBold, 11f);
+        for (String[] field : fields) {
+            String label = field[0];
+            String value = field[1] != null ? field[1] : "";
+            cs.setFont(fontBold, 11f);
+            drawText(cs, label, mL, y);
+            float labelW = strWidth(fontBold, 11f, label);
+            cs.setFont(fontReg, 11f);
+            drawText(cs, value, mL + labelW, y);
+            y -= lineH;
+        }
+        return y;
+    }
+
+    /** Khối ký 1 người ("NGƯỜI LẬP") — chỉ 1 cột bên phải, giống drawClbSignBlock. */
+    private void drawXacNhanSignBlock(PDPageContentStream cs, PDFont fontBold, PDFont fontReg,
+                                       float y, String ngayStr, String tenNguoiLap, float rightCX) throws IOException {
+        cs.setFont(fontReg, 10f);
+        if (ngayStr != null && !ngayStr.isBlank()) {
+            float tw = strWidth(fontReg, 10f, ngayStr);
+            drawText(cs, ngayStr, rightCX - tw / 2f, y);
+        }
+        y -= 18f;
+
+        cs.setFont(fontBold, 11f);
+        String label = "NGƯỜI LẬP";
+        float tw = strWidth(fontBold, 11f, label);
+        drawText(cs, label, rightCX - tw / 2f, y);
+        y -= 60f; // chỗ cho ảnh chữ ký
+
+        cs.setFont(fontBold, 11f);
+        if (tenNguoiLap != null && !tenNguoiLap.isBlank()) {
+            tw = strWidth(fontBold, 11f, tenNguoiLap);
+            drawText(cs, tenNguoiLap, rightCX - tw / 2f, y);
+        }
+    }
+
+    /** Áp ảnh chữ ký "Người lập" (phải) + con dấu (trái, tuỳ chọn) vào trang cuối. */
+    private byte[] applyXacNhanSignatureImage(DraftResult draft, byte[] imgNguoiLap, byte[] imgConDau)
+            throws IOException {
+        try (PDDocument doc = Loader.loadPDF(draft.pdf());
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            PDPage lastPage = doc.getPage(doc.getNumberOfPages() - 1);
+            float sigW = 90f, sigH = 52f, stW = 95f, stH = 60f;
+
+            float sigTextTopPdfY = PAGE_H - draft.sigBlockTopY();
+            float defaultImgY    = sigTextTopPdfY - 18f - 4f - sigH;
+            float rightCX = draft.rightCX();
+            float leftCX  = draft.leftCX();
+
+            try (PDPageContentStream cs = new PDPageContentStream(doc, lastPage,
+                    PDPageContentStream.AppendMode.APPEND, true, true)) {
+                if (imgNguoiLap != null) {
+                    PDImageXObject sig = PDImageXObject.createFromByteArray(doc, imgNguoiLap, "chuky");
+                    cs.drawImage(sig, rightCX - sigW / 2f, defaultImgY, sigW, sigH);
+                }
+                if (imgConDau != null) {
+                    PDImageXObject stamp = PDImageXObject.createFromByteArray(doc, imgConDau, "condau");
+                    cs.drawImage(stamp, leftCX - stW / 2f, defaultImgY - 4f, stW, stH);
+                }
+            }
+            doc.save(out);
+            return out.toByteArray();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // AUDIT LOG
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -1498,29 +1728,39 @@ public class KySoService {
      * @param signerName Tên người ký (điền vào metadata của chữ ký số)
      * @return PDF đã được ký số (incremental update, không mất nội dung gốc)
      */
-    private byte[] signWithCertificate(byte[] pdfBytes, String signerName) throws Exception {
-        // Đăng ký BouncyCastle provider (idempotent nếu đã có)
+    /** Cặp khoá + chứng chỉ self-signed dùng để ký — sinh 1 lần, dùng lại được cho nhiều PDF của CÙNG 1 người ký. */
+    public record SigningIdentity(KeyPair keyPair, X509Certificate cert, String cn) {}
+
+    /**
+     * Sinh cặp khoá RSA-2048 + chứng chỉ self-signed cho 1 người ký. Việc sinh khoá RSA khá tốn
+     * CPU (~100-300ms) — public để nơi cần ký NHIỀU file liên tiếp cho CÙNG 1 người (VD: xuất
+     * xác nhận hoạt động cho cả trường) sinh 1 lần rồi dùng lại, thay vì tốn thời gian này lại
+     * từ đầu cho mỗi file — tránh giữ transaction/HTTP request mở quá lâu khi xử lý hàng loạt.
+     */
+    public SigningIdentity taoSigningIdentity(String signerName) throws Exception {
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
-
-        // 1. Sinh RSA-2048 key pair
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", BouncyCastleProvider.PROVIDER_NAME);
         kpg.initialize(2048, new SecureRandom());
         KeyPair keyPair = kpg.generateKeyPair();
-
-        // 2. Xây dựng self-signed X.509 certificate (hạn 10 năm)
         String cn = (signerName != null && !signerName.isBlank()) ? signerName : "DOAN KGU";
-        X509Certificate cert = buildSelfSignedCert(keyPair, cn);
+        return new SigningIdentity(keyPair, buildSelfSignedCert(keyPair, cn), cn);
+    }
 
-        // 3. Load PDF và thiết lập incremental signing
+    private byte[] signWithCertificate(byte[] pdfBytes, String signerName) throws Exception {
+        return signWithCertificate(pdfBytes, taoSigningIdentity(signerName));
+    }
+
+    /** Ký bằng 1 SigningIdentity đã có sẵn (tái dùng — không sinh khoá mới). */
+    public byte[] signWithCertificate(byte[] pdfBytes, SigningIdentity identity) throws Exception {
         try (PDDocument doc = Loader.loadPDF(pdfBytes);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             PDSignature pdSig = new PDSignature();
             pdSig.setFilter(PDSignature.FILTER_ADOBE_PPKLITE);
             pdSig.setSubFilter(PDSignature.SUBFILTER_ADBE_PKCS7_DETACHED);
-            pdSig.setName(cn);
+            pdSig.setName(identity.cn());
             pdSig.setLocation("An Giang, Viet Nam");
             pdSig.setReason("Xac nhan danh sach tham gia hoat dong Doan");
             pdSig.setSignDate(Calendar.getInstance());
@@ -1528,16 +1768,14 @@ public class KySoService {
             doc.addSignature(pdSig);
             ExternalSigningSupport ext = doc.saveIncrementalForExternalSigning(out);
 
-            // 4. Đọc nội dung cần ký
+            // Đọc nội dung cần ký
             byte[] contentBytes;
             try (InputStream is = ext.getContent()) {
                 contentBytes = is.readAllBytes();
             }
 
-            // 5. Tạo CMS detached signature bằng BouncyCastle
-            byte[] cms = computeCMSSignature(contentBytes, keyPair.getPrivate(), cert);
-
-            // 6. Nhúng signature vào PDF
+            // Tạo CMS detached signature bằng BouncyCastle + nhúng vào PDF
+            byte[] cms = computeCMSSignature(contentBytes, identity.keyPair().getPrivate(), identity.cert());
             ext.setSignature(cms);
 
             return out.toByteArray();

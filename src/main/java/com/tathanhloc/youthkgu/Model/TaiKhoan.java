@@ -108,7 +108,7 @@ public class TaiKhoan {
      * Lưu dạng JSON array string: "[\"CLB001\", \"CLB002\", ...]"
      * Dùng cho phân quyền cấp CLB - mỗi BCH chỉ quản lý CLB được gán.
      */
-    @Column(name = "managed_clb_ids", columnDefinition = "JSON DEFAULT '[]'")
+    @Column(name = "managed_clb_ids", columnDefinition = "JSON")
     @Builder.Default
     private String managedClbIds = "[]";
 

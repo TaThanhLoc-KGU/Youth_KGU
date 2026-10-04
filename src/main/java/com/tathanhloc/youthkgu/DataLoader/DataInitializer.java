@@ -1,8 +1,10 @@
 package com.tathanhloc.youthkgu.DataLoader;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tathanhloc.youthkgu.Enum.KieuSettingEnum;
 import com.tathanhloc.youthkgu.Model.*;
 import com.tathanhloc.youthkgu.Repository.*;
+import com.tathanhloc.youthkgu.Service.DiemRenLuyenCriteriaService;
 import com.tathanhloc.youthkgu.Service.SystemSettingService;
 import com.tathanhloc.youthkgu.Util.AcademicCalendarUtil;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +15,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -31,6 +36,8 @@ public class DataInitializer implements ApplicationRunner {
     private final TinTucRepository tinTucRepository;
     private final SystemSettingService systemSettingService;
     private final RoleDefaultPermissionRepository roleDefaultPermissionRepository;
+    private final DrlMauDanhGiaRepository drlMauDanhGiaRepository;
+    private final DiemRenLuyenCriteriaService diemRenLuyenCriteriaService;
 
     @Override
     @Transactional
@@ -44,6 +51,7 @@ public class DataInitializer implements ApplicationRunner {
         initializeSystemSettings();
         initializeNamHocAndHocKy();
         initializeSampleENewsData();
+        initializeDrlMauDanhGiaDefault();
         backfillTinTucTuongTacCounters();
 
         log.info("System data initialization completed!");
@@ -389,5 +397,73 @@ public class DataInitializer implements ApplicationRunner {
                     .thuTu(0)
                     .build());
         }
+    }
+
+    /**
+     * Seed 1 mẫu đánh giá điểm rèn luyện mặc định (6 danh mục I-VI, cố định theo quy chế
+     * trường) từ resources/diem-ren-luyen-criteria.json — nếu chưa có mẫu nào trong hệ
+     * thống. Không seed nếu đã tồn tại bất kỳ mẫu nào (tránh ghi đè mẫu do admin tự tạo/
+     * chỉnh sửa qua trang "Điểm rèn luyện").
+     */
+    @SuppressWarnings("unchecked")
+    private void initializeDrlMauDanhGiaDefault() {
+        if (drlMauDanhGiaRepository.count() > 0) {
+            return;
+        }
+        log.info("Chưa có mẫu đánh giá điểm rèn luyện nào — seed mẫu mặc định từ diem-ren-luyen-criteria.json...");
+
+        ObjectMapper mapper = new ObjectMapper();
+        List<DrlDanhMuc> danhMucList = new ArrayList<>();
+        int thuTuDanhMuc = 0;
+
+        for (Map<String, Object> dmMap : diemRenLuyenCriteriaService.getAllCriteria()) {
+            DrlDanhMuc danhMuc = DrlDanhMuc.builder()
+                    .maDanhMuc((String) dmMap.get("id"))
+                    .tenDanhMuc((String) dmMap.get("danh_muc"))
+                    .diemToiDa((Integer) dmMap.get("tong_diem_toi_da"))
+                    .thuTu(thuTuDanhMuc++)
+                    .build();
+
+            List<DrlTieuChi> tieuChiEntities = new ArrayList<>();
+            int thuTuTieuChi = 0;
+            List<Map<String, Object>> tieuChiList = (List<Map<String, Object>>) dmMap.get("tieu_chi");
+            if (tieuChiList != null) {
+                for (Map<String, Object> tcMap : tieuChiList) {
+                    String chiTietJson = null;
+                    Object chiTiet = tcMap.get("chi_tiet");
+                    if (chiTiet != null) {
+                        try {
+                            chiTietJson = mapper.writeValueAsString(chiTiet);
+                        } catch (Exception e) {
+                            log.warn("Không serialize được chi_tiet của tiêu chí {}: {}", tcMap.get("id"), e.getMessage());
+                        }
+                    }
+                    tieuChiEntities.add(DrlTieuChi.builder()
+                            .danhMuc(danhMuc)
+                            .maTieuChi((String) tcMap.get("id"))
+                            .noiDung((String) tcMap.get("noi_dung"))
+                            .diemToiDa((Integer) tcMap.get("diem_toi_da"))
+                            .chiTiet(chiTietJson)
+                            .thuTu(thuTuTieuChi++)
+                            .build());
+                }
+            }
+            danhMuc.setTieuChiList(tieuChiEntities);
+            danhMucList.add(danhMuc);
+        }
+
+        DrlMauDanhGia mau = DrlMauDanhGia.builder()
+                .tenMau("Mẫu đánh giá điểm rèn luyện chuẩn")
+                .moTa("Mẫu mặc định theo quy chế đánh giá điểm rèn luyện của Trường — 6 danh mục, "
+                        + "thang 100 điểm (Mục VI là điểm cộng ngoài khung).")
+                .phienBan(1)
+                .isActive(true)
+                .createdBy("system")
+                .danhMucList(danhMucList)
+                .build();
+        danhMucList.forEach(dm -> dm.setMau(mau));
+
+        drlMauDanhGiaRepository.save(mau);
+        log.info("Đã tạo mẫu đánh giá điểm rèn luyện mặc định ({} danh mục) và kích hoạt.", danhMucList.size());
     }
 }
