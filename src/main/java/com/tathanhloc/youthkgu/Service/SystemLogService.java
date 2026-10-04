@@ -8,21 +8,30 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.Executor;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service @Slf4j @RequiredArgsConstructor
 public class SystemLogService {
-    private final SystemLogRepository repo;
+    private static final int MAX_COL = 255; // user_agent / request_url / ip_address là VARCHAR(255)
 
-    @Async
+    private final SystemLogRepository repo;
+    @Qualifier("taskExecutor")
+    private final Executor taskExecutor;
+
+    /**
+     * KHÔNG đánh dấu @Async: IP/User-Agent/URL phải được đọc ngay ở luồng của request. Nếu để @Async thì khi chạy ở luồng nền,
+     * HttpServletRequest đã bị Tomcat thu hồi và RequestContextHolder (theo luồng) rỗng ⇒ mọi thông tin request đều null.
+     * Chỉ việc ghi DB mới chạy ở luồng nền (transaction riêng, nên log lỗi không bị rollback theo giao dịch của nơi gọi).
+     */
     public void log(String module, String action, String userId, String userName,
                     String entityType, String entityId, String message,
                     SystemLog.LogLevel level, String status,
@@ -34,25 +43,20 @@ public class SystemLogService {
             String requestMethod = null;
             String requestUrl = null;
 
-            // Request access may fail in async threads - always wrap with try-catch
             try {
-                if (request != null) {
-                    ipAddress = getClientIp(request);
-                    userAgent = request.getHeader("User-Agent");
-                    requestMethod = request.getMethod();
-                    requestUrl = request.getRequestURI();
-                } else {
+                HttpServletRequest req = request;
+                if (req == null) {
                     ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-                    if (attributes != null) {
-                        HttpServletRequest currentRequest = attributes.getRequest();
-                        ipAddress = getClientIp(currentRequest);
-                        userAgent = currentRequest.getHeader("User-Agent");
-                        requestMethod = currentRequest.getMethod();
-                        requestUrl = currentRequest.getRequestURI();
-                    }
+                    if (attributes != null) req = attributes.getRequest();
+                }
+                if (req != null) {
+                    ipAddress = getClientIp(req);
+                    userAgent = limit(req.getHeader("User-Agent"));
+                    requestMethod = req.getMethod();
+                    requestUrl = limit(req.getRequestURI());
                 }
             } catch (IllegalStateException e) {
-                // HttpServletRequest proxy is not accessible from async thread - skip request info
+                // request đã bị thu hồi (gọi từ luồng không còn gắn với request) — bỏ qua thông tin request
             }
 
             SystemLog entry = SystemLog.builder()
@@ -62,19 +66,29 @@ public class SystemLogService {
                 .message(message).logLevel(level).status(status)
                 .oldValue(oldValue).newValue(newValue)
                 .createdAt(LocalDateTime.now())
-                .ipAddress(ipAddress)
+                .ipAddress(limit(ipAddress))
                 .userAgent(userAgent)
                 .requestMethod(requestMethod)
                 .requestUrl(requestUrl)
                 .build();
-            repo.save(entry);
+
+            taskExecutor.execute(() -> {
+                try {
+                    repo.save(entry);
+                } catch (Exception e) {
+                    log.error("Lỗi ghi system log", e);
+                }
+            });
         } catch (Exception e) {
             log.error("Lỗi ghi system log", e);
         }
     }
 
+    private String limit(String v) {
+        return v != null && v.length() > MAX_COL ? v.substring(0, MAX_COL) : v;
+    }
+
     // Overload cho 8 tham số (thường dùng cho login/logout)
-    @Async
     public void log(String module, String action, String userId, String userName,
                     String message, SystemLog.LogLevel level, String status,
                     HttpServletRequest request) {
@@ -82,7 +96,6 @@ public class SystemLogService {
     }
 
     // Overload không có request (dùng cho background job)
-    @Async
     public void log(String module, String action, String userId, String userName,
                     String message, SystemLog.LogLevel level, String status) {
         log(module, action, userId, userName, null, null, message, level, status, null, null, null);
@@ -90,22 +103,18 @@ public class SystemLogService {
 
     // --- CÁC PHƯƠNG THỨC TƯƠNG THÍCH VỚI AutoLogUtil VÀ LoggingAspect ---
 
-    @Async
     public void logUserAction(String module, String action, String message, String userId, String userName) {
         log(module, action, userId, userName, message, SystemLog.LogLevel.INFO, "SUCCESS");
     }
 
-    @Async
     public void logError(String module, String action, String errorMessage, String userId) {
         log(module, action, userId, null, errorMessage, SystemLog.LogLevel.ERROR, "FAILED");
     }
 
-    @Async
     public void logSystemEvent(String action, String message, SystemLog.LogLevel level) {
         log("SYSTEM", action, "SYSTEM", "SYSTEM", message, level, "INFO");
     }
 
-    @Async
     public void logAuthentication(String action, String userId, String userName, boolean success, String message) {
         log("AUTHENTICATION", action, userId, userName, message,
                 success ? SystemLog.LogLevel.INFO : SystemLog.LogLevel.WARN,
